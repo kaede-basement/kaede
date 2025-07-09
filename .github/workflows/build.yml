@@ -1,4 +1,4 @@
-name: 'Nightly Build'
+name: 'Build'
 
 on:
   push:
@@ -71,7 +71,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Build a Tauri app (Non-Nightly)
-        if: github.ref != 'refs/heads/master'
+        if: github.ref != 'refs/heads/nightly'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,11 +85,24 @@ jobs:
 
       - name: Temporary
         run: |
-          ls -la
+          ls
 
       - name: Upload artifacts
         if: contains(github.ref, 'nightly')
         uses: actions/upload-artifact@v4
         with:
-          name: ''
-          path: ''
+          if-no-files-found: 'warn'
+          path: |
+            # Windows
+            'src-tauri\target\release\bundle\msi\kaede_0.1.0_x64_en-US.msi'
+            'src-tauri\target\release\bundle\nsis\kaede_0.1.0_x64-setup.exe'
+            # Linux
+            'src-tauri/target/release/bundle/deb/kaede_0.1.0_amd64.deb'
+            'src-tauri/target/release/bundle/rpm/kaede-0.1.0-1.x86_64.rpm'
+            'src-tauri/target/release/bundle/appimage/kaede_0.1.0_amd64.AppImag'
+            # macOS x86_64
+            'src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/kaede_0.1.0_x64.dmg'
+            'src-tauri/target/x86_64-apple-darwin/release/bundle/macos/kaede.app.tar.gz'
+            # macOS ARM
+            'src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/kaede_0.1.0_aarch64.dmg'
+            'src-tauri/target/aarch64-apple-darwin/release/bundle/macos/kaede.app.tar.gz'
