@@ -7,9 +7,8 @@
     "build": "tauri build",
     "dev:frontend": "nuxt dev",
     "build:frontend": "nuxt build",
-    "generate:frontend": "nuxt generate",
+    "generate:frontend": "nuxt prepare && nuxt generate",
     "preview": "nuxt preview",
-    "prepare": "nuxt prepare",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
