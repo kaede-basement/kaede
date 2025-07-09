@@ -64,14 +64,14 @@ jobs:
         run: bun install
 
       - name: Build a Tauri app (Nightly)
-        if: contains(github.ref, 'nightly')
+        if: github.ref == 'refs/heads/nightly'
         uses: tauri-apps/tauri-action@v0
         with:
           appName: 'App v__VERSION__'
           args: ${{ matrix.args }}
 
       - name: Build a Tauri app (Non-Nightly)
-        if: !contains(github.ref, 'nightly')
+        if: github.ref != 'refs/heads/master'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
