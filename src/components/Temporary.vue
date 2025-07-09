@@ -1,12 +1,15 @@
 <template>
   <div class="flex flex-col gap-2 items-start">
-    <button @click="notify">
+    <button class="bg-indigo" @click="notify">
       send notification
     </button>
-    <div v-if="isPending">
+    <button class="bg-indigo" @click="openDialog">
+      open dialog
+    </button>
+    <div v-if="isPending" class="h-30">
       Loading...
     </div>
-    <div v-else-if="error">
+    <div v-else-if="error" class="h-30">
       Error.
     </div>
     <div v-else>
@@ -26,8 +29,17 @@
 <script setup lang="ts">
 import { appConfigDir, BaseDirectory } from "@tauri-apps/api/path";
 import { sendNotification } from "@tauri-apps/plugin-notification";
+import { message } from "@tauri-apps/plugin-dialog";
 import { Command } from "@tauri-apps/plugin-shell";
 import { exists, readDir, writeFile } from "@tauri-apps/plugin-fs";
+
+async function openDialog() {
+  await message("This is some peak shit here",
+    {
+      title: "абсолют синема",
+      kind:  "info",
+    });
+}
 
 function notify() {
   sendNotification({
