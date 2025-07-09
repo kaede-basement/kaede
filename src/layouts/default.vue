@@ -7,9 +7,9 @@
 
 <script setup lang="ts">
 useHead({
-	bodyAttrs: {
-		class: "__nuxt-body",
-	},
+    bodyAttrs: {
+        class: "__nuxt-body",
+    },
 });
 </script>
 
