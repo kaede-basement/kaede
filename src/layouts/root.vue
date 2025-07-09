@@ -1,6 +1,6 @@
 <template>
   <NuxtRouteAnnouncer />
-	<div>
+	<div class="bg-amber">
 		<div>Some default layout content shared across all pages</div>
 		<slot />
 	</div>
