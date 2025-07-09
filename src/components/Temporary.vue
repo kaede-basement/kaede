@@ -1,17 +1,25 @@
 <template>
-  <div class="absolute flex flex-col gap-2 items-start">
+  <div class="flex flex-col gap-2 items-start">
     <button @click="notify">
       send notification
     </button>
-    <p>
-      {{ readDirectory }}
-    </p>
-    <p>
-      {{ shit.stdout }}
-    </p>
-    <p>
-      exists: {{ configExists }}
-    </p>
+    <div v-if="isPending">
+      Loading...
+    </div>
+    <div v-else-if="error">
+      Error.
+    </div>
+    <div v-else>
+      <p>
+        {{ data?.readDirectory }}
+      </p>
+      <p>
+        {{ data?.stdout }}
+      </p>
+      <p>
+        exists: {{ data?.configExists }}
+      </p>
+    </div>
   </div>
 </template>
 
@@ -28,37 +36,48 @@ function notify() {
   });
 }
 
-const appConfigDirectoryPath = await appConfigDir();
-const readDirectory = await readDir(appConfigDirectoryPath);
+const { data, isPending, error } = useQuery({
+  queryKey: ["temporary"],
+  queryFn:  async () => {
+    const appConfigDirectoryPath = await appConfigDir();
+    const readDirectory = await readDir(appConfigDirectoryPath);
 
-const configExists = await exists("config.json5", {
-  baseDir: BaseDirectory.AppConfig,
+    const configExists = await exists("config.json5", {
+      baseDir: BaseDirectory.AppConfig,
+    });
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`{
+      // can be either "dark" or "light"
+      theme: 'dark',
+      accent: 'rose',
+      language: 'ru',
+      javaPath: '',
+      proxy: {
+        address: '127.0.0.1',
+        pass: '',
+        port: 8080,
+        type: 'none',
+        user: '',
+      },
+      use: {
+        systemLocale: true,
+      },
+      minecraftWindowHeight: 480,
+      minecraftWindowWidth: 854,
+      showBackground: true,
+    }`);
+    await writeFile("config.json5", data, { baseDir: BaseDirectory.AppConfig });
+
+    const shit = await Command
+      .create("shell-allowed-java", ["--version"])
+      .execute();
+
+    return {
+      readDirectory,
+      configExists,
+      stdout: shit.stdout,
+    };
+  },
 });
-
-const encoder = new TextEncoder();
-const data = encoder.encode(`{
-  // can be either "dark" or "light"
-  theme: 'dark',
-  accent: 'rose',
-  language: 'ru',
-  javaPath: '',
-  proxy: {
-    address: '127.0.0.1',
-    pass: '',
-    port: 8080,
-    type: 'none',
-    user: '',
-  },
-  use: {
-    systemLocale: true,
-  },
-  minecraftWindowHeight: 480,
-  minecraftWindowWidth: 854,
-  showBackground: true,
-}`);
-await writeFile("config.json5", data, { baseDir: BaseDirectory.AppConfig });
-
-const shit = await Command
-  .create("shell-allowed-java", ["--version"])
-  .execute();
 </script>
