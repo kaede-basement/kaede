@@ -9,6 +9,7 @@
     "build:frontend": "nuxt build",
     "generate:frontend": "nuxt generate",
     "preview": "nuxt preview",
+    "prepare": "nuxt prepare",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
