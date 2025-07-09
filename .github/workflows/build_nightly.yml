@@ -5,7 +5,7 @@ on:
     paths-ignore:
       - ".gitignore"
       - "**.md"
-      - "flake.lock
+      - flake.lock
     branches:
       - nightly
 
