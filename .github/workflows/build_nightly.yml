@@ -58,8 +58,8 @@ jobs:
 
       - name: Verify .nuxt directory
         run: |
-          ls -la .nuxt
-          [ -f .nuxt/tsconfig.json ] && echo "tsconfig exists" || echo "tsconfig is missing"
+          ls -la
+          ls -la ../
 
       - name: Cache Bun modules
         uses: actions/cache@v3
