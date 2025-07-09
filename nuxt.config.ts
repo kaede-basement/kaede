@@ -27,6 +27,7 @@ export default defineNuxtConfig({
     "@nuxt/image",
     "@nuxt/test-utils",
     "@unocss/nuxt",
+    "@hebilicious/vue-query-nuxt",
   ],
   fonts: {
     defaults: {
