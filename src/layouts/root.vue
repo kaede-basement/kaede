@@ -18,5 +18,6 @@ useHead({
 .__nuxt-body {
 	margin: 0;
 	padding: 0;
+  font-family: Geist, Roboto, sans-serif;
 }
 </style>

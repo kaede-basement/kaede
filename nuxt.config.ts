@@ -24,6 +24,27 @@ export default defineNuxtConfig({
         "@nuxt/image",
         "@nuxt/test-utils",
     ],
+    fonts: {
+        defaults: {
+            weights: [400],
+            styles:  ["normal", "italic"],
+            subsets: [
+                "cyrillic-ext",
+                "cyrillic",
+                "greek-ext",
+                "greek",
+                "vietnamese",
+                "latin-ext",
+                "latin",
+            ],
+        },
+        families: [
+            {
+                name:     "Geist",
+                provider: "google",
+            },
+        ],
+    },
     // Avoids error [unhandledRejection] EMFILE: too many open files, watch
     ignore: ["**/src-tauri/**"],
 });

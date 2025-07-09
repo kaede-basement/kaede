@@ -18,9 +18,10 @@ export default withNuxt(
             "@stylistic/quotes":              ["error", "double"],
             "comma-dangle":                   ["error", "always-multiline"],
             "key-spacing":                    ["error", { "align": "value" }],
-            // disabled rules
+            /* disabled rules */
             "unicorn/filename-case":          ["off"],
             "vue/multi-word-component-names": ["off"],
+            "vue/no-multiple-template-root":  ["off"], // no need for this rule since vue 3.x
         },
     },
 );
