@@ -1,7 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     srcDir:            "./src",
-    buildDir:          "./build",
     compatibilityDate: "2025-05-15",
     devtools:          { enabled: true },
     // Desktop apps are fully CSR

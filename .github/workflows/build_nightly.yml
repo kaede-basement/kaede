@@ -53,14 +53,6 @@ jobs:
       - name: install frontend dependencies
         run: bun install
 
-      - name: generate nuxt artifacts
-        run: bun run postinstall
-
-      - name: Verify .nuxt directory
-        run: |
-          ls -la
-          ls -la ../
-
       - name: Cache Bun modules
         uses: actions/cache@v3
         with:
