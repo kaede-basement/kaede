@@ -21,6 +21,7 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@stylistic/eslint-plugin": "^5.1.0",
     "@tauri-apps/cli": "^2.6.2",
     "eslint-plugin-unicorn": "^59.0.1"
   }
