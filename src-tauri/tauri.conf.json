@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "org.freesmlauncher.kaede",
   "build": {
-    "frontendDist": "../build/dist",
+    "frontendDist": "../dist",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "bun run dev:frontend",
-    "beforeBuildCommand": "bun run build:frontend"
+    "beforeBuildCommand": "bun run generate:frontend"
   },
   "app": {
     "withGlobalTauri": true,
