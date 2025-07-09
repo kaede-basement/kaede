@@ -1,4 +1,5 @@
 <template>
+  <NuxtRouteAnnouncer />
 	<div>
 		<div>Some default layout content shared across all pages</div>
 		<slot />
