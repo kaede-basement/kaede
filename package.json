@@ -25,6 +25,8 @@
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.1.0",
     "@tauri-apps/cli": "^2.6.2",
-    "eslint-plugin-unicorn": "^59.0.1"
+    "@unocss/nuxt": "^66.3.3",
+    "eslint-plugin-unicorn": "^59.0.1",
+    "unocss": "^66.3.3"
   }
 }
