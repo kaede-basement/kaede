@@ -9,13 +9,37 @@
     "core:default",
     "notification:default",
     "clipboard-manager:default",
-    "shell:default",
-    "fs:default",
-    "clipboard-manager:default",
     "dialog:default",
-    "notification:default",
     "os:default",
+    "http:default",
+
     "shell:default",
-    "http:default"
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "shell-allowed-java",
+          "cmd": "java",
+          "args": true
+        },
+        {
+          "name": "shell-allowed-java-windows",
+          "cmd": "javaw",
+          "args": true
+        }
+      ]
+    },
+
+    "fs:default",
+    "fs:read-all",
+    "fs:write-all",
+    "fs:allow-rename",
+    "fs:allow-mkdir",
+    "fs:allow-exists",
+    "fs:read-dirs",
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
+    }
   ]
 }
