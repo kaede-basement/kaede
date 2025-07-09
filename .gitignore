@@ -7,6 +7,9 @@
 dist
 build
 
+# To ensure building will succeed on Github
+!.nuxt/tsconfig.json
+
 # Node dependencies
 node_modules
 
