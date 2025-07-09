@@ -53,6 +53,14 @@ jobs:
       - name: install frontend dependencies
         run: bun install
 
+      - name: generate nuxt artifacts
+        run: bun run postinstall
+
+      - name: Verify .nuxt directory
+        run: |
+          ls -la .nuxt
+          [ -f .nuxt/tsconfig.json ] && echo "tsconfig exists" || echo "tsconfig is missing"
+
       - name: Cache Bun modules
         uses: actions/cache@v3
         with:
