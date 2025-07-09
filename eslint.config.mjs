@@ -12,7 +12,7 @@ export default withNuxt(
         rules: {
             semi:                             "error",
             curly:                            "error",
-            indent:                           ["error", 4, { "SwitchCase": 1 }],
+            indent:                           ["error", 2, { "SwitchCase": 1 }],
             "object-curly-spacing":           ["error", "always"],
             "arrow-parens":                   ["error", "always"],
             "@stylistic/quotes":              ["error", "double"],
