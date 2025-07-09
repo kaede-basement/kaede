@@ -8,6 +8,9 @@ on:
       - flake.lock
     branches:
       - nightly
+      - beta
+      - rc
+      - release
 
 jobs:
   tauri:
@@ -60,8 +63,33 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Build a Tauri app
+      - name: Build a Tauri app (Nightly)
+        if: contains(github.ref, 'nightly')
         uses: tauri-apps/tauri-action@v0
         with:
           appName: 'App v__VERSION__'
           args: ${{ matrix.args }}
+
+      - name: Build a Tauri app (Non-Nightly)
+        if: !contains(github.ref, 'nightly')
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          releaseName: 'App v__VERSION__'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: Temporary
+        run: |
+          ls -la
+
+      - name: Upload artifacts
+        if: contains(github.ref, 'nightly')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ''
+          path: ''
