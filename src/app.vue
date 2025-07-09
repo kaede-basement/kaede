@@ -10,13 +10,13 @@ import "@unocss/reset/tailwind.css";
 </script>
 
 <style>
-.page-enter-active,
-.page-leave-active {
-  transition: all cubic-bezier(0.4, 0, 1, 1) 150ms;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 150ms ease;
 }
-.page-enter-from,
-.page-leave-to {
+
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
-  transform: scale3d(0.98, 0.98, 1);
 }
 </style>

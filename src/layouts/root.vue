@@ -1,6 +1,6 @@
 <template>
   <NuxtRouteAnnouncer />
-	<div class="bg-amber">
+	<div class="bg-blue">
 		<div>Some default layout content shared across all pages</div>
 		<slot />
 	</div>
@@ -8,9 +8,9 @@
 
 <script setup lang="ts">
 useHead({
-    bodyAttrs: {
-        class: "__nuxt-body",
-    },
+  bodyAttrs: {
+    class: "__nuxt-body",
+  },
 });
 </script>
 

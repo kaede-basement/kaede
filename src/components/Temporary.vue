@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-2 items-start">
+  <div class="absolute flex flex-col gap-2 items-start">
     <button @click="notify">
       send notification
     </button>
