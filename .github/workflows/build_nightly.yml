@@ -1,4 +1,4 @@
-name: 'publish'
+name: 'Nightly Build'
 
 on:
   push:
@@ -35,6 +35,10 @@ jobs:
         with:
           node-version: lts/*
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -47,19 +51,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: install a bun package manager
-        run: npm install -g bun
-
       - name: install frontend dependencies
         run: bun install
-
-      - name: Cache Bun modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.bun
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
 
       - uses: tauri-apps/tauri-action@v0
         env:
