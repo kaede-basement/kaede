@@ -2,7 +2,7 @@
 name = "kaede"
 version = "0.1.0"
 description = "A Tauri App"
-authors = ["you"]
+authors = ["windstone", "kaeeraa", "oqune"]
 license = ""
 repository = ""
 edition = "2021"
@@ -23,3 +23,12 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.6.2", features = [] }
 tauri-plugin-log = "2"
+
+# user installed plugins
+tauri-plugin-fs = "2"
+tauri-plugin-os = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-http = "2"

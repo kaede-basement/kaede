@@ -6,6 +6,16 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "notification:default",
+    "clipboard-manager:default",
+    "shell:default",
+    "fs:default",
+    "clipboard-manager:default",
+    "dialog:default",
+    "notification:default",
+    "os:default",
+    "shell:default",
+    "http:default"
   ]
 }
