@@ -1,26 +1,13 @@
 <template>
   <NuxtRouteAnnouncer />
   <NuxtLoadingIndicator />
-  <Transition name="fade">
-    <div v-show="visible" class="bg-blue duration-300">
-      <div>Some default layout content shared across all pages</div>
-      <slot />
-    </div>
-  </Transition>
+  <div class="bg-blue duration-300">
+    <div>Some default layout content shared across all pages</div>
+    <slot />
+  </div>
 </template>
 
 <script setup lang="ts">
-const visible = ref(false);
-
-// to make a transition
-watchEffect(() => {
-  const timeout = setTimeout(() => {
-    visible.value = true;
-  }, 0);
-
-  return () => clearTimeout(timeout);
-});
-
 useHead({
   bodyAttrs: {
     class: "__nuxt-body",
