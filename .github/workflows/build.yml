@@ -96,14 +96,14 @@ jobs:
 
       - name: Build a Tauri app (Non-Release)
         if: ${{!(startsWith(github.ref, 'refs/tags/'))}}
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d
         with:
           appName: '${{ steps.json_properties.outputs.productName }} v__VERSION__'
           args: ${{ matrix.args }}
 
       - name: Build a Tauri app (Release)
         if: startsWith(github.ref, 'refs/tags/')
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
