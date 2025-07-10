@@ -6,10 +6,10 @@
     <button class="bg-indigo" @click="openDialog">
       open dialog
     </button>
-    <div v-if="isPending" class="h-30">
+    <div v-if="isPending" class="h-36">
       Loading...
     </div>
-    <div v-else-if="error" class="h-30">
+    <div v-else-if="error" class="h-36">
       Error.
     </div>
     <div v-else>
@@ -60,27 +60,27 @@ const { data, isPending, error } = useQuery({
 
     const encoder = new TextEncoder();
     // use json, json5
-    const data = encoder.encode(`{
+    const data = encoder.encode(JSON.stringify({
       // can be either "dark" or "light"
-      theme: 'dark',
-      accent: 'rose',
-      language: 'ru',
-      javaPath: '',
-      proxy: {
-        address: '127.0.0.1',
-        pass: '',
-        port: 8080,
-        type: 'none',
-        user: '',
+      theme:    "dark",
+      accent:   "rose",
+      language: "ru",
+      javaPath: "",
+      proxy:    {
+        address: "127.0.0.1",
+        pass:    "",
+        port:    8080,
+        type:    "none",
+        user:    "",
       },
       use: {
         systemLocale: true,
       },
       minecraftWindowHeight: 480,
-      minecraftWindowWidth: 854,
-      showBackground: true,
-    }`);
-    await writeFile("config.json5", data, { baseDir: BaseDirectory.AppConfig });
+      minecraftWindowWidth:  854,
+      showBackground:        true,
+    }, null, 2));
+    await writeFile("config.json", data, { baseDir: BaseDirectory.AppConfig });
 
     const shit = await Command
       .create("shell-allowed-java", ["--version"])

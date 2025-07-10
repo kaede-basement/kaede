@@ -92,6 +92,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
+          name: 'kaede-nightly-windows-nsis'
           path: './src-tauri/target/release/bundle/nsis/kaede_0.1.0_x64-setup.exe'
 
       - name: Upload binary (Windows, MSI)
@@ -99,6 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
+          name: 'kaede-nightly-windows-msi'
           path: './src-tauri/target/release/bundle/msi/kaede_0.1.0_x64_en-US.msi'
 
       - name: Upload binary (Linux, DEB)
@@ -106,6 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
+          name: 'kaede-nightly-linux-deb'
           path: './src-tauri/target/release/bundle/deb/kaede_0.1.0_amd64.deb'
 
       - name: Upload binary (Linux, RPM)
@@ -113,6 +116,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
+          name: 'kaede-nightly-linux-rpm'
           path: './src-tauri/target/release/bundle/rpm/kaede-0.1.0-1.x86_64.rpm'
 
       - name: Upload binary (Linux, AppImage)
@@ -120,6 +124,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
+          name: 'kaede-nightly-linux-app-image'
           path: './src-tauri/target/release/bundle/appimage/kaede_0.1.0_amd64.AppImage'
 
       - name: Upload binary (macOS, x86_64, DMG)
@@ -127,6 +132,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
+          name: 'kaede-nightly-macos-x86_64-dmg'
           path: './src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/kaede_0.1.0_x64.dmg'
 
       - name: Upload binary (macOS, x86_64, tarball)
@@ -134,6 +140,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
+          name: 'kaede-nightly-macos-x86_64-tarball'
           path: './src-tauri/target/x86_64-apple-darwin/release/bundle/macos/kaede.app.tar.gz'
 
       - name: Upload binary (macOS, ARM, DMG)
@@ -141,6 +148,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
+          name: 'kaede-nightly-macos-arm-dmg'
           path: './src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/kaede_0.1.0_aarch64.dmg'
 
       - name: Upload binary (macOS, ARM, tarball)
@@ -148,4 +156,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
+          name: 'kaede-nightly-macos-arm-tarball'
           path: './src-tauri/target/aarch64-apple-darwin/release/bundle/macos/kaede.app.tar.gz'
