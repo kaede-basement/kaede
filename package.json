@@ -29,7 +29,6 @@
     "@tauri-apps/plugin-shell": "~2",
     "@unocss/reset": "^66.3.3",
     "eslint": "^9.0.0",
-    "json5": "^2.2.3",
     "nuxt": "^3.17.6",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"
