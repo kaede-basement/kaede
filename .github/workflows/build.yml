@@ -66,10 +66,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Use version from Github Tag
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Use version from Github Tag (Non-Windows)
+        if: startsWith(github.ref, 'refs/tags/') && matrix.name != 'Windows'
         run: |
-          export TAG_NAME="${GITHUB_REF#refs/tags/}"
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "APP_VERSION=${TAG_NAME}" >> $GITHUB_ENV
+
+      - name: Use version from Github Tag (Windows)
+        if: startsWith(github.ref, 'refs/tags/') && matrix.name == 'Windows'
+        run: |
+          $TAG_NAME = $env:GITHUB_REF -replace 'refs/tags/', ''
           echo "APP_VERSION=${TAG_NAME}" >> $GITHUB_ENV
 
       - name: Bump tauri.conf.json version
