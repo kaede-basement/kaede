@@ -2179,7 +2179,7 @@ dependencies = [
 
 [[package]]
 name = "kaede"
-version = "0.0.0-beta"
+version = "0.0.0"
 dependencies = [
  "log",
  "serde",
