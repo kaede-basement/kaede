@@ -8,9 +8,16 @@ on:
       - flake.lock
     branches:
       - nightly
+      - beta
+      - rc
+      - release
     tags:
       - "*"
   workflow_dispatch:
+
+env:
+  # default value, will be overwritten later if tag exists
+  APP_VERSION: "0.0.0"
 
 jobs:
   tauri:
@@ -51,7 +58,6 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install dependencies (Ubuntu only)
@@ -60,18 +66,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Bump tauri.conf.json version (Non-Nightly)
-        if: github.ref_name != 'nightly'
+      - name: Use version from Github Tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "APP_VERSION=${TAG_NAME}" >> $GITHUB_ENV
+
+      - name: Bump tauri.conf.json version
         uses: restackio/update-json-file-action@2.1
         with:
           file: "./src-tauri/tauri.conf.json"
-          fields: "{\"version\": \"${{ github.event.base_ref }}\"}"
+          fields: "{\"version\": \"${{ env.APP_VERSION }}\"}"
 
-      - name: Bump Cargo.toml version (Non-Nightly)
-        if: github.ref_name != 'nightly'
-        uses: tj-actions/cargo-bump@v3
+      - name: Bump Cargo.toml version
+        uses: colt-1/toml-editor@1.1.1
         with:
-          working-directory: './src-tauri/'
+          file: "./src-tauri/Cargo.toml"
+          key: "package.version"
+          value: "${{ env.APP_VERSION }}"
 
       - name: Install frontend dependencies
         run: bun install
