@@ -76,7 +76,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') && matrix.name == 'Windows'
         run: |
           $TAG_NAME = $env:GITHUB_REF -replace 'refs/tags/', ''
-          echo "APP_VERSION=${TAG_NAME}" >> $GITHUB_ENV
+          echo "APP_VERSION=$TAG_NAME" >> $env:GITHUB_ENV
 
       - name: Bump tauri.conf.json version
         uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
