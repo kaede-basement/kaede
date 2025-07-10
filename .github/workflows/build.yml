@@ -8,8 +8,6 @@ on:
       - flake.lock
     branches:
       - nightly
-      - beta
-      - rc
     tags:
       - "*"
   workflow_dispatch:
@@ -63,14 +61,14 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Bump tauri.conf.json version (Non-Nightly)
-        if: github.ref != 'refs/heads/nightly'
+        if: github.event.base_ref != 'refs/heads/nightly'
         uses: restackio/update-json-file-action@2.1
         with:
           file: "./src-tauri/tauri.conf.json"
           fields: "{\"version\": \"1.0.9\"}"
 
       - name: Bump Cargo.toml version (Non-Nightly)
-        if: github.ref != 'refs/heads/nightly'
+        if: github.event.base_ref != 'refs/heads/nightly'
         uses: ciiiii/toml-editor@1.0.0
         with:
           file: "./src-tauri/Cargo.toml"
@@ -81,14 +79,14 @@ jobs:
         run: bun install
 
       - name: Build a Tauri app (Nightly)
-        if: github.ref == 'refs/heads/nightly'
+        if: github.event.base_ref == 'refs/heads/nightly'
         uses: tauri-apps/tauri-action@v0
         with:
           appName: 'App v__VERSION__'
           args: ${{ matrix.args }}
 
       - name: Build a Tauri app (Non-Nightly)
-        if: github.ref != 'refs/heads/nightly'
+        if: github.event.base_ref != 'refs/heads/nightly'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -97,95 +95,91 @@ jobs:
           releaseName: 'App v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ github.event.base_ref != 'refs/heads/release' }}
           args: ${{ matrix.args }}
 
-      - name: Get current version
+      - name: Get current build info
         id: json_properties
         uses: ActionsTools/read-json-action@main
         with:
           file_path: "./src-tauri/tauri.conf.json"
 
-      - run: |
-          echo ${{steps.json_properties.outputs.productName}}
-          echo ${{steps.json_properties.outputs.version}}
-
       - name: Upload binary (Windows, NSIS)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-windows-nsis'
-          path: './src-tauri/target/release/bundle/nsis/${{ steps.json_properties.outputs.productName }}_0.0.0_x64-setup.exe'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-windows-nsis-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
+          path: './src-tauri/target/release/bundle/nsis/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64-setup.exe'
 
       - name: Upload binary (Windows, MSI)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-windows-msi'
-          path: './src-tauri/target/release/bundle/msi/${{ steps.json_properties.outputs.productName }}_0.0.0_x64_en-US.msi'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-windows-msi-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
+          path: './src-tauri/target/release/bundle/msi/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64_en-US.msi'
 
       - name: Upload binary (Windows, portable)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-windows-portable'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-windows-portable-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
           path: './src-tauri/target/release/${{ steps.json_properties.outputs.productName }}.exe'
 
       - name: Upload binary (Linux, DEB)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-linux-deb'
-          path: './src-tauri/target/release/bundle/deb/${{ steps.json_properties.outputs.productName }}_0.0.0_amd64.deb'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-linux-deb-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
+          path: './src-tauri/target/release/bundle/deb/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_amd64.deb'
 
       - name: Upload binary (Linux, RPM)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-linux-rpm'
-          path: './src-tauri/target/release/bundle/rpm/${{ steps.json_properties.outputs.productName }}-0.0.0-1.x86_64.rpm'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-linux-rpm-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
+          path: './src-tauri/target/release/bundle/rpm/${{ steps.json_properties.outputs.productName }}-${{steps.json_properties.outputs.version}}-1.x86_64.rpm'
 
       - name: Upload binary (Linux, AppImage)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-linux-app-image'
-          path: './src-tauri/target/release/bundle/appimage/${{ steps.json_properties.outputs.productName }}_0.0.0_amd64.AppImage'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-linux-app-image-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
+          path: './src-tauri/target/release/bundle/appimage/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_amd64.AppImage'
 
       - name: Upload binary (macOS, x86_64, DMG)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-macos-x86_64-dmg'
-          path: './src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_0.0.0_x64.dmg'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-macos-x86_64-dmg-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
+          path: './src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64.dmg'
 
       - name: Upload binary (macOS, x86_64, tarball)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-macos-x86_64-tarball'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-macos-x86_64-tarball-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
           path: './src-tauri/target/x86_64-apple-darwin/release/bundle/macos/${{ steps.json_properties.outputs.productName }}.app.tar.gz'
 
       - name: Upload binary (macOS, ARM, DMG)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-macos-arm-dmg'
-          path: './src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_0.0.0_aarch64.dmg'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-macos-arm-dmg-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
+          path: './src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_aarch64.dmg'
 
       - name: Upload binary (macOS, ARM, tarball)
-        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
+        if: (github.event.base_ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          name: '${{ steps.json_properties.outputs.productName }}-nightly-macos-arm-tarball'
+          name: '${{ steps.json_properties.outputs.productName }}-nightly-macos-arm-tarball-${{steps.json_properties.outputs.version}}-${{ github.event.base_ref }}'
           path: './src-tauri/target/aarch64-apple-darwin/release/bundle/macos/${{ steps.json_properties.outputs.productName }}.app.tar.gz'
