@@ -6,7 +6,10 @@
   <div class="flex w-full h-[100vh] bg-white bg-opacity-80">
     <Sidebar />
     <div class="flex overflow-clip w-full">
-      <slot />
+      <div class="w-full overflow-auto [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:transition [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#6F7279] [&::-webkit-scrollbar-thumb:hover]:bg-[#5C5F66] ![&::-webkit-scrollbar-thumb:active]:bg-[#3A3D45]">
+        <slot />
+        <slot />
+      </div>
     </div>
   </div>
 </template>
