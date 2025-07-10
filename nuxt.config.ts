@@ -50,6 +50,7 @@ export default defineNuxtConfig({
     "@unocss/nuxt",
     // Configures Tanstack Query for Nuxt
     "@hebilicious/vue-query-nuxt",
+    "@pinia/nuxt",
   ],
   fonts: {
     // What font weights, styles and subsets to load for each font

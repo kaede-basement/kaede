@@ -3,9 +3,11 @@
   <NuxtRouteAnnouncer />
   <!-- show loading bar at the top of the page -->
   <NuxtLoadingIndicator />
-  <div class="flex h-[100vh] bg-white bg-opacity-80">
+  <div class="flex w-full h-[100vh] bg-white bg-opacity-80">
     <Sidebar />
-    <slot />
+    <div class="flex overflow-clip w-full">
+      <slot />
+    </div>
   </div>
 </template>
 
