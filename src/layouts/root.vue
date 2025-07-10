@@ -29,17 +29,19 @@ useHead({
 </script>
 
 <style>
+/* apply transitions for opacity */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 150ms ease;
+  transition: opacity 100ms ease;
 }
 
-/* Initial state for entering, and final state for leaving */
+/* initial state for entering, and final state for leaving */
 .fade-enter-from,
 .fade-leave-to {
-  opacity: 0; /* Start with opacity 0 (invisible) */
+  opacity: 0; /* start with opacity 0 (invisible) */
 }
 
+/* html document <body /> element */
 .__nuxt-body {
 	margin: 0;
 	padding: 0;

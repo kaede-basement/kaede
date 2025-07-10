@@ -1,14 +1,32 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  // Leave it as it is
+  compatibilityDate: "2025-05-15",
+
+  // Enable View Transition API to animate page navigation
+  // we will disable it in the middleware if user disabled transitions in the config
   experimental: {
     viewTransition: true,
   },
-  srcDir:            "./src",
-  compatibilityDate: "2025-05-15",
-  devtools:          { enabled: true },
-  // Desktop apps are fully CSR
-  ssr:               false,
-  vite:              {
+  app: {
+    // Enable old page transitions. We will disable it in the middleware,
+    // if user's webview already supports View Transition API
+    // we will also disable it in the middleware if user disabled transitions in the config
+    pageTransition: {
+      // Use "fade" as a transition name to use styles from ~/src/layouts/root.vue
+      name: "fade",
+      // New pages should appear only after the current page's animation has ended
+      mode: "out-in",
+    },
+  },
+  // Nuxt source code directory
+  srcDir:   "./src",
+  devtools: {
+    enabled: true,
+  },
+  // Desktop apps are fully CSR, so we disable Server-Side Rendering
+  ssr:  false,
+  // Vite configuration
+  vite: {
     // Better support for Tauri CLI output
     clearScreen: false,
     // Enable environment variables
@@ -20,6 +38,9 @@ export default defineNuxtConfig({
       strictPort: true,
     },
   },
+  // Nuxt modules
+  // Additional modules can be found at
+  // https://nuxt.com/modules
   modules: [
     "@nuxt/eslint",
     "@nuxt/fonts",
@@ -27,9 +48,11 @@ export default defineNuxtConfig({
     "@nuxt/image",
     "@nuxt/test-utils",
     "@unocss/nuxt",
+    // Configures Tanstack Query for Nuxt
     "@hebilicious/vue-query-nuxt",
   ],
   fonts: {
+    // What font weights, styles and subsets to load for each font
     defaults: {
       weights: [400],
       styles:  ["normal", "italic"],
@@ -43,6 +66,8 @@ export default defineNuxtConfig({
         "latin",
       ],
     },
+    // Load Geist font
+    // https://vercel.com/font
     families: [
       {
         name:     "Geist",
@@ -50,6 +75,6 @@ export default defineNuxtConfig({
       },
     ],
   },
-  // Avoids error [unhandledRejection] EMFILE: too many open files, watch
+  // Avoid error [unhandledRejection] EMFILE: too many open files, watch
   ignore: ["**/src-tauri/**"],
 });

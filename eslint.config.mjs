@@ -4,7 +4,9 @@ import stylistic from "@stylistic/eslint-plugin";
 import eslintPluginUnicorn from "eslint-plugin-unicorn";
 
 export default withNuxt(
+  // unicorn's eslint plugin configuration
   eslintPluginUnicorn.configs.recommended,
+  // user defined eslint configuration
   {
     plugins: {
       "@stylistic": stylistic,
