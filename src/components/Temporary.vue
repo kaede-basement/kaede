@@ -59,6 +59,7 @@ const { data, isPending, error } = useQuery({
     });
 
     const encoder = new TextEncoder();
+    // use json, json5
     const data = encoder.encode(`{
       // can be either "dark" or "light"
       theme: 'dark',
