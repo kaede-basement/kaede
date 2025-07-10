@@ -3,13 +3,16 @@
   <NuxtRouteAnnouncer />
   <!-- show loading bar at the top of the page -->
   <NuxtLoadingIndicator />
-  <div class="">
+  <div class="flex h-[100vh] bg-white bg-opacity-80">
+    <Sidebar />
     <slot />
   </div>
 </template>
 
 <script setup lang="ts">
 // assign a "__nuxt-body" class to <body />
+import Sidebar from "~/components/layout/Sidebar.vue";
+
 useHead({
   bodyAttrs: {
     class: "__nuxt-body",

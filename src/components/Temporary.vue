@@ -9,12 +9,12 @@
     <div v-if="isPending" class="h-36">
       Loading...
     </div>
-    <div v-else-if="error" class="h-36">
+    <div v-else-if="isError" class="h-36">
       Error.
     </div>
     <div v-else>
       <p>
-        {{ data?.readDirectory }}
+        {{ data.readDirectory }}
       </p>
       <p>
         {{ data?.stdout }}
@@ -48,7 +48,7 @@ function notify() {
   });
 }
 
-const { data, isPending, error } = useQuery({
+const { data, isPending, isError } = useQuery({
   queryKey: ["temporary"],
   queryFn:  async () => {
     const appConfigDirectoryPath = await appConfigDir();
