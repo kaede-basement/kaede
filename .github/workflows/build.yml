@@ -87,22 +87,65 @@ jobs:
         run: |
           ls
 
-      - name: Upload artifacts
-        if: contains(github.ref, 'nightly')
+      - name: Upload binary (Windows, NSIS)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
-          path: |
-            # Windows
-            'src-tauri\target\release\bundle\msi\kaede_0.1.0_x64_en-US.msi'
-            'src-tauri\target\release\bundle\nsis\kaede_0.1.0_x64-setup.exe'
-            # Linux
-            'src-tauri/target/release/bundle/deb/kaede_0.1.0_amd64.deb'
-            'src-tauri/target/release/bundle/rpm/kaede-0.1.0-1.x86_64.rpm'
-            'src-tauri/target/release/bundle/appimage/kaede_0.1.0_amd64.AppImag'
-            # macOS x86_64
-            'src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/kaede_0.1.0_x64.dmg'
-            'src-tauri/target/x86_64-apple-darwin/release/bundle/macos/kaede.app.tar.gz'
-            # macOS ARM
-            'src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/kaede_0.1.0_aarch64.dmg'
-            'src-tauri/target/aarch64-apple-darwin/release/bundle/macos/kaede.app.tar.gz'
+          path: './src-tauri/target/release/bundle/nsis/kaede_0.1.0_x64-setup.exe'
+
+      - name: Upload binary (Windows, MSI)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'warn'
+          path: './src-tauri/target/release/bundle/msi/kaede_0.1.0_x64_en-US.msi'
+
+      - name: Upload binary (Linux, DEB)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'warn'
+          path: './src-tauri/target/release/bundle/deb/kaede_0.1.0_amd64.deb'
+
+      - name: Upload binary (Linux, RPM)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'warn'
+          path: './src-tauri/target/release/bundle/rpm/kaede-0.1.0-1.x86_64.rpm'
+
+      - name: Upload binary (Linux, AppImage)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'warn'
+          path: './src-tauri/target/release/bundle/appimage/kaede_0.1.0_amd64.AppImage'
+
+      - name: Upload binary (macOS, x86_64, DMG)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'warn'
+          path: './src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/kaede_0.1.0_x64.dmg'
+
+      - name: Upload binary (macOS, x86_64, tarball)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'warn'
+          path: './src-tauri/target/x86_64-apple-darwin/release/bundle/macos/kaede.app.tar.gz'
+
+      - name: Upload binary (macOS, ARM, DMG)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'warn'
+          path: './src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/kaede_0.1.0_aarch64.dmg'
+
+      - name: Upload binary (macOS, ARM, tarball)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'macos-latest')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'warn'
+          path: './src-tauri/target/aarch64-apple-darwin/release/bundle/macos/kaede.app.tar.gz'
