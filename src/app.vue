@@ -1,7 +1,7 @@
 <template>
-  <!-- Use a layout component (~/layouts/root.vue) across all pages -->
+  <!-- use a layout component (~/layouts/root.vue) across all pages -->
   <NuxtLayout name="root">
-    <!-- Routing goes here. Create a new file in ~/pages/ to make a route -->
+    <!-- file-based routing (~/pages) -->
     <NuxtPage />
   </NuxtLayout>
 </template>
@@ -11,7 +11,11 @@
 import "@unocss/reset/tailwind.css";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
+// get Tauri's webview window
 const currentWebview = getCurrentWebviewWindow();
 
+// tauri doesn't wait for frontend to load and launches webview2 with flashing blank white screen.
+// this is why webview window is initially not visible in the tauri.config.json, so that
+// we can make it visible only when frontend is loaded
 await currentWebview.show();
 </script>

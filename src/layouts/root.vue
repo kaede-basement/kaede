@@ -1,13 +1,15 @@
 <template>
+  <!-- for accessibility, to announce page navigation for screen readers -->
   <NuxtRouteAnnouncer />
+  <!-- show loading bar at the top of the page -->
   <NuxtLoadingIndicator />
-  <div class="bg-blue duration-300">
-    <div>Some default layout content shared across all pages</div>
+  <div class="">
     <slot />
   </div>
 </template>
 
 <script setup lang="ts">
+// assign a "__nuxt-body" class to <body />
 useHead({
   bodyAttrs: {
     class: "__nuxt-body",
@@ -28,7 +30,7 @@ useHead({
   opacity: 0; /* start with opacity 0 (invisible) */
 }
 
-/* html document <body /> element */
+/* html document's <body /> element */
 .__nuxt-body {
 	margin: 0;
 	padding: 0;
