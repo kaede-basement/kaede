@@ -9,4 +9,9 @@
 <script setup lang="ts">
 // reset all css styles
 import "@unocss/reset/tailwind.css";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+
+const currentWebview = getCurrentWebviewWindow();
+
+await currentWebview.show();
 </script>

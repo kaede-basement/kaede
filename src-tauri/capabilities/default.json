@@ -7,6 +7,7 @@
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-show",
     "notification:default",
     "clipboard-manager:default",
     "dialog:default",
