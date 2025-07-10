@@ -17,7 +17,7 @@ on:
 
 env:
   # default value, will be overwritten later if tag exists
-  APP_VERSION: "0.0.0"
+  APP_VERSION: "0.1.0"
 
 jobs:
   tauri:
@@ -85,37 +85,37 @@ jobs:
           key: "package.version"
           value: "${{ env.APP_VERSION }}"
 
-      - name: Install frontend dependencies
-        run: bun install
-
-      - name: Build a Tauri app (Nightly)
-        if: github.ref_name == 'nightly'
-        uses: tauri-apps/tauri-action@v0
-        with:
-          appName: 'App v__VERSION__'
-          args: ${{ matrix.args }}
-
-      - name: Build a Tauri app (Non-Nightly)
-        if: github.ref_name != 'nightly'
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'App v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
-          prerelease: ${{ github.ref_name != 'release' }}
-          args: ${{ matrix.args }}
-
       - name: Get current build info
         id: json_properties
         uses: ActionsTools/read-json-action@main
         with:
           file_path: "./src-tauri/tauri.conf.json"
 
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Build a Tauri app (Non-Release)
+        if: !(startsWith(github.ref, 'refs/tags/'))
+        uses: tauri-apps/tauri-action@v0
+        with:
+          appName: '${{ steps.json_properties.outputs.productName }} v__VERSION__'
+          args: ${{ matrix.args }}
+
+      - name: Build a Tauri app (Release)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: __VERSION__
+          releaseName: '${{ steps.json_properties.outputs.productName }} v__VERSION__'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
+          prerelease: true
+          args: ${{ matrix.args }}
+
       - name: Upload binary (Windows, NSIS)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'windows-latest')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'Windows')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
@@ -123,7 +123,7 @@ jobs:
           path: './src-tauri/target/release/bundle/nsis/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64-setup.exe'
 
       - name: Upload binary (Windows, MSI)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'windows-latest')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'Windows')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
@@ -131,7 +131,7 @@ jobs:
           path: './src-tauri/target/release/bundle/msi/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64_en-US.msi'
 
       - name: Upload binary (Windows, portable)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'windows-latest')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'Windows')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
@@ -139,7 +139,7 @@ jobs:
           path: './src-tauri/target/release/${{ steps.json_properties.outputs.productName }}.exe'
 
       - name: Upload binary (Linux, DEB)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'ubuntu-22.04')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'Linux')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
@@ -147,7 +147,7 @@ jobs:
           path: './src-tauri/target/release/bundle/deb/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_amd64.deb'
 
       - name: Upload binary (Linux, RPM)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'ubuntu-22.04')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'Linux')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
@@ -155,7 +155,7 @@ jobs:
           path: './src-tauri/target/release/bundle/rpm/${{ steps.json_properties.outputs.productName }}-${{steps.json_properties.outputs.version}}-1.x86_64.rpm'
 
       - name: Upload binary (Linux, AppImage)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'ubuntu-22.04')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'Linux')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
@@ -163,7 +163,7 @@ jobs:
           path: './src-tauri/target/release/bundle/appimage/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_amd64.AppImage'
 
       - name: Upload binary (macOS, x86_64, DMG)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'macos-latest')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'macOS-x86_64')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
@@ -171,7 +171,7 @@ jobs:
           path: './src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64.dmg'
 
       - name: Upload binary (macOS, x86_64, tarball)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'macos-latest')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'macOS-x86_64')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
@@ -179,7 +179,7 @@ jobs:
           path: './src-tauri/target/x86_64-apple-darwin/release/bundle/macos/${{ steps.json_properties.outputs.productName }}.app.tar.gz'
 
       - name: Upload binary (macOS, ARM, DMG)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'macos-latest')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'macOS-ARM')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
@@ -187,7 +187,7 @@ jobs:
           path: './src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_aarch64.dmg'
 
       - name: Upload binary (macOS, ARM, tarball)
-        if: (github.ref_name == 'nightly' && matrix.platform == 'macos-latest')
+        if: (!(startsWith(github.ref, 'refs/tags/')) && matrix.name == 'macOS-ARM')
         uses: actions/upload-artifact@v4
         with:
           if-no-files-found: 'warn'
