@@ -87,6 +87,16 @@ jobs:
         run: |
           ls
 
+      - name: Get Kaede version
+        id: json_properties
+        uses: ActionsTools/read-json-action@main
+        with:
+          file_path: "./src-tauri/tauri.conf.json"
+
+      - run: |
+          echo ${{steps.json_properties.outputs.name}}
+          echo ${{steps.json_properties.outputs.version}}
+
       - name: Upload binary (Windows, NSIS)
         if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
         uses: actions/upload-artifact@v4
@@ -102,6 +112,14 @@ jobs:
           if-no-files-found: 'warn'
           name: 'kaede-nightly-windows-msi'
           path: './src-tauri/target/release/bundle/msi/kaede_0.1.0_x64_en-US.msi'
+
+      - name: Upload binary (Windows, portable)
+        if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'windows-latest')
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'warn'
+          name: 'kaede-nightly-windows-portable'
+          path: './src-tauri/target/release/kaede.exe'
 
       - name: Upload binary (Linux, DEB)
         if: (github.ref == 'refs/heads/nightly' && matrix.platform == 'ubuntu-22.04')
