@@ -8,6 +8,4 @@
 import { useApplicationInfo } from "@/lib/stores/app";
 
 const store = useApplicationInfo();
-
-store.getApplicationInfo();
 </script>

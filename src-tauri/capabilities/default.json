@@ -7,8 +7,10 @@
   ],
   "permissions": [
     "core:default",
+
     "core:window:allow-show",
     "core:window:allow-set-decorations",
+    "core:window:allow-set-title",
 
     "notification:default",
     "clipboard-manager:default",
