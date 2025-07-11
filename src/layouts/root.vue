@@ -6,7 +6,7 @@
     <!-- show loading bar at the top of the page -->
     <NuxtLoadingIndicator />
     <Titlebar v-if="shouldUseCustomTitleBar" />
-    <div :class="[adaptedHeight, 'flex w-full']">
+    <div :class="[adaptedHeight, 'flex w-full bg-black bg-opacity-75 text-white']">
       <Sidebar />
       <div class="flex overflow-hidden w-full">
         <div class="w-full overflow-auto [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:transition [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#6F7279] [&::-webkit-scrollbar-thumb:hover]:bg-[#5C5F66] ![&::-webkit-scrollbar-thumb:active]:bg-[#3A3D45]">

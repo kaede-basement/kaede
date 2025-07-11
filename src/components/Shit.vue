@@ -1,4 +1,7 @@
 <template>
+  <div>
+    Progress: {{ Math.floor((shit.filter((element) => element === "success").length / shit.length) * 100) }}%
+  </div>
   <p>
     Time elapsed in seconds: {{ timeElapsed / 1000 }} (updates only when queries resolve)
   </p>
@@ -13,6 +16,10 @@
 
 <script setup lang="ts">
 import { fetch } from "@tauri-apps/plugin-http";
+import { exists, writeFile } from "@tauri-apps/plugin-fs";
+import { FunctionResponses } from "~/constants/app";
+import { BaseDirectory, join } from "@tauri-apps/api/path";
+import makeDirectories from "~/lib/storage/makeDirectories";
 
 function timeout(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -23,7 +30,8 @@ const { libraries } = defineProps<{
     name: string;
     downloads: {
       artifact: {
-        url: string;
+        url:  string;
+        path: string;
       };
     };
   }>;
@@ -35,7 +43,9 @@ const results = useQueries({
   queries: libraries?.map((library, index) => ({
     queryKey: ["library", library.name],
     queryFn:  async () => {
-      await timeout(index * 100);
+      const chunkIndex = Math.floor(index / 6);
+
+      await timeout(chunkIndex * 0);
 
       console.log("Downloading", library.name);
 
@@ -44,6 +54,43 @@ const results = useQueries({
       const libraryBody = await libraryResponse.text();
 
       console.log("File size", libraryBody.length);
+
+      const paths = library.downloads.artifact.path.split("/");
+      const filename = paths.pop() ?? "";
+      const fullRelativePathToFile = await join("libraries", ...paths, filename);
+
+      if (
+        await exists(fullRelativePathToFile, {
+          baseDir: BaseDirectory.AppConfig,
+        })
+      ) {
+        return "exists";
+      }
+
+      await makeDirectories({
+        directories: [
+          {
+            baseDirectoryPath:    BaseDirectory.AppConfig,
+            recursiveDirectories: ["libraries", ...paths],
+          },
+        ],
+      });
+
+      const encoder: TextEncoder = new TextEncoder();
+      const data: Uint8Array = encoder.encode(libraryBody);
+
+      // we are wrapping this in "try & catch" construction
+      // because "writeFile" can throw an error
+      try {
+        await writeFile(
+          fullRelativePathToFile, data,
+          { baseDir: BaseDirectory.AppConfig },
+        );
+      } catch (error: unknown) {
+        console.error(error);
+
+        return FunctionResponses.Error;
+      }
 
       return "success";
     },
