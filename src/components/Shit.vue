@@ -1,6 +1,6 @@
 <template>
   <div>
-    Progress: {{ Math.floor((shit.filter((element) => element === "success").length / shit.length) * 100) }}%
+    {{ progressData }}
   </div>
   <p>
     Time elapsed in seconds: {{ timeElapsed / 1000 }} (updates only when queries resolve)
@@ -15,11 +15,12 @@
 </template>
 
 <script setup lang="ts">
-import { fetch } from "@tauri-apps/plugin-http";
-import { exists, writeFile } from "@tauri-apps/plugin-fs";
-import { FunctionResponses } from "~/constants/app";
-import { BaseDirectory, join } from "@tauri-apps/api/path";
-import makeDirectories from "~/lib/storage/makeDirectories";
+// import { fetch } from "@tauri-apps/plugin-http";
+// import { exists, writeFile } from "@tauri-apps/plugin-fs";
+// import { FunctionResponses } from "~/constants/app";
+import { appConfigDir, BaseDirectory, join } from "@tauri-apps/api/path";
+// import makeDirectories from "~/lib/storage/makeDirectories";
+import { download } from "@tauri-apps/plugin-upload";
 
 function timeout(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -37,6 +38,8 @@ const { libraries } = defineProps<{
   }>;
 }>();
 
+const progressData: Record<number, string> = reactive({});
+
 const t1 = performance.now();
 
 const results = useQueries({
@@ -50,15 +53,18 @@ const results = useQueries({
       console.log("Downloading", library.name);
 
       const url = library.downloads.artifact.url;
-      const libraryResponse = await fetch(url);
-      const libraryBody = await libraryResponse.text();
 
-      console.log("File size", libraryBody.length);
+      // const libraryResponse = await fetch(url);
+      // const libraryBody = await libraryResponse.text();
+
+      // console.log("File size", libraryBody.length);
 
       const paths = library.downloads.artifact.path.split("/");
       const filename = paths.pop() ?? "";
       const fullRelativePathToFile = await join("libraries", ...paths, filename);
+      const fullAbsolutePathToFile = await join(await appConfigDir(), fullRelativePathToFile);
 
+      /*
       if (
         await exists(fullRelativePathToFile, {
           baseDir: BaseDirectory.AppConfig,
@@ -66,7 +72,9 @@ const results = useQueries({
       ) {
         return "exists";
       }
+       */
 
+      /*
       await makeDirectories({
         directories: [
           {
@@ -90,6 +98,19 @@ const results = useQueries({
         console.error(error);
 
         return FunctionResponses.Error;
+      }
+       */
+
+      try {
+        await download(
+          url,
+          fullAbsolutePathToFile,
+          ({ progressTotal, total }) => {
+            progressData[index] = `Downloaded ${Math.floor((progressTotal / total) * 100)}%`;
+          },
+        );
+      } catch (error: unknown) {
+        console.error(error);
       }
 
       return "success";
