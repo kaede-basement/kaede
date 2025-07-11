@@ -11,12 +11,12 @@ name: ESLint
 
 on:
   push:
-    branches: [ "nightly" ]
+    branches: ["nightly"]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "nightly" ]
+    branches: ["nightly"]
   schedule:
-    - cron: '0 0 * * 0'
+    - cron: "0 0 * * 0"
 
 jobs:
   eslint:
@@ -46,13 +46,4 @@ jobs:
           bun i
 
       - name: Run ESLint
-        env:
-          SARIF_ESLINT_IGNORE_SUPPRESSED: "true"
-        run: npx eslint . --export eslint-results.sarif
-        continue-on-error: true
-
-      - name: Upload analysis results to GitHub
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: eslint-results.sarif
-          wait-for-processing: true
+        run: npx eslint . --config eslint.config.mjs
