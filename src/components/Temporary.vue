@@ -13,8 +13,12 @@
       Error.
     </div>
     <div v-else>
+      <Shit :libraries="data?.libraries" />
       <p>
         {{ data?.readDirectory }}
+      </p>
+      <p>
+        {{ data?.libraries }}
       </p>
       <p>
         {{ data?.stdout }}
@@ -29,6 +33,8 @@ import { sendNotification } from "@tauri-apps/plugin-notification";
 import { message } from "@tauri-apps/plugin-dialog";
 import { Command } from "@tauri-apps/plugin-shell";
 import { readDir } from "@tauri-apps/plugin-fs";
+import parseVersions from "~/lib/minecraft/parseVersions";
+import { fetch } from "@tauri-apps/plugin-http";
 
 async function openDialog() {
   await message("This is some peak shit here",
@@ -54,9 +60,31 @@ const { data, isPending, isError } = useQuery({
     const shit = await Command
       .create("shell-allowed-java", ["--version"])
       .execute();
+    //const minecraft = await parseVersions();
+    const response = await fetch("https://piston-meta.mojang.com/v1/packages/5d22e5893fd9c565b9a3039f1fc842aef2c4aefc/1.21.7.json");
+    const body = await response.json();
+    const libraries = body.libraries;
+
+    /*
+    const t1 = performance.now();
+
+    for (const library of libraries) {
+      console.log("Downloading", library.name);
+
+      const url = library.downloads.artifact.url;
+      const libraryResponse = await fetch(url);
+      const libraryBody = await libraryResponse.text();
+
+      console.log("File size", libraryBody.length);
+    }
+
+    const t2 = performance.now();
+    console.log("Done in", t2 - t1, "ms");
+     */
 
     return {
       readDirectory,
+      libraries,
       stdout: shit.stdout,
     };
   },

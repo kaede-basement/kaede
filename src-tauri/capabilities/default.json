@@ -21,7 +21,14 @@
     "clipboard-manager:default",
     "dialog:default",
     "os:default",
-    "http:default",
+
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://*.minecraft.net/" },
+        { "url": "https://*.mojang.com/" }
+      ]
+    },
 
     "shell:default",
     {
