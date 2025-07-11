@@ -2,6 +2,8 @@ import type { ConfigType } from "~/types/Config.type";
 import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
 import { ConfigFilename } from "~/constants/app";
 import { InitialAppConfiguration } from "~/constants/configs";
+import { ConfigValidation } from "~/types/Config.type";
+import { type } from "arktype";
 
 export default async function getConfig(): Promise<ConfigType> {
   // by this point config file should already exist because
@@ -24,15 +26,16 @@ export default async function getConfig(): Promise<ConfigType> {
     return InitialAppConfiguration;
   }
 
-  // because "parsedConfig" can be literally anything that JSON can parse,
-  // we manually narrow variable type to object
-  // null also counts as object, so we additionally check if "parsedConfig" is null
-  if (typeof parsedConfig !== "object" || parsedConfig == null) {
+  // pass an unknown variable and get validated ConfigType or an error
+  const validatedConfig = ConfigValidation(parsedConfig);
+
+  // if "parsedConfig" is not valid, we get an error while validating
+  if (validatedConfig instanceof type.errors) {
+    console.error(validatedConfig.summary);
+
     return InitialAppConfiguration;
   }
 
-  return {
-    ...InitialAppConfiguration,
-    ...parsedConfig,
-  };
+  // at this point "validatedConfig" for sure has a "ConfigType" type
+  return validatedConfig;
 }

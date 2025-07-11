@@ -14,7 +14,6 @@ import initializeConfigFile from "~/lib/helpers/initializeConfigFile";
 import makeConfigsDirectory from "~/lib/helpers/makeConfigsDirectory";
 import { useApplicationConfiguration } from "~/lib/stores/app";
 
-const t1 = performance.now();
 // get Tauri's webview window
 const currentWebview = getCurrentWebviewWindow();
 
@@ -42,6 +41,4 @@ if (config?.customization?.customTitleBar) {
 // this is why webview window is initially not visible in the tauri.config.json, so that
 // we can make it visible only when frontend is loaded
 await currentWebview.show();
-const t2 = performance.now();
-console.log(t2 - t1, "ms");
 </script>
