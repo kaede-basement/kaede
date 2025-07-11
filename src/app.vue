@@ -14,7 +14,6 @@ import initializeConfigFile from "~/lib/helpers/initializeConfigFile";
 import makeConfigsDirectory from "~/lib/helpers/makeConfigsDirectory";
 import { useApplicationConfiguration } from "~/lib/stores/app";
 import initializeInstancesFiles from "~/lib/helpers/initializeInstancesFiles";
-import makeDirectory from "~/lib/storage/makeDirectory";
 import { BaseDirectory } from "@tauri-apps/api/path";
 import makeDirectories from "~/lib/storage/makeDirectories";
 
