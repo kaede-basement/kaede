@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
 import { getName, getVersion } from "@tauri-apps/api/app";
+import type { ConfigType } from "~/types/Config.type";
+import getConfig from "~/lib/helpers/getConfig";
 
 export const useApplicationInfo = defineStore("applicationInfo", {
   state: () => ({
@@ -10,6 +12,19 @@ export const useApplicationInfo = defineStore("applicationInfo", {
     async getApplicationInfo() {
       this.name = await getName();
       this.version = await getVersion();
+    },
+  },
+});
+
+export const useApplicationConfiguration = defineStore("applicationConfiguration", {
+  state: () => ({
+    data: null as ConfigType | null,
+  }),
+  actions: {
+    async getApplicationConfiguration() {
+      this.data = await getConfig();
+
+      return this.data;
     },
   },
 });

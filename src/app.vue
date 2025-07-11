@@ -12,16 +12,30 @@ import "@unocss/reset/tailwind.css";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import initializeConfigFile from "~/lib/helpers/initializeConfigFile";
 import makeConfigsDirectory from "~/lib/helpers/makeConfigsDirectory";
+import { useApplicationConfiguration } from "~/lib/stores/app";
 
 // get Tauri's webview window
 const currentWebview = getCurrentWebviewWindow();
 
 // initialization
+// "await" keyword blocks code execution until async function completes
 await makeConfigsDirectory();
 await initializeConfigFile();
 
-//
-await currentWebview.setDecorations(true);
+// get application configuration store
+const configStore = useApplicationConfiguration();
+
+// fetch app configuration
+// fetched data will be shown in "configStore.data"
+await configStore.getApplicationConfiguration();
+
+// now configStore.data should have config data
+const config = configStore.data;
+
+if (config?.customization?.customTitleBar) {
+  // makes tauri hide system title bar
+  await currentWebview.setDecorations(false);
+}
 
 // tauri doesn't wait for frontend to load and launches webview2 with flashing blank white screen.
 // this is why webview window is initially not visible in the tauri.config.json, so that

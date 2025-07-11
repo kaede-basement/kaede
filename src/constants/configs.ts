@@ -1,4 +1,6 @@
-export const InitialAppConfiguration = {
+import type { ConfigType } from "~/types/Config.type";
+
+export const InitialAppConfiguration: ConfigType = {
   customization: {
     theme:            "dark",
     accent:           "rose",

@@ -8,16 +8,15 @@
     <div class="flex overflow-clip w-full">
       <div class="w-full overflow-auto [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:transition [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#6F7279] [&::-webkit-scrollbar-thumb:hover]:bg-[#5C5F66] ![&::-webkit-scrollbar-thumb:active]:bg-[#3A3D45]">
         <slot />
-        <slot />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// assign a "__nuxt-body" class to <body />
 import Sidebar from "~/components/layout/Sidebar.vue";
 
+// assign a "__nuxt-body" class to <body />
 useHead({
   bodyAttrs: {
     class: "__nuxt-body",
