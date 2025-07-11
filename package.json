@@ -2,6 +2,10 @@
   "name": "kaede",
   "private": true,
   "type": "module",
+  "vetur": {
+    "tags": "vetur/tags.json",
+    "attributes": "vetur/attributes.json"
+  },
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
