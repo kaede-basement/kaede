@@ -11,10 +11,15 @@
 import "@unocss/reset/tailwind.css";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import initializeConfigFile from "~/lib/helpers/initializeConfigFile";
+import makeConfigsDirectory from "~/lib/helpers/makeConfigsDirectory";
 
 // get Tauri's webview window
 const currentWebview = getCurrentWebviewWindow();
-initializeConfigFile()
+
+// initialization
+await makeConfigsDirectory();
+await initializeConfigFile();
+
 //
 await currentWebview.setDecorations(true);
 

@@ -7,3 +7,4 @@ export const FunctionResponses = {
   // this is why we are using "as const" to tell typescript
   // that this object is readonly and should have explicit keys and values
 } as const;
+export const ConfigFilename = "config.json";

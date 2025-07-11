@@ -1,34 +1,13 @@
 import { BaseDirectory } from "@tauri-apps/api/path";
-import { exists, writeFile, mkdir } from "@tauri-apps/plugin-fs";
+import { exists, writeFile } from "@tauri-apps/plugin-fs";
 import { InitialAppConfiguration } from "~/constants/configs";
-import { FunctionResponses } from "~/constants/app";
+import { ConfigFilename, FunctionResponses } from "~/constants/app";
 import type { FunctionResponsesType } from "~/types/FunctionResponses.type";
 
 export default async function initializeConfigFile(): Promise<FunctionResponsesType> {
-  // checks if "{APP_CONFIGS_DIRECTORY}/kaede" exists
-  // on Windows equals to C:\Users\{USER}\AppData\Roaming\kaede
-  const configDirectoryExists: boolean = await exists("", {
-    baseDir: BaseDirectory.AppConfig,
-  });
-
-  // make a directory "kaede" in {APP_CONFIGS_DIRECTORY} if it doesn't exist already
-  if (!configDirectoryExists) {
-    // we are wrapping this in "try & catch" construction
-    // because "mkdir" can throw an error
-    try {
-      await mkdir("", {
-        baseDir: BaseDirectory.AppConfig,
-      });
-    } catch (error) {
-      console.error(error);
-
-      return FunctionResponses.Error;
-    }
-  }
-
   // checks if "{APP_CONFIGS_DIRECTORY}/kaede/config.json" exists
   // on Windows equals to C:\Users\{USER}\AppData\Roaming\kaede\config.json
-  const configExists: boolean = await exists("config.json", {
+  const configExists: boolean = await exists(ConfigFilename, {
     baseDir: BaseDirectory.AppConfig,
   });
 
@@ -53,7 +32,7 @@ export default async function initializeConfigFile(): Promise<FunctionResponsesT
   // because "writeFile" can throw an error
   try {
     await writeFile(
-      "config.json", data,
+      ConfigFilename, data,
       { baseDir: BaseDirectory.AppConfig },
     );
   } catch (error: unknown) {
