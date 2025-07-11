@@ -1,0 +1,256 @@
+{
+  "nuxt-img": {
+    "attributes": [],
+    "description": ""
+  },
+  "NuxtImg": {
+    "attributes": [],
+    "description": ""
+  },
+  "nuxt-picture": {
+    "attributes": [],
+    "description": ""
+  },
+  "NuxtPicture": {
+    "attributes": [],
+    "description": ""
+  },
+  "uno-icon": {
+    "attributes": [],
+    "description": ""
+  },
+  "UnoIcon": {
+    "attributes": [],
+    "description": ""
+  },
+  "error-404": {
+    "attributes": [
+      "appName",
+      "version",
+      "statusCode",
+      "statusMessage",
+      "description",
+      "backHome"
+    ],
+    "description": ""
+  },
+  "Error404": {
+    "attributes": [
+      "appName",
+      "version",
+      "statusCode",
+      "statusMessage",
+      "description",
+      "backHome"
+    ],
+    "description": ""
+  },
+  "error-500": {
+    "attributes": [
+      "appName",
+      "version",
+      "statusCode",
+      "statusMessage",
+      "description"
+    ],
+    "description": ""
+  },
+  "Error500": {
+    "attributes": [
+      "appName",
+      "version",
+      "statusCode",
+      "statusMessage",
+      "description"
+    ],
+    "description": ""
+  },
+  "error-dev": {
+    "attributes": [
+      "appName",
+      "version",
+      "statusCode",
+      "statusMessage",
+      "description",
+      "stack"
+    ],
+    "description": ""
+  },
+  "ErrorDev": {
+    "attributes": [
+      "appName",
+      "version",
+      "statusCode",
+      "statusMessage",
+      "description",
+      "stack"
+    ],
+    "description": ""
+  },
+  "nuxt-error-boundary": {
+    "attributes": [],
+    "description": ""
+  },
+  "NuxtErrorBoundary": {
+    "attributes": [],
+    "description": ""
+  },
+  "nuxt-error-page": {
+    "attributes": [
+      "error"
+    ],
+    "description": ""
+  },
+  "NuxtErrorPage": {
+    "attributes": [
+      "error"
+    ],
+    "description": ""
+  },
+  "nuxt-root": {
+    "attributes": [],
+    "description": ""
+  },
+  "NuxtRoot": {
+    "attributes": [],
+    "description": ""
+  },
+  "nuxt-time": {
+    "attributes": [
+      "locale",
+      "datetime",
+      "localeMatcher",
+      "weekday",
+      "era",
+      "year",
+      "month",
+      "day",
+      "hour",
+      "minute",
+      "second",
+      "timeZoneName",
+      "formatMatcher",
+      "hour12",
+      "timeZone",
+      "calendar",
+      "dayPeriod",
+      "numberingSystem",
+      "dateStyle",
+      "timeStyle",
+      "hourCycle",
+      "relative",
+      "title"
+    ],
+    "description": ""
+  },
+  "NuxtTime": {
+    "attributes": [
+      "locale",
+      "datetime",
+      "localeMatcher",
+      "weekday",
+      "era",
+      "year",
+      "month",
+      "day",
+      "hour",
+      "minute",
+      "second",
+      "timeZoneName",
+      "formatMatcher",
+      "hour12",
+      "timeZone",
+      "calendar",
+      "dayPeriod",
+      "numberingSystem",
+      "dateStyle",
+      "timeStyle",
+      "hourCycle",
+      "relative",
+      "title"
+    ],
+    "description": ""
+  },
+  "welcome": {
+    "attributes": [
+      "appName",
+      "version",
+      "title",
+      "readDocs",
+      "followTwitter",
+      "starGitHub"
+    ],
+    "description": ""
+  },
+  "Welcome": {
+    "attributes": [
+      "appName",
+      "version",
+      "title",
+      "readDocs",
+      "followTwitter",
+      "starGitHub"
+    ],
+    "description": ""
+  },
+  "app": {
+    "attributes": [],
+    "description": ""
+  },
+  "App": {
+    "attributes": [],
+    "description": ""
+  },
+  "example-image": {
+    "attributes": [
+      "additionalClass"
+    ],
+    "description": ""
+  },
+  "ExampleImage": {
+    "attributes": [
+      "additionalClass"
+    ],
+    "description": ""
+  },
+  "sidebar": {
+    "attributes": [],
+    "description": ""
+  },
+  "Sidebar": {
+    "attributes": [],
+    "description": ""
+  },
+  "temporary": {
+    "attributes": [],
+    "description": ""
+  },
+  "Temporary": {
+    "attributes": [],
+    "description": ""
+  },
+  "root": {
+    "attributes": [],
+    "description": ""
+  },
+  "Root": {
+    "attributes": [],
+    "description": ""
+  },
+  "about": {
+    "attributes": [],
+    "description": ""
+  },
+  "About": {
+    "attributes": [],
+    "description": ""
+  },
+  "pages": {
+    "attributes": [],
+    "description": ""
+  },
+  "Pages": {
+    "attributes": [],
+    "description": ""
+  }
+}
