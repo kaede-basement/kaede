@@ -1,12 +1,14 @@
 import { BaseDirectory } from "@tauri-apps/api/path";
 import { exists, writeFile } from "@tauri-apps/plugin-fs";
 
-export default async function makeHomeDirectory() {
+export default async function initializeConfigFile() {
   const configExists = await exists("config.json", {
     baseDir: BaseDirectory.AppConfig,
   });
 
-
+  if (configExists) {
+    return "exists";
+  }
 
   const encoder = new TextEncoder();
   const data = encoder.encode(JSON.stringify({

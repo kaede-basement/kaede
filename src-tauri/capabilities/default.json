@@ -8,6 +8,8 @@
   "permissions": [
     "core:default",
     "core:window:allow-show",
+    "core:window:allow-set-decorations",
+
     "notification:default",
     "clipboard-manager:default",
     "dialog:default",

@@ -1,4 +1,4 @@
-const PageRoutes = {
+export const PageRoutes = {
   Home:     "/",
   Library:  "/library",
   About:    "/about",
