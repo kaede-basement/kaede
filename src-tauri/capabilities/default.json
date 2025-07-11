@@ -12,6 +12,7 @@
     "core:window:allow-set-decorations",
     "core:window:allow-set-title",
     "core:window:allow-start-dragging",
+    "core:window:allow-set-effects",
 
     "notification:default",
     "clipboard-manager:default",
