@@ -8,3 +8,4 @@ export const FunctionResponses = {
   // that this object is readonly and should have explicit keys and values
 } as const;
 export const ConfigFilename = "config.json";
+export const InstancesFolder = "instances";

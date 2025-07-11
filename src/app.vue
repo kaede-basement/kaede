@@ -13,6 +13,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import initializeConfigFile from "~/lib/helpers/initializeConfigFile";
 import makeConfigsDirectory from "~/lib/helpers/makeConfigsDirectory";
 import { useApplicationConfiguration } from "~/lib/stores/app";
+import initializeInstancesFiles from "~/lib/helpers/initializeInstancesFiles";
 
 // get Tauri's webview window
 const currentWebview = getCurrentWebviewWindow();
@@ -21,6 +22,7 @@ const currentWebview = getCurrentWebviewWindow();
 // "await" keyword blocks code execution until async function completes
 await makeConfigsDirectory();
 await initializeConfigFile();
+await initializeInstancesFiles();
 
 // get application configuration store
 const configStore = useApplicationConfiguration();
