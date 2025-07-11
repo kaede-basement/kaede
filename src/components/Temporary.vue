@@ -19,19 +19,16 @@
       <p>
         {{ data?.stdout }}
       </p>
-      <p>
-        exists: {{ data?.configExists }}
-      </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { appConfigDir, BaseDirectory } from "@tauri-apps/api/path";
+import { appConfigDir } from "@tauri-apps/api/path";
 import { sendNotification } from "@tauri-apps/plugin-notification";
 import { message } from "@tauri-apps/plugin-dialog";
 import { Command } from "@tauri-apps/plugin-shell";
-import { exists, readDir, writeFile } from "@tauri-apps/plugin-fs";
+import { readDir } from "@tauri-apps/plugin-fs";
 
 async function openDialog() {
   await message("This is some peak shit here",
@@ -54,39 +51,12 @@ const { data, isPending, isError } = useQuery({
     const appConfigDirectoryPath = await appConfigDir();
     const readDirectory = await readDir(appConfigDirectoryPath);
 
-    const configExists = await exists("config.json", {
-      baseDir: BaseDirectory.AppConfig,
-    });
-
-    const encoder = new TextEncoder();
-    const data = encoder.encode(JSON.stringify({
-      theme:    "dark",
-      accent:   "rose",
-      language: "ru",
-      javaPath: "",
-      proxy:    {
-        address: "127.0.0.1",
-        pass:    "",
-        port:    8080,
-        type:    "none",
-        user:    "",
-      },
-      use: {
-        systemLocale: true,
-      },
-      minecraftWindowHeight: 480,
-      minecraftWindowWidth:  854,
-      showBackground:        true,
-    }, null, 2));
-    await writeFile("config.json", data, { baseDir: BaseDirectory.AppConfig });
-
     const shit = await Command
       .create("shell-allowed-java", ["--version"])
       .execute();
 
     return {
       readDirectory,
-      configExists,
       stdout: shit.stdout,
     };
   },
