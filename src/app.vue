@@ -14,6 +14,9 @@ import initializeConfigFile from "~/lib/helpers/initializeConfigFile";
 import makeConfigsDirectory from "~/lib/helpers/makeConfigsDirectory";
 import { useApplicationConfiguration } from "~/lib/stores/app";
 import initializeInstancesFiles from "~/lib/helpers/initializeInstancesFiles";
+import makeDirectory from "~/lib/storage/makeDirectory";
+import { BaseDirectory } from "@tauri-apps/api/path";
+import makeDirectories from "~/lib/storage/makeDirectories";
 
 // get Tauri's webview window
 const currentWebview = getCurrentWebviewWindow();
@@ -23,7 +26,14 @@ const currentWebview = getCurrentWebviewWindow();
 await makeConfigsDirectory();
 await initializeConfigFile();
 await initializeInstancesFiles();
-
+await makeDirectories({
+  directories: [
+    {
+      baseDirectoryPath:    BaseDirectory.AppConfig,
+      recursiveDirectories: ["shit", "is", "working", "perfectly", "like", "really"],
+    },
+  ],
+});
 // get application configuration store
 const configStore = useApplicationConfiguration();
 
