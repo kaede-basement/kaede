@@ -1,6 +1,6 @@
 <template>
   <!-- use a layout component (~/layouts/root.vue) across all pages -->
-  <NuxtLayout name="root">
+  <NuxtLayout name="root" :should-use-custom-title-bar="shouldUseCustomTitleBar">
     <!-- file-based routing (~/pages) -->
     <NuxtPage />
   </NuxtLayout>
@@ -14,8 +14,6 @@ import initializeConfigFile from "~/lib/helpers/initializeConfigFile";
 import makeConfigsDirectory from "~/lib/helpers/makeConfigsDirectory";
 import { useApplicationConfiguration, useApplicationInfo } from "~/lib/stores/app";
 import initializeInstancesFiles from "~/lib/helpers/initializeInstancesFiles";
-import { BaseDirectory } from "@tauri-apps/api/path";
-import makeDirectories from "~/lib/storage/makeDirectories";
 
 // get Tauri's webview window
 const currentWebview = getCurrentWebviewWindow();
@@ -25,14 +23,6 @@ const currentWebview = getCurrentWebviewWindow();
 await makeConfigsDirectory();
 await initializeConfigFile();
 await initializeInstancesFiles();
-await makeDirectories({
-  directories: [
-    {
-      baseDirectoryPath:    BaseDirectory.AppConfig,
-      recursiveDirectories: ["shit", "is", "working", "perfectly", "like", "really"],
-    },
-  ],
-});
 
 // get application info store
 const appInfoStore = useApplicationInfo();
