@@ -7,13 +7,14 @@
 </template>
 
 <script setup lang="ts">
-// reset all css styles
+// reset all css styles in the tailwind style
 import "@unocss/reset/tailwind.css";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import initializeConfigFile from "~/lib/helpers/initializeConfigFile";
 
 // get Tauri's webview window
 const currentWebview = getCurrentWebviewWindow();
-
+initializeConfigFile()
 //
 await currentWebview.setDecorations(true);
 
