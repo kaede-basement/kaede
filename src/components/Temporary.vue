@@ -14,7 +14,7 @@
     </div>
     <div v-else>
       <p>
-        {{ data.readDirectory }}
+        {{ data?.readDirectory }}
       </p>
       <p>
         {{ data?.stdout }}
@@ -54,7 +54,7 @@ const { data, isPending, isError } = useQuery({
     const appConfigDirectoryPath = await appConfigDir();
     const readDirectory = await readDir(appConfigDirectoryPath);
 
-    const configExists = await exists("config.json5", {
+    const configExists = await exists("config.json", {
       baseDir: BaseDirectory.AppConfig,
     });
 
