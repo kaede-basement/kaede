@@ -23,7 +23,7 @@
     </div>
     <div data-tauri-drag-region class="select-none flex flex-nowrap justify-start gap-2 items-center w-fit">
       <div data-tauri-drag-region class="font-semibold text-nowrap text-sm text-white flex items-center gap-1.5">
-        <span data-tauri-drag-region class="__global-animation-gradient select-none text-transparent bg-clip-text bg-[linear-gradient(to_right,#eb6f92,#f71e5b,#eb6f92)] bg-[length:200%_auto] leading-none">
+        <span data-tauri-drag-region class="animate-gradient select-none text-transparent bg-clip-text bg-[linear-gradient(to_right,#eb6f92,#f71e5b,#eb6f92)] bg-[length:200%_auto] leading-none">
           {{ store.name }}
         </span>
         <span data-tauri-drag-region class="select-none text-xs text-zinc-500 leading-none">
