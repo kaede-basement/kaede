@@ -9,7 +9,8 @@
     "build:frontend": "nuxt build",
     "generate:frontend": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@hebilicious/vue-query-nuxt": "^0.3.0",

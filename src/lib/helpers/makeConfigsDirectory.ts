@@ -22,7 +22,7 @@ export default async function makeConfigsDirectory(): Promise<FunctionResponsesT
     await mkdir("", {
       baseDir: BaseDirectory.AppConfig,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(error);
 
     return FunctionResponses.Error;

@@ -1,7 +1,8 @@
 import type { ConfigType } from "~/types/Config.type";
 
 export const InitialAppConfiguration: ConfigType = {
-  customization: {
+  __do_not_touch_VERSION: 1,
+  customization:          {
     theme:            "dark",
     accent:           "rose",
     customBackground: "none",

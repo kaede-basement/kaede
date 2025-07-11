@@ -25,6 +25,10 @@ export default withNuxt(
       "unicorn/filename-case":          ["off"],
       "vue/multi-word-component-names": ["off"],
       "vue/no-multiple-template-root":  ["off"], // no need for this rule since vue 3.x
+
+      /* these break eslint */
+      "unicorn/expiring-todo-comments":           ["off"],
+      "@typescript-eslint/no-unused-expressions": ["off"],
     },
   },
 );

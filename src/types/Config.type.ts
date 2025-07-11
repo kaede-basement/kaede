@@ -1,5 +1,6 @@
 export type ConfigType = {
-  customization: {
+  __do_not_touch_VERSION: number;
+  customization:          {
     theme:            string; // TODO
     accent:           string; // TODO
     customBackground: string; // TODO
