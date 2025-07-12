@@ -7,6 +7,7 @@ export const InitialAppConfiguration: ConfigType = {
     accent          : "rose",
     customBackground: "none",
     customTitleBar  : false,
+    pageTransitions : true,
     opacity         : {
       sidebar   : 1,
       main      : 1,
