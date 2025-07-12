@@ -32,7 +32,7 @@ export default withNuxt(
       "@stylistic/comma-spacing"                 : ["error", { before: false, after: true }],
       "@stylistic/comma-style"                   : ["error", "last"],
       "@stylistic/computed-property-spacing"     : ["error", "never"],
-      "@stylistic/curly-newline"                 : ["error", { multiline: true }],
+      "@stylistic/curly-newline"                 : ["error", { consistent: true }],
       "@stylistic/dot-location"                  : ["error", "object"],
       "@stylistic/eol-last"                      : ["off"],
       "@stylistic/function-call-argument-newline": ["error", "consistent"],
@@ -53,15 +53,23 @@ export default withNuxt(
           mode       : "strict",
         },
       }],
-      "@stylistic/keyword-spacing"            : ["error", { before: true, after: true }],
-      "@stylistic/line-comment-position"      : ["off"],
-      "@stylistic/linebreak-style"            : ["off"],
-      "@stylistic/lines-around-comment"       : ["error", { beforeBlockComment: true }],
+      "@stylistic/keyword-spacing"      : ["error", { before: true, after: true }],
+      "@stylistic/line-comment-position": ["off"],
+      "@stylistic/linebreak-style"      : ["off"],
+      "@stylistic/lines-around-comment" : ["error", {
+        beforeBlockComment: true,
+        allowBlockStart   : true,
+      }],
       "@stylistic/lines-between-class-members": ["error", "always", {
         exceptAfterOverload  : true,
         exceptAfterSingleLine: true,
       }],
-      "@stylistic/max-len"                : ["warn", { code: 120 }],
+      "@stylistic/max-len": ["warn", {
+        code                  : 110,
+        ignoreComments        : true,
+        ignoreTrailingComments: true,
+        ignoreUrls            : true,
+      }],
       "@stylistic/max-statements-per-line": ["error", { max: 1 }],
       "@stylistic/member-delimiter-style" : ["error", {
         multiline: {
@@ -93,7 +101,7 @@ export default withNuxt(
         allowSamePrecedence: true,
       }],
       "@stylistic/no-mixed-spaces-and-tabs"        : ["error"],
-      "@stylistic/no-multi-spaces"                 : ["error"],
+      "@stylistic/no-multi-spaces"                 : ["off"], // conflict with eslint@stylistic/key-spacing
       "@stylistic/no-multiple-empty-lines"         : ["error", { max: 3, maxEOF: 1 }],
       "@stylistic/no-tabs"                         : ["error"],
       "@stylistic/no-trailing-spaces"              : ["error"],
@@ -133,7 +141,7 @@ export default withNuxt(
       "@stylistic/switch-colon-spacing"    : ["error", { after: true, before: false }],
       "@stylistic/template-curly-spacing"  : ["error", "never"],
       "@stylistic/template-tag-spacing"    : ["error", "never"],
-      "@stylistic/type-annotation-spacing" : ["error", { before: false, after: true }],
+      "@stylistic/type-annotation-spacing" : ["off"], // conflict with eslint@stylistic/key-spacing
       "@stylistic/type-generic-spacing"    : ["error"],
       "@stylistic/type-named-tuple-spacing": ["error"],
       "@stylistic/wrap-iife"               : ["error", "inside"],
