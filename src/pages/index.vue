@@ -2,6 +2,7 @@
 <template>
   <div>
     <NuxtLink to="/about">About page</NuxtLink>
+    <Fetch/>
   </div>
 </template>
 
