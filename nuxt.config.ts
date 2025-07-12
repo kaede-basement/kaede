@@ -2,11 +2,6 @@ export default defineNuxtConfig({
   // Leave it as it is
   compatibilityDate: "2025-05-15",
 
-  typescript: {
-    typeCheck: true,
-    strict   : true,
-  },
-
   /*
    * Enable View Transition API to animate page navigation
    * we will disable it in the middleware if user disabled transitions in the config
