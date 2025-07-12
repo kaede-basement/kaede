@@ -6,6 +6,9 @@
     <button class="bg-indigo" @click="openDialog">
       open dialog
     </button>
+    <button class="bg-indigo" @click="displayConfig">
+      display freaky config
+    </button>
     <div v-if="isPending" class="h-36">
       Loading...
     </div>
@@ -34,6 +37,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { Command } from "@tauri-apps/plugin-shell";
 import { readDir } from "@tauri-apps/plugin-fs";
 import { fetch } from "@tauri-apps/plugin-http";
+import getConfig from "~/lib/helpers/getConfig";
 
 async function openDialog() {
   await message(
@@ -49,6 +53,15 @@ function notify() {
   sendNotification({
     title: "Kaede",
     body : "i love kaeeraa",
+  });
+}
+
+async function displayConfig() {
+  const config: string = JSON.stringify(await getConfig(), null, 2);
+
+  await message(config, {
+    title: "config.json",
+    kind : "info",
   });
 }
 
