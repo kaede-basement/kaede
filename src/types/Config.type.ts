@@ -1,5 +1,6 @@
 import { type } from "arktype";
 
+// for arktype
 export const ConfigValidation = type({
   __do_not_touch_VERSION: "number",
   customization         : {
@@ -7,6 +8,7 @@ export const ConfigValidation = type({
     accent          : "string", // TODO
     customBackground: "string", // TODO
     customTitleBar  : "boolean",
+    pageTransitions : "boolean",
     opacity         : {
       sidebar   : "number",
       main      : "number",
@@ -25,6 +27,7 @@ export const ConfigValidation = type({
  * export type ConfigType = typeof ApplicationConfigValidationType.infer;
  */
 
+// for typescript
 export type ConfigType = {
   __do_not_touch_VERSION: number;
   customization: {
@@ -32,6 +35,7 @@ export type ConfigType = {
     accent          : string; // TODO
     customBackground: string; // TODO
     customTitleBar  : boolean;
+    pageTransitions : boolean;
     opacity: {
       sidebar   : number;
       main      : number;

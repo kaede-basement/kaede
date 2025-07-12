@@ -2,7 +2,7 @@
   <div
     data-tauri-drag-region
     class="z-10000 h-8 w-full sticky top-0 flex flex-nowrap items-center justify-between gap-2 bg-black
-    bg-opacity-85"
+    bg-opacity-85 rounded-t-md overflow-clip"
   >
     <div
       data-tauri-drag-region

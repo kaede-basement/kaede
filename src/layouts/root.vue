@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-0 rounded-md overflow-clip">
+  <div class="flex flex-col gap-0 rounded-b-md overflow-clip">
     <!-- for accessibility, to announce page navigation for screen readers -->
     <NuxtRouteAnnouncer />
     <!-- show loading bar at the top of the page -->
