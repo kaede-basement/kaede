@@ -6,14 +6,18 @@ import { ConfigValidation } from "~/types/Config.type";
 import { type } from "arktype";
 
 export default async function getConfig(): Promise<ConfigType> {
-  /*
-   * by this point config file should already exist because
-   * we executed initialization functions before we got here
-   * so we can read config file's text content now
-   */
-  const configFileData: string = await readTextFile(ConfigFilename, {
-    baseDir: BaseDirectory.AppConfig,
-  });
+  let configFileData: string;
+
+  // config file might not exist, so we wrap it into try & catch construction
+  try {
+    configFileData = await readTextFile(ConfigFilename, {
+      baseDir: BaseDirectory.AppConfig,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return InitialAppConfiguration;
+  }
 
   /*
    * we don't know if there is actually a valid config file
