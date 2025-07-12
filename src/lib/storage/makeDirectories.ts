@@ -8,8 +8,10 @@ const makeDirectory = async ({
   baseDirectoryPath,
   recursiveDirectories,
 }: {
+
   /** A base directory path with BaseDirectory type */
-  baseDirectoryPath:    BaseDirectory;
+  baseDirectoryPath: BaseDirectory;
+
   /** An array of folders that should be nested inside each other */
   recursiveDirectories: Array<string>;
 }): Promise<FunctionResponsesType> => {
@@ -25,12 +27,14 @@ const makeDirectory = async ({
     return FunctionResponses.Exists;
   }
 
-  // we are wrapping this in "try & catch" construction
-  // because "mkdir" can throw an error
+  /*
+   * we are wrapping this in "try & catch" construction
+   * because "mkdir" can throw an error
+   */
   try {
     // make a directory in {baseDirectoryPath}
     await mkdir(directoryToMake, {
-      baseDir:   baseDirectoryPath,
+      baseDir  : baseDirectoryPath,
       // run "mkdir" recursively only if we need to make nested folders
       recursive: recursiveDirectories.length > 1,
     });
@@ -47,14 +51,16 @@ export default async function makeDirectories({
   directories,
 }: {
   directories: Array<{
+
     /** A base directory path with BaseDirectory type */
-    baseDirectoryPath:    BaseDirectory;
+    baseDirectoryPath: BaseDirectory;
+
     /** An array of folders that should be nested inside each other */
     recursiveDirectories: Array<string>;
   }>;
 }): Promise<FunctionResponsesType> {
   // make a set that will store unique results from every directory write
-  const results = new Set();
+  const results = new Set;
 
   // iterate through every "directories" array element
   for (const directory of directories) {
@@ -62,7 +68,7 @@ export default async function makeDirectories({
     const { recursiveDirectories, baseDirectoryPath } = directory;
     // pass destructured properties into the "makeDirectory" function
     const result = await makeDirectory({
-      baseDirectoryPath:    baseDirectoryPath,
+      baseDirectoryPath   : baseDirectoryPath,
       recursiveDirectories: recursiveDirectories,
     });
 

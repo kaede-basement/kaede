@@ -2,21 +2,21 @@ import { type } from "arktype";
 
 export const ConfigValidation = type({
   __do_not_touch_VERSION: "number",
-  customization:          {
-    theme:            "string", // TODO
-    accent:           "string", // TODO
+  customization         : {
+    theme           : "string", // TODO
+    accent          : "string", // TODO
     customBackground: "string", // TODO
-    customTitleBar:   "boolean",
-    opacity:          {
-      sidebar:    "number",
-      main:       "number",
+    customTitleBar  : "boolean",
+    opacity         : {
+      sidebar   : "number",
+      main      : "number",
       background: "number",
     },
   },
-  language:              "string", // TODO
-  useSystemLocale:       "boolean",
+  language             : "string", // TODO
+  useSystemLocale      : "boolean",
   minecraftWindowHeight: "number",
-  minecraftWindowWidth:  "number",
+  minecraftWindowWidth : "number",
 });
 
 /*
@@ -27,19 +27,19 @@ export const ConfigValidation = type({
 
 export type ConfigType = {
   __do_not_touch_VERSION: number;
-  customization:          {
-    theme:            string; // TODO
-    accent:           string; // TODO
+  customization: {
+    theme           : string; // TODO
+    accent          : string; // TODO
     customBackground: string; // TODO
-    customTitleBar:   boolean;
-    opacity:          {
-      sidebar:    number,
-      main:       number,
-      background: number,
-    },
-  },
-  language:              string, // TODO
-  useSystemLocale:       boolean,
-  minecraftWindowHeight: number,
-  minecraftWindowWidth:  number,
+    customTitleBar  : boolean;
+    opacity: {
+      sidebar   : number;
+      main      : number;
+      background: number;
+    };
+  };
+  language             : string; // TODO
+  useSystemLocale      : boolean;
+  minecraftWindowHeight: number;
+  minecraftWindowWidth : number;
 };

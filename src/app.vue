@@ -16,16 +16,20 @@ import { Effect } from "@tauri-apps/api/window";
 import makeDirectories from "~/lib/storage/makeDirectories";
 import { BaseDirectory } from "@tauri-apps/api/path";
 
-// TODO refactor
-// get Tauri's webview window
+/*
+ * TODO refactor
+ * get Tauri's webview window
+ */
 const currentWebview = getCurrentWebviewWindow();
 
-// initialization
-// "await" keyword blocks code execution until async function completes
+/*
+ * initialization
+ * "await" keyword blocks code execution until async function completes
+ */
 await makeDirectories({
   directories: [
     {
-      baseDirectoryPath:    BaseDirectory.AppConfig,
+      baseDirectoryPath   : BaseDirectory.AppConfig,
       // do not remove empty string, otherwise it won't work
       recursiveDirectories: ["", "instances"],
     },
@@ -38,19 +42,26 @@ const appInfoStore = useApplicationInfo();
 // get application configuration store
 const configStore = useApplicationConfiguration();
 
-// fetch app info
-// fetched data will be shown in "appInfoStore"
+/*
+ * fetch app info
+ * fetched data will be shown in "appInfoStore"
+ */
 await appInfoStore.getApplicationInfo();
-// fetch app configuration
-// fetched data will be shown in "configStore.data"
+
+/*
+ * fetch app configuration
+ * fetched data will be shown in "configStore.data"
+ */
 await configStore.getApplicationConfiguration();
 
 // now configStore.data should have config data
 const config = configStore.data;
 const shouldUseCustomTitleBar = config?.customization?.customTitleBar;
 
-// show or hide system title bar and other window decorations
-// based on the opposite "shouldUseCustomTitleBar" value
+/*
+ * show or hide system title bar and other window decorations
+ * based on the opposite "shouldUseCustomTitleBar" value
+ */
 await currentWebview.setDecorations(!shouldUseCustomTitleBar);
 
 if (shouldUseCustomTitleBar) {
@@ -61,14 +72,19 @@ if (shouldUseCustomTitleBar) {
 } else {
   // temporarily
   await currentWebview.clearEffects();
-  // by default title bar has only "Kaede" in its name
-  // here we manually set it to "Kaede v{version}"
-  // (only needed for system title bar, so we run it here conditionally)
+
+  /*
+   * by default title bar has only "Kaede" in its name
+   * here we manually set it to "Kaede v{version}"
+   * (only needed for system title bar, so we run it here conditionally)
+   */
   await currentWebview.setTitle(`Kaede v${appInfoStore.version}`);
 }
 
-// tauri doesn't wait for frontend to load and launches webview2 with flashing blank white screen.
-// this is why webview window is initially not visible in the tauri.config.json, so that
-// we can make it visible only when frontend is loaded
+/*
+ * tauri doesn't wait for frontend to load and launches webview2 with flashing blank white screen.
+ * this is why webview window is initially not visible in the tauri.config.json, so that
+ * we can make it visible only when frontend is loaded
+ */
 await currentWebview.show();
 </script>

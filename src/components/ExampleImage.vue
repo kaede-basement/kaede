@@ -10,7 +10,7 @@
 <script setup lang="ts">
 defineProps({
   additionalClass: {
-    type:     String,
+    type    : String,
     required: true,
   },
 });

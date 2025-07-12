@@ -6,7 +6,7 @@ import getConfig from "~/lib/helpers/getConfig";
 // stores can be accessed in Vue from anywhere and their data persist
 export const useApplicationInfo = defineStore("applicationInfo", {
   state: () => ({
-    name:    null as string | null,
+    name   : null as string | null,
     version: null as string | null,
   }),
   actions: {

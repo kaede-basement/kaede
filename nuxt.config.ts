@@ -2,15 +2,20 @@ export default defineNuxtConfig({
   // Leave it as it is
   compatibilityDate: "2025-05-15",
 
-  // Enable View Transition API to animate page navigation
-  // we will disable it in the middleware if user disabled transitions in the config
+  /*
+   * Enable View Transition API to animate page navigation
+   * we will disable it in the middleware if user disabled transitions in the config
+   */
   experimental: {
     viewTransition: true,
   },
   app: {
-    // Enable old page transitions. We will disable it in the middleware,
-    // if user's webview already supports View Transition API
-    // we will also disable it in the middleware if user disabled transitions in the config
+
+    /*
+     * Enable old page transitions. We will disable it in the middleware,
+     * if user's webview already supports View Transition API
+     * we will also disable it in the middleware if user disabled transitions in the config
+     */
     pageTransition: {
       // Use "fade" as a transition name to use styles from ~/src/layouts/root.vue
       name: "fade",
@@ -19,28 +24,34 @@ export default defineNuxtConfig({
     },
   },
   // Nuxt source code directory
-  srcDir:   "./src",
+  srcDir  : "./src",
   devtools: {
     enabled: true,
   },
   // Desktop apps are fully CSR, so we disable Server-Side Rendering
-  ssr:  false,
+  ssr : false,
   // Vite configuration
   vite: {
     // Better support for Tauri CLI output
     clearScreen: false,
-    // Enable environment variables
-    // Additional environment variables can be found at
-    // https://v2.tauri.app/reference/environment-variables/
-    envPrefix:   ["VITE_", "TAURI_"],
-    server:      {
+
+    /*
+     * Enable environment variables
+     * Additional environment variables can be found at
+     * https://v2.tauri.app/reference/environment-variables/
+     */
+    envPrefix: ["VITE_", "TAURI_"],
+    server   : {
       // Tauri requires a consistent port
       strictPort: true,
     },
   },
-  // Nuxt modules
-  // Additional modules can be found at
-  // https://nuxt.com/modules
+
+  /*
+   * Nuxt modules
+   * Additional modules can be found at
+   * https://nuxt.com/modules
+   */
   modules: [
     "@nuxt/eslint",
     "@nuxt/fonts",
@@ -56,7 +67,7 @@ export default defineNuxtConfig({
     // What font weights, styles and subsets to load for each font
     defaults: {
       weights: [400],
-      styles:  ["normal", "italic"],
+      styles : ["normal", "italic"],
       subsets: [
         "cyrillic-ext",
         "cyrillic",
@@ -67,11 +78,14 @@ export default defineNuxtConfig({
         "latin",
       ],
     },
-    // Load Geist font
-    // https://vercel.com/font
+
+    /*
+     * Load Geist font
+     * https://vercel.com/font
+     */
     families: [
       {
-        name:     "Geist",
+        name    : "Geist",
         provider: "google",
       },
     ],

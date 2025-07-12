@@ -15,23 +15,26 @@
 </template>
 
 <script setup lang="ts">
-// import { fetch } from "@tauri-apps/plugin-http";
-// import { exists, writeFile } from "@tauri-apps/plugin-fs";
-// import { FunctionResponses } from "~/constants/app";
-import { appConfigDir, BaseDirectory, join } from "@tauri-apps/api/path";
+
+/*
+ * import { fetch } from "@tauri-apps/plugin-http";
+ * import { exists, writeFile } from "@tauri-apps/plugin-fs";
+ * import { FunctionResponses } from "~/constants/app";
+ */
+import { appConfigDir, join } from "@tauri-apps/api/path";
 // import makeDirectories from "~/lib/storage/makeDirectories";
 import { download } from "@tauri-apps/plugin-upload";
 
 function timeout(milliseconds: number) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
 const { libraries } = defineProps<{
   libraries: Array<{
-    name: string;
+    name     : string;
     downloads: {
       artifact: {
-        url:  string;
+        url : string;
         path: string;
       };
     };
@@ -45,7 +48,7 @@ const t1 = performance.now();
 const results = useQueries({
   queries: libraries?.map((library, index) => ({
     queryKey: ["library", library.name],
-    queryFn:  async () => {
+    queryFn : async () => {
       const chunkIndex = Math.floor(index / 6);
 
       await timeout(chunkIndex * 0);
@@ -54,8 +57,10 @@ const results = useQueries({
 
       const url = library.downloads.artifact.url;
 
-      // const libraryResponse = await fetch(url);
-      // const libraryBody = await libraryResponse.text();
+      /*
+       * const libraryResponse = await fetch(url);
+       * const libraryBody = await libraryResponse.text();
+       */
 
       // console.log("File size", libraryBody.length);
 
@@ -65,40 +70,40 @@ const results = useQueries({
       const fullAbsolutePathToFile = await join(await appConfigDir(), fullRelativePathToFile);
 
       /*
-      if (
-        await exists(fullRelativePathToFile, {
-          baseDir: BaseDirectory.AppConfig,
-        })
-      ) {
-        return "exists";
-      }
+       *if (
+       *  await exists(fullRelativePathToFile, {
+       *    baseDir: BaseDirectory.AppConfig,
+       *  })
+       *) {
+       *  return "exists";
+       *}
        */
 
       /*
-      await makeDirectories({
-        directories: [
-          {
-            baseDirectoryPath:    BaseDirectory.AppConfig,
-            recursiveDirectories: ["libraries", ...paths],
-          },
-        ],
-      });
-
-      const encoder: TextEncoder = new TextEncoder();
-      const data: Uint8Array = encoder.encode(libraryBody);
-
-      // we are wrapping this in "try & catch" construction
-      // because "writeFile" can throw an error
-      try {
-        await writeFile(
-          fullRelativePathToFile, data,
-          { baseDir: BaseDirectory.AppConfig },
-        );
-      } catch (error: unknown) {
-        console.error(error);
-
-        return FunctionResponses.Error;
-      }
+       *await makeDirectories({
+       *  directories: [
+       *    {
+       *      baseDirectoryPath:    BaseDirectory.AppConfig,
+       *      recursiveDirectories: ["libraries", ...paths],
+       *    },
+       *  ],
+       *});
+       *
+       *const encoder: TextEncoder = new TextEncoder();
+       *const data: Uint8Array = encoder.encode(libraryBody);
+       *
+       * // we are wrapping this in "try & catch" construction
+       * // because "writeFile" can throw an error
+       *try {
+       *  await writeFile(
+       *    fullRelativePathToFile, data,
+       *    { baseDir: BaseDirectory.AppConfig },
+       *  );
+       *} catch (error: unknown) {
+       *  console.error(error);
+       *
+       *  return FunctionResponses.Error;
+       *}
        */
 
       try {
@@ -106,7 +111,7 @@ const results = useQueries({
           url,
           fullAbsolutePathToFile,
           ({ progressTotal, total }) => {
-            progressData[index] = `Downloaded ${Math.floor((progressTotal / total) * 100)}%`;
+            progressData[index] = `Downloaded ${Math.floor(progressTotal / total * 100)}%`;
           },
         );
       } catch (error: unknown) {
@@ -119,7 +124,7 @@ const results = useQueries({
   })),
 });
 
-const shit = computed(() => results.value.map((result) => result.status));
+const shit = computed(() => results.value.map(result => result.status));
 const timeElapsed = ref(0);
 
 watchEffect(() => {

@@ -1,5 +1,4 @@
 <template>
-  <!-- wrapper <div /> -->
   <div class="flex flex-col gap-0 rounded-md overflow-clip">
     <!-- for accessibility, to announce page navigation for screen readers -->
     <NuxtRouteAnnouncer />
@@ -9,7 +8,18 @@
     <div :class="[adaptedHeight, 'flex w-full bg-black bg-opacity-75 text-white']">
       <Sidebar />
       <div class="flex overflow-hidden w-full">
-        <div class="w-full overflow-auto [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:transition [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#6F7279] [&::-webkit-scrollbar-thumb:hover]:bg-[#5C5F66] ![&::-webkit-scrollbar-thumb:active]:bg-[#3A3D45]">
+        <div
+class="w-full
+            overflow-auto
+            [&::-webkit-scrollbar]:w-3
+            [&::-webkit-scrollbar-track]:rounded-full
+            [&::-webkit-scrollbar-track]:bg-transparent
+            [&::-webkit-scrollbar-thumb]:transition
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            [&::-webkit-scrollbar-thumb]:bg-[#6F7279]
+            [&::-webkit-scrollbar-thumb:hover]:bg-[#5C5F66]
+            ![&::-webkit-scrollbar-thumb:active]:bg-[#3A3D45]
+        ">
           <slot />
         </div>
       </div>
@@ -24,9 +34,7 @@ import Titlebar from "~/components/layout/Titlebar.vue";
 // use passed "shouldUseCustomTitleBar" prop from NuxtLayout
 const layoutProperties = useAttrs();
 const shouldUseCustomTitleBar = layoutProperties["should-use-custom-title-bar"];
-const adaptedHeight = shouldUseCustomTitleBar
-  ? "h-[calc(100vh-32px)]"
-  : "h-[100vh]";
+const adaptedHeight = shouldUseCustomTitleBar ? "h-[calc(100vh-32px)]" : "h-[100vh]";
 
 // assign a "__nuxt-body" class to <body />
 useHead({
@@ -51,8 +59,8 @@ useHead({
 
 /* html document's <body /> element */
 .__nuxt-body {
-	margin: 0;
-	padding: 0;
+  margin: 0;
+  padding: 0;
   font-family: Geist, Roboto, sans-serif;
 }
 </style>
