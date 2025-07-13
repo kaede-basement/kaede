@@ -1,6 +1,6 @@
 <template>
   <!-- use a layout component (~/layouts/root.vue) across all pages -->
-  <NuxtLayout name="root" :should-use-custom-title-bar="shouldUseCustomTitleBar">
+  <NuxtLayout name="root" style="user-select: none;" :should-use-custom-title-bar="shouldUseCustomTitleBar">
     <!-- file-based routing (~/pages) -->
     <NuxtPage />
   </NuxtLayout>
