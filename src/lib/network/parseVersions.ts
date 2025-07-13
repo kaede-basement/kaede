@@ -1,5 +1,7 @@
+import { URL } from "~/constants/url";
+
 export default async function parseVersions() {
-  const response = await fetch("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json");
+  const response = await fetch(URL.VersionManifest);
 
   return await response?.json();
 }
