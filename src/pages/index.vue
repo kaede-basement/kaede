@@ -1,7 +1,7 @@
 <!-- Home page -->
 <template>
-  <div>
-    <NuxtLink to="/about">About page</NuxtLink>
+  <div class="p-3 pl-0">
+    <NuxtLink class="bg-rose-600 rounded-md p-1" to="/about">About page</NuxtLink>
   </div>
 </template>
 
