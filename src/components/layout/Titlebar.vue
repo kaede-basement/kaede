@@ -73,7 +73,6 @@ import capitalizeWord from "~/lib/misc/capitalizeWord";
 
 const store = useApplicationInfo();
 const currentWindow = getCurrentWindow();
-const isWindowMaximized = ref(false);
 
 // go back in page navigations
 function redirectBack() {
@@ -91,9 +90,6 @@ async function minimise() {
 // maximise app window
 async function maximise() {
   await currentWindow.toggleMaximize();
-
-  // assign current window state to the "isWindowMaximized" ref
-  isWindowMaximized.value = await currentWindow.isMaximized();
 }
 // close app
 async function close() {
@@ -120,7 +116,7 @@ const windowButtons = computed(() => [
     classes: "group-hover:text-[#733e01] bg-[#ebbcba]",
   },
   {
-    icon   : isWindowMaximized.value ? "lucide:chevrons-right-left" : "lucide:chevrons-left-right",
+    icon   : "lucide:chevrons-left-right",
     size   : 14,
     action : maximise,
     classes: "group-hover:text-[#01540d] bg-[#9ccfd8]",
