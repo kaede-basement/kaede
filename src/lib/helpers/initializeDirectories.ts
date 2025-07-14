@@ -5,12 +5,20 @@ import type { FunctionResponsesType } from "~/types/FunctionResponses.type";
 
 export default async function initializeDirectories(): Promise<FunctionResponsesType> {
   try {
-    const directoryVariables = Object.keys(constants).
-      filter(key => key.endsWith("Folder"));
+    const configDirectoryVariables = Object.keys(constants).
+      filter(key => key.endsWith("_ConfigFolder"));
+    const dataDirectoryVariables = Object.keys(constants).
+      filter(key => key.endsWith("_DataFolder"));
 
-    for (const directory in directoryVariables) {
+    for (const directory in configDirectoryVariables) {
       await mkdir(directory, {
         baseDir  : BaseDirectory.AppConfig,
+        recursive: true,
+      });
+    }
+    for (const directory in dataDirectoryVariables) {
+      await mkdir(directory, {
+        baseDir  : BaseDirectory.AppLocalData,
         recursive: true,
       });
     }
