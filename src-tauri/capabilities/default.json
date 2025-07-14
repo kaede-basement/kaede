@@ -64,6 +64,6 @@
         }
       ]
     },
-    "upload:default"
+    "upload:allow-download"
   ]
 }
