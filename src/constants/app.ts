@@ -10,5 +10,10 @@ export const FunctionResponses = {
    * that this object is readonly and should have explicit keys and values
    */
 } as const;
-export const ConfigFilename = "config.json";
-export const InstancesFolder = "instances";
+export const ConfigFilename       = "config.json";
+
+export const Instances_DataFolder = "instances";
+export const Assets_DataFolder    = "assets";
+export const Libraries_DataFolder = "libraries";
+
+export const Custom_ConfigFolder  = "custom";
