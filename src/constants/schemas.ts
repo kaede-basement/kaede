@@ -1,41 +1,42 @@
-import { z } from "zod";
+import { type } from "arktype";
 
-export const ArtifactSchema = z.object({
-  path: z.string().min(1),
-  sha1: z.string().length(40),
-  size: z.number().int().
-    nonnegative(),
-  url: z.string().url(),
-}).strict();
-export type Artifact = z.infer<typeof ArtifactSchema>;
+export const ArtifactSchema = type({
+  path: "string > 0",
+  sha1: "string.hex == 40",
+  size: "number > 0",
+  url : "string.url",
+});
+export type Artifact = typeof ArtifactSchema.infer;
 
-export const ClassifiersSchema = z.object({
-  "natives-linux"  : ArtifactSchema.optional(),
-  "natives-osx"    : ArtifactSchema.optional(),
-  "natives-windows": ArtifactSchema.optional(),
-}).strict();
-export type Classifier = z.infer<typeof ClassifiersSchema>;
+export const ClassifiersSchema = type({
+  "natives-linux?"  : ArtifactSchema,
+  "natives-osx?"    : ArtifactSchema,
+  "natives-windows?": ArtifactSchema,
+});
+export type Classifier = typeof ClassifiersSchema.infer;
 
-export const RulesSchema = z.object({
-  action: z.enum(["allow", "disallow"]),
-  os    : z.object({
-    name: z.enum(["osx", "windows", "linux"]),
-  }).optional(),
-}).strict();
-export type Rule = z.infer<typeof RulesSchema>;
+export const RulesSchema = type({
+  "action": "'allow' | 'disallow'",
+  "os?"   : type({
+    name: "'osx' | 'windows' | 'linux'",
+  }),
+});
+export type Rule = typeof RulesSchema.infer;
 
-export const ExtractSchema = z.object({
-  exclude: z.array(z.string()),
-}).strict();
+export const ExtractSchema = type({
+  exclude: "string[]",
+});
 
-export const LibrarySchema = z.object({
-  downloads: z.object({
-    artifact   : ArtifactSchema,
-    classifiers: ClassifiersSchema.optional(),
-  }).strict(),
-  name   : z.string(),
-  rules  : z.array(RulesSchema).optional(),
-  extract: ExtractSchema.optional(),
-  natives: z.record(z.enum(["linux", "windows", "osx"]), z.string()).optional(),
-}).strict();
-export type Library = z.infer<typeof LibrarySchema>;
+export const LibrarySchema = type({
+  "downloads": {
+    "artifact"    : ArtifactSchema,
+    "classifiers?": ClassifiersSchema,
+  },
+  "name"    : "string",
+  "rules?"  : RulesSchema.array(),
+  "extract?": ExtractSchema,
+  "natives?": "'linux' | 'windows' | 'osx'",
+});
+export const LibrariesSchema = type(LibrarySchema.array());
+export type Library = typeof LibrarySchema.infer;
+export type Libraries = typeof LibrariesSchema.infer;
