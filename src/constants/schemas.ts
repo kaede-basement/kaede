@@ -23,10 +23,6 @@ export const RulesSchema = type({
 });
 export type Rule = typeof RulesSchema.infer;
 
-export const ExtractSchema = type({
-  exclude: "string[]",
-});
-
 export const LibrarySchema = type({
   "downloads": {
     "artifact"    : ArtifactSchema,
@@ -34,7 +30,7 @@ export const LibrarySchema = type({
   },
   "name"    : "string",
   "rules?"  : RulesSchema.array(),
-  "extract?": ExtractSchema,
+  "extract?": type({ exclude: "string[]" }),
   "natives?": "'linux' | 'windows' | 'osx'",
 });
 export const LibrariesSchema = type(LibrarySchema.array());
