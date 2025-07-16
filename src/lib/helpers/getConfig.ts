@@ -11,7 +11,7 @@ export default async function getConfig(): Promise<ConfigType> {
   // config file might not exist, so we wrap it into try & catch construction
   try {
     configFileData = await readTextFile(ConfigFilename, {
-      baseDir: BaseDirectory.AppConfig,
+      "baseDir": BaseDirectory.AppConfig,
     });
   } catch (error) {
     console.error(error);

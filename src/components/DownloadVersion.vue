@@ -15,13 +15,13 @@ import { z } from "zod";
 import downloadLibraries from "~/lib/network/downloadLibraries";
 
 const VersionSchema = z.object({
-  id             : z.string(),
-  type           : z.string(),
-  url            : z.string().url(),
-  time           : z.string(),
-  releaseTime    : z.string(),
-  sha1           : z.string(),
-  complianceLevel: z.number().int(),
+  "id"              : z.string(),
+  "type"            : z.string(),
+  "url"             : z.string().url(),
+  "time"            : z.string(),
+  "releaseTime"     : z.string(),
+  "sha1"            : z.string(),
+  "complianceLevel" : z.number().int(),
 });
 
 const selectedVersion = ref(null);

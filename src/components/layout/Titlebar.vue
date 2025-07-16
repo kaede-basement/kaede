@@ -98,34 +98,34 @@ async function close() {
 
 const redirectButtons = [
   {
-    icon  : "lucide:arrow-left",
-    size  : 16,
-    action: redirectBack,
+    "icon"   : "lucide:arrow-left",
+    "size"   : 16,
+    "action" : redirectBack,
   },
   {
-    icon  : "lucide:arrow-right",
-    size  : 16,
-    action: redirectForward,
+    "icon"   : "lucide:arrow-right",
+    "size"   : 16,
+    "action" : redirectForward,
   },
 ];
 const windowButtons = computed(() => [
   {
-    icon   : "lucide:minus",
-    size   : 12,
-    action : minimise,
-    classes: "group-hover:text-[#733e01] bg-[#ebbcba]",
+    "icon"    : "lucide:minus",
+    "size"    : 12,
+    "action"  : minimise,
+    "classes" : "group-hover:text-[#733e01] bg-[#ebbcba]",
   },
   {
-    icon   : "lucide:chevrons-left-right",
-    size   : 14,
-    action : maximise,
-    classes: "group-hover:text-[#01540d] bg-[#9ccfd8]",
+    "icon"    : "lucide:chevrons-left-right",
+    "size"    : 14,
+    "action"  : maximise,
+    "classes" : "group-hover:text-[#01540d] bg-[#9ccfd8]",
   },
   {
-    icon   : "lucide:x",
-    size   : 12,
-    action : close,
-    classes: "group-hover:text-[#700700] bg-[#eb6f92]",
+    "icon"    : "lucide:x",
+    "size"    : 12,
+    "action"  : close,
+    "classes" : "group-hover:text-[#700700] bg-[#eb6f92]",
   },
 ]);
 </script>

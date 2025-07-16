@@ -27,11 +27,11 @@ const currentWebview = getCurrentWebviewWindow();
  * "await" keyword blocks code execution until async function completes
  */
 await makeDirectories({
-  directories: [
+  "directories": [
     {
-      baseDirectoryPath   : BaseDirectory.AppConfig,
+      "baseDirectoryPath"    : BaseDirectory.AppConfig,
       // do not remove empty string, otherwise it won't work
-      recursiveDirectories: ["", "instances"],
+      "recursiveDirectories" : ["", "instances"],
     },
   ],
 });
@@ -67,7 +67,7 @@ await currentWebview.setDecorations(!shouldUseCustomTitleBar);
 if (shouldUseCustomTitleBar) {
   // temporarily
   await currentWebview.setEffects({
-    effects: [Effect.Blur],
+    "effects": [Effect.Blur],
   });
 } else {
   // temporarily

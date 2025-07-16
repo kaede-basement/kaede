@@ -12,14 +12,14 @@ export default async function initializeDirectories(): Promise<FunctionResponses
 
     for (const directory in configDirectoryVariables) {
       await mkdir(directory, {
-        baseDir  : BaseDirectory.AppConfig,
-        recursive: true,
+        "baseDir"   : BaseDirectory.AppConfig,
+        "recursive" : true,
       });
     }
     for (const directory in dataDirectoryVariables) {
       await mkdir(directory, {
-        baseDir  : BaseDirectory.AppLocalData,
-        recursive: true,
+        "baseDir"   : BaseDirectory.AppLocalData,
+        "recursive" : true,
       });
     }
   } catch (error: unknown) {

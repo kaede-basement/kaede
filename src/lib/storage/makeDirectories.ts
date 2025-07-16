@@ -10,16 +10,16 @@ const makeDirectory = async ({
 }: {
 
   /** A base directory path with BaseDirectory type */
-  baseDirectoryPath: BaseDirectory;
+  "baseDirectoryPath": BaseDirectory;
 
   /** An array of folders that should be nested inside each other */
-  recursiveDirectories: Array<string>;
+  "recursiveDirectories": Array<string>;
 }): Promise<FunctionResponsesType> => {
   const directoryToMake = await join(...recursiveDirectories);
 
   // checks if "{baseDirectoryPath}/{directoryToMake}" exists
   const passedDirectoryExists: boolean = await exists(directoryToMake, {
-    baseDir: baseDirectoryPath,
+    "baseDir": baseDirectoryPath,
   });
 
   // if path exists, we should not overwrite it
@@ -34,9 +34,9 @@ const makeDirectory = async ({
   try {
     // make a directory in {baseDirectoryPath}
     await mkdir(directoryToMake, {
-      baseDir  : baseDirectoryPath,
+      "baseDir"   : baseDirectoryPath,
       // run "mkdir" recursively only if we need to make nested folders
-      recursive: recursiveDirectories.length > 1,
+      "recursive" : recursiveDirectories.length > 1,
     });
   } catch (error: unknown) {
     console.error(error);
@@ -50,13 +50,13 @@ const makeDirectory = async ({
 export default async function makeDirectories({
   directories,
 }: {
-  directories: Array<{
+  "directories": Array<{
 
     /** A base directory path with BaseDirectory type */
-    baseDirectoryPath: BaseDirectory;
+    "baseDirectoryPath": BaseDirectory;
 
     /** An array of folders that should be nested inside each other */
-    recursiveDirectories: Array<string>;
+    "recursiveDirectories": Array<string>;
   }>;
 }): Promise<FunctionResponsesType> {
   // make a set that will store unique results from every directory write
@@ -68,8 +68,8 @@ export default async function makeDirectories({
     const { recursiveDirectories, baseDirectoryPath } = directory;
     // pass destructured properties into the "makeDirectory" function
     const result = await makeDirectory({
-      baseDirectoryPath   : baseDirectoryPath,
-      recursiveDirectories: recursiveDirectories,
+      "baseDirectoryPath"    : baseDirectoryPath,
+      "recursiveDirectories" : recursiveDirectories,
     });
 
     // add executed function response to the "results" array

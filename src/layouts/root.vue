@@ -38,8 +38,8 @@ const adaptedHeight = shouldUseCustomTitleBar ? "h-[calc(100vh-32px)]" : "h-[100
 
 // assign a "__nuxt-body" class to <body />
 useHead({
-  bodyAttrs: {
-    class: "__nuxt-body",
+  "bodyAttrs": {
+    "class": "__nuxt-body",
   },
 });
 </script>

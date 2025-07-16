@@ -9,7 +9,7 @@ export default async function makeConfigsDirectory(): Promise<FunctionResponsesT
    * on Windows equals to C:\Users\{USER}\AppData\Roaming\kaede
    */
   const configDirectoryExists: boolean = await exists("", {
-    baseDir: BaseDirectory.AppConfig,
+    "baseDir": BaseDirectory.AppConfig,
   });
 
   // if path exists, we should not overwrite it
@@ -24,7 +24,7 @@ export default async function makeConfigsDirectory(): Promise<FunctionResponsesT
   try {
     // make a directory "kaede" in {APP_CONFIGS_DIRECTORY}
     await mkdir("", {
-      baseDir: BaseDirectory.AppConfig,
+      "baseDir": BaseDirectory.AppConfig,
     });
   } catch (error: unknown) {
     console.error(error);

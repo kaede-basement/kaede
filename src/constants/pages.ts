@@ -1,8 +1,8 @@
 export const PageRoutes = {
-  Home    : "/",
-  Library : "/library",
-  About   : "/about",
-  Settings: "/settings",
+  "Home"     : "/",
+  "Library"  : "/library",
+  "About"    : "/about",
+  "Settings" : "/settings",
 
   /*
    * by default, we can change constant objects' properties, so typescript

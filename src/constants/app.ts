@@ -1,7 +1,7 @@
 export const FunctionResponses = {
-  Success: "success",
-  Error  : "error",
-  Exists : "exists",
+  "Success" : "success",
+  "Error"   : "error",
+  "Exists"  : "exists",
 
   /*
    * by default, we can change constant objects' properties, so typescript

@@ -1,49 +1,49 @@
 export default defineNuxtConfig({
   // Leave it as it is
-  compatibilityDate: "2025-05-15",
+  "compatibilityDate": "2025-05-15",
 
   /*
    * Enable View Transition API to animate page navigation
    * we will disable it in the middleware if user disabled transitions in the config
    */
-  experimental: {
-    viewTransition: true,
+  "experimental": {
+    "viewTransition": true,
   },
-  app: {
+  "app": {
 
     /*
      * Enable old page transitions. We will disable it in the middleware,
      * if user's webview already supports View Transition API
      * we will also disable it in the middleware if user disabled transitions in the config
      */
-    pageTransition: {
+    "pageTransition": {
       // Use "fade" as a transition name to use styles from ~/src/layouts/root.vue
-      name: "fade",
+      "name" : "fade",
       // New pages should appear only after the current page's animation has ended
-      mode: "out-in",
+      "mode" : "out-in",
     },
   },
   // Nuxt source code directory
-  srcDir  : "./src",
-  devtools: {
-    enabled: true,
+  "srcDir"   : "./src",
+  "devtools" : {
+    "enabled": true,
   },
   // Desktop apps are fully CSR, so we disable Server-Side Rendering
-  ssr : false,
+  "ssr"  : false,
   // Vite configuration
-  vite: {
+  "vite" : {
     // Better support for Tauri CLI output
-    clearScreen: false,
+    "clearScreen": false,
 
     /*
      * Enable environment variables
      * Additional environment variables can be found at
      * https://v2.tauri.app/reference/environment-variables/
      */
-    envPrefix: ["VITE_", "TAURI_"],
-    server   : {
+    "envPrefix" : ["VITE_", "TAURI_"],
+    "server"    : {
       // Tauri requires a consistent port
-      strictPort: true,
+      "strictPort": true,
     },
   },
 
@@ -52,7 +52,7 @@ export default defineNuxtConfig({
    * Additional modules can be found at
    * https://nuxt.com/modules
    */
-  modules: [
+  "modules": [
     "@nuxt/eslint",
     "@nuxt/fonts",
     "@nuxt/icon",
@@ -63,12 +63,12 @@ export default defineNuxtConfig({
     "@hebilicious/vue-query-nuxt",
     "@pinia/nuxt",
   ],
-  fonts: {
+  "fonts": {
     // What font weights, styles and subsets to load for each font
-    defaults: {
-      weights: [400],
-      styles : ["normal", "italic"],
-      subsets: [
+    "defaults": {
+      "weights" : [400],
+      "styles"  : ["normal", "italic"],
+      "subsets" : [
         "cyrillic-ext",
         "cyrillic",
         "greek-ext",
@@ -83,13 +83,13 @@ export default defineNuxtConfig({
      * Load Geist font
      * https://vercel.com/font
      */
-    families: [
+    "families": [
       {
-        name    : "Geist",
-        provider: "google",
+        "name"     : "Geist",
+        "provider" : "google",
       },
     ],
   },
   // Avoid error [unhandledRejection] EMFILE: too many open files, watch
-  ignore: ["**/src-tauri/**"],
+  "ignore": ["**/src-tauri/**"],
 });

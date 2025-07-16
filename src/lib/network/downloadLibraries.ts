@@ -17,10 +17,10 @@ export default async function downloadLibraries(url: string): Promise<void> {
   }
 
   useQueries({
-    queries: parsed.map((library: Library) => ({
-      queryKey: ["libs", library.name],
-      queryFn : async () => await download(library),
-      enabled : true,
+    "queries": parsed.map((library: Library) => ({
+      "queryKey" : ["libs", library.name],
+      "queryFn"  : async () => await download(library),
+      "enabled"  : true,
     })),
   });
 }

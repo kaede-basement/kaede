@@ -10,7 +10,7 @@ export default async function initializeConfigFile(): Promise<FunctionResponsesT
    * on Windows equals to C:\Users\{USER}\AppData\Roaming\kaede\config.json
    */
   const configExists: boolean = await exists(ConfigFilename, {
-    baseDir: BaseDirectory.AppConfig,
+    "baseDir": BaseDirectory.AppConfig,
   });
 
   // if config exists, we should not overwrite it
@@ -33,7 +33,7 @@ export default async function initializeConfigFile(): Promise<FunctionResponsesT
    * because "writeFile" can throw an error
    */
   try {
-    await writeFile(ConfigFilename, data, { baseDir: BaseDirectory.AppConfig });
+    await writeFile(ConfigFilename, data, { "baseDir": BaseDirectory.AppConfig });
   } catch (error: unknown) {
     console.error(error);
 
