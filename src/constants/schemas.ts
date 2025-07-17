@@ -9,9 +9,15 @@ export const ArtifactSchema = type({
 export type Artifact = typeof ArtifactSchema.infer;
 
 export const ClassifiersSchema = type({
-  "natives-linux?"   : ArtifactSchema,
-  "natives-osx?"     : ArtifactSchema,
-  "natives-windows?" : ArtifactSchema,
+  "natives-linux?"      : ArtifactSchema,
+  "natives-linux-32?"   : ArtifactSchema,
+  "natives-linux-64?"   : ArtifactSchema,
+  "natives-osx?"        : ArtifactSchema,
+  "natives-osx-32?"     : ArtifactSchema,
+  "natives-osx-64?"     : ArtifactSchema,
+  "natives-windows?"    : ArtifactSchema,
+  "natives-windows-32?" : ArtifactSchema,
+  "natives-windows-64?" : ArtifactSchema,
 });
 export type Classifier = typeof ClassifiersSchema.infer;
 
@@ -36,3 +42,49 @@ export const LibrarySchema = type({
 export const LibrariesSchema = type(LibrarySchema.array());
 export type Library = typeof LibrarySchema.infer;
 export type Libraries = typeof LibrariesSchema.infer;
+
+export const MinecraftVersionSchema = type({
+  "assetIndex": {
+    "id"        : "string",
+    "sha1"      : "string.hex",
+    "size"      : "number",
+    "totalSize" : "number",
+    "url"       : "string > 0",
+  },
+  "assets"          : "string",
+  "complianceLevel" : "number",
+  "downloads"       : {
+    "client": {
+      "sha1" : "string.hex",
+      "size" : "number > 0",
+      "url"  : "string",
+    },
+    // Optional because not used
+    "server?": "object",
+  },
+  "id"          : "string",
+  "javaVersion" : {
+    "component"    : "string",
+    "majorVersion" : "number",
+  },
+  "libraries" : LibrariesSchema,
+  "logging"   : {
+    "client": {
+      "argument" : "string",
+      "file"     : {
+        "id"   : "string",
+        "sha1" : "string",
+        "size" : "number",
+        "url"  : "string",
+      },
+      "type": "string",
+    },
+  },
+  "mainClass"              : "string",
+  "minecraftArguments"     : "string",
+  "minimumLauncherVersion" : "number",
+  "releaseTime"            : "string",
+  "time"                   : "string",
+  "type"                   : "string",
+});
+
