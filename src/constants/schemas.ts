@@ -39,9 +39,7 @@ export const LibrarySchema = type({
   "extract?" : type({ "exclude": "string[]" }),
   "natives?" : "'linux' | 'windows' | 'osx'",
 });
-export const LibrariesSchema = type(LibrarySchema.array());
 export type Library = typeof LibrarySchema.infer;
-export type Libraries = typeof LibrariesSchema.infer;
 
 export const MinecraftVersionSchema = type({
   "assetIndex": {
@@ -67,7 +65,7 @@ export const MinecraftVersionSchema = type({
     "component"    : "string",
     "majorVersion" : "number",
   },
-  "libraries" : LibrariesSchema,
+  "libraries" : LibrarySchema.array(),
   "logging"   : {
     "client": {
       "argument" : "string",
