@@ -31,13 +31,17 @@ export type Rule = typeof RulesSchema.infer;
 
 export const LibrarySchema = type({
   "downloads": {
-    "artifact"     : ArtifactSchema,
+    "artifact?"    : ArtifactSchema,
     "classifiers?" : ClassifiersSchema,
   },
   "name"     : "string",
   "rules?"   : RulesSchema.array(),
   "extract?" : type({ "exclude": "string[]" }),
-  "natives?" : "'linux' | 'windows' | 'osx'",
+  "natives?" : {
+    "linux?"   : "string",
+    "osx?"     : "string",
+    "windows?" : "string",
+  },
 });
 export type Library = typeof LibrarySchema.infer;
 

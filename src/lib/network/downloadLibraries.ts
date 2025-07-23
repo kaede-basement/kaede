@@ -1,20 +1,19 @@
-import type { Rule, Library } from "~/constants/schemas";
-import { LibrariesSchema } from "~/constants/schemas";
+import type { Rule, Library, Classifier, Artifact } from "~/constants/schemas";
+import { ArtifactSchema, ClassifiersSchema, LibrarySchema, RulesSchema } from "~/constants/schemas";
 import { download as downloadFile } from "@tauri-apps/plugin-upload";
 import getPlatform from "../helpers/getPlatform";
 import { Libraries_DataFolder } from "~/constants/app";
 import { appLocalDataDir, join } from "@tauri-apps/api/path";
 import { ArkErrors } from "arktype";
+import getArch from "../helpers/getArch";
 
 
 export default async function downloadLibraries(url: string): Promise<void> {
   const response: Response = await fetch(url);
   const json = await response?.json();
-  const parsed: Library[] | ArkErrors = LibrariesSchema(json?.libraries);
+  const parsed = LibrarySchema.array()(json?.libraries);
 
-  if (parsed instanceof ArkErrors) {
-    throw "Validation of libraries schema failed!";
-  }
+  if (parsed instanceof ArkErrors) throw "Validation of libraries schema failed!\n" + parsed.summary;
 
   useQueries({
     "queries": parsed.map((library: Library) => ({
@@ -26,16 +25,64 @@ export default async function downloadLibraries(url: string): Promise<void> {
 }
 
 async function download(library: Library): Promise<void> {
-  const platform: string = await getPlatform();
-  const rules: Rule[] = library.rules ?? [];
-  const rulePlatform: Rule | undefined = rules?.find((rule: Rule) => rule?.os?.name == platform);
-  const ruleGlobal: Rule | undefined = rules?.find((rule: Rule) => !rule?.os?.name);
+  const rules = RulesSchema.array()(library.rules);
 
-  if (rulePlatform?.action === "disallow") return;
-  if (!rulePlatform && ruleGlobal?.action === "disallow") return;
+  if (rules instanceof ArkErrors) throw "Validation of rules schema failed!\n" + rules.summary;
+  if (!await isAllowed(rules)) return;
 
-  downloadFile(
-    library.downloads.artifact.url,
-    await join(await appLocalDataDir(), Libraries_DataFolder, library.downloads.artifact.path),
-  );
+  const { classifiers, artifact } = library.downloads;
+  const classifiersParsed = ClassifiersSchema(classifiers);
+  const artifactParsed = ArtifactSchema(artifact);
+
+  if (classifiersParsed instanceof ArkErrors) {
+    throw "Validation of classifiers schema failed!\n" + classifiersParsed.summary;
+  }
+  if (artifactParsed instanceof ArkErrors) {
+    throw "Validation of artifact schema failed!\n" + artifactParsed.summary;
+  }
+
+  const native = await findNative(classifiersParsed);
+
+  if (native) {
+    await downloadFile(
+      native.url,
+      await join(await appLocalDataDir(), Libraries_DataFolder, native.path),
+    );
+  }
+  if (artifact) {
+    await downloadFile(
+      artifact.url,
+      await join(await appLocalDataDir(), Libraries_DataFolder, artifact.path),
+    );
+  }
 }
+
+async function isAllowed(rules: Rule[]): Promise<boolean> {
+  const currentPlatform: string = await getPlatform();
+
+  return !rules.some((rule: Rule) => {
+    const isPlatformAllowed: boolean = rule.os?.name === currentPlatform || !rule.os?.name;
+    const isActionDisallow: boolean = rule.action === "disallow";
+
+    return isPlatformAllowed && isActionDisallow;
+  });
+}
+
+async function findNative(classifier: Classifier): Promise<Artifact | undefined> {
+  const currentPlatform: string = await getPlatform();
+  const currentArch: string = await getArch();
+
+  const keys: string[] = [
+    `natives-${currentPlatform}-${currentArch}`,
+    `natives-${currentPlatform}`,
+  ];
+
+  for (const key of keys) {
+    const native = ArtifactSchema(classifier[key as keyof Classifier]);
+
+    if (!(native instanceof ArkErrors)) return native;
+  }
+
+  return undefined;
+}
+
