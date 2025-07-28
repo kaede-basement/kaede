@@ -48,5 +48,9 @@
     "@unocss/nuxt": "^66.3.3",
     "eslint-plugin-unicorn": "^59.0.1",
     "unocss": "^66.3.3"
-  }
+  },
+  "trustedDependencies": [
+    "@hebilicious/vue-query-nuxt",
+    "@parcel/watcher"
+  ]
 }
