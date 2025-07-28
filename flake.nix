@@ -19,6 +19,7 @@
             cargo
             cargo-tauri
             nodejs
+            bun
           ];
 
           buildInputs = with pkgs; [
