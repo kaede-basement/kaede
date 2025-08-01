@@ -20,7 +20,7 @@
             cargo-tauri
             nodejs
             bun
-            rustc
+            rustup
           ];
 
           buildInputs = with pkgs; [
