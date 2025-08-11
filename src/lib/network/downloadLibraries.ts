@@ -1,5 +1,4 @@
 import type { Rule, Library } from "~/constants/schemas";
-import { LibrariesSchema } from "~/constants/schemas";
 import { download as downloadFile } from "@tauri-apps/plugin-upload";
 import getPlatform from "../helpers/getPlatform";
 import { Libraries_DataFolder } from "~/constants/app";
@@ -10,7 +9,8 @@ import { ArkErrors } from "arktype";
 export default async function downloadLibraries(url: string): Promise<void> {
   const response: Response = await fetch(url);
   const json = await response?.json();
-  const parsed: Library[] | ArkErrors = LibrariesSchema(json?.libraries);
+  // TODO: validate 'json?.libraries'
+  const parsed: Library[] | ArkErrors = json?.libraries as Library[];
 
   if (parsed instanceof ArkErrors) {
     throw "Validation of libraries schema failed!";
