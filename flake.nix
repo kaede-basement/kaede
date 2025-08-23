@@ -1,42 +1,57 @@
 {
-  description = "Development environment for Tauri project";
+  description = "Kaede";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in
-      {
-        devShells.default = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-            gobject-introspection
-            cargo
-            cargo-tauri
-            nodejs
-            bun
-            rustup
-          ];
-
-          buildInputs = with pkgs; [
-            at-spi2-atk
-            atkmm
-            cairo
-            gdk-pixbuf
-            glib
-            gtk3
-            harfbuzz
-            librsvg
-            libsoup_3
-            pango
-            webkitgtk_4_1
-            openssl
-          ];
+  outputs = {
+    self,
+    nixpkgs,
+    flake-utils,
+    rust-overlay,
+  }:
+    flake-utils.lib.eachDefaultSystem (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [rust-overlay.overlays.default];
         };
-      });
+
+        webDependencies = with pkgs; [
+          webkitgtk_4_1
+          glib
+          gsettings-desktop-schemas
+          dbus
+          openssl_3
+          cairo
+          gdk-pixbuf
+        ];
+
+        nativeDependencies = with pkgs; [
+          rust-bin.beta.latest.default
+          nodejs
+          bun
+          cargo-tauri
+          pkg-config
+          curl
+          cmake
+          wrapGAppsHook3
+          llvmPackages.libllvm
+          llvmPackages.lld
+          llvmPackages.clang
+        ];
+      in {
+        devShell = pkgs.mkShell {
+          nativeBuildInputs = nativeDependencies;
+          buildInputs = webDependencies;
+
+          shellHook = ''
+            echo "🐢 Say hi to kaede nix devShell"
+          '';
+        };
+      }
+    );
 }
