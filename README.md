@@ -1,8 +1,10 @@
 ## tech stack
 
 - Tauri 2.0
-- Vue.js 3.6 in Vapor mode
+- TypeScript
+- Nuxt (I hope Vue Vapor will be released soon)
 - UnoCSS with presetWind3
+- TypeBox
 
 ## plan
 
@@ -50,13 +52,13 @@ A built-in server management utility to handle simple minecraft servers. Nothing
 
 <details>
 
-* Launcher-level: tauri capabilities is the first thing that comes to the mind. Tho it is surely not enough, especially with user extensions.
+* Launcher-level: tauri capabilities is the first thing that comes to the mind. Though it is surely not enough, especially with user extensions.
 
 * Instance-level: see https://ersei.net/en/blog/isolate-minecraft and https://github.com/PrismLauncher/PrismLauncher/issues/1146
 
 **Current implementation idea:** no clue. Instance isolation for Linux can be implemented using a [bubblewrap](https://github.com/containers/bubblewrap)
 
-**Results:** https://github.com/trigram-mrp/fractureiser
+**Results:** fixing this type of issues https://github.com/trigram-mrp/fractureiser
 
 </details>
 
