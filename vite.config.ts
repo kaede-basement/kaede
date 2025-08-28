@@ -1,0 +1,30 @@
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import unocss from "unocss/vite";
+import eslint from "vite-plugin-eslint2";
+import path from "node:path";
+
+export default defineConfig({
+  // Better support for Tauri CLI output
+  "clearScreen" : false,
+  // Enable environment variables
+  "envPrefix"   : ["VITE_", "TAURI_"],
+  "server"      : {
+    // Tauri requires a consistent port
+    "strictPort": true,
+  },
+  // Handle '@/...' imports
+  "resolve": {
+    "alias": {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  "plugins": [
+    // Handle a Vue framework
+    vue(),
+    // Handle a UnoCSS package
+    unocss(),
+    // Handle an ESLint package
+    eslint(),
+  ],
+});

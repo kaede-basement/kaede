@@ -1,26 +1,50 @@
-// @ts-check
-import withNuxt from "./.nuxt/eslint.config.mjs";
+import { includeIgnoreFile } from "@eslint/compat";
+import { globalIgnores } from "eslint/config";
+import ts from "typescript-eslint";
 import stylistic from "@stylistic/eslint-plugin";
 import eslintPluginUnicorn from "eslint-plugin-unicorn";
+import pluginVue from "eslint-plugin-vue";
+import globals from "globals";
+import { fileURLToPath } from "node:url";
 
-export default withNuxt(
-  // unicorn's eslint plugin configuration
+// Get a '.gitignore' absolute path
+const gitIgnorePath = fileURLToPath(
+  new URL(".gitignore", import.meta.url),
+);
+
+export default [
+  // Ignore linting for every file or directory that '.gitignore' contains
+  includeIgnoreFile(gitIgnorePath),
+  // Also ignore './src-tauri', because it contains Rust code
+  globalIgnores(["./src-tauri"]),
+  ...ts.configs.recommended,
+  ...pluginVue.configs["flat/recommended"],
+  // Unicorn's eslint plugin configuration
   eslintPluginUnicorn.configs.recommended,
 
-  // user defined eslint configuration
+  // Own eslint configuration
   {
+    "languageOptions": {
+      "sourceType" : "module",
+      "globals"    : {
+        ...globals.browser,
+      },
+    },
     "plugins": {
       "@stylistic": stylistic,
     },
     "rules": {
 
-      /* disabled rules */
+      /* Disabled rules */
       "unicorn/no-null"                : ["off"],
       "unicorn/filename-case"          : ["off"],
       "vue/multi-word-component-names" : ["off"],
       "vue/no-multiple-template-root"  : ["off"], // no need for this rule since vue 3.x
 
-      /* stylistic */
+      /* Unicorn */
+      "unicorn/prevent-abbreviations": ["warn"],
+
+      /* Stylistic */
       "@stylistic/array-bracket-newline"          : ["error", "consistent"],
       "@stylistic/array-bracket-spacing"          : ["error", "never"],
       "@stylistic/array-element-newline"          : ["error", "consistent"],
@@ -33,11 +57,9 @@ export default withNuxt(
       "@stylistic/comma-style"                    : ["error", "last"],
       "@stylistic/computed-property-spacing"      : ["error", "never"],
       "@stylistic/curly-newline"                  : ["error", { "consistent": true }],
-      "@stylistic/dot-location"                   : ["error", "object"],
       "@stylistic/eol-last"                       : ["off"],
       "@stylistic/function-call-argument-newline" : ["error", "consistent"],
       "@stylistic/function-call-spacing"          : ["error", "never"],
-      "@stylistic/function-paren-newline"         : ["error", "multiline"],
       "@stylistic/generator-star-spacing"         : ["error", "before"],
       "@stylistic/implicit-arrow-linebreak"       : ["error", "beside"],
       "@stylistic/indent"                         : ["error", 2, { "SwitchCase": 1 }],
@@ -135,7 +157,6 @@ export default withNuxt(
         "catch"      : "always",
       }],
       "@stylistic/space-in-parens"          : ["error", "never"],
-      "@stylistic/space-infix-ops"          : ["error"],
       "@stylistic/space-unary-ops"          : ["error", { "words": true, "nonwords": false }],
       "@stylistic/spaced-comment"           : ["error", "always"],
       "@stylistic/switch-colon-spacing"     : ["error", { "after": true, "before": false }],
@@ -149,4 +170,4 @@ export default withNuxt(
       "@stylistic/yield-star-spacing"       : ["error", { "before": false, "after": true }],
     },
   },
-);
+];

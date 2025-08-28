@@ -6,12 +6,9 @@ import { RouterLink } from "@kitbag/router";
 
 <template>
   <div>
-    About
+    Home
   </div>
-  <RouterLink
-    replace
-    :to="(resolve) => resolve(Routes.Home.Key)"
-  >
-    Navigate to Home
+  <RouterLink :to="(resolve) => resolve(Routes.About.Key)">
+    Navigate to About
   </RouterLink>
 </template>

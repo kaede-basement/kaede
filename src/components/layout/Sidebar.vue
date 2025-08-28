@@ -1,6 +1,3 @@
 <template>
-  <div />
+  sidebar
 </template>
-
-<script setup lang="ts">
-</script>

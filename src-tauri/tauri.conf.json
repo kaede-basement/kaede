@@ -5,12 +5,11 @@
   "identifier": "kaede",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:3000",
-    "beforeDevCommand": "bun run dev:frontend",
-    "beforeBuildCommand": "bun run generate:frontend"
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "bun dev:frontend",
+    "beforeBuildCommand": "bun build:frontend"
   },
   "app": {
-    "macOSPrivateApi": true,
     "withGlobalTauri": true,
     "windows": [
       {
@@ -19,12 +18,10 @@
         "height": 600,
         "resizable": true,
         "fullscreen": false,
-        "visible": true,
-        "transparent": true,
+        "visible": false,
         "center": true,
         "minWidth": 400,
-        "minHeight": 400,
-        "shadow": false
+        "minHeight": 400
       }
     ],
     "security": {

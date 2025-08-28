@@ -7,66 +7,6 @@
   ],
   "permissions": [
     "core:default",
-    "core:window:allow-show",
-    "core:window:allow-set-decorations",
-    "core:window:allow-set-title",
-    "core:window:allow-start-dragging",
-    "core:window:allow-set-effects",
-    "core:window:allow-minimize",
-    "core:window:allow-toggle-maximize",
-    "core:window:allow-destroy",
-    "notification:default",
-    "clipboard-manager:default",
-    "dialog:default",
-    "os:default",
-    {
-      "identifier": "http:default",
-      "allow": [
-        {
-          "url": "https://*.minecraft.net/"
-        },
-        {
-          "url": "https://*.mojang.com/"
-        }
-      ]
-    },
-    "shell:default",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "shell-allowed-java",
-          "cmd": "java",
-          "args": true
-        },
-        {
-          "name": "shell-allowed-java-windows",
-          "cmd": "javaw",
-          "args": true
-        }
-      ]
-    },
-    "fs:default",
-    "fs:read-all",
-    "fs:write-all",
-    "fs:allow-rename",
-    "fs:allow-mkdir",
-    "fs:allow-exists",
-    "fs:read-dirs",
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        {
-          "path": "$APPDATA/**"
-        },
-        {
-          "path": "$APPLOCALDATA/**"
-        },
-        {
-          "path": "$APPCONFIG/**"
-        }
-      ]
-    },
-    "upload:allow-download"
+    "fs:default"
   ]
 }
