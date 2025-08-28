@@ -10,6 +10,7 @@
     "beforeBuildCommand": "bun build:frontend"
   },
   "app": {
+    "macOSPrivateApi": true,
     "withGlobalTauri": true,
     "windows": [
       {

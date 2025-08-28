@@ -2,6 +2,7 @@ import { RoutesConfiguration } from "@/constants/routes";
 import { ApplicationRootID } from "@/constants/application";
 import { createApp } from "vue";
 import { createRouter } from "@kitbag/router";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import App from "@/App.vue";
 // Import UnoCSS essentials
 import "virtual:uno.css";
@@ -14,3 +15,5 @@ const AppInstance = createApp(App);
 
 AppInstance.use(Router);
 AppInstance.mount(ApplicationRootID);
+
+await getCurrentWebviewWindow().show();
