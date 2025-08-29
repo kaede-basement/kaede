@@ -4,6 +4,7 @@ import ts from "typescript-eslint";
 import stylistic from "@stylistic/eslint-plugin";
 import eslintPluginUnicorn from "eslint-plugin-unicorn";
 import pluginVue from "eslint-plugin-vue";
+import unocss from "@unocss/eslint-config/flat";
 import globals from "globals";
 import { fileURLToPath } from "node:url";
 
@@ -21,6 +22,8 @@ export default [
   ...pluginVue.configs["flat/recommended"],
   // Unicorn's eslint plugin configuration
   eslintPluginUnicorn.configs.recommended,
+  // UnoCSS's eslint plugin configuration
+  unocss,
 
   // Own eslint configuration
   {

@@ -22,6 +22,7 @@
     "@stylistic/eslint-plugin": "^5.2.3",
     "@tauri-apps/cli": "^2.8.3",
     "@types/node": "^24.3.0",
+    "@unocss/eslint-config": "^66.4.2",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "eslint": "^9.34.0",

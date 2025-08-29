@@ -1,3 +1,5 @@
 <template>
-  sidebar
+  <div>
+    xd
+  </div>
 </template>
