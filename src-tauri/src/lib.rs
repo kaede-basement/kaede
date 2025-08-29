@@ -10,11 +10,11 @@ pub fn run() {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
+                        .level(log::LevelFilter::Debug)
                         .build(),
                 )?;
             } else {
-                //
+                // Resolves to '${dataDir}/${bundleIdentifier}'
                 let path = app.path().app_data_dir()?;
                 let time = Utc::now().format("%Y-%m-%d_%H-%M").to_string();
 
