@@ -140,7 +140,6 @@ export default defineConfigWithVueTs(
       "@stylistic/object-curly-newline"            : ["error", { "consistent": true }],
       "@stylistic/object-curly-spacing"            : ["error", "always"],
       "@stylistic/one-var-declaration-per-line"    : ["error", "always"],
-      "@stylistic/operator-linebreak"              : ["error", "none"],
       "@stylistic/padded-blocks"                   : ["error", "never"],
       "@stylistic/padding-line-between-statements" : [
         "error",

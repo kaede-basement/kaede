@@ -8,6 +8,10 @@
     "dev:frontend": "vite",
     "build:frontend": "vue-tsc -b && vite build",
     "preview:frontend": "vite preview",
+    "test": "bun run test:vitest && bun run test:playwright",
+    "test:vitest": "vitest run ./src",
+    "test:playwright": "bunx playwright test",
+    "test:playwright:ui": "bunx playwright test --ui",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -35,6 +39,7 @@
     "unocss": "^66.4.2",
     "vite": "^7.0.4",
     "vite-plugin-eslint2": "^5.0.4",
+    "vitest": "^3.2.4",
     "vue-tsc": "^2.2.12"
   }
 }
