@@ -6,10 +6,10 @@ import path from "node:path";
 
 export default defineConfig({
   // Better support for Tauri CLI output
-  "clearScreen" : false,
+  "clearScreen": false,
   // Enable environment variables
-  "envPrefix"   : ["VITE_", "TAURI_"],
-  "server"      : {
+  "envPrefix"  : ["VITE_", "TAURI_"],
+  "server"     : {
     // Tauri requires a consistent port
     "strictPort": true,
   },

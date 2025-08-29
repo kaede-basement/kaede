@@ -18,8 +18,8 @@ export default defineConfig({
      * So we manually specify 'Geist' in globals.css
      */
     presetWebFonts({
-      "provider" : "google",
-      "fonts"    : {
+      "provider": "google",
+      "fonts"   : {
         "sans": "Geist",
       },
     }),
