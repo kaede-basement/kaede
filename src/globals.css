@@ -1,7 +1,6 @@
-html, body {
-  /*
-   * 'presetWind3' resets all custom web fonts from UnoCSS
-   * That's why we manually add Geist here with fallbacks as safe  fonts
-   */
-  font-family: Geist, ui-sans-serif, system-ui, sans-serif,  "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto  Color Emoji";
+/* data attributes */
+[data-transitions-disabled] {
+  * {
+    transition: none;
+  }
 }

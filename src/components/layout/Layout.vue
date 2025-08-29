@@ -4,5 +4,5 @@ import Sidebar from "@/components/layout/Sidebar.vue";
 
 <template>
   <Sidebar />
-  xd
+  <slot />
 </template>

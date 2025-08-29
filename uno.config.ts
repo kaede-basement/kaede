@@ -1,4 +1,4 @@
-import { defineConfig, presetIcons, presetWebFonts, presetWind3 } from "unocss";
+import { defineConfig, presetIcons, presetWind3 } from "unocss";
 
 export default defineConfig({
   "presets": [
@@ -10,18 +10,6 @@ export default defineConfig({
     presetWind3({
       // Apply dark theme only if there is a 'dark' class on parent elements
       "dark": "class",
-    }),
-
-    /*
-     * Fetches the 'Geist' font from Google Fonts.
-     * Unfortunately, reset styles override fonts applied by this preset
-     * So we manually specify 'Geist' in globals.css
-     */
-    presetWebFonts({
-      "provider": "google",
-      "fonts"   : {
-        "sans": "Geist",
-      },
     }),
     // Lucide icons available by class names (@iconify-json/lucide)
     presetIcons(),

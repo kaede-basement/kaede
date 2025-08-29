@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { Routes } from "@/constants/routes";
 import { RouterLink } from "@kitbag/router";
-
 </script>
 
 <template>
   <div>
-    About
+    About. Даб
   </div>
   <RouterLink
     replace
