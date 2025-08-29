@@ -1,0 +1,1 @@
+manage all file deletions as 'recycle bin'. all trashed files should be shown on some page and also automatically deleted after configurable time. also provide user with a choice of disabling 'recycle bin' feature.
