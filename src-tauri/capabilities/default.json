@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-show",
-    "fs:default"
+    "fs:default",
+    "log:default"
   ]
 }

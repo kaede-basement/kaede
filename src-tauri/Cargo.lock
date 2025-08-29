@@ -91,19 +91,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 
 [[package]]
-name = "app"
-version = "0.0.0"
-dependencies = [
- "log",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-fs",
- "tauri-plugin-log",
-]
-
-[[package]]
 name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -459,8 +446,10 @@ checksum = "c469d952047f47f91b68d1cba3f10d63c11d73e4636f24f08daf0278abf01c4d"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
  "serde",
+ "wasm-bindgen",
  "windows-link",
 ]
 
@@ -1721,6 +1710,20 @@ checksum = "5dea2b27dd239b2556ed7a25ba842fe47fd602e7fc7433c2a8d6106d4d9edd70"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "kaede"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-fs",
+ "tauri-plugin-log",
 ]
 
 [[package]]

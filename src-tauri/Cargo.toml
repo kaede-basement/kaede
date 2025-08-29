@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "kaede"
 version = "0.0.0"
 description = "A Tauri-based Minecraft launcher written in Vue and Rust"
 authors = ["windstone", "kaeeraa"]
@@ -26,3 +26,4 @@ tauri-plugin-log = "2"
 
 # Non-default installed plugins
 tauri-plugin-fs = "2"
+chrono = "0.4.41"

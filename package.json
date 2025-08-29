@@ -14,6 +14,7 @@
     "@kitbag/router": "^0.20.6",
     "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-fs": "~2",
+    "@tauri-apps/plugin-log": "~2",
     "vue": "^3.5.17"
   },
   "devDependencies": {
