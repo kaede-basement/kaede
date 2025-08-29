@@ -13,7 +13,7 @@ onErrorCaptured((error: Error) => {
   return false;
 });
 
-// provide an error
+// Provide an error
 const slotProperties = computed(() => {
   if (!currentError.value) {
     return {};
@@ -21,7 +21,7 @@ const slotProperties = computed(() => {
 
   return { currentError };
 });
-// show the 'error' template if there is an error
+// Show the 'error' template if there is an error
 const slotName = computed(() => (currentError.value ? "error" : "default"));
 </script>
 

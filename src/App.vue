@@ -10,6 +10,7 @@ import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
       <RouterView />
     </Layout>
 
+    <!-- In case of a global error, show this template -->
     <template #error="{ currentError }">
       <div>
         <p>
