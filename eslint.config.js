@@ -1,6 +1,6 @@
 import { includeIgnoreFile } from "@eslint/compat";
 import { globalIgnores } from "eslint/config";
-import ts from "typescript-eslint";
+import { defineConfigWithVueTs, vueTsConfigs } from "@vue/eslint-config-typescript";
 import stylistic from "@stylistic/eslint-plugin";
 import eslintPluginUnicorn from "eslint-plugin-unicorn";
 import pluginVue from "eslint-plugin-vue";
@@ -13,13 +13,13 @@ const gitIgnorePath = fileURLToPath(
   new URL(".gitignore", import.meta.url),
 );
 
-export default [
+export default defineConfigWithVueTs(
   // Ignore linting for every file or directory that '.gitignore' contains
   includeIgnoreFile(gitIgnorePath),
   // Also ignore './src-tauri', because it contains Rust code
   globalIgnores(["./src-tauri"]),
-  ...ts.configs.recommended,
-  ...pluginVue.configs["flat/recommended"],
+  vueTsConfigs.recommended,
+  pluginVue.configs["flat/essential"],
   // Unicorn's eslint plugin configuration
   eslintPluginUnicorn.configs.recommended,
   // UnoCSS's eslint plugin configuration
@@ -176,4 +176,4 @@ export default [
       "@stylistic/yield-star-spacing"      : ["error", { "before": false, "after": true }],
     },
   },
-];
+);
