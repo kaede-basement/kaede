@@ -18,5 +18,5 @@ AppInstance.use(RouterInstance);
 AppInstance.mount(ApplicationRootID);
 
 await initializeLauncher().catch((error: unknown) => {
-  console.error(error);
+  console.error("Failed to initialize launcher:", error);
 });

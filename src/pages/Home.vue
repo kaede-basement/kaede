@@ -4,11 +4,11 @@ import { RouterLink } from "@kitbag/router";
 import { join } from "@tauri-apps/api/path";
 import { readDir } from "@tauri-apps/plugin-fs";
 
-(async () => {
-  console.log(await readDir(
-    await join("E:", "Desktop", "Kaede"),
+join("E:", "Desktop", "Kaede")
+  .then(path => (
+    readDir(path)
+      .then(value => console.log(value))
   ));
-})();
 </script>
 
 <template>

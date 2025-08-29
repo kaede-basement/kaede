@@ -1,3 +1,9 @@
+/* styling */
+#app {
+  /* make all sub-elements' text not selectable */
+  user-select: none;
+}
+
 /* data attributes */
 [data-transitions-disabled] {
   * {
