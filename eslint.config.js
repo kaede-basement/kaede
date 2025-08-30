@@ -52,6 +52,14 @@ export default defineConfigWithVueTs(
 
       /* Vue */
       "vue/no-extra-parens": ["warn", "all", { "nestedBinaryExpressions": true }],
+      "vue/max-len"        : ["warn", {
+        "code"                     : 110,
+        "ignoreComments"           : true,
+        "ignoreTrailingComments"   : true,
+        "ignoreHTMLAttributeValues": true,
+        "ignoreHTMLTextContents"   : true,
+        "ignoreUrls"               : true,
+      }],
 
       /* Unicorn */
       "unicorn/filename-case"        : ["warn", { "cases": { "kebabCase": true, "pascalCase": true } }],
@@ -95,12 +103,6 @@ export default defineConfigWithVueTs(
       "@stylistic/lines-between-class-members": ["error", "always", {
         "exceptAfterOverload"  : true,
         "exceptAfterSingleLine": true,
-      }],
-      "@stylistic/max-len": ["warn", {
-        "code"                  : 110,
-        "ignoreComments"        : true,
-        "ignoreTrailingComments": true,
-        "ignoreUrls"            : true,
       }],
       "@stylistic/max-statements-per-line": ["error", { "max": 1 }],
       "@stylistic/member-delimiter-style" : ["error", {
