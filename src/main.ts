@@ -11,20 +11,20 @@ import "virtual:uno.css";
 import "@unocss/reset/tailwind.css";
 import "@/globals.css";
 
-log.debug("Creating a router instance...");
+log.debug("Creating a router instance");
 const RouterInstance = createRouter(RoutesConfiguration);
 
-log.debug("Creating an app instance...");
+log.debug("Creating an app instance");
 const AppInstance = createApp(App);
 
-log.debug("Linking router instance with the app...");
+log.debug("Linking router instance with the app");
 AppInstance.use(RouterInstance);
 
 // Attach the app to an element with the 'ApplicationRootID' id
-log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})...`);
+log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})`);
 AppInstance.mount(ApplicationRootID);
 
-log.debug("Initializing launcher...");
+log.debug("Initializing launcher");
 await initializeLauncher().catch((error: unknown) => {
   log.error("Failed to initialize launcher:", error);
 });

@@ -41,7 +41,7 @@ export default defineConfigWithVueTs(
       /* Disabled rules */
       "vue/multi-word-component-names"    : ["off"], // why do I need to use multiple words for a 'Layout' component, for example?
       "vue/no-multiple-template-root"     : ["off"], // no need for this rule since Vue 3.x
-      // "unicorn/no-null"                : ["off"],
+      "unicorn/no-null"                   : ["off"], // 'JSON.stringify' second argument doesn't accept 'undefined' to save formatting
       "unicorn/prefer-global-this"        : ["off"], // no need for this rule because app is CSR and Web Workers will not be used
       "unicorn/prefer-top-level-await"    : ["off"], // broken
       "@stylistic/no-multi-spaces"        : ["off"], // conflict with eslint@stylistic/key-spacing

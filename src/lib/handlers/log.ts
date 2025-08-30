@@ -1,7 +1,7 @@
 import { debug, info, warn, error } from "@tauri-apps/plugin-log";
 
+// We do not care about promises here
 export const log = {
-  // We do not care about promises here
   "debug": (...input: unknown[]) => {
     debug(input.join(" "));
   },
