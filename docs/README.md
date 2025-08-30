@@ -23,6 +23,12 @@
 
 Kaede is not even in a development stage yet. Check the [plan](./PLAN.md) to see more about this launcher
 
+## Contributing
+
+[Contributing Guide](./CONTRIBUTING.MD)
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
 ## Screenshots
 
 <details>
