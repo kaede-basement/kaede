@@ -1,4 +1,6 @@
-export function getDefaultConfig() {
+import type { ConfigType } from "@/types/config/config.schema.ts";
+
+export function getDefaultConfig(): ConfigType {
   return {
     "__do_not_touch_VERSION": 1,
     "customization"         : {

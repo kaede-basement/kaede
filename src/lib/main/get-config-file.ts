@@ -3,8 +3,9 @@ import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
 import { ConfigFilename } from "@/constants/application.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
+import { type ConfigType, ConfigValidator } from "@/types/config/config.schema.ts";
 
-export async function getConfigFile(): Promise<object> {
+export async function getConfigFile(): Promise<ConfigType> {
   log.debug("Checking if config file exists");
   const configExists = await exists(ConfigFilename, {
     "baseDir": BaseDirectory.AppData,
@@ -19,15 +20,24 @@ export async function getConfigFile(): Promise<object> {
   }
 
   log.info("Config file exists");
+  log.debug("Reading a config file");
   const configFile = await readTextFile(ConfigFilename, {
     "baseDir": BaseDirectory.AppData,
   });
+
+  log.debug("Parsing config file");
   const parsedConfig: unknown = await JSON.parse(configFile);
-  const validatedConfig: object = (() => ({}))();
+
+  log.debug("Validating config file");
+  const validatedConfig = ConfigValidator.Check(parsedConfig);
 
   if (!validatedConfig) {
+    log.info("Config file is invalid");
+
     return getDefaultConfig();
   }
 
-  return validatedConfig;
+  log.info("Config file is valid");
+
+  return parsedConfig;
 }

@@ -26,5 +26,5 @@ AppInstance.mount(ApplicationRootID);
 
 log.debug("Initializing launcher");
 await initializeLauncher().catch((error: unknown) => {
-  log.error("Failed to initialize launcher:", error);
+  log.error("Failed to initialize launcher:", JSON.stringify(error));
 });

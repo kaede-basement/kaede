@@ -3,7 +3,7 @@ import { ConfigFilename } from "@/constants/application.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { log } from "@/lib/handlers/log.ts";
 
-export async function initializeConfigFile(): Promise<void | Error> {
+export async function initializeConfigFile(): Promise<void> {
   log.debug("Encoding default config data");
   // 'writeFile' requires encoded data
   const encoder: TextEncoder = new TextEncoder;
