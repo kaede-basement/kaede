@@ -6,15 +6,17 @@ import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 
 <template>
   <ErrorBoundary>
-    <Layout>
-      <RouterView />
-    </Layout>
+    <template #default>
+      <Layout>
+        <RouterView />
+      </Layout>
+    </template>
 
     <!-- In case of a global error, show this template -->
     <template #error="{ currentError }">
       <div>
         <p>
-          {{ JSON.stringify(currentError) }}</p>
+          Uhm: {{ JSON.stringify(currentError?.value) }}</p>
       </div>
     </template>
   </ErrorBoundary>
