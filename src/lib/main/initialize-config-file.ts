@@ -4,11 +4,14 @@ import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { log } from "@/lib/handlers/log.ts";
 
 export async function initializeConfigFile(): Promise<void> {
+  log.debug("Getting default config");
+  const defaultConfig = await getDefaultConfig();
+
   log.debug("Encoding default config data");
   // 'writeFile' requires encoded data
   const encoder: TextEncoder = new TextEncoder;
   const data: Uint8Array = encoder.encode(JSON.stringify(
-    getDefaultConfig(),
+    defaultConfig,
     // Save formatting
     null,
     // With two spaces as an indent

@@ -16,6 +16,9 @@ export async function getConfigFile(): Promise<ConfigType> {
     log.debug("Initializing a config file");
     await initializeConfigFile();
 
+    log.debug("Returning a promise with default config");
+
+    // Awaiting here will be just an unnecessary action
     return getDefaultConfig();
   }
 
@@ -33,7 +36,9 @@ export async function getConfigFile(): Promise<ConfigType> {
 
   if (!validatedConfig) {
     log.info("Config file is invalid");
+    log.debug("Returning a promise with default config");
 
+    // Awaiting here will be just an unnecessary action
     return getDefaultConfig();
   }
 

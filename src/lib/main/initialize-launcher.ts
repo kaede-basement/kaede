@@ -12,7 +12,8 @@ export async function initializeLauncher(): Promise<void> {
     config = await getConfigFile();
   } catch (error: unknown) {
     log.error("Failed to get a config file:", JSON.stringify(error));
-    config = getDefaultConfig();
+    log.debug("Getting default config");
+    config = await getDefaultConfig();
   }
 
   log.info(JSON.stringify(config));
