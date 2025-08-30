@@ -61,13 +61,42 @@ If you found a bug or want to suggest a feature, please open an issue in [GitHub
 
 [![discord-banner]](https://freesmlauncher.org/discord)
 
-## Translations
-
-tbd
-
 ## Building from Source
 
-tbd
+### Preparations
+
+See [Tauri v2 Prerequisites](https://v2.tauri.app/start/prerequisites/).
+
+We also recommend installing [bun](https://bun.sh/).
+
+Once you are ready, clone this repository:
+
+```bash
+git clone https://github.com/freesmteam/kaede
+
+```
+
+Navigate to cloned directory and install project dependencies:
+
+```bash
+bun install
+```
+
+### Development
+
+Run:
+
+```bash
+bun dev
+```
+
+### Release
+
+Run:
+
+```bash
+bun run build
+```
 
 ## License
 
