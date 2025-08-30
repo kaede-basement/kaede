@@ -1,6 +1,18 @@
 # Contributions Guidelines
 
-## Code formatting
+## Note
+
+Thanks for your interest in contributing to Kaede!
+
+## Translations
+
+Translations are done externally via a [Kaede Translations repository](https://github.com/freesmteam/kaede-translations)
+
+## Extensions
+
+tbd
+
+## Code Formatting
 
 All files are formatted with [ESLint](https://eslint.org/) using the configuration in `eslint.config.js`. Ensure it is run on changed files before committing!
 
