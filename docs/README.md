@@ -63,6 +63,8 @@ If you found a bug or want to suggest a feature, please open an issue in [GitHub
 
 ## Building from Source
 
+<details>
+
 ### Preparations
 
 See [Tauri v2 Prerequisites](https://v2.tauri.app/start/prerequisites/).
@@ -98,9 +100,13 @@ Run:
 bun run build
 ```
 
+</details>
+
 ## License
 
 [![license-badge]](https://github.com/freesmteam/kaede/blob/main/LICENSE)
+
+<!-- Variables -->
 
 [star-count]: https://img.shields.io/github/stars/freesmteam/kaede?label=Stars&style=for-the-badge&color=%23ff637e&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPHN2ZyBoZWlnaHQ9IjI0IiB2aWV3Qm94PSIwIC05NjAgOTYwIDk2MCIgd2lkdGg9IjI0IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxwYXRoIGQ9Im0zNTQtMjQ3IDEyNi03NiAxMjYgNzctMzMtMTQ0IDExMS05Ni0xNDYtMTMtNTgtMTM2LTU4IDEzNS0xNDYgMTMgMTExIDk3LTMzIDE0M1pNMjMzLTgwbDY1LTI4MUw4MC01NTBsMjg4LTI1IDExMi0yNjUgMTEyIDI2NSAyODggMjUtMjE4IDE4OSA2NSAyODEtMjQ3LTE0OUwyMzMtODBabTI0Ny0zNTBaIiBzdHlsZT0iZmlsbDogcmdiKDI1NSwgOTksIDEyNik7Ii8%2BCjwvc3ZnPg%3D%3D%0A
 [vue-badge]: https://img.shields.io/badge/vuejs-%2335495e.svg?style=for-the-badge&logo=vuedotjs&logoColor=%234FC08D
