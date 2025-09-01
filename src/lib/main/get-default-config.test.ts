@@ -2,9 +2,6 @@ import { expect, test, vi } from "vitest";
 import { getDefaultConfig } from "./get-default-config.ts";
 import type { ConfigType } from "@/types/config/config.schema.ts";
 
-vi.mock("@/lib/handlers/log.ts", async () => {
-  return await vi.importActual("@/__mocks__/log.cjs");
-});
 vi.mock("@tauri-apps/api/window", async () => {
   return {
     "getCurrentWindow": () => ({

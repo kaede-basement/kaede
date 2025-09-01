@@ -19,6 +19,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  "test": {
+    "setupFiles": "vitest.setup.ts",
+  },
   "plugins": [
     // Handle a Vue framework
     vue(),

@@ -1,8 +1,12 @@
 import type { ConfigType } from "@/types/config/config.schema.ts";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { log } from "@/lib/handlers/log.ts";
+import { ApplicationNamespace } from "@/constants/application.ts";
 
 export async function getDefaultConfig(): Promise<ConfigType> {
+  log.debug("Executing the 'before' method on extensions' hook for 'getDefaultConfig'");
+  await window[ApplicationNamespace].getDefaultConfig.before();
+
   log.debug("Getting current window theme");
   const currentTheme: "dark" | "light" = await getCurrentWindow().theme() ?? "dark";
 

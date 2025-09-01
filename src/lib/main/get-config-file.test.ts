@@ -13,9 +13,6 @@ const defaultConfig: ConfigType = {
   "minecraftWindowWidth" : 854,
 };
 
-vi.mock("@/lib/handlers/log.ts", async () => {
-  return await vi.importActual("@/__mocks__/log.cjs");
-});
 vi.mock("@/lib/main/get-default-config.ts", async () => {
   return {
     "getDefaultConfig": async (): Promise<ConfigType> => defaultConfig,

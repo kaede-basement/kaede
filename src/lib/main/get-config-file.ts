@@ -1,11 +1,14 @@
 import { log } from "@/lib/handlers/log.ts";
 import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
-import { ConfigFilename } from "@/constants/application.ts";
+import { ApplicationNamespace, ConfigFilename } from "@/constants/application.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
 import { type ConfigType, ConfigValidator } from "@/types/config/config.schema.ts";
 
 export async function getConfigFile(): Promise<ConfigType> {
+  log.debug("Executing the 'before' method on extensions' hook for 'getConfigFile'");
+  await window[ApplicationNamespace].getConfigFile.before();
+
   log.debug("Checking if config file exists");
   const configExists = await exists(ConfigFilename, {
     "baseDir": BaseDirectory.AppData,
