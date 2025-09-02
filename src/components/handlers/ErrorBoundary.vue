@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onErrorCaptured, ref } from "vue";
 import { log } from "@/lib/handlers/log.ts";
+import { extractError } from "@/lib/helpers/extract-error.ts";
 
-const currentError = ref<Error | undefined>(undefined);
+const currentError = ref<{ "name": string; "message": string; "stack": string } | undefined>(undefined);
 
 // Listen for errors
 onErrorCaptured((error: Error) => {
   log.error("A global error was captured:", JSON.stringify(error));
-  currentError.value = error;
+  currentError.value = extractError(error);
 
   // Prevent error from bubbling further
   return false;

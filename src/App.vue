@@ -2,7 +2,6 @@
 import { RouterView } from "@kitbag/router";
 import Layout from "@/components/layout/Layout.vue";
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
-import { extractError } from "./lib/helpers/extract-error.ts";
 </script>
 
 <template>
@@ -25,10 +24,10 @@ import { extractError } from "./lib/helpers/extract-error.ts";
           You can do it by closing this window and then opening Kaede again.
         </p>
         <p class="text-xl font-light">
-          {{ extractError(currentError?.value).name }}: {{ extractError(currentError?.value).message }}
+          {{ currentError?.value?.name }}: {{ currentError?.value?.message }}
         </p>
         <p class="text-sm text-neutral-300 font-light break-words">
-          {{ extractError(currentError?.value).stack }}
+          {{ currentError?.value?.stack }}
         </p>
       </div>
     </template>

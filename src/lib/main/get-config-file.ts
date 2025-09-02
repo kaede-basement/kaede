@@ -35,6 +35,11 @@ export async function getConfigFile(): Promise<ConfigType> {
   const parsedConfig: unknown = await JSON.parse(configFile);
 
   log.debug("Validating config file");
+
+  /*
+   * If there is additional unknown properties in object, validation will pass it
+   * which is actually good because extensions can use same config as the app
+   */
   const validatedConfig = ConfigValidator.Check(parsedConfig);
 
   if (!validatedConfig) {
