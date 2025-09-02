@@ -5,7 +5,13 @@ import { ApplicationNamespace } from "@/constants/application.ts";
 
 export async function getDefaultConfig(): Promise<ConfigType> {
   log.debug("Executing the 'before' method on extensions' hook for 'getDefaultConfig'");
-  await window[ApplicationNamespace].hooks.getDefaultConfig.before();
+  const hookResponse = await window[ApplicationNamespace].hooks.getDefaultConfig.before();
+
+  if (hookResponse === "stop") {
+    log.debug("'getConfigFile.before' hook has aborted execution");
+
+    return await window[ApplicationNamespace].hooks.getDefaultConfig.onAbort();
+  }
 
   log.debug("Getting current window theme");
   const currentTheme: "dark" | "light" = await getCurrentWindow().theme() ?? "dark";

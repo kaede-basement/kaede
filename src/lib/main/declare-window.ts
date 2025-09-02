@@ -1,4 +1,5 @@
 import { ApplicationNamespace } from "@/constants/application.ts";
+import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 
 export function declareWindow() {
   window[ApplicationNamespace] = {
@@ -9,7 +10,8 @@ export function declareWindow() {
         "before": async () => {},
       },
       "getDefaultConfig": {
-        "before": async () => {},
+        "before" : async () => {},
+        "onAbort": async () => getDefaultConfig(),
       },
     },
   };

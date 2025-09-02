@@ -1,3 +1,5 @@
+import type { ConfigType } from "@/types/config/config.schema.ts";
+
 declare global {
   interface Window {
     "__KAEDE__": {
@@ -5,10 +7,11 @@ declare global {
       "variables": object; // TODO
       "hooks": {
         "getConfigFile": {
-          "before": () => Promise<void>;
+          "before" : () => Promise<"stop" | void>;
         };
         "getDefaultConfig": {
-          "before": () => Promise<void>;
+          "before": () => Promise<"stop" | void>;
+          "onAbort": () => Promise<ConfigType>;
         };
       };
     };

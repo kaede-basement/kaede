@@ -7,7 +7,14 @@ import { type ConfigType, ConfigValidator } from "@/types/config/config.schema.t
 
 export async function getConfigFile(): Promise<ConfigType> {
   log.debug("Executing the 'before' method on extensions' hook for 'getConfigFile'");
-  await window[ApplicationNamespace].hooks.getConfigFile.before();
+  const hookResponse = await window[ApplicationNamespace].hooks.getConfigFile.before();
+
+  if (hookResponse === "stop") {
+    log.debug("'getConfigFile.before' hook has aborted execution");
+
+    // Awaiting here will just be an unnecessary action
+    return getDefaultConfig();
+  }
 
   log.debug("Checking if config file exists");
   const configExists = await exists(ConfigFilename, {
@@ -21,7 +28,7 @@ export async function getConfigFile(): Promise<ConfigType> {
 
     log.debug("Returning a promise with default config");
 
-    // Awaiting here will be just an unnecessary action
+    // Awaiting here will just be an unnecessary action
     return getDefaultConfig();
   }
 
@@ -46,7 +53,7 @@ export async function getConfigFile(): Promise<ConfigType> {
     log.info("Config file is invalid");
     log.debug("Returning a promise with default config");
 
-    // Awaiting here will be just an unnecessary action
+    // Awaiting here will just be an unnecessary action
     return getDefaultConfig();
   }
 
