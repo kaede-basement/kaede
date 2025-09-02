@@ -1,4 +1,5 @@
-import { defineConfig } from "vite";
+// 'vitest/config' extends 'vite' config
+import { defineConfig } from "vitest/config";
 import vue from "@vitejs/plugin-vue";
 import unocss from "unocss/vite";
 import eslint from "vite-plugin-eslint2";

@@ -31,8 +31,6 @@ export async function getConfigFile(): Promise<ConfigType> {
     "baseDir": BaseDirectory.AppData,
   });
 
-  console.log(configFile);
-
   log.debug("Parsing config file");
   const parsedConfig: unknown = await JSON.parse(configFile);
 
