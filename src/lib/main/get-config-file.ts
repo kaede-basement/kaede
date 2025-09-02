@@ -7,7 +7,7 @@ import { type ConfigType, ConfigValidator } from "@/types/config/config.schema.t
 
 export async function getConfigFile(): Promise<ConfigType> {
   log.debug("Executing the 'before' method on extensions' hook for 'getConfigFile'");
-  await window[ApplicationNamespace].getConfigFile.before();
+  await window[ApplicationNamespace].hooks.getConfigFile.before();
 
   log.debug("Checking if config file exists");
   const configExists = await exists(ConfigFilename, {
