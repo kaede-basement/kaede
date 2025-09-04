@@ -18,7 +18,7 @@ import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
           <p class="text-xl font-light">
             Something went wrong. {{ currentError?.value?.name }}: {{ currentError?.value?.message }}
           </p>
-          <p class="text-sm text-neutral-300 font-light break-words">
+          <p class="break-words text-sm text-neutral-300 font-light">
             {{ currentError?.value?.stack }}
           </p>
         </div>

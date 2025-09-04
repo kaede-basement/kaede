@@ -3,6 +3,7 @@ import { ApplicationRootID } from "@/constants/application";
 import { createApp } from "vue";
 import { createRouter } from "@kitbag/router";
 import { initializeLauncher } from "@/lib/main/initialize-launcher.ts";
+import { declareWindow } from "@/lib/main/declare-window.ts";
 import { log } from "@/lib/handlers/log.ts";
 import App from "@/App.vue";
 // Import UnoCSS essentials
@@ -23,6 +24,9 @@ AppInstance.use(RouterInstance);
 // Attach the app to an element with the 'ApplicationRootID' id
 log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})`);
 AppInstance.mount(ApplicationRootID);
+
+log.debug("Extending global window object in the app namespace");
+declareWindow();
 
 log.debug("Initializing launcher");
 await initializeLauncher().catch((error: unknown) => {
