@@ -2,7 +2,6 @@ import { log } from "@/lib/handlers/log.ts";
 import { getConfigFile } from "@/lib/main/get-config-file.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import type { ConfigType } from "@/types/config/config.schema.ts";
-// const { log, getConfigFile, getDefaultConfig } = window.__KAEDE__.functions;
 const { getCurrentWebviewWindow } = window.__TAURI__.api.webviewWindow;
 
 export async function initializeLauncher(): Promise<void> {
