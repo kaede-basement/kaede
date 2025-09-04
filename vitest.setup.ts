@@ -2,11 +2,13 @@ import { vi } from "vitest";
 
 vi.stubGlobal("window", {
   "__KAEDE__": {
-    "getConfigFile": {
-      "before": async () => {},
-    },
-    "getDefaultConfig": {
-      "before": async () => {},
+    "hooks": {
+      "getConfigFile": {
+        "before": async () => {},
+      },
+      "getDefaultConfig": {
+        "before": async () => {},
+      },
     },
   },
 });
