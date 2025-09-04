@@ -5,9 +5,17 @@ import type { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
 import type { getConfigFile } from "@/lib/main/get-config-file.ts";
 import type { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import type { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
+import * as TauriApi from "@tauri-apps/api";
+import * as TauriLog from "@tauri-apps/plugin-log";
+import * as TauriFs from "@tauri-apps/plugin-fs";
 
 declare global {
   interface Window {
+    "__TAURI__": {
+      "api": typeof TauriApi;
+      "log": typeof TauriLog;
+      "fs" : typeof TauriFs;
+    };
     "__KAEDE__": {
       "constants": object; // TODO
       "variables": object; // TODO

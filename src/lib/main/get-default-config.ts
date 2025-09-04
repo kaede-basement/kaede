@@ -1,7 +1,7 @@
 import type { ConfigType } from "@/types/config/config.schema.ts";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { log } from "@/lib/handlers/log.ts";
 import { ApplicationNamespace } from "@/constants/application.ts";
+const { getCurrentWindow } = window.__TAURI__.api.window;
 
 export async function getDefaultConfig(): Promise<ConfigType> {
   log.debug("Executing the 'before' method on extensions' hook for 'getDefaultConfig'");

@@ -1,9 +1,9 @@
 import { log } from "@/lib/handlers/log.ts";
-import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
 import { ApplicationNamespace, ConfigFilename } from "@/constants/application.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
 import { type ConfigType, ConfigValidator } from "@/types/config/config.schema.ts";
+const { BaseDirectory, exists, readTextFile } = window.__TAURI__.fs;
 
 export async function getConfigFile(): Promise<ConfigType> {
   log.debug("Executing the 'before' method on extensions' hook for 'getConfigFile'");
