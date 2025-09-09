@@ -20,11 +20,10 @@ export function declareWindow() {
     },
     "hooks": {
       "getConfigFile": {
-        "before": async () => {},
+        "before": [],
       },
       "getDefaultConfig": {
-        "before" : async () => {},
-        "onAbort": async () => getDefaultConfig(),
+        "before": [],
       },
     },
   };

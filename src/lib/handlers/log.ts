@@ -1,4 +1,4 @@
-const { debug, info, warn, error } = window.__TAURI__.log;
+import { debug, info, warn, error } from "@tauri-apps/plugin-log";
 
 // We do not care about promises here
 export const log = {

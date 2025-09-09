@@ -2,18 +2,23 @@ import { log } from "@/lib/handlers/log.ts";
 import { ApplicationNamespace, ConfigFilename } from "@/constants/application.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
+import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
 import { type ConfigType, ConfigValidator } from "@/types/config/config.schema.ts";
-const { BaseDirectory, exists, readTextFile } = window.__TAURI__.fs;
 
 export async function getConfigFile(): Promise<ConfigType> {
-  log.debug("Executing the 'before' method on extensions' hook for 'getConfigFile'");
-  const hookResponse = await window[ApplicationNamespace].hooks.getConfigFile.before();
+  const hooksArray = window[ApplicationNamespace].hooks.getConfigFile.before;
 
-  if (hookResponse === "stop") {
-    log.debug("'getConfigFile.before' hook has aborted execution");
+  log.debug("Starting iterating through hooks for 'getConfigFile.before'");
+  for (const [hookIndex, hookFunction] of hooksArray.entries()) {
+    log.debug("Executing a hook with the next index:", hookIndex.toString());
+    const hookResponse = await hookFunction();
 
-    // Awaiting here will just be an unnecessary action
-    return getDefaultConfig();
+    if (hookResponse.status === "stop") {
+      log.debug(`A hook with the index of ${hookIndex} has aborted execution`);
+
+      // Awaiting here will just be an unnecessary action
+      return hookResponse.response;
+    }
   }
 
   log.debug("Checking if config file exists");

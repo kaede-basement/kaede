@@ -1,16 +1,22 @@
 import type { ConfigType } from "@/types/config/config.schema.ts";
 import { log } from "@/lib/handlers/log.ts";
 import { ApplicationNamespace } from "@/constants/application.ts";
-const { getCurrentWindow } = window.__TAURI__.api.window;
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export async function getDefaultConfig(): Promise<ConfigType> {
-  log.debug("Executing the 'before' method on extensions' hook for 'getDefaultConfig'");
-  const hookResponse = await window[ApplicationNamespace].hooks.getDefaultConfig.before();
+  const hooksArray = window[ApplicationNamespace].hooks.getDefaultConfig.before;
 
-  if (hookResponse === "stop") {
-    log.debug("'getConfigFile.before' hook has aborted execution");
+  log.debug("Starting iterating through hooks for 'getDefaultConfig.before'");
+  for (const [hookIndex, hookFunction] of hooksArray.entries()) {
+    log.debug("Executing a hook with the next index:", hookIndex.toString());
+    const hookResponse = await hookFunction();
 
-    return await window[ApplicationNamespace].hooks.getDefaultConfig.onAbort();
+    if (hookResponse.status === "stop") {
+      log.debug(`A hook with the index of ${hookIndex} has aborted execution`);
+
+      // Awaiting here will just be an unnecessary action
+      return hookResponse.response;
+    }
   }
 
   log.debug("Getting current window theme");

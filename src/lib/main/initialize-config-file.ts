@@ -1,7 +1,7 @@
 import { ConfigFilename } from "@/constants/application.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { log } from "@/lib/handlers/log.ts";
-const { BaseDirectory, writeFile } = window.__TAURI__.fs;
+import { BaseDirectory, writeFile } from "@tauri-apps/plugin-fs";
 
 export async function initializeConfigFile(): Promise<void> {
   log.debug("Getting default config");
