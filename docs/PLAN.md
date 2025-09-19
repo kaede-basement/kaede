@@ -44,6 +44,12 @@ Unfortunately, if VSCode, Obsidian, Vencord and other apps can't implement a sec
 
 Btw, Figma chose security over functionality with their `iframe` approach
 
+// 19.09.2025 update
+
+consider using runtime microfrontends. mounting components can be achieved using portals (react)/teleports (vue)
+
+plugin manifest should also contain a `customLoader: string | undefined` field
+
 </details>
 
 ## Auth
