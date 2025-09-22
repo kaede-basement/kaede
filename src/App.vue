@@ -2,6 +2,29 @@
 import { RouterView } from "@kitbag/router";
 import Layout from "@/components/layout/Layout.vue";
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
+import { createInstance } from "@module-federation/enhanced/runtime";
+import { defineAsyncComponent } from "vue";
+
+const mf = createInstance({
+  "name"   : "mf_host",
+  "remotes": [],
+});
+
+mf.registerRemotes([
+  {
+    "name" : "remote1",
+    "alias": "remote-1",
+    "entry": "https://unpkg.com/module-federation-rslib-provider@latest/dist/mf/mf-manifest.json",
+  },
+]);
+
+const Huh = defineAsyncComponent(async () => {
+  const { MyButton } = await mf.loadRemote("remote1") as { "MyButton": unknown };
+
+  return {
+    "default": MyButton,
+  };
+});
 </script>
 
 <template>
@@ -10,6 +33,7 @@ import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
     <template #default>
       <Layout>
         <RouterView />
+        <Huh />
       </Layout>
     </template>
 
