@@ -16,8 +16,9 @@ tbd
 
 All files are formatted with [ESLint](https://eslint.org/) using the configuration in `eslint.config.js`. Ensure it is run on changed files before committing!
 
-Please also follow the project's conventions for JavaScript:
+Please also follow the project's conventions for frontend:
 
+- TypeScript is highly recommended.
 - `.vue` file names should be formatted as `PascalCase`. All other files should use `kebab-case`.
 - Exported constants should be formatted as `PascalCase`.
 - Functions, variables, non-exported constants should be formatted as `camelCase`.
