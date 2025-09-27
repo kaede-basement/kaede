@@ -1,4 +1,4 @@
-import { readFile } from "@tauri-apps/plugin-fs";
+import { readFile, stat } from "@tauri-apps/plugin-fs";
 
 export async function checksum(path: string, hash: string): Promise<boolean> {
   const file = await readFile(path);
@@ -12,4 +12,10 @@ export async function checksum(path: string, hash: string): Promise<boolean> {
     .join("");
 
   return fileHash === hash;
+}
+
+export async function validateFileSize(path: string, size: number) {
+  const file = await stat(path);
+
+  return file.size === size;
 }

@@ -49,6 +49,7 @@ export const ArtifactSchema = Type.Object({
   "size": Type.Number(),
   "url" : Type.String(),
 });
+export type Artifact = Static<typeof ArtifactSchema>;
 
 export const DownloadSchema = Type.Object({
   "artifact"   : ArtifactSchema,
