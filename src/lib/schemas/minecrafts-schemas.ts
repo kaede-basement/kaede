@@ -1,6 +1,6 @@
 import Type, { type Static } from "typebox";
 
-const VersionManifest = Type.Object({
+export const VersionManifest = Type.Object({
   "latest": Type.Object({
     "release" : Type.String(),
     "snapshot": Type.String(),
@@ -15,6 +15,7 @@ const VersionManifest = Type.Object({
     }),
   ),
 });
+export type Manifest = Static<typeof VersionManifest>;
 
 export const RuleSchema = Type.Object({
   "action": Type.Union(["allow", "disallow"]),
@@ -85,7 +86,7 @@ export const JavaVersionSchema = Type.Object({
   "majorVersion": Type.Number(),
 });
 
-export const VersionMetaModern = Type.Object({
+export const VersionMetaModernSchema = Type.Object({
   "id"       : Type.String(),
   "type"     : Type.String(),
   "mainClass": Type.String(),
@@ -100,3 +101,4 @@ export const VersionMetaModern = Type.Object({
   "javaVersion": JavaVersionSchema,
   "logging"    : LoggingSchema,
 });
+export type VersionMetaModern = Static<typeof VersionMetaModernSchema>;
