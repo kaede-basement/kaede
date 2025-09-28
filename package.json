@@ -14,11 +14,10 @@
   "dependencies": {
     "@kitbag/router": "^0.20.6",
     "@module-federation/enhanced": "^0.19.1",
-    "@sinclair/typebox": "^0.34.41",
     "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-fs": "~2",
     "@tauri-apps/plugin-log": "~2",
-    "typebox": "^1.0.8",
+    "typebox": "^1.0.20",
     "vue": "^3.5.17"
   },
   "devDependencies": {
