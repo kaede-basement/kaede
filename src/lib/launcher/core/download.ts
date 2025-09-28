@@ -9,12 +9,13 @@ import {
   type VersionMetaModern,
 } from "@/lib/schemas/minecrafts-schemas";
 import { download } from "@tauri-apps/plugin-upload";
-import { checksum, validateFileSize } from "./utilities";
 import Value from "typebox/value";
 import { TreeAssetIndexes, TreeAssetObjects, TreeLogging } from "@/constants/application";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { extractError } from "@/lib/helpers/extract-error";
 import { log } from "@/lib/handlers/log";
+import { validateFileSize } from "@/lib/helpers/validate-file-size";
+import { checksum } from "@/lib/helpers/checksum";
 
 
 async function fetchVersionManifest(): Promise<Manifest> {
