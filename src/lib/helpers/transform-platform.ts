@@ -1,6 +1,6 @@
 import { platform } from "@tauri-apps/plugin-os";
 
-export async function transformPlatform(): Promise<string> {
+export function transformPlatform(): string {
   switch (platform()) {
     case "windows": { return "windows"; }
     case "linux": { return "linux"; }
