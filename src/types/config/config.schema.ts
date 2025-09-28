@@ -1,5 +1,5 @@
-import { Type, type Static } from "@sinclair/typebox";
-import { TypeCompiler } from "@sinclair/typebox/compiler";
+import { Type, type Static } from "typebox";
+import { Compile } from "typebox/compiler";
 
 const ConfigSchema = Type.Object({
   "__do_not_touch_VERSION": Type.Number(),
@@ -20,5 +20,5 @@ const ConfigSchema = Type.Object({
   "minecraftWindowWidth" : Type.Number(),
 });
 
-export const ConfigValidator = TypeCompiler.Compile(ConfigSchema);
+export const ConfigValidator = Compile(ConfigSchema);
 export type ConfigType = Static<typeof ConfigSchema>;
