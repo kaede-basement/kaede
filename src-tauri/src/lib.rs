@@ -1,9 +1,10 @@
-use tauri::Manager;
 use chrono::Utc;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             // Handle logging strategies differently based on build mode
@@ -26,9 +27,7 @@ pub fn run() {
                         .target(tauri_plugin_log::Target::new(
                             tauri_plugin_log::TargetKind::Folder {
                                 path: path,
-                                file_name: Some(
-                                    format!("log_{time}"),
-                                ),
+                                file_name: Some(format!("log_{time}")),
                             },
                         ))
                         // Keep log file size at 8 MB

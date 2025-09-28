@@ -27,3 +27,4 @@ tauri-plugin-log = "2"
 # Non-default installed plugins
 tauri-plugin-fs = "2"
 chrono = "0.4.41"
+tauri-plugin-os = "2"
