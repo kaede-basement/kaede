@@ -1,5 +1,5 @@
 import { Type, type Static } from "typebox";
-import { Compile } from "typebox/compiler";
+import { Compile } from "typebox/compile";
 
 const ConfigSchema = Type.Object({
   "__do_not_touch_VERSION": Type.Number(),
