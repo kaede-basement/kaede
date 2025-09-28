@@ -4,18 +4,29 @@ import {
   type Artifact,
   type Asset,
   type AssetIndex,
+  type Classifiers,
+  type Library,
   type LoggingConfig,
   type Manifest,
   type VersionMetaModern,
 } from "@/lib/schemas/minecrafts-schemas";
 import { download } from "@tauri-apps/plugin-upload";
 import Value from "typebox/value";
-import { TreeAssetIndexes, TreeAssetObjects, TreeLogging } from "@/constants/application";
+import {
+  TreeAssetIndexes,
+  TreeAssetObjects,
+  TreeLibraries,
+  TreeLogging,
+  TreeNatives,
+} from "@/constants/application";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { extractError } from "@/lib/helpers/extract-error";
 import { log } from "@/lib/handlers/log";
 import { validateFileSize } from "@/lib/helpers/validate-file-size";
 import { checksum } from "@/lib/helpers/checksum";
+import { evaluateRules } from "@/lib/helpers/parse-rules";
+import { transformPlatform } from "@/lib/helpers/transform-platform";
+import { unzipFile } from "@/lib/helpers/unzip-file";
 
 
 async function fetchVersionManifest(): Promise<Manifest> {
@@ -99,5 +110,42 @@ async function downloadAssets(path: string) {
 
   for (const error of errors) {
     log.error(`Downloading asset (${path}) failed: ${error.reason}`);
+  }
+}
+
+async function downloadClassifiers(classifiers: Classifiers, version: string, extract: boolean) {
+  const platform = transformPlatform();
+  const key = `natives-${platform}` as keyof typeof classifiers;
+  const native = classifiers[key];
+
+  if (!native) {
+    throw new Error(`Expected native (${key}) not found`);
+  }
+
+  await downloadArtifact(native, `${TreeLibraries}`);
+
+  if (extract) {
+    const path = `${TreeLibraries}/${native.path}`;
+
+    await unzipFile(path, `${TreeNatives}/${version}`);
+  }
+}
+
+async function downloadLibraries(libraries: Library[], version: string) {
+  for (const library of libraries) {
+    const rules = library.rules;
+
+    if (rules && !await evaluateRules(rules)) {
+      continue;
+    }
+    await downloadArtifact(library.downloads.artifact, TreeLibraries);
+
+    if (library.downloads.classifiers) {
+      await downloadClassifiers(
+        library.downloads.classifiers,
+        version,
+        library.extract != undefined,
+      );
+    }
   }
 }

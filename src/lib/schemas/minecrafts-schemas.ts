@@ -64,17 +64,25 @@ export const ArtifactSchema = Type.Object({
 });
 export type Artifact = Static<typeof ArtifactSchema>;
 
+export const ClassifiersSchema = Type.Object({
+  "natives-windows": Type.Optional(ArtifactSchema),
+  "natives-linux"  : Type.Optional(ArtifactSchema),
+  "natives-osx"    : Type.Optional(ArtifactSchema),
+});
+export type Classifiers = Static<typeof ClassifiersSchema>;
+
 export const DownloadSchema = Type.Object({
   "artifact"   : ArtifactSchema,
-  "classifiers": Type.Optional(
-    Type.Record(Type.String(), ArtifactSchema),
-  ),
+  "classifiers": Type.Optional(ClassifiersSchema),
 });
 
 export const LibrarySchema = Type.Object({
   "name"     : Type.String(),
   "downloads": DownloadSchema,
   "rules"    : Type.Optional(Type.Array(RuleSchema)),
+  "extract"  : Type.Optional(Type.Object({
+    "exclude": Type.Any(),
+  })),
 });
 export type Library = Static<typeof LibrarySchema>;
 export const LibraryValidator = Compile(LibrarySchema);
