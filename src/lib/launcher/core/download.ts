@@ -27,13 +27,11 @@ async function fetchVersionMeta(manifest: Manifest, version: string): Promise<Ve
   return Value.Parse(VersionManifest, raw);
 }
 
-async function downloadArtifact(artifact: Artifact, prefix: string): Promise<boolean> {
+async function downloadArtifact(artifact: Artifact, prefix: string) {
   const filePath = `${prefix}/${artifact.path}`;
 
   await download(artifact.url, filePath);
 
-  return await validateFileSize(filePath, artifact.size)
-    && await checksum(filePath, artifact.sha1);
+  await validateFileSize(filePath, artifact.size)
+  await checksum(filePath, artifact.sha1);
 }
-
-async function downloadAsset()
