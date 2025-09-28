@@ -2,13 +2,15 @@ import {
   VersionManifest,
   type Artifact,
   type AssetIndex,
+  type Logging,
+  type LoggingConfig,
   type Manifest,
   type VersionMetaModern,
 } from "@/lib/schemas/minecrafts-schemas";
 import { download } from "@tauri-apps/plugin-upload";
 import { checksum, validateFileSize } from "./utilities";
 import Value from "typebox/value";
-import { TreeAssetIndexes } from "@/constants/application";
+import { TreeAssetIndexes, TreeLogging } from "@/constants/application";
 
 
 async function fetchVersionManifest(): Promise<Manifest> {
@@ -47,4 +49,13 @@ async function downloadAssetIndex(index: AssetIndex): Promise<string> {
   await checksum(path, index.sha1);
 
   return path;
+}
+
+async function downloadLoggingConfig(config: LoggingConfig) {
+  const path = `${TreeLogging}/${config.id}`;
+
+  await download(config.url, path);
+
+  await validateFileSize(path, config.size);
+  await checksum(path, config.sha1);
 }

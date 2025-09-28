@@ -74,10 +74,18 @@ export const AssetIndexSchema = Type.Object({
 });
 export type AssetIndex = Static<typeof AssetIndexSchema>;
 
+export const LoggingConfigSchema = Type.Object({
+  "id"  : Type.String(),
+  "sha1": Type.String(),
+  "size": Type.Number(),
+  "url" : Type.String(),
+});
+export type LoggingConfig = Static<typeof LoggingConfigSchema>;
+
 export const LoggingSchema = Type.Object({
   "client": Type.Object({
     "argument": Type.String(),
-    "file"    : ArtifactSchema,
+    "file"    : LoggingConfigSchema,
     "type"    : Type.String(),
   }),
 });
