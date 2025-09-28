@@ -8,8 +8,13 @@ export const VersionManifest = Type.Object({
   }),
   "versions": Type.Array(
     Type.Object({
-      "id"         : Type.String(),
-      "type"       : Type.Union(["release, snapshot, old-beta, old-alpha"]),
+      "id"  : Type.String(),
+      "type": Type.Union([
+        Type.Literal("release"),
+        Type.Literal("snapshot"),
+        Type.Literal("old-beta"),
+        Type.Literal("old-alpha"),
+      ]),
       "url"        : Type.String({ "format": "url" }),
       "time"       : Type.String({ "format": "date-time" }),
       "releaseTime": Type.String({ "format": "date-time" }),
@@ -19,8 +24,11 @@ export const VersionManifest = Type.Object({
 export type Manifest = Static<typeof VersionManifest>;
 
 export const RuleSchema = Type.Object({
-  "action": Type.Union(["allow", "disallow"]),
-  "os"    : Type.Optional(
+  "action": Type.Union([
+    Type.Literal("allow"),
+    Type.Literal("disallow"),
+  ]),
+  "os": Type.Optional(
     Type.Object({
       "name": Type.String(),
     }),
