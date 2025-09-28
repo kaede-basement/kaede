@@ -12,3 +12,4 @@ export const TreeAssets = `${TreeResources}/assets`;
 export const TreeAssetIndexes = `${TreeAssets}/indexes`;
 export const TreeLibraries = `${TreeResources}/libraries`;
 export const TreeLogging = `${TreeResources}/logging`;
+export const TreeInstances = `${BaseDirectory.AppData}/instances`;
