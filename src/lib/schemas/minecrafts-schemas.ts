@@ -72,6 +72,7 @@ export const AssetIndexSchema = Type.Object({
   "totalSize": Type.Number(),
   "url"      : Type.String(),
 });
+export type AssetIndex = Static<typeof AssetIndexSchema>;
 
 export const LoggingSchema = Type.Object({
   "client": Type.Object({
