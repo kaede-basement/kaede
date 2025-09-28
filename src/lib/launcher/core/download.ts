@@ -1,8 +1,9 @@
 import {
+  AssetsValidator,
   VersionManifest,
   type Artifact,
+  type Asset,
   type AssetIndex,
-  type Logging,
   type LoggingConfig,
   type Manifest,
   type VersionMetaModern,
@@ -10,7 +11,10 @@ import {
 import { download } from "@tauri-apps/plugin-upload";
 import { checksum, validateFileSize } from "./utilities";
 import Value from "typebox/value";
-import { TreeAssetIndexes, TreeLogging } from "@/constants/application";
+import { TreeAssetIndexes, TreeAssetObjects, TreeLogging } from "@/constants/application";
+import { readTextFile } from "@tauri-apps/plugin-fs";
+import { extractError } from "@/lib/helpers/extract-error";
+import { log } from "@/lib/handlers/log";
 
 
 async function fetchVersionManifest(): Promise<Manifest> {
@@ -58,4 +62,41 @@ async function downloadLoggingConfig(config: LoggingConfig) {
 
   await validateFileSize(path, config.size);
   await checksum(path, config.sha1);
+}
+
+async function downloadAsset(asset: Asset) {
+  const twoBytes = asset.hash.slice(0, 2);
+  const uri = `${twoBytes}/${asset.hash}`;
+  const url = `https://resources.download.minecraft.net/${uri}`;
+  const path = `${TreeAssetObjects}/${uri}`;
+
+  try {
+    await download(url, path);
+
+    await validateFileSize(path, asset.size);
+    await checksum(path, asset.hash);
+  } catch (error: unknown) {
+    const extracted = extractError(error);
+
+    return { "success": false, "reason": extracted.message };
+  }
+
+  return { "success": true };
+}
+
+async function downloadAssets(path: string) {
+  const index = await readTextFile(path)
+    .then(async text => await JSON.parse(text));
+
+  if (!AssetsValidator.Check(index)) {
+    throw new TypeError(`Invalid AssetIndex ${path}`);
+  }
+  const objects: Asset[] = index.objects;
+  const promises = objects.map(object => downloadAsset(object));
+  const results = await Promise.all(promises);
+  const errors = results.filter(result => result.success === false);
+
+  for (const error of errors) {
+    log.error(`Downloading asset (${path}) failed: ${error.reason}`);
+  }
 }

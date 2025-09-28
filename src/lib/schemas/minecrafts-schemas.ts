@@ -80,10 +80,13 @@ export const AssetSchema = Type.Object({
   "hash": Type.String(),
   "size": Type.Number(),
 });
+export type Asset = Static<typeof AssetSchema>;
 
 export const AssetsSchema = Type.Object({
   "objects": Type.Array(AssetSchema),
 });
+export type Assets = Static<typeof AssetsSchema>;
+export const AssetsValidator = Compile(AssetsSchema);
 
 export const LoggingConfigSchema = Type.Object({
   "id"  : Type.String(),
