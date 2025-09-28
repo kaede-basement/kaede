@@ -34,6 +34,7 @@ export const RuleSchema = Type.Object({
     }),
   ),
 });
+export type Rule = Static<typeof RuleSchema>;
 
 export const ValueSchema = Type.Union([
   Type.String(),
@@ -73,6 +74,8 @@ export const LibrarySchema = Type.Object({
   "downloads": DownloadSchema,
   "rules"    : Type.Optional(Type.Array(RuleSchema)),
 });
+export type Library = Static<typeof LibrarySchema>;
+export const LibraryValidator = Compile(LibrarySchema);
 
 export const AssetIndexSchema = Type.Object({
   "id"       : Type.String(),
