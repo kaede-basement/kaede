@@ -1,3 +1,4 @@
+import { TypeCompiler } from "@sinclair/typebox/compiler";
 import Type, { type Static } from "typebox";
 
 export const VersionManifest = Type.Object({
@@ -73,6 +74,16 @@ export const AssetIndexSchema = Type.Object({
   "url"      : Type.String(),
 });
 export type AssetIndex = Static<typeof AssetIndexSchema>;
+export const AssetIndexValidator = TypeCompiler.Compile(AssetIndexSchema);
+
+export const AssetSchema = Type.Object({
+  "hash": Type.String(),
+  "size": Type.Number(),
+});
+
+export const AssetsSchema = Type.Object({
+  "objects": Type.Array(AssetSchema),
+});
 
 export const LoggingConfigSchema = Type.Object({
   "id"  : Type.String(),
