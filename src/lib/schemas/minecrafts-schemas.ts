@@ -30,7 +30,9 @@ export const RuleSchema = Type.Object({
   ]),
   "os": Type.Optional(
     Type.Object({
-      "name": Type.String(),
+      "name"   : Type.String(),
+      "arch"   : Type.String(),
+      "version": Type.String(),
     }),
   ),
 });

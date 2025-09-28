@@ -1,16 +1,25 @@
+import { arch, version } from "@tauri-apps/plugin-os";
 import type { Rule } from "../schemas/minecrafts-schemas";
 import { transformPlatform } from "./transform-platform";
 
-export async function parseRules(rules: Rule[]) {
-  const platform = await transformPlatform();
-  // TODO: Add architecture and version
-  const rule = rules.find(rule => (
-    rule.os?.name === platform
-  ));
+export async function evaluateRules(rules: Rule[]): Promise<boolean> {
+  const platform = transformPlatform();
+  const architecture = arch();
+  const version_ = version();
 
-  if (rule?.action === "allow") {
-    return true;
+  let allow = false;
+
+  for (const rule of rules) {
+    const os = rule.os;
+
+    const nameMatch = !os?.name || os.name === platform;
+    const archMatch = !os?.arch || os.arch === architecture;
+    const versionMatch = !os?.version || new RegExp(os.version).test(version_);
+
+    if (nameMatch && archMatch && versionMatch) {
+      allow = rule.action === "allow";
+    }
   }
 
-  return false;
+  return allow;
 }
