@@ -32,6 +32,6 @@ async function downloadArtifact(artifact: Artifact, prefix: string) {
 
   await download(artifact.url, filePath);
 
-  await validateFileSize(filePath, artifact.size)
+  await validateFileSize(filePath, artifact.size);
   await checksum(filePath, artifact.sha1);
 }
