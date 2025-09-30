@@ -18,9 +18,11 @@ Make a page that fetches extensions from some remote repository
 
 That repository must include only moderated extensions. Moderation process should require extension's source code and, if differs from usual, a build manual. Every extension update must go through the moderation process. This is the only way to make custom extensions secure, I guess
 
-Those extensions should be loaded once at application launch. Programming language must be a JavaScript. Any framework is ok, as long as it is capable running in a browser. Extensions need to be able to communicate with launcher
+Those extensions should be loaded once at application launch. Programming language must be a JavaScript. Any framework is ok, as long as it is capable running in a browser. Extensions will be able to communicate with the launcher
 
 ### More
+
+**Previous implementation details**
 
 Any JS code can be dynamically fetched in runtime from somewhere and executed with the `new Function` constructor. Example (I implemented it in [one of my projects](https://github.com/notwindstone/tsuki)):
 
@@ -44,11 +46,66 @@ Unfortunately, if VSCode, Obsidian, Vencord and other apps can't implement a sec
 
 Btw, Figma chose security over functionality with their `iframe` approach
 
-// 19.09.2025 update
+**Latest implementation details (19.09.2025)**
 
-consider using runtime microfrontends. mounting components can be achieved using portals (react)/teleports (vue)
+Microfrontends supremacy >.<
 
-plugin manifest should also contain a `customLoader: string | undefined` field
+Using a Module Federation Runtime we can load any Vue component just like an ordinary component in the node tree. To make it possible for plugins to render components anywhere, a `<Teleport />` could be used. Module Federation Runtime also allows us to share dependencies, so the final extension budle size should be low.
+
+For other JS frameworks, we can run them using the previous implementation: `new Function`.
+
+Launcher should expose everything that it can through the `window.__KAEDE__`. Previously, communication was done using the `window.postMessage` function, but now I came up with the idea of exposing an array of functions for almost every action in app. That array can be changed by extensions, and then the launcher will execute every function listed in that array.
+
+For example, see the next code:
+
+```ts
+/** Launcher */
+window.postMessage("kaede-route-changed", /* some data */)
+
+/** Extension */
+const handleRouteChange = (pathname: string) => {
+  if (pathname === "/home") {
+    // do something
+  }
+};
+const handleKaedeMessages = (event: { data: string ) => {
+  if (event.data === "tsuki_updated_window") {
+    handleRouteChange(/* some data from the 'event', or maybe pass down the 'window.__KAEDE__.dynamic.currentRoute' variable */);
+
+    return;
+  }
+
+  // other code
+};
+
+window.addEventListener("message", handleKaedeMessages);
+```
+
+While it works, it doesn't look good to me. Adding a lot of window listeners can affect a launcher performance. If user has 20 extensions, that `handleKaedeMessages` function will fire on every new event in every extension, even if the event wasn't needed.
+
+Now I'm suggesting the next structure:
+
+```ts
+/** Launcher */
+window.__KAEDE__.hooks.onRouteChange.before = [];
+
+/** Extension */
+const currentRoute = ref<RouteType>("home");
+
+window.__KAEDE__.hooks.onRouteChange.before.push(({ pathname }: { pathname: RouteType }) => {
+  currentRoute.value = pathname;
+});
+
+/** Launcher */
+// example with the '@kitbag/router'
+onBeforeRouteChange(() => {
+  for (const hook of window.__KAEDE__.hooks.onRouteChange.before) {
+    hook({ pathname });
+  }
+});
+```
+
+Extensions are not needed to listen for window events anymore. Only specified actions will be triggered. Must be a perfect solution? Maybe. I'm not sure that this will work, because, well, launcher doesn't have the same scope as that extension code block where `window.__KAEDE__` was reassigned (?)
 
 </details>
 
