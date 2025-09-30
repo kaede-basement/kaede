@@ -81,7 +81,7 @@ const handleKaedeMessages = (event: { data: string ) => {
 window.addEventListener("message", handleKaedeMessages);
 ```
 
-While it works, it doesn't look good to me. Adding a lot of window listeners can affect a launcher performance. If user has 20 extensions, that `handleKaedeMessages` function will fire on every new event in every extension, even if the event wasn't needed.
+While it works, it doesn't look good to me. Adding a lot of window listeners can affect launcher's performance. If user has 20 extensions, that `handleKaedeMessages` function will fire on every new event 20 times, even if no one wanted to listen to that event.
 
 Now I'm suggesting the next structure:
 
@@ -106,6 +106,8 @@ onBeforeRouteChange(() => {
 ```
 
 Extensions are not needed to listen for window events anymore. Only specified actions will be triggered. Must be a perfect solution? Maybe. I'm not sure that this will work, because, well, launcher doesn't have the same scope as that extension code block where `window.__KAEDE__` was reassigned (?)
+
+Update: it works, somehow. I tested it both ways: firstly, I made a Svelte plugin state change from the Launcher (in Vue), and then I made a Vue state change from the Svelte plugin.
 
 </details>
 
