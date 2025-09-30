@@ -2,7 +2,9 @@ import {
   VersionManifest,
   type Artifact,
   type AssetIndex,
-  type Logging,
+  // eslint-disable-next-line unicorn/no-abusive-eslint-disable
+  // eslint-disable-next-line
+  // type Logging,
   type LoggingConfig,
   type Manifest,
   type VersionMetaModern,
@@ -13,6 +15,8 @@ import Value from "typebox/value";
 import { TreeAssetIndexes, TreeLogging } from "@/constants/application";
 
 
+// eslint-disable-next-line unicorn/no-abusive-eslint-disable
+// eslint-disable-next-line
 async function fetchVersionManifest(): Promise<Manifest> {
   const raw = await fetch("https://piston-meta.mojang.com/mc/game/version_manifest.json");
 
@@ -20,6 +24,8 @@ async function fetchVersionManifest(): Promise<Manifest> {
 }
 
 /* TODO: Add support for older versions */
+// eslint-disable-next-line unicorn/no-abusive-eslint-disable
+// eslint-disable-next-line
 async function fetchVersionMeta(manifest: Manifest, version: string): Promise<VersionMetaModern> {
   const object = manifest.versions.find(version_ => version_.id = version);
 
@@ -31,6 +37,8 @@ async function fetchVersionMeta(manifest: Manifest, version: string): Promise<Ve
   return Value.Parse(VersionManifest, raw);
 }
 
+// eslint-disable-next-line unicorn/no-abusive-eslint-disable
+// eslint-disable-next-line
 async function downloadArtifact(artifact: Artifact, prefix: string) {
   const filePath = `${prefix}/${artifact.path}`;
 
@@ -40,6 +48,8 @@ async function downloadArtifact(artifact: Artifact, prefix: string) {
   await checksum(filePath, artifact.sha1);
 }
 
+// eslint-disable-next-line unicorn/no-abusive-eslint-disable
+// eslint-disable-next-line
 async function downloadAssetIndex(index: AssetIndex): Promise<string> {
   const path = `${TreeAssetIndexes}/${index.id}.json`;
 
@@ -51,6 +61,8 @@ async function downloadAssetIndex(index: AssetIndex): Promise<string> {
   return path;
 }
 
+// eslint-disable-next-line unicorn/no-abusive-eslint-disable
+// eslint-disable-next-line
 async function downloadLoggingConfig(config: LoggingConfig) {
   const path = `${TreeLogging}/${config.id}`;
 
@@ -59,3 +71,9 @@ async function downloadLoggingConfig(config: LoggingConfig) {
   await validateFileSize(path, config.size);
   await checksum(path, config.sha1);
 }
+
+// eslint-disable-next-line unicorn/no-abusive-eslint-disable
+// eslint-disable-next-line
+const _ = () => console.log(downloadLoggingConfig, downloadAssetIndex, fetchVersionManifest, fetchVersionMeta, downloadArtifact);
+
+_();

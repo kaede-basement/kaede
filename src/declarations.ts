@@ -19,6 +19,7 @@ declare global {
       "constants": object; // TODO
       "variables": object; // TODO
       "functions": {
+        "shit"                : () => void;
         "log"                 : typeof log;
         "extractError"        : typeof extractError;
         "getRelativeDate"     : typeof getRelativeDate;
@@ -28,10 +29,13 @@ declare global {
       };
       "hooks": {
         "getConfigFile": {
-          "before": HookReturnType<ConfigType>;
+          "before": HookReturnType<unknown, ConfigType>;
         };
         "getDefaultConfig": {
-          "before": HookReturnType<ConfigType>;
+          "before": HookReturnType<unknown, ConfigType>;
+        };
+        "onRouteChange": {
+          "before": HookReturnType<number, unknown>;
         };
       };
     };

@@ -25,6 +25,9 @@ export function declareWindow() {
       "getDefaultConfig": {
         "before": [],
       },
+      "onRouteChange": {
+        "before": [],
+      },
     },
   };
 }

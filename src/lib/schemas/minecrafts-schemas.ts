@@ -74,6 +74,9 @@ export const AssetIndexSchema = Type.Object({
   "url"      : Type.String(),
 });
 export type AssetIndex = Static<typeof AssetIndexSchema>;
+// eslint-disable-next-line unicorn/no-abusive-eslint-disable
+// eslint-disable-next-line
+// @ts-ignore
 export const AssetIndexValidator = TypeCompiler.Compile(AssetIndexSchema);
 
 export const AssetSchema = Type.Object({

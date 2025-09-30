@@ -21,9 +21,9 @@ async function run() { /* TODO */ }
   <div>
     Home
   </div>
-  <button @click="download">uh, download</button>
-  <button @click="run">run</button>
   <RouterLink :to="(resolve) => resolve(Routes.About.Key)">
     Navigate to About
   </RouterLink>
+  <button @click="download">uh, download</button>
+  <button @click="run">run</button>
 </template>

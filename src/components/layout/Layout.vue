@@ -5,6 +5,7 @@ import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 
 <template>
   <div class="">
+    <div id="__kaede-extensions" class="block" />
     <Sidebar />
     <!-- Pages error boundary -->
     <ErrorBoundary>

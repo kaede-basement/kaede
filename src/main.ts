@@ -12,6 +12,9 @@ import "virtual:uno.css";
 import "@unocss/reset/tailwind.css";
 import "@/globals.css";
 
+log.debug("Extending global window object in the app namespace");
+declareWindow();
+
 log.debug("Creating a router instance");
 const RouterInstance = createRouter(RoutesConfiguration);
 
@@ -24,9 +27,6 @@ AppInstance.use(RouterInstance);
 // Attach the app to an element with the 'ApplicationRootID' id
 log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})`);
 AppInstance.mount(ApplicationRootID);
-
-log.debug("Extending global window object in the app namespace");
-declareWindow();
 
 log.debug("Initializing launcher");
 await initializeLauncher().catch((error: unknown) => {

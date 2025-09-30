@@ -4,6 +4,7 @@ import Layout from "@/components/layout/Layout.vue";
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 import { createInstance } from "@module-federation/enhanced/runtime";
 import { defineAsyncComponent } from "vue";
+import { onAfterRouteLeave } from "@kitbag/router";
 
 const mf = createInstance({
   "name"   : "mf_host",
@@ -14,16 +15,29 @@ mf.registerRemotes([
   {
     "name" : "remote1",
     "alias": "remote-1",
-    "entry": "https://unpkg.com/module-federation-rslib-provider@latest/dist/mf/mf-manifest.json",
+    "entry": "http://localhost:4173/bundle.js",
+    // "entry": "https://unpkg.com/module-federation-rslib-provider@latest/dist/mf/mf-manifest.json",
   },
 ]);
 
 const Huh = defineAsyncComponent(async () => {
-  const { MyButton } = await mf.loadRemote("remote1") as { "MyButton": unknown };
+  let element: { "MyButton": unknown } = { "MyButton": "<div></div>" };
+
+  try {
+    element = await mf.loadRemote("remote1") as { "MyButton": unknown };
+  } catch {
+    console.log("Error loading Remote");
+  }
 
   return {
-    "default": MyButton,
+    "default": element.MyButton,
   };
+});
+
+onAfterRouteLeave(async () => {
+  for (const hook of window.__KAEDE__.hooks.onRouteChange.before) {
+    await hook(Math.random());
+  }
 });
 </script>
 
