@@ -4,6 +4,59 @@ A public figma file
 
 # Plan
 
+## Routing
+
+<details>
+I don't see any advantages in using a package for page routes
+
+Just define a global store using `pinia` with fields like this:
+
+```ts
+// just a mock-up, i dont remember how pinia stores look like lol
+{
+  "page"   : "home" // "home" | "library" | "settings" | `custom-${string}`,
+  "setPage": (to: /* a type above */) => {
+    for (const hook of /* window.[...].hooks */) {
+      hook(to); // handle responses maybe
+    }
+
+    this.page = to;
+  },
+  "states": {
+    "home"    : {},
+    "library" : {},
+    "settings": { "tab": "plugins" },
+    // plugins can add their own fields
+  };
+  "setState": (key: string; value: object) {
+    // handle hooks
+
+    this.states[key] = value;
+  },
+};
+
+window.__KAEDE__.router = /* pass the non-reactive object, or properties */
+```
+
+and in the `layout.vue`:
+
+```vue
+<script setup lang="ts">
+const router = useRouterStore();
+</script>
+
+<template>
+  <...>
+    <home-page v-if="router.page === 'home'" />
+    <... />
+    <custom-page v-else />
+  </...>
+</template>
+```
+
+simple ass
+</details>
+
 ## Extensions
 
 <details>
