@@ -59,6 +59,10 @@ simple ass.
 and!! to make custom layouts even easier to do, we can use a <Teleport /> for each page
 
 plugins will change some state for <Teleport /> to mount a page component on the page change to somewhere
+
+___
+
+wait, but why am I using a global store? This can be implemented with a simple top-level state in the App.vue buh
 </details>
 
 ## Extensions
