@@ -17,7 +17,11 @@ Just define a global store using `pinia` with fields like this:
   "page"   : "home" // "home" | "library" | "settings" | `custom-${string}`,
   "setPage": (to: /* a type above */) => {
     for (const hook of /* window.[...].hooks */) {
-      hook(to); // handle responses maybe
+      // handle responses
+      const response = hook(to);
+      // let it be { "navigate": boolean; "navigated": boolean }
+      // 'navigate' handles whether page should change
+      // 'navigated' handles whether link should show that page was opened
     }
 
     this.page = to;
@@ -56,9 +60,9 @@ const router = useRouterStore();
 
 simple ass.
 
-and!! to make custom layouts even easier to do, we can use a <Teleport /> for each page
+and!! to make custom layouts even easier to do, we can use a `<Teleport />` for each page
 
-plugins will change some state for <Teleport /> to mount a page component on the page change to somewhere
+plugins will change some state for `<Teleport />` to mount a page component on the page change to somewhere
 
 ___
 
