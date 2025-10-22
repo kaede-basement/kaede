@@ -174,6 +174,9 @@ Extensions are not needed to listen for window events anymore. Only specified ac
 
 Update: it works, somehow. I tested it both ways: firstly, I made a Svelte plugin state change from the Launcher (in Vue), and then I made a Vue state change from the Svelte plugin.
 
+___
+about security: what if i introduce a permission-based plugin system? plugins will be able to use only those things (`window.__TAURI__` object scopes, localStorage, WASM, .dll/.so, etc.) that user has allowed
+
 </details>
 
 ## Auth
