@@ -19,7 +19,6 @@ declare global {
       "constants": object; // TODO
       "variables": object; // TODO
       "functions": {
-        "shit"                : () => void;
         "log"                 : typeof log;
         "extractError"        : typeof extractError;
         "getRelativeDate"     : typeof getRelativeDate;

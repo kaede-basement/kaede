@@ -1,7 +1,8 @@
 /* styling */
 #app {
   /* make all sub-elements' text not selectable */
-  user-select: none;
+  /* user-select: none; */
+  /* update: it's better to just blacklist selections instead of whitelist */
 }
 
 /* data attributes */

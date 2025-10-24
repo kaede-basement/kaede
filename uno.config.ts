@@ -11,7 +11,7 @@ export default defineConfig({
       // Apply dark theme only if there is a 'dark' class on parent elements
       "dark": "class",
     }),
-    // Lucide icons available by class names (@iconify-json/lucide)
+    // Lucide icons that are available by class names (@iconify-json/lucide)
     presetIcons(),
   ],
 });

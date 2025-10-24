@@ -8,7 +8,7 @@ import unocss from "@unocss/eslint-config/flat";
 import globals from "globals";
 import { fileURLToPath } from "node:url";
 
-// Get a '.gitignore' absolute path
+// Get the absolute path of a '.gitignore' file
 const gitIgnorePath = fileURLToPath(
   new URL(".gitignore", import.meta.url),
 );
@@ -41,10 +41,10 @@ export default defineConfigWithVueTs(
       /* Disabled rules */
       "vue/multi-word-component-names"    : ["off"], // why do I need to use multiple words for a 'Layout' component, for example?
       "vue/no-multiple-template-root"     : ["off"], // no need for this rule since Vue 3.x
-      "unicorn/no-null"                   : ["off"], // 'JSON.stringify' second argument doesn't accept 'undefined' to save formatting
-      "unicorn/prefer-global-this"        : ["off"], // no need for this rule because app is CSR and Web Workers will not be used
-      "unicorn/prefer-top-level-await"    : ["off"], // broken
-      "@stylistic/no-multi-spaces"        : ["off"], // conflict with eslint@stylistic/key-spacing
+      "unicorn/no-null"                   : ["off"], // the second argument of a 'JSON.stringify' doesn't accept 'undefined' to save formatting
+      "unicorn/prefer-global-this"        : ["off"], // no need for this rule since this app is fully CSR, and Web Workers are not going to be used
+      "unicorn/prefer-top-level-await"    : ["off"], // top level await is broken somehow
+      "@stylistic/no-multi-spaces"        : ["off"], // conflicts with 'eslint@stylistic/key-spacing'
       "@stylistic/line-comment-position"  : ["off"],
       "@stylistic/linebreak-style"        : ["off"],
       "@stylistic/eol-last"               : ["off"],
