@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import type { RouteType } from "@/types/application/route.type.ts";
-import { defineAsyncComponent, shallowRef, watchEffect } from "vue";
-import { capitalize } from "@/lib/helpers/capitalize.ts";
+import { defineAsyncComponent } from "vue";
+import Library from "@/pages/Library.vue";
 
 const { page } = defineProps<{
   "page": RouteType;
 }>();
 
-const PageComponent = shallowRef(null);
-
-watchEffect(() => {
-  PageComponent.value = defineAsyncComponent(() => import((`@/pages/${capitalize(page)}.vue`)));
-});
+const HomePage = defineAsyncComponent(() => import("@/pages/Home.vue"));
 </script>
 
 <template>
-  <PageComponent />
+  <HomePage v-if="page === 'home'" />
+  <Library v-if="page === 'library'" />
+  <Library v-if="page === 'settings'" />
 </template>
