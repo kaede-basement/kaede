@@ -4,6 +4,9 @@ export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
 export const ApplicationRootID = "#app";
 
+export const GlobalStatesContextKey = Symbol();
+export const GlobalStatesChangerContextKey = Symbol();
+
 export const ExtensionResponseStatus = {
   "Stop"    : "stop",
   "Continue": "continue",

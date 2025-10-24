@@ -11,6 +11,7 @@ export function declareWindow() {
     "constants": {},
     "variables": {},
     "functions": {
+      "changeGlobalStates": () => {}, // will be overwritten
       log,
       extractError,
       getRelativeDate,
@@ -27,6 +28,7 @@ export function declareWindow() {
       },
       "onRouteChange": {
         "before": [],
+        "after" : [],
       },
     },
   };

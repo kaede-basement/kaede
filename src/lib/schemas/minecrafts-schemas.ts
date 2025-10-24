@@ -1,4 +1,4 @@
-import { TypeCompiler } from "@sinclair/typebox/compiler";
+// import { Compiler } from "typebox/compiler";
 import Type, { type Static } from "typebox";
 
 export const VersionManifest = Type.Object({

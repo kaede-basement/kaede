@@ -2,15 +2,20 @@
 import Layout from "@/components/layout/Layout.vue";
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 import ExtensionLoader from "@/components/extensions/ExtensionLoader.vue";
-import { shallowReactive } from "vue";
-import type { RouteType } from "@/types/application/route.type.ts";
+import { provide, shallowReactive } from "vue";
 import Router from "@/components/layout/Router.vue";
+import {
+  ApplicationNamespace,
+  GlobalStatesChangerContextKey,
+  GlobalStatesContextKey,
+} from "@/constants/application.ts";
+import type {
+  ContextGlobalStatesType,
+  GlobalStatesChangerType,
+  GlobalStatesType,
+} from "@/types/application/global-states.type.ts";
 
-const globalStates = shallowReactive<{
-  "customLayout": boolean;
-  "page"        : RouteType;
-  "pageStates"  : Record<RouteType, object>;
-}>({
+const globalStates = shallowReactive<GlobalStatesType>({
   "customLayout": false,
   "page"        : "home",
   "pageStates"  : {
@@ -20,6 +25,15 @@ const globalStates = shallowReactive<{
     "none"    : {},
   },
 });
+
+function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]) {
+  globalStates[key] = value;
+}
+
+provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
+provide<GlobalStatesChangerType>(GlobalStatesChangerContextKey, changeGlobalState);
+
+window[ApplicationNamespace].functions.changeGlobalStates = changeGlobalState;
 </script>
 
 <template>

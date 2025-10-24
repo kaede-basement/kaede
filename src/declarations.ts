@@ -9,6 +9,7 @@ import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import * as TauriApi from "@tauri-apps/api";
 import * as TauriFs from "@tauri-apps/plugin-fs";
+import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
 
 declare global {
   interface Window {
@@ -20,6 +21,7 @@ declare global {
       "constants": object; // TODO
       "variables": object; // TODO
       "functions": {
+        "changeGlobalStates"  : GlobalStatesChangerType;
         "log"                 : typeof log;
         "extractError"        : typeof extractError;
         "getRelativeDate"     : typeof getRelativeDate;
