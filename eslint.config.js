@@ -2,6 +2,7 @@ import { includeIgnoreFile } from "@eslint/compat";
 import { globalIgnores } from "eslint/config";
 import { defineConfigWithVueTs, vueTsConfigs } from "@vue/eslint-config-typescript";
 import stylistic from "@stylistic/eslint-plugin";
+import vueRequireID from "@vue-require-id/eslint-plugin";
 import eslintPluginUnicorn from "eslint-plugin-unicorn";
 import pluginVue from "eslint-plugin-vue";
 import unocss from "@unocss/eslint-config/flat";
@@ -34,9 +35,50 @@ export default defineConfigWithVueTs(
       },
     },
     "plugins": {
-      "@stylistic": stylistic,
+      "@stylistic"     : stylistic,
+      "@vue-require-id": vueRequireID,
     },
     "rules": {
+      // Element IDs simplify styling for plugins
+      "@vue-require-id/require-id": ["error", {
+        "elements": [
+
+          /* Layout elements */
+          "header",
+          "footer",
+          "aside",
+          "main",
+          "span",
+          "div",
+          "nav",
+
+          /* Text */
+          "label",
+          "br",
+          "hr",
+          "ul",
+          "ol",
+          "li",
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "p",
+
+          /* Interactive */
+          "button",
+          "input",
+          "a",
+
+          /* Graphics/Embeds */
+          "canvas",
+          "iframe",
+          "img",
+          "svg",
+        ],
+      }],
 
       /* Disabled rules */
       "vue/multi-word-component-names"    : ["off"], // why do I need to use multiple words for a 'Layout' component, for example?

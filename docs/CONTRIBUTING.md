@@ -18,11 +18,13 @@ All files are formatted with [ESLint](https://eslint.org/) using the configurati
 
 Please also follow the project's conventions for frontend:
 
+- No AI slops in the launcher code. Although you can do whatever you want in your plugins.
 - TypeScript is highly recommended.
 - `.vue` file names should be formatted as `PascalCase`. All other files should use `kebab-case`.
 - Exported constants should be formatted as `PascalCase`.
 - Functions, variables, non-exported constants should be formatted as `camelCase`.
-- Elements styling is preferred by using `Tailwind v3` classes. If there is no utility class for some case, make your own, or use CSS/JS.
+- Element styling is preferred by using `Tailwind v3` classes. If there is no utility class for some case, then make your own with CSS.
+- [BEM](https://en.bem.info/methodology/) methodology is the preferred way to name element IDs.
 
 ## Commit Messages
 
