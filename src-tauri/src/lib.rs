@@ -26,6 +26,8 @@ pub fn run() {
                         .target(tauri_plugin_log::Target::new(
                             tauri_plugin_log::TargetKind::Folder {
                                 path: path,
+                                // TODO: use 'latest.log' file instead,
+                                // and mark existing as 'kaede-{number}.log', where the bigger this number, the newer that file
                                 file_name: Some(
                                     format!("log_{time}"),
                                 ),

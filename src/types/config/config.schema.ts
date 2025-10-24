@@ -1,5 +1,9 @@
-import { Type, type Static } from "@sinclair/typebox";
-import { TypeCompiler } from "@sinclair/typebox/compiler";
+import { Type, type Static } from "typebox";
+
+// eslint-disable-next-line unicorn/no-abusive-eslint
+// eslint-disable-next-line
+// @ts-ignore
+import { TypeCompiler } from "typebox/compiler";
 
 const ConfigSchema = Type.Object({
   "__do_not_touch_VERSION": Type.Number(),

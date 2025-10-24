@@ -3,7 +3,11 @@ import { BaseDirectory } from "@tauri-apps/plugin-fs";
 export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
 export const ApplicationRootID = "#app";
-export const ApplicationStopExecutionWord = "stop";
+
+export const ExtensionResponseStatus = {
+  "Stop"    : "stop",
+  "Continue": "continue",
+} as const;
 
 export const ConfigFilename = "config.json";
 

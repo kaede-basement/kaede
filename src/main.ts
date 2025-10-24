@@ -1,7 +1,5 @@
-import { RoutesConfiguration } from "@/constants/routes";
 import { ApplicationRootID } from "@/constants/application";
 import { createApp } from "vue";
-import { createRouter } from "@kitbag/router";
 import { initializeLauncher } from "@/lib/main/initialize-launcher.ts";
 import { declareWindow } from "@/lib/main/declare-window.ts";
 import { log } from "@/lib/handlers/log.ts";
@@ -15,14 +13,8 @@ import "@/globals.css";
 log.debug("Extending global window object in the app namespace");
 declareWindow();
 
-log.debug("Creating a router instance");
-const RouterInstance = createRouter(RoutesConfiguration);
-
 log.debug("Creating an app instance");
 const AppInstance = createApp(App);
-
-log.debug("Linking router instance with the app");
-AppInstance.use(RouterInstance);
 
 // Attach the app to an element with the 'ApplicationRootID' id
 log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})`);
