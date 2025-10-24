@@ -2,7 +2,7 @@
 import Layout from "@/components/layout/Layout.vue";
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 import ExtensionLoader from "@/components/extensions/ExtensionLoader.vue";
-import { provide, shallowReactive } from "vue";
+import { provide, shallowReactive, nextTick } from "vue";
 import Router from "@/components/layout/Router.vue";
 import {
   ApplicationNamespace,
@@ -31,6 +31,7 @@ const globalStates = shallowReactive<GlobalStatesType>({
 function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]) {
   const mappedKey = HookMappings[key];
 
+  // Global states have not changed yet
   for (const storedFunction of window[ApplicationNamespace].hooks[mappedKey].before) {
     const hook = storedFunction as (anything: unknown) => unknown;
     const { status, response } = hook(value) as {
@@ -39,11 +40,22 @@ function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: 
     };
 
     if (status === "stop") {
-      return response;
+      globalStates[key] = response;
+
+      return;
     }
   }
 
   globalStates[key] = value;
+
+  nextTick().then(async () => {
+    // Global states have changed now
+    for (const storedFunction of window[ApplicationNamespace].hooks[mappedKey].after) {
+      const hook = storedFunction as (anything: unknown) => Promise<unknown>;
+
+      await hook(value);
+    }
+  });
 }
 
 provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);

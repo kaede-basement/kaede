@@ -3,3 +3,4 @@ export const HookMappings = {
   "page"        : "onRouteChange",
   "pageStates"  : "onPageStatesChange",
 } as const;
+export const HookMappingKeys = Object.keys(HookMappings) as Array<keyof typeof HookMappings>;
