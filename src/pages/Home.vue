@@ -11,12 +11,14 @@ async function run() { /* TODO */ }
 </script>
 
 <template>
-  <div>
-    Home
+  <div class="flex flex-col justify-start gap-2 opacity-50">
+    <div class="bg-white">
+      Home
+    </div>
+    <button class="bg-white w-fit" @click="() => changeGlobalState?.('page', 'library')">
+      Navigate to About
+    </button>
+    <button class="bg-white w-fit" @click="download">uh, download</button>
+    <button class="bg-white w-fit" @click="run">run</button>
   </div>
-  <button @click="() => changeGlobalState?.('page', 'library')">
-    Navigate to About
-  </button>
-  <button @click="download">uh, download</button>
-  <button @click="run">run</button>
 </template>

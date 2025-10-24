@@ -5,7 +5,6 @@ import { extractError } from "@/lib/helpers/extract-error.ts";
 import { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
 import { getConfigFile } from "@/lib/main/get-config-file.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
-import type { RouteType } from "@/types/application/route.type.ts";
 
 export function declareWindow() {
   window[ApplicationNamespace] = {

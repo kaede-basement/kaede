@@ -17,7 +17,7 @@ mf.registerRemotes([
 ]);
 
 const Huh = defineAsyncComponent(async () => {
-  let element: { "MyButton": unknown } = { "MyButton": "<div></div>" };
+  let element: { "MyButton": unknown } = { "MyButton": () => "<div></div>" };
 
   try {
     element = await mf.loadRemote("remote1") as { "MyButton": unknown };
