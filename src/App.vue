@@ -14,6 +14,8 @@ import type {
   GlobalStatesChangerType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
+import { HookMappings } from "@/constants/mappings.ts";
+import type { ExtensionStatusType } from "@/types/extensions/hook-return.type.ts";
 
 const globalStates = shallowReactive<GlobalStatesType>({
   "customLayout": false,
@@ -27,6 +29,20 @@ const globalStates = shallowReactive<GlobalStatesType>({
 });
 
 function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]) {
+  const mappedKey = HookMappings[key];
+
+  for (const storedFunction of window[ApplicationNamespace].hooks[mappedKey].before) {
+    const hook = storedFunction as (anything: unknown) => unknown;
+    const { status, response } = hook(value) as {
+      "status"  : ExtensionStatusType;
+      "response": GlobalStatesType[Key];
+    };
+
+    if (status === "stop") {
+      return response;
+    }
+  }
+
   globalStates[key] = value;
 }
 

@@ -1,12 +1,23 @@
 import { ExtensionResponseStatus } from "@/constants/application.ts";
 
-/**
- * Used in '/src/declarations.ts'.
- * All hooks are promises and are stored in the array to handle multiple hooks
- */
-export type HookReturnType<ArgumentsType, ResponseType> = Array<(...args: ArgumentsType[]) => Promise<{
+export type ExtensionStatusType = (typeof ExtensionResponseStatus)[keyof typeof ExtensionResponseStatus];
+export type ExtensionHookResponseType<ResponseType> = {
   // 'stop' aborts a function that executed current hook
-  "status"  : (typeof ExtensionResponseStatus)[keyof typeof ExtensionResponseStatus];
+  "status"  : ExtensionStatusType;
   // if 'status' is 'stop', function will return this field
   "response": ResponseType | Promise<ResponseType>;
-}>>;
+};
+
+/**
+ * Used in '/src/declarations.ts'.
+ * All hooks are either async or sync, and they are stored in the array to allow multiple hooks
+ */
+export type HookReturnType<
+  ArgumentsType,
+  ResponseType,
+  IsPromise extends ("promise" | "non-promise") = "promise",
+> = Array<(...args: ArgumentsType[]) => (
+  IsPromise extends "promise"
+    ? Promise<ExtensionHookResponseType<ResponseType>>
+    : ExtensionHookResponseType<ResponseType>
+)>;
