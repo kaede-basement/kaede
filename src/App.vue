@@ -16,6 +16,9 @@ import type {
 } from "@/types/application/global-states.type.ts";
 import { HookMappings } from "@/constants/mappings.ts";
 import type { ExtensionStatusType } from "@/types/extensions/hook-return.type.ts";
+import GlobalError from "@/components/statuses/GlobalError.vue";
+import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
+import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
 
 (async () => {
   if (HookMappings.page !== "onRouteChange") {
@@ -94,50 +97,30 @@ window[ApplicationNamespace].functions.changeGlobalStates = changeGlobalState;
   <ErrorBoundary>
     <template #default>
       <Layout v-if="!globalStates.customLayout">
-        <Router v-if="globalStates.page !== 'none'" :page="globalStates.page" />
+        <Router
+          v-if="globalStates.page !== 'none'"
+          :page="globalStates.page"
+        />
       </Layout>
     </template>
 
-    <!-- In case of a global error, show this template -->
+    <!-- In case of an error, show this template -->
     <template #error="{ currentError }">
-      <div class="min-h-vh w-full flex flex-col select-text gap-4 bg-black p-20 text-white">
-        <p class="text-7xl">
-          :c
-        </p>
-        <p class="text-balance text-2xl font-light">
-          Kaede ran into a problem and needs to restart.
-          You can do it by closing this window and then opening Kaede again.
-        </p>
-        <p class="text-xl font-light">
-          {{ currentError?.value?.name }}: {{ currentError?.value?.message }}
-        </p>
-        <p class="break-words text-sm text-neutral-300 font-light">
-          {{ currentError?.value?.stack }}
-        </p>
-      </div>
+      <GlobalError :error="currentError" />
     </template>
   </ErrorBoundary>
 
-  <!-- Extensions-specific error boundary -->
+  <!-- Extensions-level error boundary -->
   <ErrorBoundary>
     <template #default>
       <ExtensionLoader />
     </template>
 
-    <!-- In case of a global error, show this template -->
+    <!-- In case of an error, show this template -->
     <template #error="{ currentError }">
-      <div class="min-h-vh w-full flex flex-col select-text gap-4 bg-black p-20 text-white">
-        <p class="text-xl font-light">
-          {{ currentError?.value?.name }}: {{ currentError?.value?.message }}
-        </p>
-        <p class="break-words text-sm text-neutral-300 font-light">
-          {{ currentError?.value?.stack }}
-        </p>
-      </div>
+      <ExtensionsError :error="currentError" />
     </template>
   </ErrorBoundary>
 
-  <div v-if="false" class="i-lucide-home i-lucide-boxes i-lucide-settings">
-    <!-- CSS classes that are not included in the final bundle otherwise -->
-  </div>
+  <NonBundledClasses />
 </template>

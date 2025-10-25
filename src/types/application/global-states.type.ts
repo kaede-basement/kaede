@@ -5,6 +5,7 @@ export type GlobalStatesType = {
   "customLayout": boolean;
   "page"        : RouteType;
   "pageStates"  : Record<RouteType, object>;
+  "sidebarItems": Array<{}>;
 };
 export type GlobalStatesChangerType = <Key extends keyof GlobalStatesType>(
   key  : Key,
