@@ -4,7 +4,7 @@ import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 </script>
 
 <template>
-  <div class="flex flex-nowrap gap-0">
+  <div id="app_wrapper" class="flex flex-nowrap gap-0">
     <div id="__kaede-extensions" class="block" />
     <Sidebar />
     <!-- Pages error boundary -->

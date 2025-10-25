@@ -5,6 +5,7 @@ import { extractError } from "@/lib/helpers/extract-error.ts";
 import { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
 import { getConfigFile } from "@/lib/main/get-config-file.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export function declareWindow() {
   window[ApplicationNamespace] = {
@@ -12,6 +13,7 @@ export function declareWindow() {
       "rippleColor": "#ffffff15",
     },
     "functions": {
+      "getGlobalStates"   : () => ({} as GlobalStatesType), // will be overwritten
       "changeGlobalStates": () => {}, // will be overwritten
       log,
       extractError,
@@ -36,6 +38,10 @@ export function declareWindow() {
         "after" : [],
       },
       "onPageStatesChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onSidebarItemsChange": {
         "before": [],
         "after" : [],
       },

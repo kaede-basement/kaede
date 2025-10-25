@@ -9,7 +9,7 @@ import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import * as TauriApi from "@tauri-apps/api";
 import * as TauriFs from "@tauri-apps/plugin-fs";
-import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
+import type { GlobalStatesChangerType, GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 declare global {
   interface Window {
@@ -22,6 +22,7 @@ declare global {
         "rippleColor": string;
       };
       "functions": {
+        "getGlobalStates"     : () => GlobalStatesType;
         "changeGlobalStates"  : GlobalStatesChangerType;
         "log"                 : typeof log;
         "extractError"        : typeof extractError;
@@ -39,15 +40,19 @@ declare global {
         };
         "onRouteChange": {
           "before": HookReturnType<RouteType, RouteType, "non-promise">;
-          "after" : HookReturnType<RouteType, "nothing">;
+          "after" : HookReturnType<unknown, "nothing">;
         };
         "onCustomLayoutToggle": {
           "before": HookReturnType<boolean, boolean, "non-promise">;
-          "after" : HookReturnType<RouteType, "nothing">;
+          "after" : HookReturnType<unknown, "nothing">;
         };
         "onPageStatesChange": {
           "before": HookReturnType<unknown, unknown, "non-promise">;
           "after" : HookReturnType<RouteType, "nothing">;
+        };
+        "onSidebarItemsChange": {
+          "before": HookReturnType<unknown, unknown, "non-promise">;
+          "after" : HookReturnType<unknown, "nothing">;
         };
         "__PLACEHOLDER_DO_NOT_TOUCH": {
           "before": Array<unknown>;

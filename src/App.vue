@@ -31,7 +31,7 @@ import { capitalize } from "@/lib/helpers/capitalize.ts";
     const wrapper = document.createElement("div");
 
     wrapper.setAttribute("id", "blue_archive");
-    wrapper.setAttribute("style", "display:none;position:absolute;top:0;left:0;right:0;bottom:0");
+    wrapper.setAttribute("style", "position:absolute;top:0;left:0;right:0;bottom:0");
 
     document.body.append(wrapper);
 
@@ -39,7 +39,40 @@ import { capitalize } from "@/lib/helpers/capitalize.ts";
     const code = await response.text();
     const plugin = new Function(code);
 
+    const __globalStates = window[ApplicationNamespace].functions.getGlobalStates();
+
+    window[ApplicationNamespace].functions.changeGlobalStates("sidebarItems", [
+      ...__globalStates.sidebarItems,
+      {
+        "path"  : "none",
+        "icon"  : "i-lucide-rss",
+        "name"  : "via plugin!",
+        "action": () => window[ApplicationNamespace].functions.changeGlobalStates("page", "none"),
+      },
+    ]);
+
     plugin();
+
+    setTimeout(() => {
+      const __appWrapper = document.getElementById("app_wrapper");
+      const __sidebar = document.getElementById("sidebar");
+      const __sidebarPlaceholder = document.getElementById("sidebar__placeholder");
+      const __sidebarItems = document.getElementsByName("sidebar__item");
+      const __sidebarTexts = document.getElementsByName("sidebar__item_text");
+
+      if (__sidebar !== null && __appWrapper !== null && __sidebarPlaceholder !== null) {
+        __sidebar.className = "transition-all h-58 w-16 absolute top-4 left-4 rounded-md overflow-hidden gap-2 flex flex-col bg-[theme(colors.black/.5)] p-2";
+        __sidebarPlaceholder.className = "h-vh w-24 transition-[width]";
+
+        for (const __item of __sidebarItems) {
+          __item.className = "relative size-12 flex flex-col rounded-md select-none items-center justify-center gap-1 text-white transition-[width,height,background-color] duration-150 disabled:bg-[theme(colors.black/.3)]";
+        }
+
+        for (const __item of __sidebarTexts) {
+          __item.className = "hidden";
+        }
+      }
+    }, 300);
   } catch (error) {
     console.error(error);
   }
@@ -99,6 +132,7 @@ function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: 
 provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
 provide<GlobalStatesChangerType>(GlobalStatesChangerContextKey, changeGlobalState);
 
+window[ApplicationNamespace].functions.getGlobalStates = () => globalStates;
 window[ApplicationNamespace].functions.changeGlobalStates = changeGlobalState;
 </script>
 

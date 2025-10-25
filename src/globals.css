@@ -11,3 +11,7 @@
     transition: none;
   }
 }
+
+.loading-container, .loading-image, .el-scrollbar {
+  display: none !important;
+}
