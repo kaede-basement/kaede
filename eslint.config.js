@@ -40,7 +40,7 @@ export default defineConfigWithVueTs(
     },
     "rules": {
       // Element IDs simplify styling for plugins
-      "@vue-require-id/require-id": ["warn", {
+      "@vue-require-id/require-id": ["off", {
         "elements": [
 
           /* Layout elements */

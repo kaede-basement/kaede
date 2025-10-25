@@ -37,8 +37,7 @@ declare global {
           "before": HookReturnType<unknown, ConfigType>;
         };
         "onRouteChange": {
-          // 'navigate' determines whether to perform a navigation, 'state' determines whether to display that navigation was performed
-          "before": HookReturnType<RouteType, { "navigate": boolean; "state": boolean }, "non-promise">;
+          "before": HookReturnType<RouteType, RouteType, "non-promise">;
           "after" : HookReturnType<RouteType, "nothing">;
         };
         "onCustomLayoutToggle": {

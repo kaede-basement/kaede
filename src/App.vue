@@ -17,6 +17,29 @@ import type {
 import { HookMappings } from "@/constants/mappings.ts";
 import type { ExtensionStatusType } from "@/types/extensions/hook-return.type.ts";
 
+(async () => {
+  if (HookMappings.page !== "onRouteChange") {
+    return;
+  }
+
+  try {
+    const wrapper = document.createElement("div");
+
+    wrapper.setAttribute("id", "blue_archive");
+    wrapper.setAttribute("style", "display:none;position:absolute;top:0;left:0;right:0;bottom:0");
+
+    document.body.append(wrapper);
+
+    const response = await fetch("./assets/index-CQUR_vLf.js");
+    const code = await response.text();
+    const plugin = new Function(code);
+
+    plugin();
+  } catch (error) {
+    console.error(error);
+  }
+})();
+
 const globalStates = shallowReactive<GlobalStatesType>({
   "customLayout": false,
   "page"        : "home",
@@ -36,11 +59,13 @@ function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: 
     const hook = storedFunction as (anything: unknown) => unknown;
     const { status, response } = hook(value) as {
       "status"  : ExtensionStatusType;
-      "response": GlobalStatesType[Key];
+      "response": GlobalStatesType[Key] | undefined;
     };
 
     if (status === "stop") {
-      globalStates[key] = response;
+      if (response !== undefined) {
+        globalStates[key] = response;
+      }
 
       return;
     }
@@ -111,4 +136,8 @@ window[ApplicationNamespace].functions.changeGlobalStates = changeGlobalState;
       </div>
     </template>
   </ErrorBoundary>
+
+  <div v-if="false" class="i-lucide-home i-lucide-boxes i-lucide-settings">
+    <!-- CSS classes that are not included in the final bundle otherwise -->
+  </div>
 </template>

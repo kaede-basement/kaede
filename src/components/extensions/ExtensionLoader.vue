@@ -29,8 +29,11 @@ const Huh = defineAsyncComponent(async () => {
     "default": element.MyButton,
   };
 });
+
+console.log(Huh);
 </script>
 
 <template>
-  <Huh />
+  <div></div>
+  <!-- Huh -->
 </template>

@@ -8,10 +8,11 @@ const { page } = defineProps<{
 
 const Home = defineAsyncComponent(() => import("@/pages/Home.vue"));
 const Library = defineAsyncComponent(() => import("@/pages/Library.vue"));
+const Settings = defineAsyncComponent(() => import("@/pages/Settings.vue"));
 </script>
 
 <template>
   <Home v-if="page === 'home'" />
-  <Library v-if="page === 'library'" />
-  <Library v-if="page === 'settings'" />
+  <Library v-else-if="page === 'library'" />
+  <Settings v-else-if="page === 'settings'" />
 </template>
