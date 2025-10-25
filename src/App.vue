@@ -19,6 +19,8 @@ import type { ExtensionStatusType } from "@/types/extensions/hook-return.type.ts
 import GlobalError from "@/components/statuses/GlobalError.vue";
 import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
 import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
+import { RouteItems } from "@/constants/routes.ts";
+import { capitalize } from "@/lib/helpers/capitalize.ts";
 
 (async () => {
   if (HookMappings.page !== "onRouteChange") {
@@ -52,6 +54,14 @@ const globalStates = shallowReactive<GlobalStatesType>({
     "settings": { "tab": "extensions" },
     "none"    : {},
   },
+  "sidebarItems": RouteItems.map(item => {
+    return {
+      "path"  : item.Path,
+      "icon"  : item.Icon,
+      "name"  : capitalize(item.Path),
+      "action": () => changeGlobalState("page", item.Path),
+    };
+  }),
 });
 
 function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]) {
