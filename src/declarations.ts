@@ -18,8 +18,9 @@ declare global {
       "fs" : typeof TauriFs;
     };
     "__KAEDE__": {
-      "constants": object; // TODO
-      "variables": object; // TODO
+      "variables": {
+        "rippleColor": string;
+      };
       "functions": {
         "changeGlobalStates"  : GlobalStatesChangerType;
         "log"                 : typeof log;

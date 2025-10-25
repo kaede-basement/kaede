@@ -8,8 +8,9 @@ import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
 
 export function declareWindow() {
   window[ApplicationNamespace] = {
-    "constants": {},
-    "variables": {},
+    "variables": {
+      "rippleColor": "#ffffff15",
+    },
     "functions": {
       "changeGlobalStates": () => {}, // will be overwritten
       log,

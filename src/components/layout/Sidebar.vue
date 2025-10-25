@@ -6,10 +6,22 @@ import type {
   ContextGlobalStatesType,
   GlobalStatesChangerType,
 } from "@/types/application/global-states.type.ts";
-import { GlobalStatesChangerContextKey, GlobalStatesContextKey } from "@/constants/application.ts";
+import {
+  ApplicationNamespace,
+  GlobalStatesChangerContextKey,
+  GlobalStatesContextKey,
+} from "@/constants/application.ts";
+import { Ripple } from "m3ripple-vue";
+import type { RouteType } from "@/types/application/route.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const changeGlobalState = inject<GlobalStatesChangerType>(GlobalStatesChangerContextKey);
+
+const rippleColor = window[ApplicationNamespace].variables.rippleColor;
+
+function setPage(page: RouteType): void {
+  changeGlobalState?.("page", page);
+}
 
 // TODO: add translations
 </script>
@@ -20,8 +32,10 @@ const changeGlobalState = inject<GlobalStatesChangerType>(GlobalStatesChangerCon
       v-for="item in RouteItems"
       :key="item.Path"
       :disabled="item.Path === globalStates?.page"
-      @click="() => changeGlobalState?.('page', item.Path)"
-      class="size-20 flex flex-col items-center justify-center gap-1 text-white disabled:bg-neutral-900"
+      @mousedown="() => setPage(item.Path)"
+      @touchstart="() => setPage(item.Path)"
+      @click="() => setPage(item.Path)"
+      class="relative size-20 flex flex-col select-none items-center justify-center gap-1 text-white transition-[background-color] duration-150 disabled:bg-neutral-900"
     >
       <span
         :class="[
@@ -32,6 +46,7 @@ const changeGlobalState = inject<GlobalStatesChangerType>(GlobalStatesChangerCon
       <span class="block shrink-0 text-sm">
         {{ capitalize(item.Path) }}
       </span>
+      <Ripple :rippleColor="rippleColor" />
     </button>
   </div>
 </template>

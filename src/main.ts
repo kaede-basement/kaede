@@ -9,6 +9,8 @@ import "virtual:uno.css";
 // Reset all CSS styles in a Tailwind style
 import "@unocss/reset/tailwind.css";
 import "@/globals.css";
+// Import styles that are necessary for Material You ripple effect
+import "m3ripple-vue/style.css";
 
 log.debug("Extending global window object in the app namespace");
 declareWindow();
