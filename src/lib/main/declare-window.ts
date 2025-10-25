@@ -39,6 +39,10 @@ export function declareWindow() {
         "before": [],
         "after" : [],
       },
+      "__PLACEHOLDER_DO_NOT_TOUCH": {
+        "before": [],
+        "after" : [],
+      },
     },
   };
 }
