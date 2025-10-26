@@ -12,8 +12,10 @@ import { join } from "@tauri-apps/api/path";
 import { ApplicationName } from "@/constants/application.ts";
 
 function getNumberFromLogFilename(filename: string): number {
+  // 'kaede-0.log' -> 'kaede-0'
   const currentLogName: string | undefined = filename.split(".")?.[0];
-  const currentLogNumber = Number(currentLogName?.split?.("-")?.[1]);
+  // 'kaede-0' -> '0';
+  const currentLogNumber: number = Number(currentLogName?.split?.("-")?.[1]);
 
   // User might have created some nonsense files in the 'logs' directory
   if (Number.isNaN(currentLogNumber)) {
