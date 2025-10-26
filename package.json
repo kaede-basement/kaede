@@ -27,6 +27,7 @@
     "@tauri-apps/plugin-upload": "~2",
     "@vueuse/core": "^14.0.0",
     "m3ripple-vue": "^0.1.0",
+    "tauri-plugin-drpc": "^1.0.3",
     "typebox": "^1.0.8",
     "vue": "^3.5.17"
   },

@@ -8,14 +8,36 @@ import type { initializeConfigFile } from "@/lib/main/initialize-config-file.ts"
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import * as TauriApi from "@tauri-apps/api";
+import * as TauriClipboardManager from "@tauri-apps/plugin-clipboard-manager";
+import * as TauriDialog from "@tauri-apps/plugin-dialog";
 import * as TauriFs from "@tauri-apps/plugin-fs";
+import * as TauriGlobalShortcut from "@tauri-apps/plugin-global-shortcut";
+import * as TauriHttp from "@tauri-apps/plugin-http";
+import * as TauriNotification from "@tauri-apps/plugin-notification";
+import * as TauriOs from "@tauri-apps/plugin-os";
+import * as TauriProcess from "@tauri-apps/plugin-process";
+import * as TauriShell from "@tauri-apps/plugin-shell";
+import * as TauriUpload from "@tauri-apps/plugin-upload";
+import * as TauriDiscordRpc from "tauri-plugin-drpc";
+import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 import type { GlobalStatesChangerType, GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 declare global {
   interface Window {
-    "__TAURI__": {
-      "api": typeof TauriApi;
-      "fs" : typeof TauriFs;
+    "__TAURI__": typeof TauriApi & {
+      "clipboardManager": typeof TauriClipboardManager;
+      "dialog"          : typeof TauriDialog;
+      "fs"              : typeof TauriFs;
+      "globalShortcut"  : typeof TauriGlobalShortcut;
+      "http"            : typeof TauriHttp;
+      "notification"    : typeof TauriNotification;
+      "os"              : typeof TauriOs;
+      "process"         : typeof TauriProcess;
+      "shell"           : typeof TauriShell;
+      "upload"          : typeof TauriUpload;
+    };
+    "__TAURI_PLUGINS_COMMUNITY__": {
+      "discord": typeof TauriDiscordRpc & typeof TauriDiscordRpcClasses;
     };
     "__KAEDE__": {
       "variables": {

@@ -6,15 +6,23 @@ import { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
 import { getConfigFile } from "@/lib/main/get-config-file.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import * as DiscordRPC from "tauri-plugin-drpc";
+import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 
-export function declareWindow() {
+export function declareWindow(): void {
+  window.__TAURI_PLUGINS_COMMUNITY__ = {
+    "discord": {
+      ...DiscordRPC,
+      ...DiscordRPCClasses,
+    },
+  };
   window[ApplicationNamespace] = {
     "variables": {
       "rippleColor": "#ffffff15",
     },
     "functions": {
-      "getGlobalStates"   : () => ({} as GlobalStatesType), // will be overwritten
-      "changeGlobalStates": () => {}, // will be overwritten
+      "getGlobalStates"   : (): GlobalStatesType => ({} as GlobalStatesType), // will be overwritten
+      "changeGlobalStates": (): void => {}, // will be overwritten
       log,
       extractError,
       getRelativeDate,

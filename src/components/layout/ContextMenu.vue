@@ -20,7 +20,7 @@ const rippleColor = window[ApplicationNamespace].variables.rippleColor;
     <div
       v-if="opened"
       id="context_menu"
-      class="context_menu __context-menu-disable absolute z-50000 flex flex-col select-none bg-neutral-800 py-1 gap-1 text-white"
+      class="drop-shadow-lg context_menu __context-menu-disable absolute z-50000 flex flex-col select-none bg-neutral-800 py-1 gap-1 text-white"
       :style="{ left: `${x + 4}px`, top: `${y + 4}px` }"
     >
       <button

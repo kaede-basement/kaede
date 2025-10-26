@@ -6,20 +6,54 @@
     "main"
   ],
   "permissions": [
-    "core:default",
+    "core:app:allow-app-hide",
+    "core:app:allow-app-show",
+    "core:app:allow-default-window-icon",
+    "core:app:allow-name",
+    "core:app:allow-set-app-theme",
+    "core:app:allow-tauri-version",
+    "core:app:allow-version",
+
+    "core:event:allow-emit",
+    "core:event:allow-emit-to",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+
+    "core:image:allow-from-bytes",
+    "core:image:allow-from-path",
+    "core:image:allow-new",
+    "core:image:allow-rgba",
+    "core:image:allow-size",
+
+    "core:menu:default",
+
+    "core:path:default",
+
+    "core:resources:default",
+
+    "core:tray:default",
+
+    "core:webview:default",
+
+    "core:window:default",
+
     "core:window:allow-show",
+
     "clipboard-manager:deny-clear",
     "clipboard-manager:deny-read-image",
     "clipboard-manager:deny-read-text",
     "clipboard-manager:allow-write-html",
     "clipboard-manager:allow-write-image",
     "clipboard-manager:allow-write-text",
+
     "dialog:allow-ask",
     "dialog:allow-confirm",
     "dialog:allow-message",
     "dialog:allow-open",
     "dialog:allow-save",
+
     "fs:default",
+
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-register",
     "global-shortcut:allow-register-all",

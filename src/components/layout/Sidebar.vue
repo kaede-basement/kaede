@@ -9,6 +9,11 @@ import {
 } from "@/constants/application.ts";
 import { Ripple } from "m3ripple-vue";
 
+(async () => {
+  const { app } = window.__TAURI__;
+  console.log("huh", app);
+})();
+
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const rippleColor = window[ApplicationNamespace].variables.rippleColor;
