@@ -1,4 +1,13 @@
-import { BaseDirectory, create, copyFile, readDir, writeTextFile } from "@tauri-apps/plugin-fs";
+import {
+  BaseDirectory,
+  copyFile,
+  create,
+  type DirEntry,
+  mkdir,
+  readDir,
+  readTextFile,
+  writeTextFile,
+} from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 import { ApplicationName } from "@/constants/application.ts";
 
@@ -17,7 +26,7 @@ function getNumberFromLogFilename(filename: string): number {
 /**
  * Strategy:
  *
- * if 'latest.log' exists, then we copy everything from it to the 'kaede-{number}.log' file
+ * if 'latest.log' exists, and it is not empty, then we copy everything from it to the 'kaede-{number}.log' file
  * and clear the 'latest.log' file since we want to separate previous launcher logs from current
  *
  * else just write into 'latest.log' without other manipulations
@@ -28,9 +37,21 @@ export async function prepareLogFile(): Promise<void> {
   // And we will keep track of the biggest log file number to make a unique name
   let biggestLogNumber = 0;
 
-  const entries = await readDir("logs", {
-    "baseDir": BaseDirectory.AppData,
-  });
+  // User can delete 'logs' folder while running launcher, and then refresh the launcher
+  let entries: DirEntry[];
+
+  try {
+    entries = await readDir("logs", {
+      "baseDir": BaseDirectory.AppData,
+    });
+  } catch {
+    entries = [];
+
+    // Error means that 'logs' directory doesn't exist
+    await mkdir("logs", {
+      "baseDir": BaseDirectory.AppData,
+    });
+  }
 
   for (const entry of entries) {
     // 'latest.log' exists
@@ -53,6 +74,15 @@ export async function prepareLogFile(): Promise<void> {
 
     await newLatestLogFile.close();
 
+    return;
+  }
+
+  const latestLogContent = await readTextFile(latestLogPath, {
+    "baseDir": BaseDirectory.AppData,
+  });
+
+  // 'latest.log' is empty; no need to copy empty contents into another log file
+  if (latestLogContent === "") {
     return;
   }
 
