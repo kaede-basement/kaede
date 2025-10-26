@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Sidebar from "@/components/layout/Sidebar.vue";
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
-import { nextTick, ref } from "vue";
+import { ref } from "vue";
 import ContextMenu from "@/components/layout/ContextMenu.vue";
 import { useEventListener } from "@vueuse/core";
 
@@ -29,16 +29,6 @@ function showContextMenu(event: MouseEvent): void {
     target?.className?.includes?.("_rippleOverlay")
   ) {
     closeContextMenu();
-
-    return;
-  }
-
-  if (contextMenu.value.opened) {
-    nextTick().then(() => {
-      contextMenu.value.opened = true;
-      contextMenu.value.x = event.clientX;
-      contextMenu.value.y = event.clientY;
-    });
 
     return;
   }
