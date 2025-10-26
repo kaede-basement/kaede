@@ -12,6 +12,17 @@
   }
 }
 
+/* Transitions */
+.pop-enter-active {
+  transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
+}
+
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: scale(95%);
+}
+
 /*
  * TODO: these are live2d plugin-related styles
  *
