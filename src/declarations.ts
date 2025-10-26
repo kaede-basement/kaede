@@ -54,10 +54,6 @@ declare global {
           "before": HookReturnType<unknown, unknown, "non-promise">;
           "after" : HookReturnType<unknown, "nothing">;
         };
-        "__PLACEHOLDER_DO_NOT_TOUCH": {
-          "before": Array<unknown>;
-          "after" : Array<unknown>;
-        };
       };
     };
   }

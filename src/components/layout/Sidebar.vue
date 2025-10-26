@@ -15,8 +15,8 @@ const rippleColor = window[ApplicationNamespace].variables.rippleColor;
 </script>
 
 <template>
-  <div id="sidebar__placeholder" class="h-vh w-20 transition-[width]"></div>
-  <div id="sidebar" class="transition-all absolute top-0 left-0 h-vh w-20 flex flex-col items-center bg-neutral-950">
+  <div class="h-full w-20"></div>
+  <div class="absolute top-0 left-0 h-vh w-20 flex flex-col items-center bg-neutral-950">
     <button
       v-for="item in globalStates?.sidebarItems"
       :key="item.path"

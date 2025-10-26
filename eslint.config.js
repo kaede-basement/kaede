@@ -40,7 +40,7 @@ export default defineConfigWithVueTs(
     },
     "rules": {
       // Element IDs simplify styling for plugins
-      "@vue-require-id/require-id": ["off", {
+      "@vue-require-id/require-id": ["warn", {
         "elements": [
 
           /* Layout elements */
@@ -92,6 +92,9 @@ export default defineConfigWithVueTs(
       "@stylistic/linebreak-style"        : ["off"],
       "@stylistic/eol-last"               : ["off"],
       "@stylistic/object-property-newline": ["off"],
+
+      /* TypeScript */
+      "@typescript-eslint/explicit-function-return-type": ["error"],
 
       /* Vue */
       "vue/no-extra-parens": ["warn", "all", { "nestedBinaryExpressions": true }],

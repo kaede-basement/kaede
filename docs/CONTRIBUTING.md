@@ -24,7 +24,7 @@ Please also follow the project's conventions for frontend:
 - Exported constants should be formatted as `PascalCase`.
 - Functions, variables, non-exported constants should be formatted as `camelCase`.
 - Element styling is preferred by using `Tailwind v3` classes. If there is no utility class for some case, then make your own with CSS.
-- [BEM](https://en.bem.info/methodology/) methodology is the preferred way to name element IDs.
+- [BEM](https://en.bem.info/methodology/) methodology is the preferred way to name element IDs and classes.
 
 ## Commit Messages
 

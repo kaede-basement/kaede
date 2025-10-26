@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import Sidebar from "@/components/layout/Sidebar.vue";
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
+
+function showContextMenu(): void {}
 </script>
 
 <template>
-  <div id="app_wrapper" class="flex flex-nowrap gap-0">
+  <div
+    @contextmenu.prevent
+    @contextmenu="showContextMenu"
+    class="flex flex-nowrap gap-0"
+  >
     <div id="__kaede-extensions" class="block" />
     <Sidebar />
     <!-- Pages error boundary -->
