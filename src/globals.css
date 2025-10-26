@@ -89,3 +89,32 @@
 })();
 <link rel="stylesheet" crossorigin href="./assets/index-CsDBtkr9.css">
  */
+
+/*
+(async () => {
+  console.log("trying");
+
+  try {
+    const { discord } = window.__TAURI_PLUGINS_COMMUNITY__;
+
+    await discord.stop();
+    await discord.start("1432010035034325105");
+
+    const assets = new discord.Assets()
+      .setLargeImage("misono_mika")
+      .setLargeText("Misono Mika");
+
+    const activity = new discord.Activity()
+      .setState("Tauri & Vue <3")
+      .setAssets(assets)
+      .setTimestamps(new discord.Timestamps(Date.now()))
+      .setButton([
+        new discord.Button("Minecraft Launcher w/ plugins", "https://github.com/kaede-basement/kaede"),
+      ]);
+
+    await discord.setActivity(activity);
+  } catch (error) {
+    console.error("setting", error);
+  }
+})();
+ */
