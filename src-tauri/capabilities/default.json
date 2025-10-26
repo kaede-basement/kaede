@@ -8,7 +8,40 @@
   "permissions": [
     "core:default",
     "core:window:allow-show",
+    "clipboard-manager:deny-clear",
+    "clipboard-manager:deny-read-image",
+    "clipboard-manager:deny-read-text",
+    "clipboard-manager:allow-write-html",
+    "clipboard-manager:allow-write-image",
+    "clipboard-manager:allow-write-text",
+    "dialog:allow-ask",
+    "dialog:allow-confirm",
+    "dialog:allow-message",
+    "dialog:allow-open",
+    "dialog:allow-save",
     "fs:default",
-    "log:default"
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-register-all",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-unregister-all",
+
+    "http:default",
+
+    "log:default",
+
+    "notification:default",
+
+    "os:default",
+
+    "process:default",
+
+    "shell:allow-execute",
+    "shell:allow-kill",
+    "shell:allow-open",
+    "shell:allow-spawn",
+    "shell:allow-stdin-write",
+
+    "upload:default"
   ]
 }
