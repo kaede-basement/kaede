@@ -59,7 +59,7 @@ If you found a bug or want to suggest a feature, please open an issue in [GitHub
 
 ### Discord
 
-[![discord-banner]](https://freesmlauncher.org/discord)
+[![discord-banner]](https://discord.gg/zE2XcswKK7)
 
 ## Building from Source
 
@@ -112,5 +112,5 @@ bun run build
 [vue-badge]: https://img.shields.io/badge/vuejs-%2335495e.svg?style=for-the-badge&logo=vuedotjs&logoColor=%234FC08D
 [tauri-badge]: https://img.shields.io/badge/tauri-%2324C8DB.svg?style=for-the-badge&logo=tauri&logoColor=%23FFFFFF
 [unocss-badge]: https://img.shields.io/badge/unocss-333333.svg?style=for-the-badge&logo=unocss&logoColor=white
-[discord-banner]: https://discordapp.com/api/guilds/1332079164341354506/widget.png?style=banner3
+[discord-banner]: https://discordapp.com/api/guilds/1422266074908594199/widget.png?style=banner3
 [license-badge]: https://img.shields.io/github/license/freesmteam/kaede?style=for-the-badge
