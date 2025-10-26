@@ -11,6 +11,11 @@ import "@unocss/reset/tailwind.css";
 import "@/globals.css";
 // Import styles that are necessary for Material You ripple effect
 import "m3ripple-vue/style.css";
+import { prepareLogFile } from "@/lib/main/prepare-log-file.ts";
+
+await prepareLogFile().catch((error: unknown) => {
+  log.error("Failed to prepare a log file:", JSON.stringify(error));
+});
 
 log.debug("Extending global window object in the app namespace");
 declareWindow();

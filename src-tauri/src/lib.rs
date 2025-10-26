@@ -1,4 +1,3 @@
-use chrono::Utc;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -31,8 +30,11 @@ pub fn run() {
                 )?;
             } else {
                 // Resolves to '${dataDir}/${bundleIdentifier}'
-                let path = app.path().app_data_dir()?;
-                let time = Utc::now().format("%Y-%m-%d_%H-%M").to_string();
+                let mut path = app.path().app_data_dir()?;
+
+                path.push("logs");
+
+                let _ = std::fs::create_dir_all(&path)?;
 
                 app.handle().plugin(
                     tauri_plugin_log::Builder::new()
@@ -42,9 +44,7 @@ pub fn run() {
                         .target(tauri_plugin_log::Target::new(
                             tauri_plugin_log::TargetKind::Folder {
                                 path: path,
-                                // TODO: use 'latest.log' file instead,
-                                // and mark existing as 'kaede-{number}.log', where the bigger this number, the newer that file
-                                file_name: Some(format!("log_{time}")),
+                                file_name: Some(format!("latest")),
                             },
                         ))
                         // Keep log file size at 8 MB
