@@ -16,7 +16,7 @@ export type HookReturnType<
   ArgumentsType,
   ResponseType,
   IsPromise extends ("promise" | "non-promise") = "promise",
-> = Array<(...args: ArgumentsType[]) => (
+> = Array<(...arguments_: ArgumentsType[]) => (
   IsPromise extends "promise"
     ? Promise<ExtensionHookResponseType<ResponseType>>
     : ExtensionHookResponseType<ResponseType>

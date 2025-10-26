@@ -29,7 +29,7 @@ const rippleColor = window[ApplicationNamespace].variables.rippleColor;
       >
         <span class="__context-menu-disable block i-lucide-rotate-ccw size-4"></span>
         <span class="__context-menu-disable text-sm block leading-none">
-          Restart
+          Restart UI
         </span>
         <Ripple :rippleColor="rippleColor" />
       </button>

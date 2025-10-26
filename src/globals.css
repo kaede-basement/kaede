@@ -23,6 +23,15 @@
   transform: scale(95%);
 }
 
+.fade-enter-active {
+  transition: opacity 150ms ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
 /*
  * TODO: these are live2d plugin-related styles
  *

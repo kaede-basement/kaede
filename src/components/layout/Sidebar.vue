@@ -16,7 +16,7 @@ const rippleColor = window[ApplicationNamespace].variables.rippleColor;
 
 <template>
   <div class="h-full w-20"></div>
-  <div class="absolute top-0 left-0 h-vh w-20 flex flex-col items-center bg-neutral-950">
+  <TransitionGroup name="fade" tag="div" class="absolute left-0 top-0 h-vh w-20 flex flex-col items-center bg-neutral-950">
     <button
       v-for="item in globalStates?.sidebarItems"
       :key="item.path"
@@ -24,19 +24,19 @@ const rippleColor = window[ApplicationNamespace].variables.rippleColor;
       @mousedown="item.action"
       @touchstart="item.action"
       @click="item.action"
-      class="shrink-0 relative size-20 flex flex-col select-none items-center justify-center gap-1 text-white transition-[width,height,background-color] duration-150 disabled:bg-neutral-900"
+      class="relative size-20 flex shrink-0 flex-col select-none items-center justify-center gap-1 text-white transition-[background-color] duration-150 disabled:bg-neutral-900"
       name="sidebar__item"
     >
-      <span
-        :class="[
-          item.icon,
-          'block size-6 shrink-0',
-        ]"
-      ></span>
-      <span name="sidebar__item_text" class="block shrink-0 text-sm">
-        {{ item.name }}
-      </span>
+    <span
+      :class="[
+        item.icon,
+        'block size-6 shrink-0',
+      ]"
+    ></span>
+    <span name="sidebar__item_text" class="block shrink-0 break-all text-balance text-sm">
+      {{ item.name }}
+    </span>
       <Ripple :rippleColor="rippleColor" />
     </button>
-  </div>
+  </TransitionGroup>
 </template>
