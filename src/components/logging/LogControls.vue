@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 
-const { searchLogs, scrollToIndex } = defineProps<{
+const {} = defineProps<{
   "searchLogs"   : (search: string) => Array<number>;
   "scrollToIndex": (index: number) => void;
 }>();
-
-console.log(searchLogs, scrollToIndex);
 </script>
 
 <template>

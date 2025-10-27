@@ -56,9 +56,10 @@ function getNodeHeight(node: string): number {
 }
 function searchLogs(search: string): Array<number> {
   const found: Array<number> = [];
+  const lowerCaseSearch = search.toLowerCase();
 
   for (const [index, value] of logs.value.entries()) {
-    if (value.includes(search)) {
+    if (value.toLowerCase().includes(lowerCaseSearch)) {
       found.push(index);
     }
   }
