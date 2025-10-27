@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, onMounted, onUnmounted, ref, shallowRef } from "vue";
+import { inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
 import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
 import { VirtualisedList } from "vue-virtualised";
@@ -10,8 +10,14 @@ import LogEntry from "@/components/logging/LogEntry.vue";
 import LogControls from "@/components/logging/LogControls.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 
+const virtualList = useTemplateRef("virtualList");
+
 const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
 const horizontalScroll = ref<boolean>(false);
+const fileData = ref<{
+  "size": string | undefined;
+  "time": string | undefined;
+}>({ "size": undefined, "time": undefined });
 // A key that re-renders virtualized list on every log viewer reopen
 const mountedKey = ref<number>(Math.random());
 
@@ -48,8 +54,22 @@ function getNodeHeight(node: string): number {
 
   return nodeLineSize * Math.ceil(node.length / charactersPerLine);
 }
+function searchLogs(search: string): Array<number> {
+  const found: Array<number> = [];
+
+  for (const [index, value] of logs.value.entries()) {
+    if (value.includes(search)) {
+      found.push(index);
+    }
+  }
+
+  return found;
+}
 
 onMounted(async () => {
+  // Measuring time start
+  const t1 = performance.now();
+
   // Notify virtualized list component that it should re-render
   mountedKey.value = Math.random();
 
@@ -69,17 +89,20 @@ onMounted(async () => {
     return;
   }
 
+  const filesize = (existingLogs.length / (1024 * 1024)).toFixed(2);
+
   log.info("Log file is not empty");
   log.debug("Adding existing logs to the 'logs' state");
   logs.value = [
     "__kaede-trigger-initial",
     ...existingLogs.split("\n"),
   ];
-});
+  fileData.value.size = `${filesize} MB`;
 
-onUnmounted(() => {
-  // Clean array references (I'm not sure if it works this way though)
-  logs.value = [];
+  const time = ((performance.now() - t1) / 1000).toFixed(2);
+
+  // Measuring time end
+  fileData.value.time = `took ${time}s`;
 });
 </script>
 
@@ -99,8 +122,15 @@ onUnmounted(() => {
             Logs
           </p>
           <p class="select-none text-neutral-300">
-            View current Kaede and Minecraft logs
+            <span>View current Kaede logs</span>
+            <span v-if="fileData?.size !== undefined && fileData?.time !== undefined" class="select-text">
+              ({{ fileData.size }}, {{ fileData.time }})
+            </span>
           </p>
+          <LogControls
+            :searchLogs="searchLogs"
+            :scrollToIndex="(index: number) => virtualList?.scrollToIndex?.(index)"
+          />
         </div>
         <button
           class="relative rounded-md p-2 hover:bg-neutral-800"
@@ -114,16 +144,16 @@ onUnmounted(() => {
         <VirtualisedList
           :key="`${logs.length}-${horizontalScroll}-${mountedKey}`"
           :get-node-height="getNodeHeight"
-          :viewport-height="windowHeight - 168"
+          :viewport-height="windowHeight - 208"
           :nodes="logs"
           :id="horizontalScroll ? '__virtualized-list-logs' : ''"
+          ref="virtualList"
           class="w-full"
         >
           <template #cell="slotProps">
             <LogEntry :line="slotProps.node" :index="slotProps.index" />
           </template>
         </VirtualisedList>
-        <LogControls />
       </div>
     </div>
   </div>

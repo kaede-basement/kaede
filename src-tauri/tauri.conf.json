@@ -22,8 +22,8 @@
         "fullscreen": false,
         "visible": false,
         "center": true,
-        "minWidth": 400,
-        "minHeight": 300
+        "minWidth": 512,
+        "minHeight": 384
       }
     ],
     "security": {
