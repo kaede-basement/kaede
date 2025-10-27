@@ -1,11 +1,15 @@
-/* styling */
+/* Styling */
 #app {
   /* make all sub-elements' text not selectable */
   /* user-select: none; */
   /* update: it's better to just blacklist selections instead of whitelist */
 }
 
-/* data attributes */
+button, button span {
+  user-select: none;
+}
+
+/* Data Attributes */
 [data-transitions-disabled] {
   * {
     transition: none;
@@ -20,7 +24,7 @@
 .pop-enter-from,
 .pop-leave-to {
   opacity: 0;
-  transform: scale(95%);
+  transform: scale(90%);
 }
 
 .fade-enter-active {

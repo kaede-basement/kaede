@@ -5,8 +5,14 @@ export type GlobalStatesType = {
   "customLayout": boolean;
   "page"        : RouteType;
   "pageStates"  : Record<RouteType, object>;
+  "showLogs"    : boolean;
   "sidebarItems": Array<{
     "path"  : RouteType;
+    "icon"  : string;
+    "name"  : string;
+    "action": () => void;
+  }>;
+  "contextMenuItems": Array<{
     "icon"  : string;
     "name"  : string;
     "action": () => void;

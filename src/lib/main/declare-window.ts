@@ -23,6 +23,8 @@ export function declareWindow(): void {
     "functions": {
       "getGlobalStates"   : (): GlobalStatesType => ({} as GlobalStatesType), // will be overwritten
       "changeGlobalStates": (): void => {}, // will be overwritten
+      "showContextMenu"   : (): void => {}, // will be overwritten
+      "closeContextMenu"  : (): void => {}, // will be overwritten
       log,
       extractError,
       getRelativeDate,
@@ -49,7 +51,15 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onLogViewerToggle": {
+        "before": [],
+        "after" : [],
+      },
       "onSidebarItemsChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onContextMenuItemsChange": {
         "before": [],
         "after" : [],
       },

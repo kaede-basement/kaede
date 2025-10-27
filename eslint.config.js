@@ -106,8 +106,10 @@ export default defineConfigWithVueTs(
 
       /* TypeScript */
       "@typescript-eslint/explicit-function-return-type": ["warn"],
+      "@typescript-eslint/no-unused-vars"               : ["warn"],
 
       /* Vue */
+      "vue/no-unused-vars" : ["warn"],
       "vue/no-extra-parens": ["warn", "all", { "nestedBinaryExpressions": true }],
       "vue/max-len"        : ["warn", {
         "code"                     : 110,

@@ -24,7 +24,7 @@ const rippleColor = window[ApplicationNamespace].variables.rippleColor;
       @mousedown="item.action"
       @touchstart="item.action"
       @click="item.action"
-      class="relative size-20 flex shrink-0 flex-col select-none items-center justify-center gap-1 text-white transition-[background-color] duration-150 disabled:bg-neutral-900"
+      class="relative size-20 flex shrink-0 flex-col items-center justify-center gap-1 text-white transition-[background-color] duration-150 disabled:bg-neutral-900"
       name="sidebar__item"
     >
     <span

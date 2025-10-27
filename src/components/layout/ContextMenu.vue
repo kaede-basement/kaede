@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Ripple } from "m3ripple-vue";
 import { ApplicationNamespace } from "@/constants/application.ts";
+import { inject } from "vue";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
 
 const { opened, x, y } = defineProps<{
   "opened": boolean;
@@ -8,10 +11,7 @@ const { opened, x, y } = defineProps<{
   "y"     : number;
 }>();
 
-function restart(): void {
-  window.location.reload();
-}
-
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const rippleColor = window[ApplicationNamespace].variables.rippleColor;
 </script>
 
@@ -24,12 +24,14 @@ const rippleColor = window[ApplicationNamespace].variables.rippleColor;
       :style="{ left: `${x + 4}px`, top: `${y + 4}px` }"
     >
       <button
-        @click="restart"
+        v-for="item in globalStates?.contextMenuItems"
+        :key="item.name"
+        @click="item.action"
         class="context_menu_button __context-menu-disable relative flex flex-nowrap items-center gap-2 p-2"
       >
-        <span class="__context-menu-disable block i-lucide-rotate-ccw size-4"></span>
+        <span :class="[item.icon, '__context-menu-disable block size-4']"></span>
         <span class="__context-menu-disable text-sm block leading-none">
-          Restart UI
+          {{ item.name }}
         </span>
         <Ripple :rippleColor="rippleColor" />
       </button>

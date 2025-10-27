@@ -46,6 +46,8 @@ declare global {
       "functions": {
         "getGlobalStates"     : () => GlobalStatesType;
         "changeGlobalStates"  : GlobalStatesChangerType;
+        "showContextMenu"     : (event: MouseEvent) => void;
+        "closeContextMenu"    : () => void;
         "log"                 : typeof log;
         "extractError"        : typeof extractError;
         "getRelativeDate"     : typeof getRelativeDate;
@@ -72,7 +74,15 @@ declare global {
           "before": HookReturnType<unknown, unknown, "non-promise">;
           "after" : HookReturnType<RouteType, "nothing">;
         };
+        "onLogViewerToggle": {
+          "before": HookReturnType<unknown, unknown, "non-promise">;
+          "after" : HookReturnType<unknown, "nothing">;
+        };
         "onSidebarItemsChange": {
+          "before": HookReturnType<unknown, unknown, "non-promise">;
+          "after" : HookReturnType<unknown, "nothing">;
+        };
+        "onContextMenuItemsChange": {
           "before": HookReturnType<unknown, unknown, "non-promise">;
           "after" : HookReturnType<unknown, "nothing">;
         };

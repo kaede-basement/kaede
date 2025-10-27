@@ -12,6 +12,22 @@ export const ExtensionResponseStatus = {
   "Continue": "continue",
 } as const;
 
+export const ContextMenuItems = [
+  {
+    "name"  : "Restart UI",
+    "icon"  : "i-lucide-rotate-ccw",
+    "action": (): void => window.location.reload(),
+  },
+  {
+    "name"  : "Show Logs",
+    "icon"  : "i-lucide-bug",
+    "action": (): void => {
+      window[ApplicationNamespace].functions.changeGlobalStates("showLogs", true);
+      window[ApplicationNamespace].functions.closeContextMenu();
+    },
+  },
+] as const;
+
 export const ConfigFilename = "config.json";
 
 export const TreeResources = `${BaseDirectory.AppData}/resources`;

@@ -4,6 +4,7 @@ import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 import { ref } from "vue";
 import ContextMenu from "@/components/layout/ContextMenu.vue";
 import { useEventListener } from "@vueuse/core";
+import { ApplicationNamespace } from "@/constants/application.ts";
 
 const contextMenu = ref<{
   "opened": boolean;
@@ -37,6 +38,9 @@ function showContextMenu(event: MouseEvent): void {
   contextMenu.value.x = event.clientX;
   contextMenu.value.y = event.clientY;
 }
+
+window[ApplicationNamespace].functions.showContextMenu = showContextMenu;
+window[ApplicationNamespace].functions.closeContextMenu = closeContextMenu;
 
 useEventListener(window, "mousedown", (event: MouseEvent) => {
   const target = event.target as HTMLElement;

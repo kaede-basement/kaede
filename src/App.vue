@@ -5,7 +5,7 @@ import ExtensionLoader from "@/components/extensions/ExtensionLoader.vue";
 import { provide, shallowReactive, nextTick } from "vue";
 import Router from "@/components/layout/Router.vue";
 import {
-  ApplicationNamespace,
+  ApplicationNamespace, ContextMenuItems,
   GlobalStatesChangerContextKey,
   GlobalStatesContextKey,
 } from "@/constants/application.ts";
@@ -21,6 +21,7 @@ import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
 import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
 import { RouteItems } from "@/constants/routes.ts";
 import { capitalize } from "@/lib/helpers/capitalize.ts";
+import LogViewer from "@/components/logging/LogViewer.vue";
 
 const globalStates = shallowReactive<GlobalStatesType>({
   "customLayout": false,
@@ -31,17 +32,19 @@ const globalStates = shallowReactive<GlobalStatesType>({
     "settings": { "tab": "extensions" },
     "none"    : {},
   },
+  "showLogs"    : false,
   "sidebarItems": RouteItems.map(item => {
     return {
       "path"  : item.Path,
       "icon"  : item.Icon,
       "name"  : capitalize(item.Path),
-      "action": () => changeGlobalState("page", item.Path),
+      "action": (): void => changeGlobalState("page", item.Path),
     };
   }),
+  "contextMenuItems": [...ContextMenuItems],
 });
 
-function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]) {
+function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]): void {
   const mappedKey = HookMappings[key];
 
   // Global states have not changed yet
@@ -109,6 +112,10 @@ window[ApplicationNamespace].functions.changeGlobalStates = changeGlobalState;
       <ExtensionsError :error="currentError" />
     </template>
   </ErrorBoundary>
+
+  <Transition name="pop">
+    <LogViewer v-if="globalStates.showLogs" />
+  </Transition>
 
   <NonBundledClasses />
 </template>
