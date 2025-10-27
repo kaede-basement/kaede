@@ -1,15 +1,35 @@
 <script setup lang="ts">
 import { Ripple } from "m3ripple-vue";
-import { inject, onMounted, ref } from "vue";
+import { inject, onMounted, shallowRef } from "vue";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
 import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
 import { VirtualisedList } from "vue-virtualised";
-import { BaseDirectory, readTextFile, watch } from "@tauri-apps/plugin-fs";
+import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
+import { log } from "@/lib/handlers/log.ts";
 
-const logs = ref<Array<string>>(["All logs will be displayed here!"]);
+const logs = shallowRef<Array<string>>(["Loading your logs..."]);
 
 const changeGlobalStates = inject<GlobalStatesChangerType>(GlobalStatesChangerContextKey);
+
+const rippleColor = window[ApplicationNamespace].variables.rippleColor;
+// We do not care about window size changes here, since user can just reopen log viewer
+const windowHeight = window.innerHeight;
+
+/*
+ * Subtract 128 to exclude the margins and paddings
+ *          16 to exclude the approximate scrollbar width
+ *          64 to exclude the line number width
+ */
+const virtualScrollContainerTextWidth = Math.min(800, window.innerWidth - 128) - 16 - 64;
+
+/*
+ * ~7.6 is a magical number that was obtained by dividing one line of a mono text by the count of its characters.
+ * We are using 'Math#ceil' instead of 'Math#floor'
+ * because we left some room for characters when we rounded ~7.6 to 8
+ */
+const charactersPerLine = Math.ceil(virtualScrollContainerTextWidth / 8);
+const nodeLineSize = 20;
 
 function showContextMenu(event: MouseEvent): void {
   window[ApplicationNamespace].functions.showContextMenu(event);
@@ -17,34 +37,36 @@ function showContextMenu(event: MouseEvent): void {
 function closeLogViewer(): void {
   changeGlobalStates?.("showLogs", false);
 }
+function getNodeHeight(node: string): number {
+  if (node.length === 0) {
+    return nodeLineSize;
+  }
 
-const rippleColor = window[ApplicationNamespace].variables.rippleColor;
-const windowHeight = window.innerHeight;
+  return nodeLineSize * Math.ceil(node.length / charactersPerLine);
+}
 
 onMounted(async () => {
+  log.debug("LogViewer.vue mounted");
+  log.debug("Getting 'latest.log' file path");
   const latestLogPath: string = await join("logs", "latest.log");
+
+  log.debug("Reading 'latest.log' file");
   const existingLogs: string = await readTextFile(latestLogPath, {
     "baseDir": BaseDirectory.AppData,
   });
 
-  logs.value = [...logs.value, ...existingLogs.split("\n")];
-
-  await watch(
-    latestLogPath,
-    event => {
-      logs.value.push(JSON.stringify(event));
-    },
-    {
-      "baseDir": BaseDirectory.AppData,
-      "delayMs": 500,
-    },
-  );
+  log.debug("Adding existing logs to the 'logs' state");
+  logs.value = [
+    "All logs will be displayed here",
+    ...existingLogs.split("\n"),
+  ];
 });
 </script>
 
 <template>
   <div
     @click="closeLogViewer"
+    @contextmenu.prevent
     class="absolute bottom-0 left-0 right-0 top-0 grid place-items-center bg-[theme(colors.black/.2)]"
   >
     <div
@@ -58,7 +80,7 @@ onMounted(async () => {
           Logs
         </p>
         <button
-          class="relative rounded-full p-1"
+          class="relative rounded-full p-1 hover:bg-neutral-800"
           @click="closeLogViewer"
         >
           <span class="i-lucide-x block size-5"></span>
@@ -70,7 +92,8 @@ onMounted(async () => {
       </p>
       <div class="relative max-w-200 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-800 text-sm font-mono">
         <VirtualisedList
-          :get-node-height="() => 20"
+          :key="logs.length"
+          :get-node-height="getNodeHeight"
           :viewport-height="windowHeight - 168"
           :nodes="logs"
         >
@@ -79,7 +102,7 @@ onMounted(async () => {
               <p class="w-14 shrink-0 select-none text-center text-neutral-400">
                 {{ slotProps.index - 1 }}
               </p>
-              <p class="line-clamp-1">
+              <p class="break-all">
                 {{ slotProps.node }}
               </p>
             </div>

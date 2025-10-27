@@ -214,10 +214,6 @@
       "identifier": "fs:allow-write-text-file",
       "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
-    {
-      "identifier": "fs:allow-watch",
-      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
-    },
 
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-register",
