@@ -13,7 +13,7 @@ import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 const virtualList = useTemplateRef("virtualList");
 
 const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
-const horizontalScroll = ref<boolean>(false);
+const horizontalScroll = ref<boolean>(true);
 const fileData = ref<{
   "size": string | undefined;
   "time": string | undefined;
@@ -120,7 +120,7 @@ onMounted(async () => {
       @contextmenu="showContextMenu"
       class="rounded-md pointer-events-auto z-40000 h-fit max-h-[calc(100vh-64px)] max-w-[calc(100vw-64px)] w-fit flex flex-col gap-2 bg-neutral-900 p-4 text-white drop-shadow-lg"
     >
-      <div class="w-full flex flex-nowrap items-start justify-between gap-4 pb-2">
+      <div class="w-full flex flex-nowrap items-start justify-between gap-4 pb-2 shrink-0">
         <div class="flex flex-col gap-2">
           <p class="select-none text-xl font-medium leading-none">
             Logs
@@ -134,6 +134,8 @@ onMounted(async () => {
           <LogControls
             :searchLogs="searchLogs"
             :scrollToIndex="(index: number) => virtualList?.scrollToIndex?.(index)"
+            :horizontalScroll="horizontalScroll"
+            :toggleHorizontalScroll="() => horizontalScroll = !horizontalScroll"
           />
         </div>
         <button

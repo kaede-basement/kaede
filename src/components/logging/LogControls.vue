@@ -2,15 +2,19 @@
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 import { ref, shallowRef, useTemplateRef, watchEffect } from "vue";
 import { useDebounceFn, useEventListener } from "@vueuse/core";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { appDataDir, join } from "@tauri-apps/api/path";
 
 const target = useTemplateRef("target");
 const focused = ref<boolean>(false);
 const found = shallowRef<Array<number>>([]);
 const position = ref(1);
 
-const { searchLogs, scrollToIndex } = defineProps<{
-  "searchLogs"   : (search: string) => Array<number>;
-  "scrollToIndex": (index: number) => void;
+const { searchLogs, scrollToIndex, horizontalScroll, toggleHorizontalScroll } = defineProps<{
+  "searchLogs"            : (search: string) => Array<number>;
+  "scrollToIndex"         : (index: number) => void;
+  "horizontalScroll"      : boolean;
+  "toggleHorizontalScroll": () => void;
 }>();
 
 function focusSearch(): void {
@@ -57,6 +61,12 @@ function handleEnter(event: KeyboardEvent): void {
   );
 }
 
+async function viewInExplorer(): Promise<void> {
+  const latestLogAbsolutePath = await join(await appDataDir(), "logs", "latest.log");
+
+  await revealItemInDir(latestLogAbsolutePath);
+}
+
 const handleInput = useDebounceFn((event: Event): void => {
   const target = event?.target as HTMLInputElement;
 
@@ -85,12 +95,12 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="h-8 w-full flex flex-nowrap gap-2">
+  <div class="h-8 w-full flex flex-wrap gap-2 overflow-x-auto">
     <div
       @click="focusSearch"
       :class="[
         focused ? 'cursor-text' : 'cursor-pointer',
-        'relative w-40 flex flex-nowrap items-center gap-2 rounded-md bg-neutral-800 pl-2',
+        'shrink-0 relative w-40 flex flex-nowrap items-center gap-2 rounded-md bg-neutral-800 pl-2',
       ]"
     >
       <div :class="[
@@ -112,7 +122,7 @@ watchEffect(() => {
       />
       <MaterialRipple :disabled="focused" />
     </div>
-    <div class="flex flex-nowrap bg-neutral-800 items-center h-full rounded-md text-sm text-neutral-400">
+    <div class="shrink-0 flex flex-nowrap bg-neutral-800 items-center h-full rounded-md text-sm text-neutral-400">
       <button
         @click="incrementIndex"
         class="relative grid size-6 ml-1 place-items-center rounded-md transition-[color] hover:text-white"
@@ -139,10 +149,27 @@ watchEffect(() => {
         of {{ found.length  }} matches
       </p>
     </div>
-    <button class="relative grid px-2 w-fit flex flex-nowrap gap-2 items-center h-full place-items-center rounded-md bg-neutral-800">
+    <button
+      @click="viewInExplorer"
+      class="shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 items-center h-full place-items-center rounded-md bg-neutral-800"
+    >
       <span :class="['i-lucide-external-link block size-4']"></span>
       <span class="block">
         View in Explorer
+      </span>
+      <MaterialRipple />
+    </button>
+    <button
+      @click="toggleHorizontalScroll"
+      :class="[
+        horizontalScroll ? 'invert' : '',
+        'shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
+        'items-center h-full place-items-center rounded-md transition-[filter]',
+      ]"
+    >
+      <span :class="['i-lucide-text-wrap block size-4']"></span>
+      <span class="block">
+        Line Breaks
       </span>
       <MaterialRipple />
     </button>

@@ -253,6 +253,14 @@
     "notification:allow-request-permission",
     "notification:allow-show",
 
+    "opener:allow-open-url",
+    "opener:allow-default-urls",
+    "opener:allow-reveal-item-in-dir",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
+    },
+
     "os:allow-arch",
     "os:allow-exe-extension",
     "os:allow-family",
