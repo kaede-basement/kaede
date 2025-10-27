@@ -22,6 +22,7 @@ import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
 import { RouteItems } from "@/constants/routes.ts";
 import { capitalize } from "@/lib/helpers/capitalize.ts";
 import LogViewer from "@/components/logging/LogViewer.vue";
+import { log } from "@/lib/handlers/log.ts";
 
 const globalStates = shallowReactive<GlobalStatesType>({
   "customLayout": false,
@@ -45,6 +46,7 @@ const globalStates = shallowReactive<GlobalStatesType>({
 });
 
 function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]): void {
+  log.debug(`Changing global state; key: ${key}; value: ${value}`);
   const mappedKey = HookMappings[key];
 
   // Global states have not changed yet

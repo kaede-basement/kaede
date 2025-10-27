@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { Ripple } from "m3ripple-vue";
-import { inject } from "vue";
+import { inject, onMounted, ref } from "vue";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
 import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
 import { VirtualisedList } from "vue-virtualised";
+import { BaseDirectory, readTextFile, watch } from "@tauri-apps/plugin-fs";
+import { join } from "@tauri-apps/api/path";
+
+const logs = ref<Array<string>>(["All logs will be displayed here!"]);
 
 const changeGlobalStates = inject<GlobalStatesChangerType>(GlobalStatesChangerContextKey);
 
@@ -16,6 +20,26 @@ function closeLogViewer(): void {
 
 const rippleColor = window[ApplicationNamespace].variables.rippleColor;
 const windowHeight = window.innerHeight;
+
+onMounted(async () => {
+  const latestLogPath: string = await join("logs", "latest.log");
+  const existingLogs: string = await readTextFile(latestLogPath, {
+    "baseDir": BaseDirectory.AppData,
+  });
+
+  logs.value = [...logs.value, ...existingLogs.split("\n")];
+
+  await watch(
+    latestLogPath,
+    event => {
+      logs.value.push(JSON.stringify(event));
+    },
+    {
+      "baseDir": BaseDirectory.AppData,
+      "delayMs": 500,
+    },
+  );
+});
 </script>
 
 <template>
@@ -48,12 +72,17 @@ const windowHeight = window.innerHeight;
         <VirtualisedList
           :get-node-height="() => 20"
           :viewport-height="windowHeight - 168"
-          :nodes="[]"
+          :nodes="logs"
         >
           <template #cell="slotProps">
-            <p class="px-2">
-              {{ slotProps.node }}
-            </p>
+            <div class="flex flex-nowrap px-1">
+              <p class="w-14 shrink-0 select-none text-center text-neutral-400">
+                {{ slotProps.index - 1 }}
+              </p>
+              <p class="line-clamp-1">
+                {{ slotProps.node }}
+              </p>
+            </div>
           </template>
         </VirtualisedList>
       </div>
