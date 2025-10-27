@@ -3,15 +3,10 @@ import { inject } from "vue";
 import type {
   ContextGlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import {
-  ApplicationNamespace,
-  GlobalStatesContextKey,
-} from "@/constants/application.ts";
-import { Ripple } from "m3ripple-vue";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
+import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
-
-const rippleColor = window[ApplicationNamespace].variables.rippleColor;
 </script>
 
 <template>
@@ -27,16 +22,16 @@ const rippleColor = window[ApplicationNamespace].variables.rippleColor;
       class="relative size-20 flex shrink-0 flex-col items-center justify-center gap-1 text-white transition-[background-color] duration-150 disabled:bg-neutral-900"
       name="sidebar__item"
     >
-    <span
-      :class="[
-        item.icon,
-        'block size-6 shrink-0',
-      ]"
-    ></span>
-    <span name="sidebar__item_text" class="block shrink-0 break-all text-balance text-sm">
-      {{ item.name }}
-    </span>
-      <Ripple :rippleColor="rippleColor" />
+      <span
+        :class="[
+          item.icon,
+          'block size-6 shrink-0',
+        ]"
+      ></span>
+      <span name="sidebar__item_text" class="block shrink-0 break-all text-balance text-sm">
+        {{ item.name }}
+      </span>
+      <MaterialRipple />
     </button>
   </TransitionGroup>
 </template>

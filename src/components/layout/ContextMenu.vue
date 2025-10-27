@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { Ripple } from "m3ripple-vue";
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { inject } from "vue";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
+import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 
 const { opened, x, y } = defineProps<{
   "opened": boolean;
@@ -12,7 +11,6 @@ const { opened, x, y } = defineProps<{
 }>();
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
-const rippleColor = window[ApplicationNamespace].variables.rippleColor;
 </script>
 
 <template>
@@ -33,7 +31,7 @@ const rippleColor = window[ApplicationNamespace].variables.rippleColor;
         <span class="__context-menu-disable text-sm block leading-none">
           {{ item.name }}
         </span>
-        <Ripple :rippleColor="rippleColor" />
+        <MaterialRipple />
       </button>
     </div>
   </Transition>

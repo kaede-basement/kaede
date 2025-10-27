@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Ripple } from "m3ripple-vue";
-import { inject, onMounted, onUnmounted, shallowRef } from "vue";
+import { inject, onMounted, onUnmounted, ref, shallowRef } from "vue";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
 import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
 import { VirtualisedList } from "vue-virtualised";
@@ -8,12 +7,14 @@ import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 import { log } from "@/lib/handlers/log.ts";
 import LogEntry from "@/components/logging/LogEntry.vue";
+import LogControls from "@/components/logging/LogControls.vue";
+import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 
 const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
+const horizontalScroll = ref<boolean>(true);
 
 const changeGlobalStates = inject<GlobalStatesChangerType>(GlobalStatesChangerContextKey);
 
-const rippleColor = window[ApplicationNamespace].variables.rippleColor;
 // We do not care about window size changes here, since user can just reopen log viewer
 const windowHeight = window.innerHeight;
 
@@ -39,7 +40,7 @@ function closeLogViewer(): void {
   changeGlobalStates?.("showLogs", false);
 }
 function getNodeHeight(node: string): number {
-  if (node.length === 0) {
+  if (node.length === 0 || horizontalScroll.value) {
     return nodeLineSize;
   }
 
@@ -90,23 +91,25 @@ onUnmounted(() => {
           @click="closeLogViewer"
         >
           <span class="i-lucide-x block size-5"></span>
-          <Ripple :rippleColor="rippleColor" />
+          <MaterialRipple />
         </button>
       </div>
       <p class="select-none text-neutral-300">
         View current Kaede and Minecraft logs
       </p>
-      <div class="relative max-w-200 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-800 text-sm font-mono">
+      <div class="group relative max-w-200 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-800 text-sm font-mono">
         <VirtualisedList
           :key="logs.length"
           :get-node-height="getNodeHeight"
           :viewport-height="windowHeight - 168"
           :nodes="logs"
+          :id="horizontalScroll ? '__virtual-list-for-logs-scroll-x' : ''"
         >
           <template #cell="slotProps">
             <LogEntry :line="slotProps.node" :index="slotProps.index" />
           </template>
         </VirtualisedList>
+        <LogControls />
       </div>
     </div>
   </div>
