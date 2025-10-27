@@ -45,16 +45,6 @@ function getFieldText(input: string, toSearch: string): string | FieldTextType {
 
   noOccurrenceFields.push(input.slice(previousIndex));
 
-  /*
-   * const _temp = [];
-   *
-   * for (const [_index, occurrenceExtraction] of occurrenceExtractions.entries()) {
-   *   _temp.push(noOccurrenceFields[_index], occurrenceExtraction);
-   * }
-   *
-   * _temp.push(noOccurrenceFields[noOccurrenceFields.length - 1]);
-   */
-
   return {
     "extractions": occurrenceExtractions,
     "fields"     : noOccurrenceFields,

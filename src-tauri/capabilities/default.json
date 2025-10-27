@@ -215,6 +215,11 @@
       "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
 
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
+    },
+
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-register",
     "global-shortcut:allow-register-all",
