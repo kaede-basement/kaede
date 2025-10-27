@@ -18,6 +18,7 @@ const fileData = ref<{
   "size": string | undefined;
   "time": string | undefined;
 }>({ "size": undefined, "time": undefined });
+const searching = ref<string>("");
 // A key that re-renders virtualized list on every log viewer reopen
 const mountedKey = ref<number>(Math.random());
 
@@ -57,6 +58,8 @@ function getNodeHeight(node: string): number {
 function searchLogs(search: string): Array<number> {
   const found: Array<number> = [];
   const lowerCaseSearch = search.toLowerCase();
+
+  searching.value = lowerCaseSearch;
 
   for (const [index, value] of logs.value.entries()) {
     if (value.toLowerCase().includes(lowerCaseSearch)) {
@@ -152,7 +155,11 @@ onMounted(async () => {
           class="w-full"
         >
           <template #cell="slotProps">
-            <LogEntry :line="slotProps.node" :index="slotProps.index" />
+            <LogEntry
+              :line="slotProps.node"
+              :index="slotProps.index"
+              :searching="searching"
+            />
           </template>
         </VirtualisedList>
       </div>

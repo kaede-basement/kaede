@@ -130,7 +130,7 @@ watchEffect(() => {
       <input
         class="w-12 bg-transparent text-end outline-none focus:outline-none"
         type="number"
-        min="0"
+        :min="1"
         :max="Math.max(0, found.length)"
         :value="position"
         @input="handleIndex"
