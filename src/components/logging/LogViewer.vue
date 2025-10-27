@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { Ripple } from "m3ripple-vue";
-import { inject, onMounted, shallowRef } from "vue";
+import { inject, onMounted, onUnmounted, shallowRef } from "vue";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
 import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
 import { VirtualisedList } from "vue-virtualised";
 import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 import { log } from "@/lib/handlers/log.ts";
+import LogEntry from "@/components/logging/LogEntry.vue";
 
-const logs = shallowRef<Array<string>>(["Loading your logs..."]);
+const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
 
 const changeGlobalStates = inject<GlobalStatesChangerType>(GlobalStatesChangerContextKey);
 
@@ -57,9 +58,14 @@ onMounted(async () => {
 
   log.debug("Adding existing logs to the 'logs' state");
   logs.value = [
-    "All logs will be displayed here",
+    "__kaede-trigger-initial",
     ...existingLogs.split("\n"),
   ];
+});
+
+onUnmounted(() => {
+  // Clean array references (I'm not sure if it works this way though)
+  logs.value = [];
 });
 </script>
 
@@ -98,14 +104,7 @@ onMounted(async () => {
           :nodes="logs"
         >
           <template #cell="slotProps">
-            <div class="flex flex-nowrap px-1">
-              <p class="w-14 shrink-0 select-none text-center text-neutral-400">
-                {{ slotProps.index - 1 }}
-              </p>
-              <p class="break-all">
-                {{ slotProps.node }}
-              </p>
-            </div>
+            <LogEntry :line="slotProps.node" :index="slotProps.index" />
           </template>
         </VirtualisedList>
       </div>

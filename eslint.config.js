@@ -98,6 +98,7 @@ export default defineConfigWithVueTs(
       "unicorn/prefer-global-this"        : ["off"], // no need for this rule since this app is fully CSR, and Web Workers are not going to be used
       "unicorn/prefer-top-level-await"    : ["off"], // top level await is broken somehow
       "unicorn/prefer-query-selector"     : ["off"], // 'getElementById' is a lot easier to use
+      "unicorn/prefer-at"                 : ["off"], // requires a different lib version
       "@stylistic/no-multi-spaces"        : ["off"], // conflicts with 'eslint@stylistic/key-spacing'
       "@stylistic/line-comment-position"  : ["off"],
       "@stylistic/linebreak-style"        : ["off"],
