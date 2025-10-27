@@ -118,7 +118,7 @@ function getLevelColor(level: string): string {
 </script>
 
 <template>
-  <div class="flex flex-nowrap gap-1 px-1">
+  <div class="flex flex-nowrap gap-1 px-1 shrink-0">
     <p class="w-14 shrink-0 select-none text-center text-neutral-400">
       {{ index - 1 }}
     </p>

@@ -9,15 +9,8 @@ button, button span {
   user-select: none;
 }
 
-#__virtual-list-for-logs-scroll-x > div > div {
-  overflow-y: hidden;
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-  }
+#__virtualized-list > div {
+  width: fit-content;
 }
 
 /* Data Attributes */

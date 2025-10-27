@@ -72,12 +72,10 @@ onUnmounted(() => {
 
 <template>
   <div
-    @click="closeLogViewer"
     @contextmenu.prevent
-    class="absolute bottom-0 left-0 right-0 top-0 grid place-items-center bg-[theme(colors.black/.2)]"
+    class="absolute bottom-0 left-0 right-0 top-0 grid place-items-center pointer-events-none"
   >
     <div
-      @click.stop
       @contextmenu.prevent
       @contextmenu="showContextMenu"
       class="pointer-events-auto z-40000 h-fit max-h-[calc(100vh-64px)] max-w-[calc(100vw-64px)] w-fit flex flex-col gap-2 bg-neutral-900 p-4 text-white drop-shadow-lg"
@@ -103,7 +101,8 @@ onUnmounted(() => {
           :get-node-height="getNodeHeight"
           :viewport-height="windowHeight - 168"
           :nodes="logs"
-          :id="horizontalScroll ? '__virtual-list-for-logs-scroll-x' : ''"
+          id="__virtualized-list"
+          class="w-full"
         >
           <template #cell="slotProps">
             <LogEntry :line="slotProps.node" :index="slotProps.index" />
