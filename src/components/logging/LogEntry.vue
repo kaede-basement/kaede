@@ -122,7 +122,7 @@ function getLevelColor(level: string): string {
     <p class="w-14 shrink-0 select-none text-center text-neutral-400">
       {{ index - 1 }}
     </p>
-    <div class="break-anywhere whitespace-nowrap">
+    <div id="__virtualized-list-logs__text" class="break-anywhere">
       <span :class="[getLevelColor(information.level)]">
         {{ information.level }}
       </span>

@@ -9,8 +9,13 @@ button, button span {
   user-select: none;
 }
 
-#__virtualized-list > div {
+#__virtualized-list-logs > div {
   width: fit-content;
+}
+#__virtualized-list-logs {
+  #__virtualized-list-logs__text {
+    white-space: nowrap;
+  }
 }
 
 /* Data Attributes */

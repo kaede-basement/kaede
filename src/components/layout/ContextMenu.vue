@@ -18,17 +18,17 @@ const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
     <div
       v-if="opened"
       id="context_menu"
-      class="drop-shadow-lg context_menu __context-menu-disable absolute z-50000 flex flex-col select-none bg-neutral-800 py-1 gap-1 text-white"
+      class="context_menu __context-menu-disable absolute z-50000 flex flex-col select-none gap-1 rounded-md bg-neutral-800 py-1 text-white drop-shadow-lg"
       :style="{ left: `${x + 4}px`, top: `${y + 4}px` }"
     >
       <button
         v-for="item in globalStates?.contextMenuItems"
         :key="item.name"
         @click="item.action"
-        class="context_menu_button __context-menu-disable relative flex flex-nowrap items-center gap-2 p-2"
+        class="context_menu_button __context-menu-disable relative flex flex-nowrap items-center gap-2 p-2 hover:bg-neutral-700"
       >
         <span :class="[item.icon, '__context-menu-disable block size-4']"></span>
-        <span class="__context-menu-disable text-sm block leading-none">
+        <span class="__context-menu-disable text-sm block leading-none whitespace-nowrap">
           {{ item.name }}
         </span>
         <MaterialRipple />

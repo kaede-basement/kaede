@@ -11,7 +11,9 @@ import LogControls from "@/components/logging/LogControls.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 
 const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
-const horizontalScroll = ref<boolean>(true);
+const horizontalScroll = ref<boolean>(false);
+// A key that re-renders virtualized list on every log viewer reopen
+const mountedKey = ref<number>(Math.random());
 
 const changeGlobalStates = inject<GlobalStatesChangerType>(GlobalStatesChangerContextKey);
 
@@ -48,6 +50,9 @@ function getNodeHeight(node: string): number {
 }
 
 onMounted(async () => {
+  // Notify virtualized list component that it should re-render
+  mountedKey.value = Math.random();
+
   log.debug("LogViewer.vue mounted");
   log.debug("Getting 'latest.log' file path");
   const latestLogPath: string = await join("logs", "latest.log");
@@ -57,6 +62,14 @@ onMounted(async () => {
     "baseDir": BaseDirectory.AppData,
   });
 
+  if (existingLogs === "") {
+    log.warn("Log file is empty. Are you using a debug build?");
+    logs.value = ["__kaede-trigger-initial"];
+
+    return;
+  }
+
+  log.info("Log file is not empty");
   log.debug("Adding existing logs to the 'logs' state");
   logs.value = [
     "__kaede-trigger-initial",
@@ -78,30 +91,32 @@ onUnmounted(() => {
     <div
       @contextmenu.prevent
       @contextmenu="showContextMenu"
-      class="pointer-events-auto z-40000 h-fit max-h-[calc(100vh-64px)] max-w-[calc(100vw-64px)] w-fit flex flex-col gap-2 bg-neutral-900 p-4 text-white drop-shadow-lg"
+      class="rounded-md pointer-events-auto z-40000 h-fit max-h-[calc(100vh-64px)] max-w-[calc(100vw-64px)] w-fit flex flex-col gap-2 bg-neutral-900 p-4 text-white drop-shadow-lg"
     >
-      <div class="w-full flex flex-nowrap items-center justify-between gap-4">
-        <p class="select-none text-xl font-medium leading-none">
-          Logs
-        </p>
+      <div class="w-full flex flex-nowrap items-start justify-between gap-4 pb-2">
+        <div class="flex flex-col gap-2">
+          <p class="select-none text-xl font-medium leading-none">
+            Logs
+          </p>
+          <p class="select-none text-neutral-300">
+            View current Kaede and Minecraft logs
+          </p>
+        </div>
         <button
-          class="relative rounded-full p-1 hover:bg-neutral-800"
+          class="relative rounded-md p-2 hover:bg-neutral-800"
           @click="closeLogViewer"
         >
           <span class="i-lucide-x block size-5"></span>
           <MaterialRipple />
         </button>
       </div>
-      <p class="select-none text-neutral-300">
-        View current Kaede and Minecraft logs
-      </p>
       <div class="group relative max-w-200 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-800 text-sm font-mono">
         <VirtualisedList
-          :key="logs.length"
+          :key="`${logs.length}-${horizontalScroll}-${mountedKey}`"
           :get-node-height="getNodeHeight"
           :viewport-height="windowHeight - 168"
           :nodes="logs"
-          id="__virtualized-list"
+          :id="horizontalScroll ? '__virtualized-list-logs' : ''"
           class="w-full"
         >
           <template #cell="slotProps">
