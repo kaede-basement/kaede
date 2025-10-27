@@ -60,7 +60,7 @@ useEventListener(window, "mousedown", (event: MouseEvent) => {
   <div
     @contextmenu.prevent
     @contextmenu="showContextMenu"
-    class="flex flex-nowrap gap-0 relative w-full h-vh overflow-hidden"
+    class="flex flex-nowrap gap-0 relative w-full h-vh overflow-hidden bg-neutral-950 text-white"
   >
     <div id="__kaede-extensions" class="block" />
     <ContextMenu

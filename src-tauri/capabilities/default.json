@@ -214,7 +214,10 @@
       "identifier": "fs:allow-write-text-file",
       "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
-
+    {
+      "identifier": "fs:allow-read-text-file-lines",
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
+    },
     {
       "identifier": "fs:allow-stat",
       "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
