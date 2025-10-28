@@ -23,7 +23,7 @@
         "visible": false,
         "center": true,
         "minWidth": 512,
-        "minHeight": 384
+        "minHeight": 288
       }
     ],
     "security": {

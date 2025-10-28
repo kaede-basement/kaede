@@ -13,7 +13,7 @@ import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 const virtualList = useTemplateRef("virtualList");
 
 const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
-const horizontalScroll = ref<boolean>(true);
+const horizontalScroll = ref<boolean>(false);
 const fileData = ref<{
   "size": string | undefined;
   "time": string | undefined;
@@ -93,7 +93,7 @@ onMounted(async () => {
     return;
   }
 
-  const filesize = (existingLogs.length / (1024 * 1024)).toFixed(2);
+  const filesize = (existingLogs.length / (1024 * 1024)).toFixed(3);
 
   log.info("Log file is not empty");
   log.debug("Adding existing logs to the 'logs' state");
