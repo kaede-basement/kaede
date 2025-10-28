@@ -22,10 +22,19 @@ import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
 import { RouteItems } from "@/constants/routes.ts";
 import { capitalize } from "@/lib/helpers/capitalize.ts";
 import { log } from "@/lib/handlers/log.ts";
+import { Command } from "@tauri-apps/plugin-shell";
 
 const LogViewer = defineAsyncComponent(
   () => import("@/components/logging/LogViewer.vue"),
 );
+
+(async () => {
+  const result = await Command.create("java", [
+    "--version",
+  ]).execute();
+
+  console.log(result);
+})();
 
 const globalStates = shallowReactive<GlobalStatesType>({
   "customLayout": false,

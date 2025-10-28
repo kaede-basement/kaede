@@ -6,10 +6,40 @@
     "main"
   ],
   "permissions": [
-    "shell:allow-execute",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "java",
+          "cmd": "java",
+          "args": true,
+          "sidecar": false
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "java",
+          "cmd": "java",
+          "args": true,
+          "sidecar": false
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-stdin-write",
+      "allow": [
+        {
+          "name": "java",
+          "cmd": "java",
+          "args": true,
+          "sidecar": false
+        }
+      ]
+    },
     "shell:allow-kill",
-    "shell:allow-open",
-    "shell:allow-spawn",
-    "shell:allow-stdin-write"
+    "shell:allow-open"
   ]
 }
