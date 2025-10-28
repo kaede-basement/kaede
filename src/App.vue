@@ -2,7 +2,7 @@
 import Layout from "@/components/layout/Layout.vue";
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 import ExtensionLoader from "@/components/extensions/ExtensionLoader.vue";
-import { provide, shallowReactive, nextTick } from "vue";
+import { provide, shallowReactive, nextTick, defineAsyncComponent } from "vue";
 import Router from "@/components/layout/Router.vue";
 import {
   ApplicationNamespace, ContextMenuItems,
@@ -21,8 +21,11 @@ import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
 import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
 import { RouteItems } from "@/constants/routes.ts";
 import { capitalize } from "@/lib/helpers/capitalize.ts";
-import LogViewer from "@/components/logging/LogViewer.vue";
 import { log } from "@/lib/handlers/log.ts";
+
+const LogViewer = defineAsyncComponent(
+  () => import("@/components/logging/LogViewer.vue"),
+);
 
 const globalStates = shallowReactive<GlobalStatesType>({
   "customLayout": false,
