@@ -20,6 +20,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Tests-related code
   "test": {
     "setupFiles": "vitest.setup.ts",
   },

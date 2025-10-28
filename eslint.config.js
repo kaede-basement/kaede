@@ -40,6 +40,19 @@ export default defineConfigWithVueTs(
     },
     "rules": {
 
+      /* Disabled rules */
+      "vue/multi-word-component-names"  : ["off"], // why do I need to use multiple words for a 'Layout' component, for example?
+      "vue/no-multiple-template-root"   : ["off"], // no need for this rule since Vue 3.x
+      "unicorn/no-null"                 : ["off"], // the second argument of 'JSON#stringify' doesn't accept 'undefined' to save formatting
+      "unicorn/prefer-global-this"      : ["off"], // no need for this rule since this app is fully CSR, and Web Workers are not going to be used
+      "unicorn/prefer-top-level-await"  : ["off"], // top level await is broken somehow
+      "unicorn/prefer-query-selector"   : ["off"], // 'getElementById' is a lot easier to use
+      "unicorn/prefer-at"               : ["off"], // requires a different lib version
+      "@stylistic/no-multi-spaces"      : ["off"], // conflicts with 'eslint@stylistic/key-spacing'
+      "@stylistic/line-comment-position": ["off"], // I don't see any problems using both above and beside comments
+      "@stylistic/linebreak-style"      : ["off"], // conflicts with git
+      "@stylistic/eol-last"             : ["off"], // conflicts with git
+
       /* Important */
       "@stylistic/semi"              : ["error", "always"],
       "@stylistic/no-confusing-arrow": ["error", {
@@ -90,20 +103,6 @@ export default defineConfigWithVueTs(
           "svg",
         ],
       }],
-
-      /* Disabled rules */
-      "vue/multi-word-component-names"    : ["off"], // why do I need to use multiple words for a 'Layout' component, for example?
-      "vue/no-multiple-template-root"     : ["off"], // no need for this rule since Vue 3.x
-      "unicorn/no-null"                   : ["off"], // the second argument of a 'JSON.stringify' doesn't accept 'undefined' to save formatting
-      "unicorn/prefer-global-this"        : ["off"], // no need for this rule since this app is fully CSR, and Web Workers are not going to be used
-      "unicorn/prefer-top-level-await"    : ["off"], // top level await is broken somehow
-      "unicorn/prefer-query-selector"     : ["off"], // 'getElementById' is a lot easier to use
-      "unicorn/prefer-at"                 : ["off"], // requires a different lib version
-      "@stylistic/no-multi-spaces"        : ["off"], // conflicts with 'eslint@stylistic/key-spacing'
-      "@stylistic/line-comment-position"  : ["off"],
-      "@stylistic/linebreak-style"        : ["off"],
-      "@stylistic/eol-last"               : ["off"],
-      "@stylistic/object-property-newline": ["off"],
 
       /* TypeScript */
       "@typescript-eslint/explicit-function-return-type": ["warn"],
