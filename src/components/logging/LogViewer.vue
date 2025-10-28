@@ -87,7 +87,7 @@ onMounted(async () => {
   });
 
   if (existingLogs === "") {
-    log.warn("Log file is empty. Are you using a debug build?");
+    log.warn("Log file is empty");
     logs.value = ["__kaede-trigger-initial"];
 
     return;

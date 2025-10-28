@@ -7,20 +7,18 @@
 # More details at https://github.com/eslint/eslint
 # and https://eslint.org
 
-name: ESLint
+name: ESLint & Tests
 
 on:
   push:
-    branches: ["nightly"]
+    paths-ignore:
+      - ".gitignore"
+      - "**.md"
+      - flake.lock
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches: ["nightly"]
-  schedule:
-    - cron: "0 0 * * 0"
 
 jobs:
-  eslint:
-    name: Run eslint scanning
+  check:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,3 +43,6 @@ jobs:
 
       - name: Run ESLint
         run: bun lint
+
+      - name: Run Vitest
+        run: bun run test

@@ -5,10 +5,10 @@ vi.stubGlobal("window", {
   "__KAEDE__": {
     "hooks": {
       "getConfigFile": {
-        "before": async () => {},
+        "before": [],
       },
       "getDefaultConfig": {
-        "before": async () => {},
+        "before": [],
       },
     },
   },
