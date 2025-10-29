@@ -37,7 +37,76 @@ Isolation was done using the [Secure ECMAScript](https://github.com/endojs/endo)
 
 Interactive Live2Ds were taken from [Z_DK's Steam Workshop](https://steamcommunity.com/id/xingsuileixi/myworkshopfiles/?appid=431960)
 
-One more thing: we need to take care of DOM script tags that plugins can add when have the DOM access. Otherwise, this sandbox can be escaped. Maybe we can overwrite the `document.createElement` before freezing it? And just to be sure, listen for `head` element changes for possible script tag additions?
+<details>
+We need to take care of DOM script tags that plugins can add when have the DOM access. Otherwise, this sandbox can be escaped. Maybe we can overwrite the `document.createElement` before freezing it? And just to be sure, listen for `head` element changes for possible script tag additions?
+
+Update: Seems like giving DOM access to the compartment basically ruins the whole purpose of plugin isolation, since one can add a JS code to any DOM element that will be executed in the global scope.
+
+Well, let's make these permissions then?
+
+- Full DOM access
+- File System access (window.__TAURI__.fs)
+- System shell access (window.__TAURI__.shell)
+- ...other Tauri-specific plugins access
+
+How to adapt to these rules? Do I really need compartments here? Isn't it better to just use `new Function` at this point? What to do about script tags and the above DOM element JS executions? Should I expose Tauri API through `window` object? How to import and share Tauri API then?
+
+---
+
+After some thoughts, I decided to go with this approach:
+
+Tauri API **will not** be exposed through `window`
+
+Account sign in is made through another webview window with no plugin access to prevent any possible security vulnerabilities.
+
+- Kaede User Repository (KUR) - plugins that are free to publish for anyone. Will use Secure ECMAScript Compartments for not full DOM access, otherwise they are executed with `new Function`
+- Moderated plugins - every plugin publish/update goes through my checks. I only need plugin's source code and build manual. Executed with `new Function` or `Module Federation Runtime API`, have full DOM access by default, only require Tauri API scope permissions (fs, shell, global shortcuts, network, os info, etc.) from user
+
+Permissions:
+
+Runs in compartment:
+
+- CSS: Apply CSS stylesheet                    - Custom
+- |    Edit/replace element class list (by id)
+- |    Edit element styles (by id)
+
+Runs in `new Function` or Module Federation Runtime API (`eval`):
+
+Note: I need to generalize these, because seeing 30 permissions that vary from doing 1 simple ass thing (tauri-core-app) to doing 50+ dangerous things (tauri-plugin-fs/tauri-plugin-shell) is not ok
+
+- Website capabilities: everything that HTML & JS & CSS offers (no access to Tauri API)
+- Tauri Core: Allow to change application theme (not the UI) - App
+- |           Emit/listen events to/from the backend         - Event
+- |           Create images from paths                       - Image
+- |           Menu
+- |           Path
+- |           Resources
+- |           Tray
+- |           WebViews & windows management
+- Tauri Plugins: Clipboard writing (texts, images) - Clipboard Manager
+- |              Clipboard reading (texts)
+- |              Clipboard reading (images)
+- |             
+- plugin-drpc (i will format these a bit later)
+- plugin-fs
+- plugin-global-shortcut
+- plugin-http
+- plugin-log
+- plugin-notification
+- plugin-opener
+- plugin-os
+- plugin-process
+- plugin-shell
+- plugin-upload
+
+not related, but need to store it somewhere:
+
+context menu has 50000 z-index
+log menu     has 40000 z-index
+sidebar      has 3000 z-index
+</details>
+
+If there is no video, [click here](https://github.com/user-attachments/assets/a1ccc9f2-0244-437b-8883-a68a26953e2a)
 
 <video src="https://github.com/user-attachments/assets/a1ccc9f2-0244-437b-8883-a68a26953e2a" width="320" height="240" controls></video>
 

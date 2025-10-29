@@ -11,7 +11,7 @@ const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 <template>
   <div class="h-full w-20"></div>
-  <TransitionGroup name="fade" tag="div" class="absolute left-0 top-0 h-vh w-20 flex flex-col items-center bg-[theme(colors.neutral.950/.3)] z-1000 backdrop-blur-sm">
+  <TransitionGroup name="fade" tag="div" class="absolute left-0 top-0 h-vh w-20 flex flex-col items-center bg-neutral-950 z-10000">
     <button
       v-for="item in globalStates?.sidebarItems"
       :key="item.path"
@@ -19,7 +19,7 @@ const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
       @mousedown="item.action"
       @touchstart="item.action"
       @click="item.action"
-      class="relative size-20 flex shrink-0 flex-col items-center justify-center gap-1 text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.15)]"
+      class="relative size-20 flex shrink-0 flex-col items-center justify-center gap-1 text-white transition-[background-color] duration-150 disabled:bg-neutral-900"
       name="sidebar__item"
     >
       <span

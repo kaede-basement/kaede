@@ -59,20 +59,34 @@ const LogViewer = defineAsyncComponent(
 
   try {
     console.log("Action: Trying to lockdown every JS globals");
-    lockdown({
-      "evalTaming": "unsafeEval",
-    });
+    // lockdown({
+    //   "evalTaming": "unsafeEval",
+    // });
   } catch {
     console.log("Already locked down");
   }
 
   window.Buffer = Buffer;
 
-  console.log(window);
+  const _temporary: object = {};
+
+  for (const _name of Object.getOwnPropertyNames(window)) {
+    if (["Infinity", "undefined", "NaN"].includes(_name)) {
+      continue;
+    }
+
+    if (_name[0] === _name[0].toLowerCase() && typeof window[_name] === "function") {
+      _temporary[_name] = window[_name].bind(window);
+
+      continue;
+    }
+
+    _temporary[_name] = window[_name];
+  }
 
   console.log("Action: Creating a safe compartment");
   const c = new Compartment({
-    "globals": {
+    "globals": _temporary, /* {
       ...window,
       "console": {
         ...console,
@@ -157,14 +171,15 @@ const LogViewer = defineAsyncComponent(
       clearInterval: window.clearInterval.bind(window),
       clearTimeout: window.clearTimeout.bind(window),
       FontFace: window.FontFace,
-    },
+    }, */
     "__options__": true,
   });
   const t2 = performance.now();
 
   console.log("Action: Running the contained code");
   try {
-    await c.evaluate(_cleaned);
+    // await c.evaluate(_cleaned);
+    // eval(_cleaned);
   } catch (error) {
     console.error("Error in the container:", error);
   }
