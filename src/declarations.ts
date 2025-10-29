@@ -24,6 +24,7 @@ import type { GlobalStatesChangerType, GlobalStatesType } from "@/types/applicat
 
 declare global {
   interface Window {
+    "__core-js_shared__": unknown;
     "__TAURI__": typeof TauriApi & {
       "clipboardManager": typeof TauriClipboardManager;
       "dialog"          : typeof TauriDialog;

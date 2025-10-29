@@ -33,7 +33,7 @@ const LogViewer = defineAsyncComponent(
 );
 
 (async () => {
-  const url = "./assets/index-CQUR_vLf.js";
+  const url = "./assets/index.e2ce666a.js";
   const response = await fetch(url);
   const _code = await response.text();
   const _cleaned = _code
@@ -68,6 +68,8 @@ const LogViewer = defineAsyncComponent(
 
   window.Buffer = Buffer;
 
+  console.log(window);
+
   console.log("Action: Creating a safe compartment");
   const c = new Compartment({
     "globals": {
@@ -82,7 +84,7 @@ const LogViewer = defineAsyncComponent(
       "globalThis": window,
       "location": window.location,
       "Symbol": window.Symbol,
-      Buffer,
+      "Buffer": window.Buffer,
       "MathMLElement": window.MathMLElement,
       "HTMLElement": window.HTMLElement,
       "HTMLDivElement": window.HTMLDivElement,
@@ -98,10 +100,10 @@ const LogViewer = defineAsyncComponent(
       "XMLHttpRequest": window.XMLHttpRequest,
       "ResizeObserver": window.ResizeObserver,
       "performance": window.performance,
-      ElementPrototype: Element.prototype,
-      HTMLElementPrototype: HTMLElement.prototype,
-      NodePrototype: Node.prototype,
-      EventTargetPrototype: EventTarget.prototype,
+      "ElementPrototype": Element.prototype,
+      "HTMLElementPrototype": HTMLElement.prototype,
+      "NodePrototype": Node.prototype,
+      "EventTargetPrototype": EventTarget.prototype,
       "SVGElement": window.SVGElement,
       "Element": window.Element,
       "WebGLRenderingContext": window.WebGLRenderingContext,
@@ -114,9 +116,9 @@ const LogViewer = defineAsyncComponent(
       "HTMLCanvasElement": window.HTMLCanvasElement,
       "screen": window.screen,
       "fonts": window.document.fonts,
-      "dispatchEvent"      : EventTarget.prototype.dispatchEvent,
-      "addEventListener"   : EventTarget.prototype.addEventListener,
-      "removeEventListener": EventTarget.prototype.removeEventListener,
+      "dispatchEvent"      : window.dispatchEvent.bind(window),
+      "addEventListener"   : window.addEventListener.bind(window),
+      "removeEventListener": window.removeEventListener.bind(window),
       "HTMLInputElement": window.HTMLInputElement,
       "CanvasRenderingContext2D": window.CanvasRenderingContext2D,
       "CanvasGradient": window.CanvasGradient,
@@ -127,7 +129,7 @@ const LogViewer = defineAsyncComponent(
       "ImageBitmapRenderingContext": window.ImageBitmapRenderingContext,
       "__core-js_shared__": window["__core-js_shared__"],
       "fetch"   : (...args: [RequestInfo]) => fetch(...args),
-      ImageBitmap: window.ImageBitmap,
+      "ImageBitmap": window.ImageBitmap,
       HTMLImageElement: window.HTMLImageElement,
       HTMLVideoElement: window.HTMLVideoElement,
       Blob: window.Blob,
@@ -137,11 +139,13 @@ const LogViewer = defineAsyncComponent(
       Int8Array: window.Int8Array,
       Uint8ClampedArray: window.Uint8ClampedArray,
       Uint16Array: window.Uint16Array,
-      Int16Array: window.Int16Array,
+      "Int16Array": window.Int16Array,
       Uint32Array: window.Uint32Array,
       Int32Array: window.Int32Array,
       Float32Array: window.Float32Array,
       DataView: window.DataView,
+      XMLDocument: window.XMLDocument,
+      "Math": window.Math,
       URL: {
         ...window.URL,
         createObjectURL: URL.createObjectURL.bind(URL),
@@ -149,11 +153,10 @@ const LogViewer = defineAsyncComponent(
       },
       createImageBitmap: window.createImageBitmap.bind(window),
       setInterval: window.setInterval.bind(window),
-
-      // Ensure document.fonts is usable
+      setTimeout: window.setTimeout.bind(window),
+      clearInterval: window.clearInterval.bind(window),
+      clearTimeout: window.clearTimeout.bind(window),
       FontFace: window.FontFace,
-      // If your code uses document.fonts, make sure it's not tampered
-      // (SES usually allows it if `document` is passed correctly)
     },
     "__options__": true,
   });

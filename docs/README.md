@@ -29,7 +29,17 @@ Kaede is not even in a development stage yet. Check the [plan](./PLAN.md) to see
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
-## Screenshots
+## Demonstration
+
+A video demonstration of the isolated plugin that renders an interactive Live2D of [Misono Mika](https://bluearchive.wiki/wiki/Mika). Isolated plugin has the access to DOM (`document`); also can use `window.log` (a custom logger function that wraps tauri-plugin-log), `Math`, `Date`, `URL`, `Buffer`, `window["__core-js_shared__"]`, `console`, etc. globals. This list is not full because it is really long, and the key thing here is that we can manually pass down global variables, so important and dangerous `window.__TAURI__.*` functions are not accessible.
+
+Isolation was done using the [Secure ECMAScript](https://github.com/endojs/endo). All globals were frozen using the `lockdown` function that `ses` library provides. So plugins can't rewrite any globals, prototypes, etc.
+
+Interactive Live2Ds were taken from [Z_DK's Steam Workshop](https://steamcommunity.com/id/xingsuileixi/myworkshopfiles/?appid=431960)
+
+One more thing: we need to take care of DOM script tags that plugins can add when have the DOM access. Otherwise, this sandbox can be escaped. Maybe we can overwrite the `document.createElement` before freezing it? And just to be sure, listen for `head` element changes for possible script tag additions?
+
+![Misono Mika](./demos/misono_mika_l2d_as_a_plugin.mp4)
 
 <details>
 
