@@ -39,7 +39,7 @@ Interactive Live2Ds were taken from [Z_DK's Steam Workshop](https://steamcommuni
 
 One more thing: we need to take care of DOM script tags that plugins can add when have the DOM access. Otherwise, this sandbox can be escaped. Maybe we can overwrite the `document.createElement` before freezing it? And just to be sure, listen for `head` element changes for possible script tag additions?
 
-![Misono Mika](./demos/misono_mika_l2d_as_a_plugin.mp4)
+<video src="./demos/misono_mika_l2d_as_a_plugin.mp4" width="320" height="240" controls></video>
 
 <details>
 
