@@ -83,13 +83,9 @@ Note: I need to generalize these, because seeing 30 permissions that vary from d
 - |           Resources
 - |           Tray
 - |           WebViews & windows management
-- Tauri Plugins: Clipboard writing (texts, images) - Clipboard Manager
-- |              Clipboard reading (texts)
-- |              Clipboard reading (images)
-- |             
+- Tauri Plugins:
 - plugin-drpc (i will format these a bit later)
 - plugin-fs
-- plugin-global-shortcut
 - plugin-http
 - plugin-log
 - plugin-notification
@@ -104,6 +100,16 @@ not related, but need to store it somewhere:
 context menu has 50000 z-index
 log menu     has 40000 z-index
 sidebar      has 3000 z-index
+
+Apparently, this shit is not going to work because tauri exposes __TAURI_INTERNALS__ to the `window` object. Nothing I can do about it, right?
+
+Update: yeah, `window.__TAURI_INTERNALS__` are frozen. But even if I somehow disable freezing, clone the `window.__TAURI_INTERNALS__.invoke` function, overwrite/delete it, and freeze the whole `window.__TAURI_INTERNALS__`, Tauri will just break since it accesses invokes from `window` (even in rust).
+
+Now I need to make some safe fine-grained permission system that manually exposes some JS capabilities, safe DOM wrappers, app functions and variables, Tauri-specific scopes, and only then the whole unrestricted environment (for DOM and full Tauri API). (Also need to take care of `plugin-shell` that allows to execute `java` with any arguments. Maybe not allow it unless unrestricted environment?)
+
+restricted environment will run in compartments, unrestricted environment is basically a `new Function` or `eval` in case of Module Federation Runtime API.
+
+Also, not related to extensions, but I can implement a `temporary launcher version switcher` that will fetch the JS code, save it in the directory somewhere that JS bindings can't access, and execute it instead of the bundled into the launcher JS assets.
 </details>
 
 If there is no video, [click here](https://github.com/user-attachments/assets/a1ccc9f2-0244-437b-8883-a68a26953e2a)
