@@ -95,12 +95,12 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="h-8 w-full flex flex-wrap gap-2 overflow-x-auto">
+  <div class="h-8 w-full flex flex-nowrap gap-2">
     <div
       @click="focusSearch"
       :class="[
         focused ? 'cursor-text' : 'cursor-pointer',
-        'shrink-0 relative w-40 flex flex-nowrap items-center gap-2 rounded-md bg-neutral-800 pl-2',
+        'shrink-0 relative w-28 sm:w-40 flex flex-nowrap items-center gap-2 rounded-md bg-neutral-800 pl-2',
       ]"
     >
       <div :class="[
@@ -138,7 +138,7 @@ watchEffect(() => {
         <MaterialRipple />
       </button>
       <input
-        class="w-12 bg-transparent text-end outline-none focus:outline-none"
+        class="w-4 sm:w-12 bg-transparent text-end outline-none focus:outline-none"
         type="number"
         :min="1"
         :max="Math.max(0, found.length)"
@@ -152,9 +152,10 @@ watchEffect(() => {
     <button
       @click="viewInExplorer"
       class="shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 items-center h-full place-items-center rounded-md bg-neutral-800"
+      title="View in Explorer"
     >
       <span :class="['i-lucide-external-link block size-4']"></span>
-      <span class="block">
+      <span class="md:block hidden">
         View in Explorer
       </span>
       <MaterialRipple />
@@ -166,9 +167,10 @@ watchEffect(() => {
         'shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
         'items-center h-full place-items-center rounded-md transition-[filter]',
       ]"
+      title="Line Breaks"
     >
       <span :class="['i-lucide-text-wrap block size-4']"></span>
-      <span class="block">
+      <span class="lg:block hidden">
         Line Breaks
       </span>
       <MaterialRipple />

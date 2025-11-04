@@ -1,6 +1,16 @@
 import { defineConfig, presetIcons, presetWind3 } from "unocss";
 
 export default defineConfig({
+  "theme": {
+    "breakpoints": {
+      "xs" : "480px",
+      "sm" : "640px",
+      "md" : "768px",
+      "lg" : "1024px",
+      "xl" : "1280px",
+      "2xl": "1536px",
+    },
+  },
   "presets": [
 
     /*

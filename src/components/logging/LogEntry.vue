@@ -181,7 +181,7 @@ function getLevelColor(level: string): string {
     <p class="w-14 shrink-0 select-none text-center text-neutral-400">
       {{ index - 1 }}
     </p>
-    <div id="__virtualized-list-logs__text" class="break-anywhere">
+    <div id="__virtualized-list-logs__text" class="break-all">
       <span
         v-if="typeof extractedInformation.level === 'string'"
         :class="[getLevelColor(information.level)]"
