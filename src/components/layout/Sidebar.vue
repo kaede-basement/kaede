@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { inject } from "vue";
+import { Command } from '@tauri-apps/plugin-shell';
 import type {
   ContextGlobalStatesType,
 } from "@/types/application/global-states.type.ts";
@@ -7,6 +8,16 @@ import { GlobalStatesContextKey } from "@/constants/application.ts";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+
+async function startElysia(): Promise<void> {
+  const command = Command.sidecar("sidecars/bun-sidecar", [
+    "hello",
+    "from a fucking javascript server",
+  ]);
+  const output = await command.execute();
+
+  console.log(output);
+}
 </script>
 
 <template>
@@ -32,6 +43,9 @@ const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
         {{ item.name }}
       </span>
       <MaterialRipple />
+    </button>
+    <button key="unknown-button" @click="startElysia">
+      Heh
     </button>
   </TransitionGroup>
 </template>
