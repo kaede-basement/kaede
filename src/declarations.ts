@@ -8,10 +8,8 @@ import type { initializeConfigFile } from "@/lib/main/initialize-config-file.ts"
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import * as TauriApi from "@tauri-apps/api";
-import * as TauriClipboardManager from "@tauri-apps/plugin-clipboard-manager";
 import * as TauriDialog from "@tauri-apps/plugin-dialog";
 import * as TauriFs from "@tauri-apps/plugin-fs";
-import * as TauriGlobalShortcut from "@tauri-apps/plugin-global-shortcut";
 import * as TauriHttp from "@tauri-apps/plugin-http";
 import * as TauriNotification from "@tauri-apps/plugin-notification";
 import * as TauriOs from "@tauri-apps/plugin-os";
@@ -24,19 +22,20 @@ import type { GlobalStatesChangerType, GlobalStatesType } from "@/types/applicat
 
 declare global {
   interface Window {
-    "__core-js_shared__": unknown;
+
+    /* Tauri exposes these */
     "__TAURI__": typeof TauriApi & {
-      "clipboardManager": typeof TauriClipboardManager;
-      "dialog"          : typeof TauriDialog;
-      "fs"              : typeof TauriFs;
-      "globalShortcut"  : typeof TauriGlobalShortcut;
-      "http"            : typeof TauriHttp;
-      "notification"    : typeof TauriNotification;
-      "os"              : typeof TauriOs;
-      "process"         : typeof TauriProcess;
-      "shell"           : typeof TauriShell;
-      "upload"          : typeof TauriUpload;
+      "dialog"      : typeof TauriDialog;
+      "fs"          : typeof TauriFs;
+      "http"        : typeof TauriHttp;
+      "notification": typeof TauriNotification;
+      "os"          : typeof TauriOs;
+      "process"     : typeof TauriProcess;
+      "shell"       : typeof TauriShell;
+      "upload"      : typeof TauriUpload;
     };
+
+    /* Manually exposed through window overwrite */
     "__TAURI_PLUGINS_COMMUNITY__": {
       "discord": typeof TauriDiscordRpc & typeof TauriDiscordRpcClasses;
     };
