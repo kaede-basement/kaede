@@ -3,6 +3,7 @@ import { defineConfig, presetIcons, presetWind3 } from "unocss";
 export default defineConfig({
   "theme": {
     "breakpoints": {
+      // All breakpoint sizes were taken from the tailwind website
       "xs" : "480px",
       "sm" : "640px",
       "md" : "768px",

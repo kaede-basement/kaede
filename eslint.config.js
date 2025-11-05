@@ -63,6 +63,9 @@ export default defineConfigWithVueTs(
       "@stylistic/max-statements-per-line"     : ["error", { "max": 1 }],
       "@stylistic/one-var-declaration-per-line": ["error", "always"],
 
+      /* ESLint */
+      "capitalized-comments": ["always"],
+
       // Element IDs simplify styling for plugins
       "@vue-require-id/require-id": ["warn", {
         "elements": [
@@ -163,7 +166,7 @@ export default defineConfigWithVueTs(
         "exceptAfterOverload"  : true,
         "exceptAfterSingleLine": true,
       }],
-      "@stylistic/member-delimiter-style" : ["warn", {
+      "@stylistic/member-delimiter-style": ["warn", {
         "multiline": {
           "delimiter"  : "semi",
           "requireLast": true,
