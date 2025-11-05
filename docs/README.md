@@ -6,7 +6,7 @@
 <a style="color:#ff637e" href="https://github.com/freesmteam/kaede">Kaede</a>
 </h1>
 
-[WIP] An extensible Tauri-based Minecraft launcher written in Vue and Rust
+An extensible Tauri-based Minecraft launcher written with Vue and Tauri
 
 <p align="center">
 <strong>English</strong> | <a style="color:#ff637e" href="./README.ru.md">Русский</a>
@@ -25,13 +25,13 @@ Kaede is not even in a development stage yet. Check the [plan](./PLAN.md) to see
 
 ## Contributing
 
-You don't need to know Rust to contribute to this project. Almost everything was written in TypeScript using Tauri API. These files will help you:
+You don't need a Rust knowledge to contribute to this project. Almost everything was written in TypeScript using Tauri API. These files will help you:
 
 - [README for JavaScript-related code](../src/README.md) (the most important one)
 - [README for Rust-related code](../src-tauri/README.md)
 - [Contributing Guidelines](./CONTRIBUTING.md)
 
-I also add a lot of comments in the code.
+I also leave a lot of comments in the code.
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
@@ -44,7 +44,7 @@ Isolation was done using the [Secure ECMAScript](https://github.com/endojs/endo)
 Interactive Live2Ds were taken from [Z_DK's Steam Workshop](https://steamcommunity.com/id/xingsuileixi/myworkshopfiles/?appid=431960)
 
 <details>
-We need to take care of DOM script tags that plugins can add when have the DOM access. Otherwise, this sandbox can be escaped. Maybe we can overwrite the `document.createElement` before freezing it? And just to be sure, listen for `head` element changes for possible script tag additions?
+I need to take care of DOM script tags that plugins can add when have the DOM access. Otherwise, this sandbox can be escaped. Maybe I can overwrite the `document.createElement` before freezing it? And just to be sure, listen for `head` element changes for possible script tag additions?
 
 Update: Seems like giving DOM access to the compartment basically ruins the whole purpose of plugin isolation, since one can add a JS code to any DOM element that will be executed in the global scope.
 
@@ -160,7 +160,7 @@ If you found a bug or want to suggest a feature, please open an issue in [GitHub
 
 See [Tauri v2 Prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-We also recommend installing [bun](https://bun.sh/).
+I also recommend installing [bun](https://bun.sh/).
 
 Once you are ready, clone this repository:
 

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import Layout from "@/components/layout/Layout.vue";
-import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
-import { provide, shallowReactive, nextTick, defineAsyncComponent } from "vue";
 import Router from "@/components/layout/Router.vue";
+import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
+import GlobalError from "@/components/statuses/GlobalError.vue";
+import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
+import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
+import { provide, shallowReactive, nextTick, defineAsyncComponent } from "vue";
 import {
   ApplicationNamespace, ContextMenuItems,
   GlobalStatesChangerContextKey,
@@ -15,18 +18,9 @@ import type {
 } from "@/types/application/global-states.type.ts";
 import { HookMappings } from "@/constants/mappings.ts";
 import type { ExtensionStatusType } from "@/types/extensions/hook-return.type.ts";
-import GlobalError from "@/components/statuses/GlobalError.vue";
-import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
-import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
 import { RouteItems } from "@/constants/routes.ts";
 import { capitalize } from "@/lib/helpers/capitalize.ts";
 import { log } from "@/lib/handlers/log.ts";
-// import { Command } from "@tauri-apps/plugin-shell";
-// import { initializeLauncher } from "@/lib/main/initialize-launcher.ts";
-// import "ses";
-// eslint-disable-next-line unicorn/prefer-node-protocol
-// import { Buffer } from "buffer";
-// import ShadowRealm from "shadowrealm-api";
 
 const LogViewer = defineAsyncComponent(
   () => import("@/components/logging/LogViewer.vue"),
