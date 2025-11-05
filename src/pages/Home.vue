@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { inject, onMounted } from "vue";
+import { inject } from "vue";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
 import { GlobalStatesChangerContextKey } from "@/constants/application.ts";
 
@@ -8,10 +8,6 @@ const changeGlobalState = inject<GlobalStatesChangerType>(GlobalStatesChangerCon
 
 async function download() { /* TODO */ }
 async function run() { /* TODO */ }
-
-onMounted(() => {
-  throw new Error("myheavyass 🥀");
-});
 </script>
 
 <template>

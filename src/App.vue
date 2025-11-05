@@ -293,7 +293,7 @@ window[ApplicationNamespace].functions.changeGlobalStates = changeGlobalState;
   <!-- Global error boundary -->
   <ErrorBoundary>
     <template #default>
-      <Layout v-if="!globalStates.customLayout">
+      <Layout v-if="!globalStates.customLayout" :page="globalStates.page">
         <Router
           v-if="globalStates.page !== 'none'"
           :page="globalStates.page"

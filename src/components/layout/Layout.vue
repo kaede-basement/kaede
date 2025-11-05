@@ -5,7 +5,11 @@ import { ref } from "vue";
 import ContextMenu from "@/components/layout/ContextMenu.vue";
 import { useEventListener } from "@vueuse/core";
 import { ApplicationNamespace } from "@/constants/application.ts";
+import type { RouteType } from "@/types/application/route.type.ts";
 
+const { page } = defineProps<{
+  "page": RouteType;
+}>();
 const contextMenu = ref<{
   "opened": boolean;
   "x"     : number;
@@ -70,7 +74,7 @@ useEventListener(window, "mousedown", (event: MouseEvent) => {
     />
     <Sidebar />
     <!-- Pages error boundary -->
-    <ErrorBoundary>
+    <ErrorBoundary :resetKey="page">
       <template #default>
         <slot />
       </template>
