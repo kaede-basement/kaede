@@ -13,6 +13,7 @@ import "@/globals.css";
 // Import styles that are necessary for Material You ripple effect
 import "m3ripple-vue/style.css";
 // import "core-js/actual";
+// asdf.
 
 await prepareLogFile().catch((error: unknown) => {
   log.error("Failed to prepare a log file:", JSON.stringify(error));

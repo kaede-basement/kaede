@@ -64,7 +64,7 @@ export default defineConfigWithVueTs(
       "@stylistic/one-var-declaration-per-line": ["error", "always"],
 
       /* ESLint */
-      "capitalized-comments": ["always"],
+      "capitalized-comments": ["warn", "always"],
 
       // Element IDs simplify styling for plugins
       "@vue-require-id/require-id": ["warn", {

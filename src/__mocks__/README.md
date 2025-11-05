@@ -1,5 +1,5 @@
 # Vitest mocks
 
-This folder contains fake versions of some libraries (for example, Tauri) that can't run in a default testing (Vitest) environment.
+This folder contains a code to imitate some libraries behaviour (for example, Tauri) in the `Vitest` testing environment.
 
 See https://vitest.dev/guide/mocking for more.
