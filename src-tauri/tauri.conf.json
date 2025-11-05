@@ -40,8 +40,5 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": [
-      "sidecars/bun-sidecar"
-    ]
   }
 }

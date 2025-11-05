@@ -15,11 +15,6 @@
           "args": true,
           "sidecar": false
         },
-        {
-          "name": "sidecars/bun-sidecar",
-          "args": true,
-          "sidecar": true
-        }
       ]
     },
     {
