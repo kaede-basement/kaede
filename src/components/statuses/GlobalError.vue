@@ -26,10 +26,10 @@ const information = computed((): ReturnType<typeof extractError> => {
       Kaede ran into a problem and needs to restart.
       You can do it by closing this window and then opening Kaede again.
     </p>
-    <p class="text-xl font-light">
+    <p v-if="information.name || information.message" class="text-xl font-light">
       {{ information.name }}: {{ information.message }}
     </p>
-    <p class="break-words text-sm text-neutral-300 font-light">
+    <p v-if="information.stack" class="break-words text-sm text-neutral-300 font-light">
       {{ information.stack }}
     </p>
   </div>

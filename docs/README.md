@@ -25,7 +25,7 @@ Kaede is not even in a development stage yet. Check the [plan](./PLAN.md) to see
 
 ## Contributing
 
-[Contributing Guide](./CONTRIBUTING.md)
+[Contributing Guidelines](./CONTRIBUTING.md)
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
