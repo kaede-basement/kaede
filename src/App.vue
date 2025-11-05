@@ -298,6 +298,12 @@ window[ApplicationNamespace].functions.changeGlobalStates = changeGlobalState;
           v-if="globalStates.page !== 'none'"
           :page="globalStates.page"
         />
+
+        <Transition name="pop">
+          <LogViewer v-if="globalStates.showLogs" />
+        </Transition>
+
+        <NonBundledClasses />
       </Layout>
     </template>
 
@@ -318,10 +324,4 @@ window[ApplicationNamespace].functions.changeGlobalStates = changeGlobalState;
       <ExtensionsError :error="currentError" />
     </template>
   </ErrorBoundary>
-
-  <Transition name="pop">
-    <LogViewer v-if="globalStates.showLogs" />
-  </Transition>
-
-  <NonBundledClasses />
 </template>
