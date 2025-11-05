@@ -59,7 +59,7 @@ Tauri API **will not** be exposed through `window`
 
 Account sign in is made through another webview window with no plugin access to prevent any possible security vulnerabilities.
 
-- Kaede User Repository (KUR) - plugins that are free to publish for anyone. Will use Secure ECMAScript Compartments for not full DOM access, otherwise they are executed with `new Function`
+- Kaede Add-ons User Repository (KAUR) - plugins that are free to publish for anyone. Will use Secure ECMAScript Compartments for not full DOM access, otherwise they are executed with `new Function`
 - Moderated plugins - every plugin publish/update goes through my checks. I only need plugin's source code and build manual. Executed with `new Function` or `Module Federation Runtime API`, have full DOM access by default, only require Tauri API scope permissions (fs, shell, global shortcuts, network, os info, etc.) from user
 
 Permissions:
