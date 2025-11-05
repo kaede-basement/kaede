@@ -5,7 +5,7 @@ import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 import GlobalError from "@/components/statuses/GlobalError.vue";
 import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
 import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
-import { provide, shallowReactive, nextTick, defineAsyncComponent } from "vue";
+import { defineAsyncComponent, nextTick, provide, shallowReactive } from "vue";
 import {
   ApplicationNamespace, ContextMenuItems,
   GlobalStatesChangerContextKey,
