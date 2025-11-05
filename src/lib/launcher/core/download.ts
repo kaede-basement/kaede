@@ -1,22 +1,34 @@
 import {
+  AssetsValidator,
   VersionManifest,
   type Artifact,
+  type Asset,
   type AssetIndex,
-  // eslint-disable-next-line unicorn/no-abusive-eslint-disable
-  // eslint-disable-next-line
-  // type Logging,
+  type Classifiers,
+  type Library,
   type LoggingConfig,
   type Manifest,
   type VersionMetaModern,
 } from "@/lib/schemas/minecrafts-schemas";
 import { download } from "@tauri-apps/plugin-upload";
-import { checksum, validateFileSize } from "./utilities";
 import Value from "typebox/value";
-import { TreeAssetIndexes, TreeLogging } from "@/constants/application";
+import {
+  TreeAssetIndexes,
+  TreeAssetObjects,
+  TreeLibraries,
+  TreeLogging,
+  TreeNatives,
+} from "@/constants/application";
+import { readTextFile } from "@tauri-apps/plugin-fs";
+import { extractError } from "@/lib/helpers/extract-error";
+import { log } from "@/lib/handlers/log";
+import { validateFileSize } from "@/lib/helpers/validate-file-size";
+import { checksum } from "@/lib/helpers/checksum";
+import { evaluateRules } from "@/lib/helpers/parse-rules";
+import { transformPlatform } from "@/lib/helpers/transform-platform";
+import { unzipFile } from "@/lib/helpers/unzip-file";
 
 
-// eslint-disable-next-line unicorn/no-abusive-eslint-disable
-// eslint-disable-next-line
 async function fetchVersionManifest(): Promise<Manifest> {
   const raw = await fetch("https://piston-meta.mojang.com/mc/game/version_manifest.json");
 
@@ -24,8 +36,6 @@ async function fetchVersionManifest(): Promise<Manifest> {
 }
 
 /* TODO: Add support for older versions */
-// eslint-disable-next-line unicorn/no-abusive-eslint-disable
-// eslint-disable-next-line
 async function fetchVersionMeta(manifest: Manifest, version: string): Promise<VersionMetaModern> {
   const object = manifest.versions.find(version_ => version_.id = version);
 
@@ -37,8 +47,6 @@ async function fetchVersionMeta(manifest: Manifest, version: string): Promise<Ve
   return Value.Parse(VersionManifest, raw);
 }
 
-// eslint-disable-next-line unicorn/no-abusive-eslint-disable
-// eslint-disable-next-line
 async function downloadArtifact(artifact: Artifact, prefix: string) {
   const filePath = `${prefix}/${artifact.path}`;
 
@@ -48,8 +56,6 @@ async function downloadArtifact(artifact: Artifact, prefix: string) {
   await checksum(filePath, artifact.sha1);
 }
 
-// eslint-disable-next-line unicorn/no-abusive-eslint-disable
-// eslint-disable-next-line
 async function downloadAssetIndex(index: AssetIndex): Promise<string> {
   const path = `${TreeAssetIndexes}/${index.id}.json`;
 
@@ -61,8 +67,6 @@ async function downloadAssetIndex(index: AssetIndex): Promise<string> {
   return path;
 }
 
-// eslint-disable-next-line unicorn/no-abusive-eslint-disable
-// eslint-disable-next-line
 async function downloadLoggingConfig(config: LoggingConfig) {
   const path = `${TreeLogging}/${config.id}`;
 
@@ -72,8 +76,76 @@ async function downloadLoggingConfig(config: LoggingConfig) {
   await checksum(path, config.sha1);
 }
 
-// eslint-disable-next-line unicorn/no-abusive-eslint-disable
-// eslint-disable-next-line
-const _ = () => console.log(downloadLoggingConfig, downloadAssetIndex, fetchVersionManifest, fetchVersionMeta, downloadArtifact);
+async function downloadAsset(asset: Asset) {
+  const twoBytes = asset.hash.slice(0, 2);
+  const uri = `${twoBytes}/${asset.hash}`;
+  const url = `https://resources.download.minecraft.net/${uri}`;
+  const path = `${TreeAssetObjects}/${uri}`;
 
-_();
+  try {
+    await download(url, path);
+
+    await validateFileSize(path, asset.size);
+    await checksum(path, asset.hash);
+  } catch (error: unknown) {
+    const extracted = extractError(error);
+
+    return { "success": false, "reason": extracted.message };
+  }
+
+  return { "success": true };
+}
+
+async function downloadAssets(path: string) {
+  const index = await readTextFile(path)
+    .then(async text => await JSON.parse(text));
+
+  if (!AssetsValidator.Check(index)) {
+    throw new TypeError(`Invalid AssetIndex ${path}`);
+  }
+  const objects: Asset[] = index.objects;
+  const promises = objects.map(object => downloadAsset(object));
+  const results = await Promise.all(promises);
+  const errors = results.filter(result => result.success === false);
+
+  for (const error of errors) {
+    log.error(`Downloading asset (${path}) failed: ${error.reason}`);
+  }
+}
+
+async function downloadClassifiers(classifiers: Classifiers, version: string, extract: boolean) {
+  const platform = transformPlatform();
+  const key = `natives-${platform}` as keyof typeof classifiers;
+  const native = classifiers[key];
+
+  if (!native) {
+    throw new Error(`Expected native (${key}) not found`);
+  }
+
+  await downloadArtifact(native, `${TreeLibraries}`);
+
+  if (extract) {
+    const path = `${TreeLibraries}/${native.path}`;
+
+    await unzipFile(path, `${TreeNatives}/${version}`);
+  }
+}
+
+async function downloadLibraries(libraries: Library[], version: string) {
+  for (const library of libraries) {
+    const rules = library.rules;
+
+    if (rules && !await evaluateRules(rules)) {
+      continue;
+    }
+    await downloadArtifact(library.downloads.artifact, TreeLibraries);
+
+    if (library.downloads.classifiers) {
+      await downloadClassifiers(
+        library.downloads.classifiers,
+        version,
+        library.extract != undefined,
+      );
+    }
+  }
+}

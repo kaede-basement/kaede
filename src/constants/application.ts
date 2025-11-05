@@ -32,7 +32,9 @@ export const ConfigFilename = "config.json";
 
 export const TreeResources = `${BaseDirectory.AppData}/resources`;
 export const TreeAssets = `${TreeResources}/assets`;
+export const TreeAssetObjects = `${TreeAssets}/objects`;
 export const TreeAssetIndexes = `${TreeAssets}/indexes`;
 export const TreeLibraries = `${TreeResources}/libraries`;
+export const TreeNatives = `${TreeResources}/natives`;
 export const TreeLogging = `${TreeResources}/logging`;
 export const TreeInstances = `${BaseDirectory.AppData}/instances`;

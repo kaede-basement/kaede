@@ -1,5 +1,5 @@
-// import { Compiler } from "typebox/compiler";
 import Type, { type Static } from "typebox";
+import { Compile } from "typebox/compile";
 
 export const VersionManifest = Type.Object({
   "latest": Type.Object({
@@ -8,8 +8,13 @@ export const VersionManifest = Type.Object({
   }),
   "versions": Type.Array(
     Type.Object({
-      "id"         : Type.String(),
-      "type"       : Type.Union(["release, snapshot, old-beta, old-alpha"]),
+      "id"  : Type.String(),
+      "type": Type.Union([
+        Type.Literal("release"),
+        Type.Literal("snapshot"),
+        Type.Literal("old-beta"),
+        Type.Literal("old-alpha"),
+      ]),
       "url"        : Type.String({ "format": "url" }),
       "time"       : Type.String({ "format": "date-time" }),
       "releaseTime": Type.String({ "format": "date-time" }),
@@ -19,13 +24,19 @@ export const VersionManifest = Type.Object({
 export type Manifest = Static<typeof VersionManifest>;
 
 export const RuleSchema = Type.Object({
-  "action": Type.Union(["allow", "disallow"]),
-  "os"    : Type.Optional(
+  "action": Type.Union([
+    Type.Literal("allow"),
+    Type.Literal("disallow"),
+  ]),
+  "os": Type.Optional(
     Type.Object({
-      "name": Type.String(),
+      "name"   : Type.String(),
+      "arch"   : Type.String(),
+      "version": Type.String(),
     }),
   ),
 });
+export type Rule = Static<typeof RuleSchema>;
 
 export const ValueSchema = Type.Union([
   Type.String(),
@@ -53,18 +64,28 @@ export const ArtifactSchema = Type.Object({
 });
 export type Artifact = Static<typeof ArtifactSchema>;
 
+export const ClassifiersSchema = Type.Object({
+  "natives-windows": Type.Optional(ArtifactSchema),
+  "natives-linux"  : Type.Optional(ArtifactSchema),
+  "natives-osx"    : Type.Optional(ArtifactSchema),
+});
+export type Classifiers = Static<typeof ClassifiersSchema>;
+
 export const DownloadSchema = Type.Object({
   "artifact"   : ArtifactSchema,
-  "classifiers": Type.Optional(
-    Type.Record(Type.String(), ArtifactSchema),
-  ),
+  "classifiers": Type.Optional(ClassifiersSchema),
 });
 
 export const LibrarySchema = Type.Object({
   "name"     : Type.String(),
   "downloads": DownloadSchema,
   "rules"    : Type.Optional(Type.Array(RuleSchema)),
+  "extract"  : Type.Optional(Type.Object({
+    "exclude": Type.Any(),
+  })),
 });
+export type Library = Static<typeof LibrarySchema>;
+export const LibraryValidator = Compile(LibrarySchema);
 
 export const AssetIndexSchema = Type.Object({
   "id"       : Type.String(),
@@ -74,19 +95,19 @@ export const AssetIndexSchema = Type.Object({
   "url"      : Type.String(),
 });
 export type AssetIndex = Static<typeof AssetIndexSchema>;
-// eslint-disable-next-line unicorn/no-abusive-eslint-disable
-// eslint-disable-next-line
-// @ts-ignore
-export const AssetIndexValidator = TypeCompiler.Compile(AssetIndexSchema);
+export const AssetIndexValidator = Compile(AssetIndexSchema);
 
 export const AssetSchema = Type.Object({
   "hash": Type.String(),
   "size": Type.Number(),
 });
+export type Asset = Static<typeof AssetSchema>;
 
 export const AssetsSchema = Type.Object({
   "objects": Type.Array(AssetSchema),
 });
+export type Assets = Static<typeof AssetsSchema>;
+export const AssetsValidator = Compile(AssetsSchema);
 
 export const LoggingConfigSchema = Type.Object({
   "id"  : Type.String(),

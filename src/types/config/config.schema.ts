@@ -1,7 +1,7 @@
 import { Type, type Static } from "typebox";
 import { Compile } from "typebox/compile";
 
-const ConfigSchema = Compile(Type.Object({
+const ConfigSchema = Type.Object({
   "__do_not_touch_VERSION": Type.Number(),
   "customization"         : Type.Object({
     "theme": Type.Union([
@@ -18,7 +18,7 @@ const ConfigSchema = Compile(Type.Object({
   "locale"               : Type.String(),
   "minecraftWindowHeight": Type.Number(),
   "minecraftWindowWidth" : Type.Number(),
-}));
+});
 
-export const ConfigValidator = ConfigSchema;
+export const ConfigValidator = Compile(ConfigSchema);
 export type ConfigType = Static<typeof ConfigSchema>;

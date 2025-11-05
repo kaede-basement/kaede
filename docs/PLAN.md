@@ -4,6 +4,71 @@ A public figma file
 
 # Plan
 
+## Routing
+
+<details>
+I don't see any advantages in using a package for page routes
+
+Just define a global store using `pinia` with fields like this:
+
+```ts
+// just a mock-up, i dont remember how pinia stores look like lol
+{
+  "page"   : "home" // "home" | "library" | "settings" | `custom-${string}`,
+  "setPage": (to: /* a type above */) => {
+    for (const hook of /* window.[...].hooks */) {
+      // handle responses
+      const response = hook(to);
+      // let it be { "navigate": boolean; "navigated": boolean }
+      // 'navigate' handles whether page should change
+      // 'navigated' handles whether link should show that page was opened
+    }
+
+    this.page = to;
+  },
+  "states": {
+    "home"    : {},
+    "library" : {},
+    "settings": { "tab": "plugins" },
+    // plugins can add their own fields
+  };
+  "setState": (key: string; value: object) {
+    // handle hooks
+
+    this.states[key] = value;
+  },
+};
+
+window.__KAEDE__.router = /* pass the non-reactive object, or properties */
+```
+
+and in the `layout.vue`:
+
+```vue
+<script setup lang="ts">
+const router = useRouterStore();
+</script>
+
+<template>
+  <...>
+    <home-page v-if="router.page === 'home'" />
+    <... />
+    <custom-page v-else />
+  </...>
+</template>
+```
+
+simple ass.
+
+and!! to make custom layouts even easier to do, we can use a `<Teleport />` for each page
+
+plugins will change some state for `<Teleport />` to mount a page component on the page change to somewhere
+
+___
+
+wait, but why am I using a global store? This can be implemented with a simple top-level state in the App.vue buh
+</details>
+
 ## Extensions
 
 <details>
@@ -18,9 +83,11 @@ Make a page that fetches extensions from some remote repository
 
 That repository must include only moderated extensions. Moderation process should require extension's source code and, if differs from usual, a build manual. Every extension update must go through the moderation process. This is the only way to make custom extensions secure, I guess
 
-Those extensions should be loaded once at application launch. Programming language must be a JavaScript. Any framework is ok, as long as it is capable running in a browser. Extensions need to be able to communicate with launcher
+Those extensions should be loaded once at application launch. Programming language must be a JavaScript. Any framework is ok, as long as it is capable running in a browser. Extensions will be able to communicate with the launcher
 
 ### More
+
+**Previous implementation details**
 
 Any JS code can be dynamically fetched in runtime from somewhere and executed with the `new Function` constructor. Example (I implemented it in [one of my projects](https://github.com/notwindstone/tsuki)):
 
@@ -44,11 +111,71 @@ Unfortunately, if VSCode, Obsidian, Vencord and other apps can't implement a sec
 
 Btw, Figma chose security over functionality with their `iframe` approach
 
-// 19.09.2025 update
+**Latest implementation details (19.09.2025)**
 
-consider using runtime microfrontends. mounting components can be achieved using portals (react)/teleports (vue)
+Microfrontends supremacy >.<
 
-plugin manifest should also contain a `customLoader: string | undefined` field
+Using a Module Federation Runtime we can load any Vue component just like an ordinary component in the node tree. To make it possible for plugins to render components anywhere, a `<Teleport />` could be used. Module Federation Runtime also allows us to share dependencies, so the final extension budle size should be low.
+
+For other JS frameworks, we can run them using the previous implementation: `new Function`.
+
+Launcher should expose everything that it can through the `window.__KAEDE__`. Previously, communication was done using the `window.postMessage` function, but now I came up with the idea of exposing an array of functions for almost every action in app. That array can be changed by extensions, and then the launcher will execute every function listed in that array.
+
+For example, see the next code:
+
+```ts
+/** Launcher */
+window.postMessage("kaede-route-changed", /* some data */)
+
+/** Extension */
+const handleRouteChange = (pathname: string) => {
+  if (pathname === "/home") {
+    // do something
+  }
+};
+const handleKaedeMessages = (event: { data: string ) => {
+  if (event.data === "tsuki_updated_window") {
+    handleRouteChange(/* some data from the 'event', or maybe pass down the 'window.__KAEDE__.dynamic.currentRoute' variable */);
+
+    return;
+  }
+
+  // other code
+};
+
+window.addEventListener("message", handleKaedeMessages);
+```
+
+While it works, it doesn't look good to me. Adding a lot of window listeners can affect launcher's performance. If user has 20 extensions, that `handleKaedeMessages` function will fire on every new event 20 times, even if no one wanted to listen to that event.
+
+Now I'm suggesting the next structure:
+
+```ts
+/** Launcher */
+window.__KAEDE__.hooks.onRouteChange.before = [];
+
+/** Extension */
+const currentRoute = ref<RouteType>("home");
+
+window.__KAEDE__.hooks.onRouteChange.before.push(({ pathname }: { pathname: RouteType }) => {
+  currentRoute.value = pathname;
+});
+
+/** Launcher */
+// example with the '@kitbag/router'
+onBeforeRouteChange(() => {
+  for (const hook of window.__KAEDE__.hooks.onRouteChange.before) {
+    hook({ pathname });
+  }
+});
+```
+
+Extensions are not needed to listen for window events anymore. Only specified actions will be triggered. Must be a perfect solution? Maybe. I'm not sure that this will work, because, well, launcher doesn't have the same scope as that extension code block where `window.__KAEDE__` was reassigned (?)
+
+Update: it works, somehow. I tested it both ways: firstly, I made a Svelte plugin state change from the Launcher (in Vue), and then I made a Vue state change from the Svelte plugin.
+
+___
+about security: what if i introduce a permission-based plugin system? plugins will be able to use only those things (`window.__TAURI__` object scopes, localStorage, WASM, .dll/.so, etc.) that user has allowed
 
 </details>
 
