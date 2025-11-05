@@ -14,7 +14,7 @@
           "cmd": "java",
           "args": true,
           "sidecar": false
-        },
+        }
       ]
     },
     {
