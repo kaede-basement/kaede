@@ -1,12 +1,3 @@
-import type { ConfigType } from "@/types/config/config.schema.ts";
-import type { log } from "@/lib/handlers/log.ts";
-import type { extractError } from "@/lib/helpers/extract-error.ts";
-import type { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
-import type { getConfigFile } from "@/lib/main/get-config-file.ts";
-import type { getDefaultConfig } from "@/lib/main/get-default-config.ts";
-import type { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
-import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
-import type { RouteType } from "@/types/application/route.type.ts";
 import * as TauriApi from "@tauri-apps/api";
 import * as TauriDialog from "@tauri-apps/plugin-dialog";
 import * as TauriFs from "@tauri-apps/plugin-fs";
@@ -18,7 +9,17 @@ import * as TauriShell from "@tauri-apps/plugin-shell";
 import * as TauriUpload from "@tauri-apps/plugin-upload";
 import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
+
+import type { log } from "@/lib/handlers/log.ts";
+import type { extractError } from "@/lib/helpers/extract-error.ts";
+import type { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
+import type { getConfigFile } from "@/lib/main/get-config-file.ts";
+import type { getDefaultConfig } from "@/lib/main/get-default-config.ts";
+import type { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
 import type { GlobalStatesChangerType, GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { RouteType } from "@/types/application/route.type.ts";
+import type { ConfigType } from "@/types/config/config.schema.ts";
+import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 
 declare global {
   interface Window {

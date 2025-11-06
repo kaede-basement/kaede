@@ -1,26 +1,28 @@
 <script setup lang="ts">
+import { defineAsyncComponent, nextTick, provide, shallowReactive } from "vue";
+
+import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 import Layout from "@/components/layout/Layout.vue";
 import Router from "@/components/layout/Router.vue";
-import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
-import GlobalError from "@/components/statuses/GlobalError.vue";
-import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
 import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
-import { defineAsyncComponent, nextTick, provide, shallowReactive } from "vue";
+import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
+import GlobalError from "@/components/statuses/GlobalError.vue";
 import {
-  ApplicationNamespace, ContextMenuItems,
+  ApplicationNamespace,
+  ContextMenuItems,
   GlobalStatesChangerContextKey,
   GlobalStatesContextKey,
 } from "@/constants/application.ts";
+import { HookMappings } from "@/constants/mappings.ts";
+import { RouteItems } from "@/constants/routes.ts";
+import { log } from "@/lib/handlers/log.ts";
+import { capitalize } from "@/lib/helpers/capitalize.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesChangerType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import { HookMappings } from "@/constants/mappings.ts";
 import type { ExtensionStatusType } from "@/types/extensions/hook-return.type.ts";
-import { RouteItems } from "@/constants/routes.ts";
-import { capitalize } from "@/lib/helpers/capitalize.ts";
-import { log } from "@/lib/handlers/log.ts";
 
 const LogViewer = defineAsyncComponent(
   () => import("@/components/logging/LogViewer.vue"),

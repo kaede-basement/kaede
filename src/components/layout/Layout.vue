@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import Sidebar from "@/components/layout/Sidebar.vue";
-import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
-import { ref } from "vue";
-import ContextMenu from "@/components/layout/ContextMenu.vue";
 import { useEventListener } from "@vueuse/core";
+import { ref } from "vue";
+
+import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
+import ContextMenu from "@/components/layout/ContextMenu.vue";
+import Sidebar from "@/components/layout/Sidebar.vue";
 import { ApplicationNamespace } from "@/constants/application.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 

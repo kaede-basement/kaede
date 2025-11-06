@@ -1,13 +1,15 @@
+import { fileURLToPath } from "node:url";
+
 import { includeIgnoreFile } from "@eslint/compat";
-import { globalIgnores } from "eslint/config";
-import { defineConfigWithVueTs, vueTsConfigs } from "@vue/eslint-config-typescript";
 import stylistic from "@stylistic/eslint-plugin";
+import unocss from "@unocss/eslint-config/flat";
+import { defineConfigWithVueTs, vueTsConfigs } from "@vue/eslint-config-typescript";
 import vueRequireID from "@vue-require-id/eslint-plugin";
+import { globalIgnores } from "eslint/config";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
 import eslintPluginUnicorn from "eslint-plugin-unicorn";
 import pluginVue from "eslint-plugin-vue";
-import unocss from "@unocss/eslint-config/flat";
 import globals from "globals";
-import { fileURLToPath } from "node:url";
 
 // Get the absolute path of a '.gitignore' file
 const gitIgnorePath = fileURLToPath(
@@ -35,8 +37,9 @@ export default defineConfigWithVueTs(
       },
     },
     "plugins": {
-      "@stylistic"     : stylistic,
-      "@vue-require-id": vueRequireID,
+      "@stylistic"        : stylistic,
+      "@vue-require-id"   : vueRequireID,
+      "simple-import-sort": simpleImportSort,
     },
     "rules": {
 
@@ -65,13 +68,9 @@ export default defineConfigWithVueTs(
 
       /* ESLint */
       "capitalized-comments": ["warn", "always"],
-      "sort-imports"        : ["warn", {
-        "allowSeparatedGroups" : false,
-        "ignoreCase"           : false,
-        "ignoreDeclarationSort": false,
-        "ignoreMemberSort"     : false,
-        "memberSyntaxSortOrder": ["multiple", "single", "all", "none"],
-      }],
+
+      /* Simple Import Sort */
+      "simple-import-sort/imports": "warn",
 
       // Element IDs simplify styling for plugins
       "@vue-require-id/require-id": ["warn", {

@@ -1,8 +1,9 @@
-import { log } from "@/lib/handlers/log.ts";
+import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
+
 import { ApplicationNamespace, ConfigFilename } from "@/constants/application.ts";
+import { log } from "@/lib/handlers/log.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
-import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
 import { type ConfigType, ConfigValidator } from "@/types/config/config.schema.ts";
 
 export async function getConfigFile(): Promise<ConfigType> {

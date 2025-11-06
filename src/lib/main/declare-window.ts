@@ -1,13 +1,14 @@
+import * as DiscordRPC from "tauri-plugin-drpc";
+import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
+
 import { ApplicationNamespace } from "@/constants/application.ts";
-import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { log } from "@/lib/handlers/log.ts";
 import { extractError } from "@/lib/helpers/extract-error.ts";
 import { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
 import { getConfigFile } from "@/lib/main/get-config-file.ts";
+import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
-import * as DiscordRPC from "tauri-plugin-drpc";
-import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 
 export function declareWindow(): void {
   window.__TAURI_PLUGINS_COMMUNITY__ = {
