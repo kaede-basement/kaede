@@ -204,7 +204,7 @@ watchEffect(() => {
       id="__log-controls__explorer-button"
       @click="viewInExplorer"
       class="relative grid h-full w-fit flex shrink-0 flex-nowrap place-items-center items-center gap-2 rounded-md bg-neutral-800 px-2"
-      title="View in Explorer"
+      data-tooltip="View in Explorer"
     >
       <span id="__log-controls__explorer-icon" :class="['i-lucide-external-link block size-4']"></span>
       <span id="__log-controls__explorer-label" class="hidden md:block">
@@ -220,7 +220,7 @@ watchEffect(() => {
         'shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
         'items-center h-full place-items-center rounded-md transition-[filter]',
       ]"
-      title="Line Breaks"
+      data-tooltip="Line Breaks"
     >
       <span id="__log-controls__horizontal-scroll-icon" :class="['i-lucide-text-wrap block size-4']"></span>
       <span id="__log-controls__horizontal-scroll-label" class="hidden lg:block">
@@ -236,7 +236,7 @@ watchEffect(() => {
         'shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
         'items-center h-full place-items-center rounded-md transition-[filter]',
       ]"
-      title="Virtualize"
+      data-tooltip="Virtualize"
     >
       <span id="__log-controls__virtualization-icon" :class="['i-lucide-zap block size-4']"></span>
       <span id="__log-controls__virtualization-label" class="hidden lg:block">

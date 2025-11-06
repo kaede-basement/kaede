@@ -21,7 +21,8 @@ export function declareWindow(): void {
   };
   window[ApplicationNamespace] = {
     "variables": {
-      "rippleColor": "#ffffff15",
+      "rippleColor"     : "#ffffff15",
+      "sparklesColorRGB": "255 255 255",
     },
     "functions": {
 

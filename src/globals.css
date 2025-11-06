@@ -17,6 +17,12 @@ html {
 ::-webkit-scrollbar-thumb { background: #393939; cursor: pointer }
 ::-webkit-scrollbar-thumb:hover { background: #494949 }
 
+.thin-scrollbar::-webkit-scrollbar { width: 8px }
+
+.scroll-gutter-stable-both {
+  scrollbar-gutter: stable both-edges;
+}
+
 /* Remove the '<input />' arrows */
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
@@ -29,7 +35,19 @@ button, button span {
   user-select: none;
 }
 
-#app {}
+/* Show a custom tooltip on button hover */
+button[data-tooltip] {
+  position: relative;
+
+  &:after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 100%;
+    top: 0;
+    padding: 4px;
+    width: fit-content;
+  }
+}
 
 /* Allow log viewer to have a horizontal scroll */
 #__non-virtualized-list-logs {

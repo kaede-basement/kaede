@@ -51,7 +51,8 @@ declare global {
 
       /** Global variables that are allowed to be changed by plugins */
       "variables": {
-        "rippleColor": string;
+        "rippleColor"     : string;
+        "sparklesColorRGB": string;
       };
 
       /** Global functions for various actions */
