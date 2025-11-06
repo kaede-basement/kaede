@@ -12,6 +12,7 @@ html {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 16px }
+::-webkit-scrollbar-corner { background: transparent }
 ::-webkit-scrollbar-track { background: transparent }
 ::-webkit-scrollbar-thumb { background: #393939; cursor: pointer }
 ::-webkit-scrollbar-thumb:hover { background: #494949 }

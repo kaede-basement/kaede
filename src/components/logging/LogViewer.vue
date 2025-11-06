@@ -11,6 +11,7 @@ import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
 import { log } from "@/lib/handlers/log.ts";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
+import { ask } from "@tauri-apps/plugin-dialog";
 
 const virtualList = useTemplateRef("virtualList");
 const nonVirtualList = useTemplateRef("nonVirtualList");
@@ -74,6 +75,24 @@ function searchLogs(search: string): Array<number> {
 
   return found;
 }
+async function toggleVirtualization(): Promise<void> {
+  if (shouldVirtualize.value && logs.value.length >= 512) {
+    const answer = await ask(
+      "Virtualization was enabled because your log file is big. " +
+      "Disabling it may freeze your launcher for a bit. Do you want to disable virtualization?",
+      {
+        "title": "Kaede",
+        "kind" : "warning",
+      },
+    );
+
+    if (!answer) {
+      return;
+    }
+  }
+
+  shouldVirtualize.value = !shouldVirtualize.value;
+}
 function selectAllText(): void {
   const logsContainer = nonVirtualList.value?.nonVirtualizedLogsTarget;
 
@@ -112,7 +131,7 @@ onMounted(async () => {
   }
 
   // If the log file is big (>=32 KBs), open it with the virtualized list
-  if (existingLogs.length > 32_768) {
+  if (existingLogs.length >= 32_768) {
     log.debug(`Log file is too big (${existingLogs.length} bytes), using a virtualized list`);
     shouldVirtualize.value = true;
   }
@@ -165,7 +184,7 @@ onMounted(async () => {
             :search-logs="searchLogs"
             :scroll-to-index="(index: number) => virtualList?.scrollToIndex?.(index)"
             :should-virtualize="shouldVirtualize"
-            :toggle-should-virtualize="() => shouldVirtualize = !shouldVirtualize"
+            :toggle-should-virtualize="toggleVirtualization"
             :horizontal-scroll="horizontalScroll"
             :toggle-horizontal-scroll="() => horizontalScroll = !horizontalScroll"
             :select-all-logs="selectAllText"
