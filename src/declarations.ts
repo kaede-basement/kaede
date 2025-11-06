@@ -22,6 +22,8 @@ import type { ConfigType } from "@/types/config/config.schema.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 
 declare global {
+
+  /* Declared in the '@/lib/main/declare-window.ts' */
   interface Window {
 
     /* Tauri exposes these */
@@ -36,16 +38,20 @@ declare global {
       "upload"      : typeof TauriUpload;
     };
 
-    /* Declared in the '@/lib/main/declare-window.ts' */
+    /* Tauri community plugins */
     "__TAURI_PLUGINS_COMMUNITY__": {
       "discord": typeof TauriDiscordRpc & typeof TauriDiscordRpcClasses;
     };
+
+    /** Application namespace */
     "__KAEDE__": {
 
-      /** Variables */
+      /** Global variables that are allowed to be changed by plugins */
       "variables": {
         "rippleColor": string;
       };
+
+      /** Global functions for various actions */
       "functions": {
         "getGlobalStates"     : () => GlobalStatesType;
         "changeGlobalStates"  : GlobalStatesChangerType;
@@ -58,10 +64,34 @@ declare global {
         "getDefaultConfig"    : typeof getDefaultConfig;
         "initializeConfigFile": typeof initializeConfigFile;
       };
+
+      /** Application hooks */
       "hooks": {
+
+        /** Executed on the config retrieve */
         "getConfigFile": {
+
+          /**
+           * Executed before the config was read.
+           *
+           * No arguments are passed to the hook.
+           *
+           * If the hook returns a 'stop' status, it should also return a 'ConfigType' typed object in the 'response' field.
+           *
+           * If the hook returns a 'continue' status, code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<unknown, ConfigType>;
-          "after" : HookReturnType<ConfigType, ConfigType>;
+
+          /**
+           * Executed after the config was read, parsed, and validated.
+           *
+           * A validated config is passed as the argument.
+           *
+           * If the hook returns a 'stop' status, it should also return a 'ConfigType' typed object in the 'response' field.
+           *
+           * If the hook returns a 'continue' status, it may add properties to the passed config argument or do nothing.
+           */
+          "after": HookReturnType<ConfigType, ConfigType>;
         };
         "getDefaultConfig": {
           "before": HookReturnType<unknown, ConfigType>;

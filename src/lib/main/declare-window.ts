@@ -36,9 +36,11 @@ export function declareWindow(): void {
     "hooks": {
       "getConfigFile": {
         "before": [],
+        "after" : [],
       },
       "getDefaultConfig": {
         "before": [],
+        "after" : [],
       },
       "onRouteChange": {
         "before": [],
