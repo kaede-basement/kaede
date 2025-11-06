@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { join } from "@tauri-apps/api/path";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
 import { inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
@@ -11,7 +12,6 @@ import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
 import { log } from "@/lib/handlers/log.ts";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
-import { ask } from "@tauri-apps/plugin-dialog";
 
 const virtualList = useTemplateRef("virtualList");
 const nonVirtualList = useTemplateRef("nonVirtualList");
