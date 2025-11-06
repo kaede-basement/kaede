@@ -17,8 +17,8 @@ on:
   workflow_dispatch:
 
 env:
-  # default value, will be overwritten later if tag exists
-  APP_VERSION: "0.1.0"
+  # A default value, will be overwritten later if tag exists
+  APP_VERSION: "0.0.1"
 
 jobs:
   tauri:
@@ -29,10 +29,10 @@ jobs:
       matrix:
         include:
           - name: "macOS-ARM"
-            platform: "macos-latest" # for Arm based macs (M1 and above).
+            platform: "macos-latest" # For Arm based macs (M1 and above).
             args: "--target aarch64-apple-darwin"
           - name: "macOS-x86_64"
-            platform: "macos-latest" # for Intel based macs.
+            platform: "macos-latest" # For Intel based macs.
             args: "--target x86_64-apple-darwin"
           - name: "Linux"
             platform: "ubuntu-22.04"
