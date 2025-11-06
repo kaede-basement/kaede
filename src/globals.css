@@ -30,7 +30,12 @@ button, button span {
 
 #app {}
 
-/* Allow virtual lists to have a horizontal scroll */
+/* Allow log viewer to have a horizontal scroll */
+#__non-virtualized-list-logs {
+  #__log-entry__text-wrapper {
+    white-space: nowrap;
+  }
+}
 #__virtualized-list-logs > div {
   width: fit-content;
 

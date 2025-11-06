@@ -74,6 +74,12 @@ const information = computed((): {
     return current;
   }
 
+  if (line.startsWith("__kaede-trigger-virtualized")) {
+    current.target = "Virtualized mode. All logs will be displayed here ᓀ‸ᓂ";
+
+    return current;
+  }
+
   if (line.startsWith("__kaede-trigger-loading")) {
     current.target = "Loading your logs...";
 
@@ -169,6 +175,7 @@ function getLevelColor(level: string): string {
   if (level.includes("WARN")) {
     return "text-yellow-400";
   }
+
   if (level.includes("ERROR")) {
     return "text-red-600";
   }

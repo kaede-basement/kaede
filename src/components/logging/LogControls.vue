@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { appDataDir, join } from "@tauri-apps/api/path";
+import { message } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useDebounceFn, useEventListener } from "@vueuse/core";
 import { ref, shallowRef, useTemplateRef, watchEffect } from "vue";
@@ -11,11 +12,22 @@ const focused = ref<boolean>(false);
 const found = shallowRef<Array<number>>([]);
 const position = ref(1);
 
-const { searchLogs, scrollToIndex, horizontalScroll, toggleHorizontalScroll } = defineProps<{
+const {
+  searchLogs,
+  scrollToIndex,
+  shouldVirtualize,
+  toggleShouldVirtualize,
+  horizontalScroll,
+  toggleHorizontalScroll,
+  selectAllLogs,
+} = defineProps<{
   "searchLogs"            : (search: string) => Array<number>;
   "scrollToIndex"         : (index: number) => void;
+  "shouldVirtualize"      : boolean;
+  "toggleShouldVirtualize": () => void;
   "horizontalScroll"      : boolean;
   "toggleHorizontalScroll": () => void;
+  "selectAllLogs"         : () => void;
 }>();
 
 function focusSearch(): void {
@@ -76,13 +88,45 @@ const handleInput = useDebounceFn((event: Event): void => {
 
 useEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key === "Escape") {
+    if (!target.value) {
+      return;
+    }
+
     event.preventDefault();
-    target.value?.blur?.();
+    target.value.blur?.();
+
+    target.value.value = "";
+    found.value = searchLogs("");
+
+    return;
   }
 
   if (event.ctrlKey && event.code === "KeyF") {
     event.preventDefault();
     focusSearch();
+
+    return;
+  }
+
+  if (event.ctrlKey && event.code === "KeyA") {
+    event.preventDefault();
+
+    if (!shouldVirtualize) {
+      selectAllLogs();
+
+      return;
+    }
+
+    message(
+      "Sorry, but you can't select text in the virtualized log viewer. " +
+      "Either disable it or open the log file in a text editor.",
+      {
+        "title": "Kaede",
+        "kind" : "warning",
+      },
+    );
+
+    return;
   }
 });
 
@@ -181,6 +225,22 @@ watchEffect(() => {
       <span id="__log-controls__horizontal-scroll-icon" :class="['i-lucide-text-wrap block size-4']"></span>
       <span id="__log-controls__horizontal-scroll-label" class="hidden lg:block">
         Line Breaks
+      </span>
+      <MaterialRipple />
+    </button>
+    <button
+      id="__log-controls__virtualization-button"
+      @click="toggleShouldVirtualize"
+      :class="[
+        shouldVirtualize ? 'invert' : '',
+        'shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
+        'items-center h-full place-items-center rounded-md transition-[filter]',
+      ]"
+      title="Virtualize"
+    >
+      <span id="__log-controls__virtualization-icon" :class="['i-lucide-zap block size-4']"></span>
+      <span id="__log-controls__virtualization-label" class="hidden lg:block">
+        Virtualize
       </span>
       <MaterialRipple />
     </button>

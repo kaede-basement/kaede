@@ -6,14 +6,17 @@ import { VirtualisedList } from "vue-virtualised";
 
 import LogControls from "@/components/logging/LogControls.vue";
 import LogEntry from "@/components/logging/LogEntry.vue";
+import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
 import { log } from "@/lib/handlers/log.ts";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
 
 const virtualList = useTemplateRef("virtualList");
+const nonVirtualList = useTemplateRef("nonVirtualList");
 
 const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
+const shouldVirtualize = ref<boolean>(false);
 const horizontalScroll = ref<boolean>(false);
 const fileData = ref<{
   "size": string | undefined;
@@ -71,6 +74,19 @@ function searchLogs(search: string): Array<number> {
 
   return found;
 }
+function selectAllText(): void {
+  const logsContainer = nonVirtualList.value?.nonVirtualizedLogsTarget;
+
+  if (!logsContainer) {
+    return;
+  }
+
+  const range = document.createRange();
+
+  range.selectNode(logsContainer);
+  window.getSelection()?.removeAllRanges?.();
+  window.getSelection()?.addRange?.(range);
+}
 
 onMounted(async () => {
   // Measuring time start
@@ -95,12 +111,18 @@ onMounted(async () => {
     return;
   }
 
+  // If the log file is big (>=32 KBs), open it with the virtualized list
+  if (existingLogs.length > 32_768) {
+    log.debug(`Log file is too big (${existingLogs.length} bytes), using a virtualized list`);
+    shouldVirtualize.value = true;
+  }
+
   const filesize = (existingLogs.length / (1024 * 1024)).toFixed(3);
 
   log.info("Log file is not empty");
   log.debug("Adding existing logs to the 'logs' state");
   logs.value = [
-    "__kaede-trigger-initial",
+    shouldVirtualize.value ? "__kaede-trigger-virtualized" : "__kaede-trigger-initial",
     ...existingLogs.split("\n"),
   ];
   fileData.value.size = `${filesize} MB`;
@@ -142,8 +164,11 @@ onMounted(async () => {
           <LogControls
             :search-logs="searchLogs"
             :scroll-to-index="(index: number) => virtualList?.scrollToIndex?.(index)"
+            :should-virtualize="shouldVirtualize"
+            :toggle-should-virtualize="() => shouldVirtualize = !shouldVirtualize"
             :horizontal-scroll="horizontalScroll"
             :toggle-horizontal-scroll="() => horizontalScroll = !horizontalScroll"
+            :select-all-logs="selectAllText"
           />
         </div>
         <button
@@ -160,6 +185,7 @@ onMounted(async () => {
         class="group relative max-w-200 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-800 text-sm font-mono"
       >
         <VirtualisedList
+          v-if="shouldVirtualize"
           :key="`${logs.length}-${horizontalScroll}-${mountedKey}`"
           :get-node-height="getNodeHeight"
           :viewport-height="windowHeight - 208"
@@ -176,6 +202,13 @@ onMounted(async () => {
             />
           </template>
         </VirtualisedList>
+        <NonVirtualizedLogs
+          v-else
+          ref="nonVirtualList"
+          :logs="logs"
+          :searching="searching"
+          :horizontal-scroll="horizontalScroll"
+        />
       </div>
     </div>
   </div>
