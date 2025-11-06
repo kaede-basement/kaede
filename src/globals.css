@@ -31,7 +31,15 @@ button, button span {
 #app {}
 
 /* Allow virtual lists to have a horizontal scroll */
-#__virtualized-list-logs > div { width: fit-content }
+#__virtualized-list-logs > div {
+  width: fit-content;
+
+  /*
+   * A library that implements the virtual list overwrites
+   * this field to 'hidden', so we use the '!important' directive
+   */
+  overflow: visible !important;
+}
 #__virtualized-list-logs {
   #__virtualized-list-logs__text {
     white-space: nowrap;
