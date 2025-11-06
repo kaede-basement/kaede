@@ -19,7 +19,7 @@ const shown = ref<boolean>(false);
     :src="src"
     :class="[
       'shrink-0 block transition-[opacity] duration-300',
-      shown ? 'opacity-100' : 'opacity-0',
+      shown ? 'opacity-100' : '!opacity-0',
       classNames,
     ]"
   />

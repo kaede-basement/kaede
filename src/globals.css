@@ -31,7 +31,7 @@ input::-webkit-inner-spin-button {
 }
 
 /* These elements should not allow text selection */
-button, button span {
+img, button, button span {
   user-select: none;
 }
 

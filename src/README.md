@@ -25,4 +25,5 @@ Every folder has its own `README` file for more detailed explanations.
 - `constants` contain reusable global constants. [More](./constants/README.md)
 - `lib` contains the backend part. [More](./lib/README.md)
 - `pages` contain only Vue components. These components are used for the application UI. They are used in the application's router. [More](./pages/README.md)
+- `resources` contain application assets, such as images, GIFs, videos, etc. [More](./resources/README.md)
 - `types` contain reusable TypeScript types and interfaces. [More](./types/README.md)
