@@ -1,8 +1,9 @@
 export const Routes = {
-  "Home"    : "home",
-  "Library" : "library",
-  "Settings": "settings",
-  "None"    : "none",
+  "Home"       : "home",
+  "Library"    : "library",
+  "Settings"   : "settings",
+  "AddInstance": "add-instance",
+  "None"       : "none",
 } as const;
 export const RouteItems = [
   {

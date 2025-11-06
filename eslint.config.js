@@ -219,7 +219,6 @@ export default defineConfigWithVueTs(
         "multilineDetection": "brackets",
       }],
       "@stylistic/multiline-comment-style" : ["warn", "starred-block"],
-      "@stylistic/multiline-ternary"       : ["warn", "never"],
       "@stylistic/new-parens"              : ["warn", "never"],
       "@stylistic/newline-per-chained-call": ["warn", { "ignoreChainWithDepth": 2 }],
       "@stylistic/no-extra-semi"           : ["warn"],

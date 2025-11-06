@@ -10,6 +10,7 @@ const { page } = defineProps<{
 const Home = defineAsyncComponent(() => import("@/pages/Home.vue"));
 const Library = defineAsyncComponent(() => import("@/pages/Library.vue"));
 const Settings = defineAsyncComponent(() => import("@/pages/Settings.vue"));
+const AddInstance = defineAsyncComponent(() => import("@/pages/AddInstance.vue"));
 </script>
 
 <template>
@@ -18,6 +19,7 @@ const Settings = defineAsyncComponent(() => import("@/pages/Settings.vue"));
       <Home v-if="page === 'home'" />
       <Library v-else-if="page === 'library'" />
       <Settings v-else-if="page === 'settings'" />
+      <AddInstance v-else-if="page === 'add-instance'" />
     </Transition>
   </div>
 </template>

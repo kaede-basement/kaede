@@ -7,11 +7,12 @@ export type GlobalStatesType = {
   "page"        : RouteType;
   "pageStates"  : Record<RouteType, object>;
   "showLogs"    : boolean;
-  "sidebarItems": Array<{
+  "sidebarItems": Array<"divider" | {
     "path"  : RouteType;
-    "icon"  : string;
     "name"  : string;
     "action": () => void;
+    "icon" ?: string;
+    "image"?: string;
   }>;
   "contextMenuItems": Array<{
     "icon"  : string;

@@ -40,12 +40,25 @@ button[data-tooltip] {
   position: relative;
 
   &:after {
-    content: attr(data-tooltip);
+    z-index: 10;
+    background: #262626;
+    line-height: 1;
+    white-space: nowrap;
     position: absolute;
-    left: 100%;
-    top: 0;
-    padding: 4px;
+    content: attr(data-tooltip);
+    visibility: hidden;
+    opacity: 0;
+    left: 0;
+    top: calc(100% + 8px);
+    padding: 8px;
+    font-size: 14px;
+    border-radius: 6px;
     width: fit-content;
+    transition: opacity 150ms ease;
+  }
+  &:hover:after {
+    visibility: visible;
+    opacity: 1;
   }
 }
 

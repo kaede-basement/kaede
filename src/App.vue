@@ -35,20 +35,30 @@ const globalStates = shallowReactive<GlobalStatesType>({
   "customLayout": false,
   "page"        : "home",
   "pageStates"  : {
-    "home"    : {},
-    "library" : {},
-    "settings": { "tab": "extensions" },
-    "none"    : {},
+    "home"        : {},
+    "library"     : {},
+    "settings"    : { "tab": "extensions" },
+    "add-instance": {},
+    "none"        : {},
   },
   "showLogs"    : false,
-  "sidebarItems": RouteItems.map(item => {
-    return {
-      "path"  : item.Path,
-      "icon"  : item.Icon,
-      "name"  : capitalize(item.Path),
-      "action": (): void => changeGlobalState("page", item.Path),
-    };
-  }),
+  "sidebarItems": [
+    ...RouteItems.map(item => {
+      return {
+        "path"  : item.Path,
+        "icon"  : item.Icon,
+        "name"  : capitalize(item.Path),
+        "action": (): void => changeGlobalState("page", item.Path),
+      };
+    }),
+    "divider",
+    {
+      "path"  : "none",
+      "icon"  : "i-lucide-plus",
+      "name"  : "Add Instance",
+      "action": (): void => changeGlobalState("page", "add-instance"),
+    },
+  ],
   "contextMenuItems": [...ContextMenuItems],
 });
 

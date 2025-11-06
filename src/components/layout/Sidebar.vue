@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { inject, ref, shallowRef } from "vue";
 
+import Image from "@/components/base/Image.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
 import type {
@@ -9,22 +10,31 @@ import type {
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
-const delayed = ref<boolean>(false);
+const delayed = ref<NodeJS.Timeout | undefined>(undefined);
 const tooltip = shallowRef<{
   "top" : number;
   "text": string | undefined;
   "show": boolean;
 }>({
   "top" : 16,
-  "text": globalStates?.sidebarItems?.[0]?.name,
+  "text": globalStates?.sidebarItems?.[0] === "divider"
+    ? "None"
+    : globalStates?.sidebarItems?.[0]?.name,
   "show": false,
 });
 
+function removeTimeout(): void {
+  clearTimeout(delayed.value);
+
+  delayed.value = undefined;
+}
 function closeTooltip(): void {
   tooltip.value = {
     ...tooltip.value,
     "show": false,
   };
+
+  removeTimeout();
 }
 function handleMouseOver(event: MouseEvent): void {
   if (delayed.value) {
@@ -58,11 +68,11 @@ function handleMouseOver(event: MouseEvent): void {
       ...newTooltipInfo,
       "show": false,
     };
-    delayed.value = true;
 
-    setTimeout(() => {
+    delayed.value = setTimeout(() => {
       tooltip.value = newTooltipInfo;
-      delayed.value = false;
+
+      removeTimeout();
     }, 200);
 
     return;
@@ -80,7 +90,7 @@ function handleButtonAction(action: () => void): void {
   <div id="__sidebar__space-placeholder" class="h-full w-20 shrink-0"></div>
   <div
     id="__sidebar__hovering-tooltip"
-    class="absolute left-20 top-2 z-49000 w-fit select-none rounded-md bg-neutral-950 p-2 leading-none transition-[transform,opacity]"
+    class="absolute left-20 top-2 z-49000 w-fit transform-gpu select-none rounded-md bg-neutral-950 p-2 leading-none transition-[transform,opacity]"
     :style="{
       transform: `translateY(${tooltip.top}px)`,
       opacity  : tooltip.show ? 1 : 0,
@@ -100,29 +110,46 @@ function handleButtonAction(action: () => void): void {
       id="__sidebar__inner"
       class="h-fit min-h-full w-full flex flex-col items-center gap-2 rounded-md bg-neutral-950 p-2"
     >
-      <button
-        v-for="item in globalStates?.sidebarItems"
-        :key="item.icon"
-        :id="`__sidebar__entry-${item.icon}-button`"
-        :disabled="item.path === globalStates?.page"
-        @mousedown="() => handleButtonAction(item.action)"
-        @touchstart="() => handleButtonAction(item.action)"
-        @click="() => handleButtonAction(item.action)"
-        class="relative size-12 flex shrink-0 flex-col items-center justify-center gap-1 rounded-md text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)]"
-        :aria-label="item.name"
+      <template
+        v-for="(item, index) in globalStates?.sidebarItems"
+        :key="item === 'divider' ? `divider-${index}` : item.icon"
       >
+        <button
+          v-if="item !== 'divider'"
+          :id="`__sidebar__entry-${item.icon}-button`"
+          :disabled="item.path === globalStates?.page"
+          @mousedown="() => handleButtonAction(item.action)"
+          @touchstart="() => handleButtonAction(item.action)"
+          @click="() => handleButtonAction(item.action)"
+          class="relative grid size-12 shrink-0 place-items-center rounded-md text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
+          :aria-label="item.name"
+        >
         <span
+          v-if="item.icon"
           :id="`__sidebar__entry-${item.icon}-icon`"
           :class="[
             item.icon,
             'block size-6 shrink-0',
           ]"
         ></span>
-        <MaterialRipple
-          :id="`__sidebar__entry-${item.icon}-overlay`"
-          :label="item.name"
-        />
-      </button>
+          <Image
+            v-else-if="item.image"
+            :id="`__sidebar__entry-${item.icon}-image`"
+            :src="item.image"
+            :alt="`An image for the ${item.name} sidebar item`"
+            class-names="rounded-md size-8"
+          />
+          <MaterialRipple
+            :id="`__sidebar__entry-${item.icon}-overlay`"
+            :label="item.name"
+          />
+        </button>
+        <div
+          v-else
+          :id="`__sidebar__entry-divider-${index}`"
+          class="h-[1px] w-full bg-[theme(colors.neutral.100/.1)]"
+        ></div>
+      </template>
     </TransitionGroup>
   </div>
 </template>
