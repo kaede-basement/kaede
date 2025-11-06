@@ -1,4 +1,5 @@
 import { arch, version } from "@tauri-apps/plugin-os";
+
 import type { Rule } from "../schemas/minecrafts-schemas";
 import { transformPlatform } from "./transform-platform";
 

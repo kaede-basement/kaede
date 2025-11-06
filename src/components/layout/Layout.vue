@@ -24,8 +24,8 @@ function showContextMenu(event: MouseEvent): void {
   const target = event.target as HTMLElement;
 
   if (
-    target?.className?.includes("context_menu") ||
-    target?.parentElement?.className?.includes?.("context_menu_button")
+    target?.className?.includes("__context_menu__wrapper") ||
+    target?.parentElement?.className?.includes?.("__context_menu__entry")
   ) {
     return;
   }
@@ -51,8 +51,8 @@ useEventListener(window, "mousedown", (event: MouseEvent) => {
   const target = event.target as HTMLElement;
 
   if (
-    target?.className?.includes("context_menu") ||
-    target?.parentElement?.className?.includes?.("context_menu_button")
+    target?.className?.includes("__context_menu__wrapper") ||
+    target?.parentElement?.className?.includes?.("__context_menu__entry")
   ) {
     return;
   }
@@ -63,11 +63,11 @@ useEventListener(window, "mousedown", (event: MouseEvent) => {
 
 <template>
   <div
+    id="__layout__wrapper"
     @contextmenu.prevent
     @contextmenu="showContextMenu"
-    class="flex flex-nowrap gap-0 relative w-full h-vh overflow-hidden text-white"
+    class="relative h-vh w-full flex flex-nowrap gap-0 overflow-hidden text-white"
   >
-    <div id="__kaede-extensions" class="block" />
     <ContextMenu
       :opened="contextMenu.opened"
       :x="contextMenu.x"
@@ -82,11 +82,11 @@ useEventListener(window, "mousedown", (event: MouseEvent) => {
 
       <!-- In case of an error, show this template -->
       <template #error="{ currentError }">
-        <div class="h-full w-full flex flex-col select-text gap-4 bg-black p-8 text-white">
-          <p class="text-xl font-light">
+        <div id="__layout__error-wrapper" class="h-full w-full flex flex-col select-text gap-4 bg-black p-8 text-white">
+          <p id="__layout__error-message" class="text-xl font-light">
             Something went wrong. {{ currentError?.value?.name }}: {{ currentError?.value?.message }}
           </p>
-          <p class="break-words text-sm text-neutral-300 font-light">
+          <p id="__layout__error-stack" class="break-words text-sm text-neutral-300 font-light">
             {{ currentError?.value?.stack }}
           </p>
         </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, type Ref } from "vue";
+
 import type { extractError } from "@/lib/helpers/extract-error.ts";
 
 const { error } = defineProps<{
@@ -18,11 +19,11 @@ const information = computed((): ReturnType<typeof extractError> => {
 </script>
 
 <template>
-  <div class="min-h-vh w-full flex flex-col select-text gap-4 bg-black p-20 text-white">
-    <p class="text-xl font-light">
+  <div id="__extension-error__wrapper" class="min-h-vh w-full flex flex-col select-text gap-4 bg-black p-20 text-white">
+    <p id="__extension-error__message" class="text-xl font-light">
       {{ information.name }}: {{ information.message }}
     </p>
-    <p class="break-words text-sm text-neutral-300 font-light">
+    <p id="__extension-error__stack" class="break-words text-sm text-neutral-300 font-light">
       {{ information.stack }}
     </p>
   </div>

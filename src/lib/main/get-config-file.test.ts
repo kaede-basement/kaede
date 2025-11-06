@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
-import type { ConfigType } from "@/types/config/config.schema.ts";
+
+import type { ConfigType } from "@/lib/schemas/config/config.schema.ts";
 
 const defaultConfig: ConfigType = {
   "__do_not_touch_VERSION": 1,
@@ -45,7 +46,8 @@ const tests: Array<{
         ...defaultConfig,
         "customization": {
           ...defaultConfig.customization,
-          "apparently": "not full validation is a feature. i spent 2 days thinking my tests were broken xd",
+          "apparently": "extra fields are going to pass the validation. i " +
+            "spent 2 days thinking my tests were broken xd",
         },
         "TUYU": "is awesome",
       }),
@@ -56,7 +58,8 @@ const tests: Array<{
         "theme"     : "dark",
         "accent"    : "rose",
         "background": "none",
-        "apparently": "not full validation is a feature. i spent 2 days thinking my tests were broken xd",
+        "apparently": "extra fields are going to pass the validation. i " +
+          "spent 2 days thinking my tests were broken xd",
       },
       "locale"               : "system",
       "minecraftWindowHeight": 480,

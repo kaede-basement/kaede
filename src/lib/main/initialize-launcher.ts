@@ -3,7 +3,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { log } from "@/lib/handlers/log.ts";
 import { getConfigFile } from "@/lib/main/get-config-file.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
-import type { ConfigType } from "@/types/config/config.schema.ts";
+import type { ConfigType } from "@/lib/schemas/config/config.schema.ts";
 
 export async function initializeLauncher(): Promise<void> {
   let config: ConfigType;

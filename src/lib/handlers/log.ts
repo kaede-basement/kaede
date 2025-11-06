@@ -1,4 +1,4 @@
-import { debug, info, warn, error } from "@tauri-apps/plugin-log";
+import { debug, error, info, warn } from "@tauri-apps/plugin-log";
 
 /*
  * We do not care about promises here
@@ -6,16 +6,16 @@ import { debug, info, warn, error } from "@tauri-apps/plugin-log";
  * TODO: batch these log operations maybe?
  */
 export const log = {
-  "debug": (...input: string[]) => {
+  "debug": (...input: string[]): void => {
     debug(input.join(" "));
   },
-  "info": (...input: string[]) => {
+  "info": (...input: string[]): void => {
     info(input.join(" "));
   },
-  "warn": (...input: string[]) => {
+  "warn": (...input: string[]): void => {
     warn(input.join(" "));
   },
-  "error": (...input: string[]) => {
+  "error": (...input: string[]): void => {
     error(input.join(" "));
   },
 };

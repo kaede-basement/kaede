@@ -1,17 +1,7 @@
-import {
-  AssetsValidator,
-  VersionManifest,
-  type Artifact,
-  type Asset,
-  type AssetIndex,
-  type Classifiers,
-  type Library,
-  type LoggingConfig,
-  type Manifest,
-  type VersionMetaModern,
-} from "@/lib/schemas/minecrafts-schemas";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { download } from "@tauri-apps/plugin-upload";
 import Value from "typebox/value";
+
 import {
   TreeAssetIndexes,
   TreeAssetObjects,
@@ -19,24 +9,37 @@ import {
   TreeLogging,
   TreeNatives,
 } from "@/constants/application";
-import { readTextFile } from "@tauri-apps/plugin-fs";
-import { extractError } from "@/lib/helpers/extract-error";
 import { log } from "@/lib/handlers/log";
-import { validateFileSize } from "@/lib/helpers/validate-file-size";
 import { checksum } from "@/lib/helpers/checksum";
+import { extractError } from "@/lib/helpers/extract-error";
 import { evaluateRules } from "@/lib/helpers/parse-rules";
 import { transformPlatform } from "@/lib/helpers/transform-platform";
 import { unzipFile } from "@/lib/helpers/unzip-file";
+import { validateFileSize } from "@/lib/helpers/validate-file-size";
+import {
+  type Artifact,
+  type Asset,
+  type AssetIndex,
+  AssetsValidator,
+  type Classifiers,
+  type Library,
+  type LoggingConfig,
+  type Manifest,
+  VersionManifest,
+  type VersionMetaModern,
+} from "@/lib/schemas/minecrafts-schemas";
 
-
-async function fetchVersionManifest(): Promise<Manifest> {
+export async function fetchVersionManifest(): Promise<Manifest> {
   const raw = await fetch("https://piston-meta.mojang.com/mc/game/version_manifest.json");
 
   return Value.Parse(VersionManifest, raw);
 }
 
 /* TODO: Add support for older versions */
-async function fetchVersionMeta(manifest: Manifest, version: string): Promise<VersionMetaModern> {
+export async function fetchVersionMeta(
+  manifest: Manifest,
+  version: string,
+): Promise<VersionMetaModern> {
   const object = manifest.versions.find(version_ => version_.id = version);
 
   if (!object) {
@@ -47,7 +50,7 @@ async function fetchVersionMeta(manifest: Manifest, version: string): Promise<Ve
   return Value.Parse(VersionManifest, raw);
 }
 
-async function downloadArtifact(artifact: Artifact, prefix: string) {
+export async function downloadArtifact(artifact: Artifact, prefix: string): Promise<void> {
   const filePath = `${prefix}/${artifact.path}`;
 
   await download(artifact.url, filePath);
@@ -56,7 +59,7 @@ async function downloadArtifact(artifact: Artifact, prefix: string) {
   await checksum(filePath, artifact.sha1);
 }
 
-async function downloadAssetIndex(index: AssetIndex): Promise<string> {
+export async function downloadAssetIndex(index: AssetIndex): Promise<string> {
   const path = `${TreeAssetIndexes}/${index.id}.json`;
 
   await download(index.url, path);
@@ -67,7 +70,7 @@ async function downloadAssetIndex(index: AssetIndex): Promise<string> {
   return path;
 }
 
-async function downloadLoggingConfig(config: LoggingConfig) {
+export async function downloadLoggingConfig(config: LoggingConfig): Promise<void> {
   const path = `${TreeLogging}/${config.id}`;
 
   await download(config.url, path);
@@ -76,7 +79,7 @@ async function downloadLoggingConfig(config: LoggingConfig) {
   await checksum(path, config.sha1);
 }
 
-async function downloadAsset(asset: Asset) {
+export async function downloadAsset(asset: Asset): Promise<unknown> {
   const twoBytes = asset.hash.slice(0, 2);
   const uri = `${twoBytes}/${asset.hash}`;
   const url = `https://resources.download.minecraft.net/${uri}`;
@@ -96,7 +99,7 @@ async function downloadAsset(asset: Asset) {
   return { "success": true };
 }
 
-async function downloadAssets(path: string) {
+export async function downloadAssets(path: string): Promise<void> {
   const index = await readTextFile(path)
     .then(async text => await JSON.parse(text));
 
@@ -104,16 +107,25 @@ async function downloadAssets(path: string) {
     throw new TypeError(`Invalid AssetIndex ${path}`);
   }
   const objects: Asset[] = index.objects;
-  const promises = objects.map(object => downloadAsset(object));
-  const results = await Promise.all(promises);
-  const errors = results.filter(result => result.success === false);
+  const [] = objects.map(object => downloadAsset(object));
 
-  for (const error of errors) {
-    log.error(`Downloading asset (${path}) failed: ${error.reason}`);
+  /*
+   * Kaeeraa code
+   *
+   * const results = await Promise.all(promises);
+   * const errors = results.filter(result => result.success === false);
+   */
+
+  for (const error of []) {
+    log.error(`Downloading asset (${path}) failed: ${error}`);
   }
 }
 
-async function downloadClassifiers(classifiers: Classifiers, version: string, extract: boolean) {
+export async function downloadClassifiers(
+  classifiers: Classifiers,
+  version: string,
+  extract: boolean,
+): Promise<void> {
   const platform = transformPlatform();
   const key = `natives-${platform}` as keyof typeof classifiers;
   const native = classifiers[key];
@@ -131,7 +143,7 @@ async function downloadClassifiers(classifiers: Classifiers, version: string, ex
   }
 }
 
-async function downloadLibraries(libraries: Library[], version: string) {
+export async function downloadLibraries(libraries: Library[], version: string): Promise<void> {
   for (const library of libraries) {
     const rules = library.rules;
 

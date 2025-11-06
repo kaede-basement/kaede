@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+
 import { getRelativeDate } from "./get-relative-date";
 
 const testData = [
@@ -34,7 +35,7 @@ const testData = [
 
 for (const [input, output] of testData) {
   const testName = `Relative Date: ${JSON.stringify(input)}`;
-  // example date was taken from MDN docs
+  // Example date was taken from MDN docs
   const equalDate = new Date("December 17, 1995 03:24:00");
 
   test(testName, () => {

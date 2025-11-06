@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+
 import LogHighlighter from "@/components/logging/LogHighlighter.vue";
 
 type FieldTextType = {
@@ -177,56 +178,77 @@ function getLevelColor(level: string): string {
 </script>
 
 <template>
-  <div class="flex flex-nowrap gap-1 px-1 shrink-0">
-    <p class="w-14 shrink-0 select-none text-center text-neutral-400">
+  <div id="__log-entry__wrapper" class="flex shrink-0 flex-nowrap gap-1 px-1">
+    <p id="__log-entry__index" class="w-14 shrink-0 select-none text-center text-neutral-400">
       {{ index - 1 }}
     </p>
-    <div id="__virtualized-list-logs__text" class="break-all">
+    <div id="__log-entry__text-wrapper" class="break-all">
       <span
+        id="__log-entry__level"
         v-if="typeof extractedInformation.level === 'string'"
-        :class="[getLevelColor(information.level)]"
+        :class="getLevelColor(information.level)"
       >
         {{ extractedInformation.level }}
       </span>
       <LogHighlighter
         v-else
+        :color-class="getLevelColor(information.level)"
         :fields="extractedInformation.level.fields"
         :occurrences="extractedInformation.level.extractions"
       />
 
-      <span v-if="typeof extractedInformation.date === 'string'" class="text-neutral-400">
+      <span
+        id="__log-entry__date"
+        v-if="typeof extractedInformation.date === 'string'"
+        class="text-neutral-400"
+      >
         {{ extractedInformation.date }}
       </span>
       <LogHighlighter
         v-else
+        color-class="text-neutral-400"
         :fields="extractedInformation.date.fields"
         :occurrences="extractedInformation.date.extractions"
       />
 
-      <span v-if="typeof extractedInformation.time === 'string'" class="text-neutral-400">
+      <span
+        id="__log-entry__time"
+        v-if="typeof extractedInformation.time === 'string'"
+        class="text-neutral-400"
+      >
         {{ extractedInformation.time }}
       </span>
       <LogHighlighter
         v-else
+        color-class="text-neutral-400"
         :fields="extractedInformation.time.fields"
         :occurrences="extractedInformation.time.extractions"
       />
 
-      <span v-if="typeof extractedInformation.target === 'string'" class="text-lime-300">
+      <span
+        id="__log-entry__target"
+        v-if="typeof extractedInformation.target === 'string'"
+        class="text-lime-300"
+      >
         {{ extractedInformation.target }}
       </span>
       <LogHighlighter
         v-else
+        color-class="text-lime-300"
         :fields="extractedInformation.target.fields"
         :occurrences="extractedInformation.target.extractions"
       />
 
-
-      <span v-if="typeof extractedInformation.message === 'string'" class="text-neutral-300">
+      <span
+        id="__log-entry__message"
+        v-if="typeof extractedInformation.message === 'string'"
+        class="text-neutral-300"
+      >
         {{ extractedInformation.message }}
       </span>
       <LogHighlighter
         v-else
+        color-class="text-neutral-300"
         :fields="extractedInformation.message.fields"
         :occurrences="extractedInformation.message.extractions"
       />

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onErrorCaptured, ref, watchEffect } from "vue";
+
 import { log } from "@/lib/handlers/log.ts";
 import { extractError } from "@/lib/helpers/extract-error.ts";
 
 const { resetKey } = defineProps<{
   "resetKey"?: string;
 }>();
-const currentError = ref<{ "name": string; "message": string; "stack": string } | undefined>(undefined);
+const currentError = ref<ReturnType<typeof extractError> | undefined>(undefined);
 
 // Listen for errors
 onErrorCaptured((error: Error) => {

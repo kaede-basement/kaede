@@ -1,9 +1,10 @@
 // 'vitest/config' extends 'vite' config
-import { defineConfig } from "vitest/config";
+import path from "node:path";
+
 import vue from "@vitejs/plugin-vue";
 import unocss from "unocss/vite";
 import eslint from "vite-plugin-eslint2";
-import path from "node:path";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   // Better support for Tauri CLI output

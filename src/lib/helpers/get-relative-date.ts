@@ -6,12 +6,12 @@ export function getRelativeDate({
   milliseconds = 0,
   from = new Date,
 }: {
-  "days"?        : number;
-  "hours"?       : number;
-  "minutes"?     : number;
-  "seconds"?     : number;
+  "days"        ?: number;
+  "hours"       ?: number;
+  "minutes"     ?: number;
+  "seconds"     ?: number;
   "milliseconds"?: number;
-  "from"?        : Date;
+  "from"        ?: Date;
 }): Date {
   const relativeDate = new Date(from);
   const result = {

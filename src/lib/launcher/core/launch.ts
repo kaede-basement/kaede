@@ -1,1 +1,1 @@
-// TODO
+export function launch(): void {}

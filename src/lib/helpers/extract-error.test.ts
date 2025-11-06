@@ -1,6 +1,8 @@
 import { expect, test } from "vitest";
-import { extractError } from "./extract-error";
+
 import type { DeepRequired } from "@/types/utils/deep-required.type.ts";
+
+import { extractError } from "./extract-error";
 
 const testData: Array<[unknown, DeepRequired<Error>]> = [
   [
@@ -38,7 +40,11 @@ const testData: Array<[unknown, DeepRequired<Error>]> = [
       "stack"  : "bruh i am listening to a different song",
       "trace"  : "whar",
     },
-    { "name": "DECO*27", "message": "Cherry Pop", "stack": "bruh i am listening to a different song" },
+    {
+      "name"   : "DECO*27",
+      "message": "Cherry Pop",
+      "stack"  : "bruh i am listening to a different song",
+    },
   ],
 ];
 

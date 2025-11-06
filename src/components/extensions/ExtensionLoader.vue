@@ -34,6 +34,6 @@ console.log(Huh);
 </script>
 
 <template>
-  <div></div>
+  <div id="__extension-loader__wrapper"></div>
   <!-- Huh -->
 </template>

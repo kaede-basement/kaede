@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
-import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
-import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
-import { VirtualisedList } from "vue-virtualised";
-import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
-import { log } from "@/lib/handlers/log.ts";
-import LogEntry from "@/components/logging/LogEntry.vue";
+import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
+import { inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
+import { VirtualisedList } from "vue-virtualised";
+
 import LogControls from "@/components/logging/LogControls.vue";
+import LogEntry from "@/components/logging/LogEntry.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
+import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
+import { log } from "@/lib/handlers/log.ts";
+import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
 
 const virtualList = useTemplateRef("virtualList");
 
@@ -35,7 +36,8 @@ const windowHeight = window.innerHeight;
 const virtualScrollContainerTextWidth = Math.min(800, window.innerWidth - 128) - 16 - 64;
 
 /*
- * ~7.6 is a magical number that was obtained by dividing one line of a mono text by the count of its characters.
+ * ~7.6 is a magical number that was obtained by dividing one line of a mono text
+ * by the count of its characters.
  * We are using 'Math#ceil' instead of 'Math#floor'
  * because we left some room for characters when we rounded ~7.6 to 8
  */
@@ -112,41 +114,51 @@ onMounted(async () => {
 
 <template>
   <div
+    id="__log-viewer__wrapper"
     @contextmenu.prevent
-    class="absolute z-40000 bottom-0 left-0 bg-[theme(colors.black/.5)] right-0 top-0 grid place-items-center"
+    class="absolute bottom-0 left-0 right-0 top-0 z-40000 grid place-items-center bg-[theme(colors.black/.5)]"
   >
     <div
+      id="__log-viewer__inner"
       @contextmenu.prevent
       @contextmenu="showContextMenu"
-      class="rounded-md h-fit max-h-[calc(100vh-64px)] max-w-[calc(100vw-64px)] w-fit flex flex-col gap-2 bg-neutral-900 p-4 text-white drop-shadow-lg"
+      class="h-fit max-h-[calc(100vh-64px)] max-w-[calc(100vw-64px)] w-fit flex flex-col gap-2 rounded-md bg-neutral-900 p-4 text-white drop-shadow-lg"
     >
-      <div class="w-full flex flex-nowrap items-start justify-between gap-4 pb-2 shrink-0">
-        <div class="flex flex-col gap-2">
-          <p class="select-none text-xl font-medium leading-none">
+      <div id="__log-viewer__information-wrapper" class="w-full flex shrink-0 flex-nowrap items-start justify-between gap-4 pb-2">
+        <div id="__log-viewer__information-text-wrapper" class="flex flex-col gap-2">
+          <p id="__log-viewer__information-title" class="select-none text-xl font-medium leading-none">
             Logs
           </p>
-          <p class="select-none text-neutral-300">
-            <span>View current Kaede logs</span>
-            <span v-if="fileData?.size !== undefined && fileData?.time !== undefined" class="select-text">
+          <p id="__log-viewer__information-subtitle" class="select-none text-neutral-300">
+            <span id="__log-viewer__information-subtitle-static">View current Kaede logs</span>
+            <span
+              v-if="fileData?.size !== undefined && fileData?.time !== undefined"
+              id="__log-viewer__information-subtitle-file-data"
+              class="select-text"
+            >
               ({{ fileData.size }}, {{ fileData.time }})
             </span>
           </p>
           <LogControls
-            :searchLogs="searchLogs"
-            :scrollToIndex="(index: number) => virtualList?.scrollToIndex?.(index)"
-            :horizontalScroll="horizontalScroll"
-            :toggleHorizontalScroll="() => horizontalScroll = !horizontalScroll"
+            :search-logs="searchLogs"
+            :scroll-to-index="(index: number) => virtualList?.scrollToIndex?.(index)"
+            :horizontal-scroll="horizontalScroll"
+            :toggle-horizontal-scroll="() => horizontalScroll = !horizontalScroll"
           />
         </div>
         <button
+          id="__log-viewer__close-logs-button"
           class="relative rounded-md p-2 hover:bg-neutral-800"
           @click="closeLogViewer"
         >
-          <span class="i-lucide-x block size-5"></span>
+          <span id="__log-viewer__close-logs-icon" class="i-lucide-x block size-5"></span>
           <MaterialRipple />
         </button>
       </div>
-      <div class="group relative max-w-200 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-800 text-sm font-mono">
+      <div
+        id="__log-viewer__virtual-list-wrapper"
+        class="group relative max-w-200 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-800 text-sm font-mono"
+      >
         <VirtualisedList
           :key="`${logs.length}-${horizontalScroll}-${mountedKey}`"
           :get-node-height="getNodeHeight"

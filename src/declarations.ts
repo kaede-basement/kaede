@@ -16,9 +16,12 @@ import type { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
 import type { getConfigFile } from "@/lib/main/get-config-file.ts";
 import type { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import type { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
-import type { GlobalStatesChangerType, GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { ConfigType } from "@/lib/schemas/config/config.schema.ts";
+import type {
+  GlobalStatesChangerType,
+  GlobalStatesType,
+} from "@/types/application/global-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
-import type { ConfigType } from "@/types/config/config.schema.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 
 declare global {
@@ -76,9 +79,11 @@ declare global {
            *
            * No arguments are passed to the hook.
            *
-           * If the hook returns a 'stop' status, it should also return a 'ConfigType' typed object in the 'response' field.
+           * If the hook returns a 'stop' status,
+           * it should also return a 'ConfigType' typed object in the 'response' field.
            *
-           * If the hook returns a 'continue' status, code execution will continue as if that hook did not exist.
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
            */
           "before": HookReturnType<unknown, ConfigType>;
 
@@ -87,9 +92,11 @@ declare global {
            *
            * A validated config is passed as the argument.
            *
-           * If the hook returns a 'stop' status, it should also return a 'ConfigType' typed object in the 'response' field.
+           * If the hook returns a 'stop' status,
+           * it should also return a 'ConfigType' typed object in the 'response' field.
            *
-           * If the hook returns a 'continue' status, it may add properties to the passed config argument or do nothing.
+           * If the hook returns a 'continue' status,
+           * it may add properties to the passed config argument or do nothing.
            */
           "after": HookReturnType<ConfigType, ConfigType>;
         };

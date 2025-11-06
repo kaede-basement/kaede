@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { RouteType } from "@/types/application/route.type.ts";
 import { defineAsyncComponent } from "vue";
+
+import type { RouteType } from "@/types/application/route.type.ts";
 
 const { page } = defineProps<{
   "page": RouteType;
@@ -12,7 +13,7 @@ const Settings = defineAsyncComponent(() => import("@/pages/Settings.vue"));
 </script>
 
 <template>
-  <div class="relative h-full w-full">
+  <div id="__router__wrapper" class="relative h-full w-full">
     <Transition name="page">
       <Home v-if="page === 'home'" />
       <Library v-else-if="page === 'library'" />

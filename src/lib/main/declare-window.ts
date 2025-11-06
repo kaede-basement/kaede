@@ -10,6 +10,8 @@ import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
+function placeholderFunction(): void {}
+
 export function declareWindow(): void {
   window.__TAURI_PLUGINS_COMMUNITY__ = {
     "discord": {
@@ -22,10 +24,12 @@ export function declareWindow(): void {
       "rippleColor": "#ffffff15",
     },
     "functions": {
-      "getGlobalStates"   : (): GlobalStatesType => ({} as GlobalStatesType), // Will be overwritten
-      "changeGlobalStates": (): void => {}, // Will be overwritten
-      "showContextMenu"   : (): void => {}, // Will be overwritten
-      "closeContextMenu"  : (): void => {}, // Will be overwritten
+
+      /* Fields that contain a 'placeholderFunction' will be overwritten */
+      "getGlobalStates"   : placeholderFunction as () => GlobalStatesType,
+      "changeGlobalStates": placeholderFunction,
+      "showContextMenu"   : placeholderFunction,
+      "closeContextMenu"  : placeholderFunction,
       log,
       extractError,
       getRelativeDate,

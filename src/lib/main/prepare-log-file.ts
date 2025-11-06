@@ -29,7 +29,8 @@ function getNumberFromLogFilename(filename: string): number {
 /**
  * Strategy:
  *
- * if 'latest.log' exists, and it is not empty, then we copy everything from it to the 'kaede-{number}.log' file
+ * if 'latest.log' exists, and it is not empty,
+ * then we copy everything from it to the 'kaede-{number}.log' file
  * and clear the 'latest.log' file since we want to separate previous launcher logs from current
  *
  * else just write into 'latest.log' without other manipulations
@@ -89,7 +90,10 @@ export async function prepareLogFile(): Promise<void> {
     return;
   }
 
-  const renamedLogPath = await join("logs", `${ApplicationName.toLowerCase()}-${biggestLogNumber + 1}.log`);
+  const renamedLogPath = await join(
+    "logs",
+    `${ApplicationName.toLowerCase()}-${biggestLogNumber + 1}.log`,
+  );
 
   // Copy existing contents from 'latest.log' to 'kaede-{number}.log'
   await copyFile(latestLogPath, renamedLogPath, {

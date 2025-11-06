@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import MaterialRipple from "@/components/misc/MaterialRipple.vue";
-import { ref, shallowRef, useTemplateRef, watchEffect } from "vue";
-import { useDebounceFn, useEventListener } from "@vueuse/core";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { appDataDir, join } from "@tauri-apps/api/path";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { useDebounceFn, useEventListener } from "@vueuse/core";
+import { ref, shallowRef, useTemplateRef, watchEffect } from "vue";
+
+import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 
 const target = useTemplateRef("target");
 const focused = ref<boolean>(false);
@@ -95,19 +96,22 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="h-8 w-full flex flex-nowrap gap-2">
+  <div id="__log-controls__wrapper" class="h-8 w-full flex flex-nowrap gap-2">
     <div
+      id="__log-controls__search-wrapper"
       @click="focusSearch"
       :class="[
         focused ? 'cursor-text' : 'cursor-pointer',
-        'shrink-0 relative w-28 sm:w-40 flex flex-nowrap items-center gap-2 rounded-md bg-neutral-800 pl-2',
+        'shrink-0 relative w-28 sm:w-40 flex flex-nowrap items-center',
+        'gap-2 rounded-md bg-neutral-800 pl-2',
       ]"
     >
-      <div :class="[
+      <div id="__log-controls__search-icon" :class="[
         focused ? 'text-white' : 'text-neutral-400',
         'i-lucide-search pointer-events-none absolute z-10 size-4 transition-[color]',
       ]"></div>
       <input
+        id="__log-controls__search-input"
         ref="target"
         :class="[
           focused ? 'text-white' : 'text-neutral-400',
@@ -122,45 +126,50 @@ watchEffect(() => {
       />
       <MaterialRipple :disabled="focused" />
     </div>
-    <div class="shrink-0 flex flex-nowrap bg-neutral-800 items-center h-full rounded-md text-sm text-neutral-400">
+    <div id="__log-controls__matches-wrapper" class="h-full flex shrink-0 flex-nowrap items-center rounded-md bg-neutral-800 text-sm text-neutral-400">
       <button
+        id="__log-controls__matches-increment-button"
         @click="incrementIndex"
-        class="relative grid size-6 ml-1 place-items-center rounded-md transition-[color] hover:text-white"
+        class="relative grid ml-1 size-6 place-items-center rounded-md transition-[color] hover:text-white"
       >
-        <span class="block i-lucide-chevron-up size-4"></span>
+        <span id="__log-controls__matches-increment-icon" class="i-lucide-chevron-up block size-4"></span>
         <MaterialRipple />
       </button>
       <button
+        id="__log-controls__matches-decrement-button"
         @click="decrementIndex"
-        class="relative grid size-6 ml-1 place-items-center rounded-md transition-[color] hover:text-white"
+        class="relative grid ml-1 size-6 place-items-center rounded-md transition-[color] hover:text-white"
       >
-        <span class="block i-lucide-chevron-down size-4"></span>
+        <span id="__log-controls__matches-decrement-icon" class="i-lucide-chevron-down block size-4"></span>
         <MaterialRipple />
       </button>
       <input
-        class="w-4 sm:w-12 bg-transparent text-end outline-none focus:outline-none"
+        id="__log-controls__matches-input"
+        class="w-4 bg-transparent text-end outline-none sm:w-12 focus:outline-none"
         type="number"
         :min="1"
         :max="Math.max(0, found.length)"
         :value="position"
         @input="handleIndex"
       />
-      <p class="px-2">
+      <p id="__log-controls__matches-text" class="px-2">
         of {{ found.length  }} matches
       </p>
     </div>
     <button
+      id="__log-controls__explorer-button"
       @click="viewInExplorer"
-      class="shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 items-center h-full place-items-center rounded-md bg-neutral-800"
+      class="relative grid h-full w-fit flex shrink-0 flex-nowrap place-items-center items-center gap-2 rounded-md bg-neutral-800 px-2"
       title="View in Explorer"
     >
-      <span :class="['i-lucide-external-link block size-4']"></span>
-      <span class="md:block hidden">
+      <span id="__log-controls__explorer-icon" :class="['i-lucide-external-link block size-4']"></span>
+      <span id="__log-controls__explorer-label" class="hidden md:block">
         View in Explorer
       </span>
       <MaterialRipple />
     </button>
     <button
+      id="__log-controls__horizontal-scroll-button"
       @click="toggleHorizontalScroll"
       :class="[
         horizontalScroll ? 'invert' : '',
@@ -169,8 +178,8 @@ watchEffect(() => {
       ]"
       title="Line Breaks"
     >
-      <span :class="['i-lucide-text-wrap block size-4']"></span>
-      <span class="lg:block hidden">
+      <span id="__log-controls__horizontal-scroll-icon" :class="['i-lucide-text-wrap block size-4']"></span>
+      <span id="__log-controls__horizontal-scroll-label" class="hidden lg:block">
         Line Breaks
       </span>
       <MaterialRipple />

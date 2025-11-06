@@ -41,7 +41,7 @@ button, button span {
   overflow: visible !important;
 }
 #__virtualized-list-logs {
-  #__virtualized-list-logs__text {
+  #__log-entry__text-wrapper {
     white-space: nowrap;
   }
 }

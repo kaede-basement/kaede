@@ -4,7 +4,7 @@ import { ApplicationNamespace, ConfigFilename } from "@/constants/application.ts
 import { log } from "@/lib/handlers/log.ts";
 import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
-import { type ConfigType, ConfigValidator } from "@/types/config/config.schema.ts";
+import { type ConfigType, ConfigValidator } from "@/lib/schemas/config/config.schema.ts";
 
 export async function getConfigFile(): Promise<ConfigType> {
   const hooksArray = window[ApplicationNamespace].hooks.getConfigFile.before;

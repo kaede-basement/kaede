@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Command } from "@tauri-apps/plugin-shell";
 import { inject } from "vue";
 
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
@@ -9,24 +8,15 @@ import type {
 } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
-
-async function startElysia(): Promise<void> {
-  const command = Command.sidecar("sidecars/bun-sidecar", [
-    "hello",
-    "from a fucking javascript server",
-  ]);
-  const output = await command.execute();
-
-  console.log(output);
-}
 </script>
 
 <template>
-  <div class="shrink-0 h-full w-20"></div>
-  <TransitionGroup name="fade" tag="div" class="absolute left-0 top-0 h-vh w-20 flex flex-col items-center bg-[theme(colors.neutral.950)] z-10000">
+  <div id="__sidebar__space-placeholder" class="h-full w-20 shrink-0"></div>
+  <TransitionGroup name="fade" tag="div" class="absolute left-0 top-0 z-10000 h-vh w-20 flex flex-col items-center bg-[theme(colors.neutral.950)]">
     <button
       v-for="item in globalStates?.sidebarItems"
       :key="item.path"
+      :id="`__sidebar__entry-${item.icon}-button`"
       :disabled="item.path === globalStates?.page"
       @mousedown="item.action"
       @touchstart="item.action"
@@ -35,18 +25,16 @@ async function startElysia(): Promise<void> {
       name="sidebar__item"
     >
       <span
+        :id="`__sidebar__entry-${item.icon}-icon`"
         :class="[
           item.icon,
           'block size-6 shrink-0',
         ]"
       ></span>
-      <span name="sidebar__item_text" class="block shrink-0 break-all text-balance text-sm">
+      <span :id="`__sidebar__entry-${item.icon}-label`" class="block shrink-0 break-all text-balance text-sm">
         {{ item.name }}
       </span>
       <MaterialRipple />
-    </button>
-    <button key="unknown-button" @click="startElysia">
-      Heh
     </button>
   </TransitionGroup>
 </template>

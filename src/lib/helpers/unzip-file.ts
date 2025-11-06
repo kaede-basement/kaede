@@ -1,7 +1,8 @@
 import { createReadStream, createWriteStream } from "node:fs";
+
 import unzipper from "unzipper";
 
-export async function unzipFile(input: string, output: string) {
+export async function unzipFile(input: string, output: string): Promise<void> {
   createReadStream(input)
     .pipe(unzipper.Parse())
     .on("entry", entry => {
