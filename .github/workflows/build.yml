@@ -101,6 +101,12 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
+      - name: Run ESLint
+        run: bun lint
+
+      - name: Run Vitest
+        run: bun run test
+
       - name: Build a Tauri app (Non-Release)
         if: (startsWith(github.ref, 'refs/tags/')) != true
         uses: tauri-apps/tauri-action@564aea5a8075c7a54c167bb0cf5b3255314a7f9d
