@@ -37,7 +37,7 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 ## Demonstration
 
-A video demonstration of the isolated plugin that renders an interactive Live2D of [Misono Mika](https://bluearchive.wiki/wiki/Mika). Isolated plugin has the access to DOM (`document`); also can use `window.log` (a custom logger function that wraps tauri-plugin-log), `Math`, `Date`, `URL`, `Buffer`, `window["__core-js_shared__"]`, `console`, etc. globals. This list is not full because it is really long, and the key thing here is that we can manually pass down global variables, so important and dangerous `window.__TAURI__.*` functions are not accessible.
+A video demonstration of the isolated plugin that renders an interactive Live2D of [Misono Mika](https://bluearchive.wiki/wiki/Mika). Isolated plugin has the access to DOM (`document`); also can use `window.log` (a custom logger function that wraps tauri-plugin-log), `Math`, `Date`, `URL`, `Buffer`, `window["__core-js_shared__"]`, `console`, etc. This list is not full because it is really long, and the key thing here is that we can manually pass down global variables, so important and dangerous `window.__TAURI__.*` functions are not accessible.
 
 Isolation was done using the [Secure ECMAScript](https://github.com/endojs/endo). All globals were frozen using the `lockdown` function that `ses` library provides. So plugins can't rewrite any globals, prototypes, etc.
 
@@ -107,7 +107,7 @@ context menu has 50000 z-index
 log menu     has 40000 z-index
 sidebar      has 3000 z-index
 
-Apparently, this shit is not going to work because tauri exposes __TAURI_INTERNALS__ to the `window` object. Nothing I can do about it, right?
+Update: apparently, this shit is not going to work because tauri exposes __TAURI_INTERNALS__ to the `window` object. Nothing I can do about it, right?
 
 Update: yeah, `window.__TAURI_INTERNALS__` are frozen. But even if I somehow disable freezing, clone the `window.__TAURI_INTERNALS__.invoke` function, overwrite/delete it, and freeze the whole `window.__TAURI_INTERNALS__`, Tauri will just break since it accesses invokes from `window` (even in rust).
 
@@ -134,15 +134,78 @@ nothing here yet
 
 ## Features
 
-tbd
+- Cross-platform
+- Open Source, GPL-3.0
+- Written in TypeScript
 
-## Comparison
+Not implemented yet:
+
+- [ ] Plugin system
+  - [ ] Custom CSS themes
+  - [ ] Permission-system
+  - [ ] Dependencies handling (?)
+  - [x] Application hooks
+  - [ ] Sandboxed environment using Secure ECMAScript
+  - [ ] Unrestricted environment for microfrontends with shared dependencies
+  - [ ] Unrestricted environment with `new Function`
+- [ ] Authentication
+  - [ ] Microsoft authentication
+  - [ ] Offline accounts if user has a Microsoft account with the game
+- [ ] Instance management
+  - [ ] All Minecraft versions launch
+  - [ ] Instance import (from Prism Launcher, Modrinth, etc.)
+  - [ ] Instance export
+  - [ ] Sandboxed minecraft instances (?)
+- [ ] Modpack providers support
+  - [ ] CurseForge
+  - [ ] Modrinth
+  - [ ] ATLauncher
+  - [ ] FTB
+  - [ ] Legacy FTB
+  - [ ] Technic
+- [ ] Mod loaders
+  - [ ] Fabric
+  - [ ] Forge
+  - [ ] NeoForge
+  - [ ] Quilt
+  - [ ] Legacy Fabric
+  - [ ] LiteLoader
+  - [ ] Kaolin
+- [ ] Resource management
+  - [ ] Mods
+    - [ ] CurseForge blocked download handling via spawning a webview window (?)
+    - [ ] Symlinks for identical mods (?)
+  - [ ] Resourcepacks
+  - [ ] Shaderpacks
+  - [ ] Worlds
+  - [ ] Datapacks
+- [ ] Java management
+  - [ ] Already installed JDKs detection
+  - [ ] Different version selection for supported Minecraft versions
+  - [ ] Bundled GraalVM Community Edition JDK (?)
+- [ ] Server management (via plugin)
+  - [ ] Various server cores (Bukkit-based, Sponge-based, Forge, Fabric, Minestom, etc.)
+  - [ ] Plugins management
+  - [ ] Mods management
 
 tbd (https://mc-launcher.tayou.org/)
 
 ## Installation
 
-tbd
+### Stable Releases
+
+Download Kaede from the [GitHub Releases](https://github.com/kaede-basement/kaede/releases) page. Packages are available for Linux, Windows, and macOS.
+
+### Development builds
+
+Please understand that these builds are not intended for most users. There may be bugs and other instabilities. You have been warned.
+
+There are development builds available through:
+
+- [GitHub Actions](https://github.com/kaede-basement/kaede/actions) (includes builds from pull requests opened by contributors).
+- [nightly.link](https://nightly.link/kaede-basement/kaede/workflows/build/nightly) (this will always point only to the latest version of the `nightly` branch).
+
+Prebuilt Development builds are provided for Linux, Windows, and macOS.
 
 ## Community & Support
 
@@ -169,7 +232,7 @@ git clone https://github.com/freesmteam/kaede
 
 ```
 
-Navigate to cloned directory and install project dependencies:
+Navigate to the cloned directory and install project dependencies:
 
 ```bash
 bun install
