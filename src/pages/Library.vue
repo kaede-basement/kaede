@@ -15,5 +15,32 @@ const changeGlobalState = inject<GlobalStatesChangerType>(GlobalStatesChangerCon
     <button @click="() => changeGlobalState?.('page', 'home')">
       Navigate to Home
     </button>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
+    <div class="text-2xl">d</div>
   </PageWrapper>
 </template>

@@ -36,11 +36,13 @@ declare global {
       "upload"      : typeof TauriUpload;
     };
 
-    /* Manually exposed through window overwrite */
+    /* Declared in the '@/lib/main/declare-window.ts' */
     "__TAURI_PLUGINS_COMMUNITY__": {
       "discord": typeof TauriDiscordRpc & typeof TauriDiscordRpcClasses;
     };
     "__KAEDE__": {
+
+      /** Variables */
       "variables": {
         "rippleColor": string;
       };
@@ -59,9 +61,11 @@ declare global {
       "hooks": {
         "getConfigFile": {
           "before": HookReturnType<unknown, ConfigType>;
+          "after" : HookReturnType<ConfigType, ConfigType>;
         };
         "getDefaultConfig": {
           "before": HookReturnType<unknown, ConfigType>;
+          "after" : HookReturnType<ConfigType, ConfigType>;
         };
         "onRouteChange": {
           "before": HookReturnType<RouteType, RouteType, "non-promise">;

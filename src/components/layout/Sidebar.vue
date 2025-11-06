@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { Command } from "@tauri-apps/plugin-shell";
 import { inject } from "vue";
-import { Command } from '@tauri-apps/plugin-shell';
+
+import MaterialRipple from "@/components/misc/MaterialRipple.vue";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
 import type {
   ContextGlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
-import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
@@ -22,7 +23,7 @@ async function startElysia(): Promise<void> {
 
 <template>
   <div class="shrink-0 h-full w-20"></div>
-  <TransitionGroup name="fade" tag="div" class="absolute left-0 top-0 h-vh w-20 flex flex-col items-center bg-[theme(colors.neutral.950/.3)] backdrop-blur-md z-10000">
+  <TransitionGroup name="fade" tag="div" class="absolute left-0 top-0 h-vh w-20 flex flex-col items-center bg-[theme(colors.neutral.950)] z-10000">
     <button
       v-for="item in globalStates?.sidebarItems"
       :key="item.path"

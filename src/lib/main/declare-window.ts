@@ -22,10 +22,10 @@ export function declareWindow(): void {
       "rippleColor": "#ffffff15",
     },
     "functions": {
-      "getGlobalStates"   : (): GlobalStatesType => ({} as GlobalStatesType), // will be overwritten
-      "changeGlobalStates": (): void => {}, // will be overwritten
-      "showContextMenu"   : (): void => {}, // will be overwritten
-      "closeContextMenu"  : (): void => {}, // will be overwritten
+      "getGlobalStates"   : (): GlobalStatesType => ({} as GlobalStatesType), // Will be overwritten
+      "changeGlobalStates": (): void => {}, // Will be overwritten
+      "showContextMenu"   : (): void => {}, // Will be overwritten
+      "closeContextMenu"  : (): void => {}, // Will be overwritten
       log,
       extractError,
       getRelativeDate,

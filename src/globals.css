@@ -1,42 +1,57 @@
-/* Styling */
+/**
+ * Styling
+ */
 html {
+  /* Remove the overscroll bounce effect */
   height: 100%;
   overflow: hidden;
+
+  /* Default theme is dark */
+  color-scheme: dark;
 }
 
-#app {
-  /* make all sub-elements' text not selectable */
-  /* user-select: none; */
-  /* update: it's better to just blacklist selections instead of whitelist */
-}
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 16px }
+::-webkit-scrollbar-track { background: transparent }
+::-webkit-scrollbar-thumb { background: #393939; cursor: pointer }
+::-webkit-scrollbar-thumb:hover { background: #494949 }
 
-button, button span {
-  user-select: none;
-}
-
-#__virtualized-list-logs > div {
-  width: fit-content;
-}
-#__virtualized-list-logs {
-  #__virtualized-list-logs__text {
-    white-space: nowrap;
-  }
-}
-
+/* Remove the '<input />' arrows */
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-/* Data Attributes */
+/* These elements should not allow text selection */
+button, button span {
+  user-select: none;
+}
+
+#app {}
+
+/* Allow virtual lists to have a horizontal scroll */
+#__virtualized-list-logs > div { width: fit-content }
+#__virtualized-list-logs {
+  #__virtualized-list-logs__text {
+    white-space: nowrap;
+  }
+}
+
+/**
+ * Data Attributes
+ */
 [data-transitions-disabled] {
   * {
     transition: none;
   }
 }
 
-/* Transitions */
+/**
+ * Vue Transitions
+ */
+
+/* 'page' transition */
 .page-enter-active {
   transition: opacity 150ms ease, transform 400ms ease;
 }
@@ -48,6 +63,7 @@ input::-webkit-inner-spin-button {
 }
 .page-leave-to {}
 
+/* 'pop' transition */
 .pop-enter-active {
   transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
 }
@@ -58,6 +74,7 @@ input::-webkit-inner-spin-button {
   transform: scale(90%);
 }
 
+/* 'fade' transition */
 .fade-enter-active {
   transition: opacity 150ms ease-in-out;
 }
