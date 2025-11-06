@@ -75,7 +75,7 @@ useEventListener(window, "mousedown", (event: MouseEvent) => {
     />
     <Sidebar />
     <!-- Pages error boundary -->
-    <ErrorBoundary :resetKey="page">
+    <ErrorBoundary :reset-key="page">
       <template #default>
         <slot />
       </template>

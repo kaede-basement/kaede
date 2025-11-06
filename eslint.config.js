@@ -44,17 +44,26 @@ export default defineConfigWithVueTs(
     "rules": {
 
       /* Disabled rules */
-      "vue/multi-word-component-names"  : ["off"], // Why do I need to use multiple words for a 'Layout' component, for example?
-      "vue/no-multiple-template-root"   : ["off"], // No need for this rule since Vue 3.x
-      "unicorn/no-null"                 : ["off"], // The second argument of 'JSON#stringify' doesn't accept 'undefined' to save formatting
-      "unicorn/prefer-global-this"      : ["off"], // No need for this rule since this app is fully CSR, and Web Workers are not going to be used
-      "unicorn/prefer-top-level-await"  : ["off"], // Top level await is broken somehow
-      "unicorn/prefer-query-selector"   : ["off"], // 'getElementById' is a lot easier to use
-      "unicorn/prefer-at"               : ["off"], // Requires a different lib version
-      "@stylistic/no-multi-spaces"      : ["off"], // Conflicts with 'eslint@stylistic/key-spacing'
-      "@stylistic/line-comment-position": ["off"], // I don't see any problems using both above and beside comments
-      "@stylistic/linebreak-style"      : ["off"], // Conflicts with git
-      "@stylistic/eol-last"             : ["off"], // Conflicts with git
+      // Why do I need to use multiple words for a 'Layout' component, for example?
+      "vue/multi-word-component-names": ["off"],
+      // No need for this rule since Vue 3.x
+      "vue/no-multiple-template-root" : ["off"],
+      // The second argument of 'JSON#stringify' doesn't accept 'undefined' to save formatting
+      "unicorn/no-null"               : ["off"],
+      // No need for this rule since this app is fully CSR, and Web Workers are not going to be used
+      "unicorn/prefer-global-this"    : ["off"],
+      // Top level await is broken somehow
+      "unicorn/prefer-top-level-await": ["off"],
+      // 'getElementById' is a lot easier to use
+      "unicorn/prefer-query-selector" : ["off"],
+      // Requires a different lib version
+      "unicorn/prefer-at"             : ["off"],
+      // Conflicts with 'eslint@stylistic/key-spacing'
+      "@stylistic/no-multi-spaces"    : ["off"],
+      // Conflicts with git
+      "@stylistic/linebreak-style"    : ["off"],
+      // Conflicts with git
+      "@stylistic/eol-last"           : ["off"],
 
       /* Important */
       "@stylistic/semi"              : ["error", "always"],
@@ -65,6 +74,12 @@ export default defineConfigWithVueTs(
       "@stylistic/no-floating-decimal"         : ["error"],
       "@stylistic/max-statements-per-line"     : ["error", { "max": 1 }],
       "@stylistic/one-var-declaration-per-line": ["error", "always"],
+      "vue/block-lang"                         : ["error", {
+        "script": {
+          "lang": "ts",
+        },
+      }],
+      "vue/component-api-style": ["error", ["script-setup"]],
 
       /* ESLint */
       "capitalized-comments": ["warn", "always"],
@@ -118,19 +133,32 @@ export default defineConfigWithVueTs(
       "@typescript-eslint/no-unused-vars"               : ["warn"],
 
       /* Vue */
+      "vue/attribute-hyphenation": ["warn", "always", {
+        "ignore"    : [],
+        "ignoreTags": [],
+      }],
+      "vue/no-duplicate-attributes": ["warn", {
+        "allowCoexistClass": true,
+        "allowCoexistStyle": true,
+      }],
       "vue/no-unused-vars" : ["warn"],
       "vue/no-extra-parens": ["warn", "all", { "nestedBinaryExpressions": true }],
       "vue/max-len"        : ["warn", {
-        "code"                     : 110,
-        "ignoreComments"           : true,
-        "ignoreTrailingComments"   : true,
+        "code"                     : 100,
+        "ignoreComments"           : false,
+        "ignoreTrailingComments"   : false,
         "ignoreHTMLAttributeValues": true,
         "ignoreHTMLTextContents"   : true,
         "ignoreUrls"               : true,
       }],
 
       /* Unicorn */
-      "unicorn/filename-case"        : ["warn", { "cases": { "kebabCase": true, "pascalCase": true } }],
+      "unicorn/filename-case": ["warn", {
+        "cases": {
+          "kebabCase" : true,
+          "pascalCase": true,
+        },
+      }],
       "unicorn/prevent-abbreviations": ["warn"],
 
       /* Stylistic */
@@ -163,8 +191,9 @@ export default defineConfigWithVueTs(
           "mode"       : "strict",
         },
       }],
-      "@stylistic/keyword-spacing"     : ["warn", { "before": true, "after": true }],
-      "@stylistic/lines-around-comment": ["warn", {
+      "@stylistic/keyword-spacing"      : ["warn", { "before": true, "after": true }],
+      "@stylistic/line-comment-position": ["warn", { "position": "above" }],
+      "@stylistic/lines-around-comment" : ["warn", {
         "beforeBlockComment": true,
         "allowBlockStart"   : true,
       }],

@@ -52,11 +52,17 @@ const globalStates = shallowReactive<GlobalStatesType>({
   "contextMenuItems": [...ContextMenuItems],
 });
 
-function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]): void {
-  log.debug(`Changing global state; key: ${key}; value: ${value}`);
+function getGlobalStates(): ContextGlobalStatesType {
+  return globalStates;
+}
+function changeGlobalState<Key extends keyof GlobalStatesType>(
+  key: Key,
+  value: GlobalStatesType[Key],
+): void {
   const mappedKey = HookMappings[key];
 
   // Global states have not changed yet
+  log.debug(`Starting iterating through hooks for '${mappedKey}.before'`);
   for (const storedFunction of window[ApplicationNamespace].hooks[mappedKey].before) {
     const hook = storedFunction as (anything: unknown) => unknown;
     const { status, response } = hook(value) as {
@@ -73,10 +79,12 @@ function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: 
     }
   }
 
+  log.debug(`Changing global state. Key: ${key}; value: ${value}`);
   globalStates[key] = value;
 
   nextTick().then(async () => {
     // Global states have changed now
+    log.debug(`Starting iterating through hooks for '${mappedKey}.after'`);
     for (const storedFunction of window[ApplicationNamespace].hooks[mappedKey].after) {
       const hook = storedFunction as (anything: unknown) => Promise<unknown>;
 
@@ -88,7 +96,7 @@ function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: 
 provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
 provide<GlobalStatesChangerType>(GlobalStatesChangerContextKey, changeGlobalState);
 
-window[ApplicationNamespace].functions.getGlobalStates = () => globalStates;
+window[ApplicationNamespace].functions.getGlobalStates = getGlobalStates;
 window[ApplicationNamespace].functions.changeGlobalStates = changeGlobalState;
 </script>
 

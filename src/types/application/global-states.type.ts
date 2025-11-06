@@ -1,5 +1,6 @@
-import type { RouteType } from "@/types/application/route.type.ts";
 import type { ShallowReactive } from "vue";
+
+import type { RouteType } from "@/types/application/route.type.ts";
 
 export type GlobalStatesType = {
   "customLayout": boolean;

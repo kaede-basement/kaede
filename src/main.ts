@@ -16,10 +16,12 @@ import { declareWindow } from "@/lib/main/declare-window.ts";
 import { initializeLauncher } from "@/lib/main/initialize-launcher.ts";
 import { prepareLogFile } from "@/lib/main/prepare-log-file.ts";
 
+// No need to log yet, all logs will go into the previous launch log file
 await prepareLogFile().catch((error: unknown) => {
   log.error("Failed to prepare a log file:", JSON.stringify(error));
 });
 
+// Now the log file preparation is done (unless something threw an error)
 log.debug("Extending global window object in the app namespace");
 declareWindow();
 
