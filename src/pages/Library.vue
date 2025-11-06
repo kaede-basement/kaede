@@ -2,15 +2,18 @@
 import { inject } from "vue";
 import { GlobalStatesChangerContextKey } from "@/constants/application.ts";
 import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
+import PageWrapper from "@/components/layout/PageWrapper.vue";
 
 const changeGlobalState = inject<GlobalStatesChangerType>(GlobalStatesChangerContextKey);
 </script>
 
 <template>
-  <div>
-    About. Даб
-  </div>
-  <button @click="() => changeGlobalState?.('page', 'home')">
-    Navigate to Home
-  </button>
+  <PageWrapper>
+    <div>
+      About. Даб
+    </div>
+    <button @click="() => changeGlobalState?.('page', 'home')">
+      Navigate to Home
+    </button>
+  </PageWrapper>
 </template>

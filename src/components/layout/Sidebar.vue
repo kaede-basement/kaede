@@ -21,7 +21,7 @@ async function startElysia(): Promise<void> {
 </script>
 
 <template>
-  <div class="h-full w-20"></div>
+  <div class="shrink-0 h-full w-20"></div>
   <TransitionGroup name="fade" tag="div" class="absolute left-0 top-0 h-vh w-20 flex flex-col items-center bg-[theme(colors.neutral.950/.3)] backdrop-blur-md z-10000">
     <button
       v-for="item in globalStates?.sidebarItems"

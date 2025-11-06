@@ -1,3 +1,4 @@
+import { join } from "@tauri-apps/api/path";
 import {
   BaseDirectory,
   copyFile,
@@ -8,7 +9,7 @@ import {
   readTextFile,
   writeTextFile,
 } from "@tauri-apps/plugin-fs";
-import { join } from "@tauri-apps/api/path";
+
 import { ApplicationName } from "@/constants/application.ts";
 
 function getNumberFromLogFilename(filename: string): number {

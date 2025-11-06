@@ -12,7 +12,11 @@ const Settings = defineAsyncComponent(() => import("@/pages/Settings.vue"));
 </script>
 
 <template>
-  <Home v-if="page === 'home'" />
-  <Library v-else-if="page === 'library'" />
-  <Settings v-else-if="page === 'settings'" />
+  <div class="relative h-full w-full shrink-0">
+    <Transition name="page">
+      <Home v-if="page === 'home'" />
+      <Library v-else-if="page === 'library'" />
+      <Settings v-else-if="page === 'settings'" />
+    </Transition>
+  </div>
 </template>
