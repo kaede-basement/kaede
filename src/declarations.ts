@@ -10,13 +10,14 @@ import * as TauriUpload from "@tauri-apps/plugin-upload";
 import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 
-import type { log } from "@/lib/log/scopes/log.ts";
-import type { extractError } from "@/lib/helpers/extract-error.ts";
-import type { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
-import type { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
-import type { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
-import type { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
-import type { ConfigType } from "@/lib/schemas/config/config.schema.ts";
+import type Configs from "@/lib/configs";
+import type Errors from "@/lib/errors";
+import type General from "@/lib/general";
+import type GlobalStateHelpers from "@/lib/global-state-helpers";
+import type Globals from "@/lib/globals";
+import type Logging from "@/lib/logging";
+import type Schemas from "@/lib/schemas";
+import type { ConfigType } from "@/types/application/config.type.ts";
 import type {
   GlobalStatesChangerType,
   GlobalStatesType,
@@ -49,24 +50,30 @@ declare global {
     /** Application namespace */
     "__KAEDE__": {
 
+      "__internals": {
+        "getGlobalStates"   : () => GlobalStatesType;
+        "changeGlobalStates": GlobalStatesChangerType;
+      };
+
+      /** Global utilities */
+      "libs": {
+        "Configs"           : typeof Configs;
+        "Errors"            : typeof Errors;
+        "General"           : typeof General;
+        "GlobalStateHelpers": typeof GlobalStateHelpers;
+        "Globals"           : typeof Globals;
+        "Logging"           : typeof Logging;
+        "Schemas"           : typeof Schemas;
+        "ContextMenu"       : {
+          "show" : (event: MouseEvent) => void;
+          "close": () => void;
+        };
+      };
+
       /** Global variables that are allowed to be changed by plugins */
       "variables": {
         "rippleColor"     : string;
         "sparklesColorRGB": string;
-      };
-
-      /** Global functions for various actions */
-      "functions": {
-        "getGlobalStates"     : () => GlobalStatesType;
-        "changeGlobalStates"  : GlobalStatesChangerType;
-        "showContextMenu"     : (event: MouseEvent) => void;
-        "closeContextMenu"    : () => void;
-        "log"                 : typeof log;
-        "extractError"        : typeof extractError;
-        "getRelativeDate"     : typeof getRelativeDate;
-        "getConfigFile"       : typeof getConfigFile;
-        "getDefaultConfig"    : typeof getDefaultConfig;
-        "initializeConfigFile": typeof initializeConfigFile;
       };
 
       /** Application hooks */

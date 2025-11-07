@@ -11,9 +11,8 @@ import {
   ApplicationNamespace,
   GlobalStatesContextKey,
 } from "@/constants/application.ts";
-import { changeGlobalState } from "@/lib/helpers/change-global-state.ts";
-import { getConfigGlobalStates } from "@/lib/global-state-helpers/scopes/get-config-global-states.ts";
-import { getDefaultGlobalStates } from "@/lib/global-state-helpers/scopes/get-default-global-states.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
@@ -31,16 +30,17 @@ const ExtensionLoader = defineAsyncComponent(
 
 /**
  * Contains all global application states.
+ * Initially takes default values, then the user config is applied.
  *
  * Gathering everything in one big 'shallowReactive' state
  * is considered to be a bad practice.
  *
  * But I believe that in extensible applications this is the best approach to:
- * - make extension hooks have an expected behaviour;
+ * - make extension hooks have a well-defined behaviour;
  * - not lose state values across application;
  * - simplify bidirectional state access between the application and extensions;
  */
-const globalStates = shallowReactive<GlobalStatesType>(getDefaultGlobalStates());
+const globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getDefault());
 
 /**
  * Returns a reference to the proxied object of global states.
@@ -67,7 +67,7 @@ function scopedChangeGlobalStates<Key extends keyof GlobalStatesType>(
   key: Key,
   value: GlobalStatesType[Key],
 ): void {
-  changeGlobalState(key, value, __setGlobalState);
+  __changeGlobalState(key, value, __setGlobalState);
 }
 
 /**
@@ -78,18 +78,19 @@ provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
 /**
  * Provides a reference to the function that returns a reference to the global states object.
  */
-window[ApplicationNamespace].functions.getGlobalStates = getGlobalStates;
+window[ApplicationNamespace].__internals.getGlobalStates = getGlobalStates;
 
 /**
  * Provides a reference to the function that changes the value of a global states field.
  */
-window[ApplicationNamespace].functions.changeGlobalStates = scopedChangeGlobalStates;
+window[ApplicationNamespace].__internals.changeGlobalStates = scopedChangeGlobalStates;
 
 /**
  * Applies user config values to the global states.
  */
 onBeforeMount(async () => {
-  const userConfig = await getConfigGlobalStates(globalStates);
+  // We can't use top-level await, so we apply config here
+  const userConfig = await GlobalStateHelpers.getFromConfig(globalStates);
 
   for (const [key, value] of Object.entries(userConfig)) {
     globalStates[key as "locale"] = value as GlobalStatesType["locale"];

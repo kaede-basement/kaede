@@ -1,61 +1,6 @@
 import Type, { type Static } from "typebox";
 import { Compile } from "typebox/compile";
 
-export const VersionManifest = Type.Object({
-  "latest": Type.Object({
-    "release" : Type.String(),
-    "snapshot": Type.String(),
-  }),
-  "versions": Type.Array(
-    Type.Object({
-      "id"  : Type.String(),
-      "type": Type.Union([
-        Type.Literal("release"),
-        Type.Literal("snapshot"),
-        Type.Literal("old-beta"),
-        Type.Literal("old-alpha"),
-      ]),
-      "url"        : Type.String({ "format": "url" }),
-      "time"       : Type.String({ "format": "date-time" }),
-      "releaseTime": Type.String({ "format": "date-time" }),
-    }),
-  ),
-});
-export type Manifest = Static<typeof VersionManifest>;
-
-export const RuleSchema = Type.Object({
-  "action": Type.Union([
-    Type.Literal("allow"),
-    Type.Literal("disallow"),
-  ]),
-  "os": Type.Optional(
-    Type.Object({
-      "name"   : Type.String(),
-      "arch"   : Type.String(),
-      "version": Type.String(),
-    }),
-  ),
-});
-export type Rule = Static<typeof RuleSchema>;
-
-export const ValueSchema = Type.Union([
-  Type.String(),
-  Type.Array(Type.String()),
-]);
-
-export const ArgumentSchema = Type.Union([
-  Type.String(),
-  Type.Object({
-    "rules": Type.Array(RuleSchema),
-    "value": ValueSchema,
-  }),
-]);
-
-export const ArgumentsSchema = Type.Object({
-  "game": Type.Array(ArgumentSchema),
-  "jvm" : Type.Array(ArgumentSchema),
-});
-
 export const ArtifactSchema = Type.Object({
   "path": Type.String(),
   "sha1": Type.String(),
@@ -75,17 +20,6 @@ export const DownloadSchema = Type.Object({
   "artifact"   : ArtifactSchema,
   "classifiers": Type.Optional(ClassifiersSchema),
 });
-
-export const LibrarySchema = Type.Object({
-  "name"     : Type.String(),
-  "downloads": DownloadSchema,
-  "rules"    : Type.Optional(Type.Array(RuleSchema)),
-  "extract"  : Type.Optional(Type.Object({
-    "exclude": Type.Any(),
-  })),
-});
-export type Library = Static<typeof LibrarySchema>;
-export const LibraryValidator = Compile(LibrarySchema);
 
 export const AssetIndexSchema = Type.Object({
   "id"       : Type.String(),
@@ -129,20 +63,3 @@ export const JavaVersionSchema = Type.Object({
   "component"   : Type.String(),
   "majorVersion": Type.Number(),
 });
-
-export const VersionMetaModernSchema = Type.Object({
-  "id"       : Type.String(),
-  "type"     : Type.String(),
-  "mainClass": Type.String(),
-  "arguments": ArgumentsSchema,
-  "libraries": Type.Array(LibrarySchema),
-  "downloads": Type.Object({
-    "client": ArtifactSchema,
-    "server": Type.Optional(ArtifactSchema),
-  }),
-  "assetIndex" : AssetIndexSchema,
-  "assets"     : Type.String(),
-  "javaVersion": JavaVersionSchema,
-  "logging"    : LoggingSchema,
-});
-export type VersionMetaModern = Static<typeof VersionMetaModernSchema>;

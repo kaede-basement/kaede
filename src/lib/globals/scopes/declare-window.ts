@@ -2,12 +2,13 @@ import * as DiscordRPC from "tauri-plugin-drpc";
 import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
-import { log } from "@/lib/log/scopes/log.ts";
-import { extractError } from "@/lib/helpers/extract-error.ts";
-import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
-import { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
-import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
-import { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
+import Configs from "@/lib/configs";
+import Errors from "@/lib/errors";
+import General from "@/lib/general";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+import Globals from "@/lib/globals";
+import Logging from "@/lib/logging";
+import Schemas from "@/lib/schemas";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 function placeholderFunction(): void {}
@@ -20,23 +21,30 @@ export function declareWindow(): void {
     },
   };
   window[ApplicationNamespace] = {
-    "variables": {
-      "rippleColor"     : "#ffffff15",
-      "sparklesColorRGB": "255 255 255",
-    },
-    "functions": {
+    "__internals": {
 
       /* Fields that contain a 'placeholderFunction' will be overwritten */
       "getGlobalStates"   : placeholderFunction as () => GlobalStatesType,
       "changeGlobalStates": placeholderFunction,
-      "showContextMenu"   : placeholderFunction,
-      "closeContextMenu"  : placeholderFunction,
-      log,
-      extractError,
-      getRelativeDate,
-      getConfigFile,
-      getDefaultConfig,
-      initializeConfigFile,
+    },
+    "variables": {
+      "rippleColor"     : "#ffffff15",
+      "sparklesColorRGB": "255 255 255",
+    },
+    "libs": {
+      Configs,
+      Errors,
+      General,
+      GlobalStateHelpers,
+      Globals,
+      Logging,
+      Schemas,
+      "ContextMenu": {
+
+        /* Fields that contain a 'placeholderFunction' will be overwritten */
+        "show" : placeholderFunction,
+        "close": placeholderFunction,
+      },
     },
     "hooks": {
       "getConfigFile": {
