@@ -89,6 +89,11 @@ const information = computed((): {
   for (const [index, part] of parts.entries()) {
     switch (index) {
       case 0: {
+        if (parts.length === 1) {
+          current.date = part;
+          break;
+        }
+
         current.date = part + "]";
 
         break;
@@ -207,7 +212,7 @@ function getLevelColor(level: string): string {
       <span
         id="__log-entry__date"
         v-if="typeof extractedInformation.date === 'string'"
-        class="text-neutral-400"
+        class="whitespace-pre text-neutral-400"
       >
         {{ extractedInformation.date }}
       </span>

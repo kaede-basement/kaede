@@ -173,7 +173,7 @@ onMounted(async () => {
             <span
               v-if="fileData?.size !== undefined && fileData?.time !== undefined"
               id="__log-viewer__information-subtitle-file-data"
-              class="select-text"
+              class="text-neutral-400"
             >
               ({{ fileData.size }}, {{ fileData.time }})
             </span>

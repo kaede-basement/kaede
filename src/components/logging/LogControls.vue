@@ -108,7 +108,11 @@ useEventListener("keydown", (event: KeyboardEvent) => {
     return;
   }
 
-  if (event.ctrlKey && event.code === "KeyA") {
+  if (
+    event.ctrlKey &&
+    event.code === "KeyA" &&
+    event.target === document.body
+  ) {
     event.preventDefault();
 
     if (!shouldVirtualize) {
@@ -140,7 +144,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div id="__log-controls__wrapper" class="h-8 w-full flex flex-nowrap gap-2">
+  <div id="__log-controls__wrapper" class="h-8 w-full flex flex-nowrap select-none gap-2">
     <div
       id="__log-controls__search-wrapper"
       @click="focusSearch"
@@ -216,8 +220,8 @@ watchEffect(() => {
       id="__log-controls__horizontal-scroll-button"
       @click="toggleHorizontalScroll"
       :class="[
-        horizontalScroll ? 'invert' : '',
-        'shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
+        horizontalScroll ? '' : 'invert',
+        'z-10 shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
         'items-center h-full place-items-center rounded-md transition-[filter]',
       ]"
       data-tooltip="Line Breaks"
@@ -233,7 +237,7 @@ watchEffect(() => {
       @click="toggleShouldVirtualize"
       :class="[
         shouldVirtualize ? 'invert' : '',
-        'shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
+        'z-10 shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
         'items-center h-full place-items-center rounded-md transition-[filter]',
       ]"
       data-tooltip="Virtualize"

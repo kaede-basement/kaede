@@ -11,7 +11,7 @@ const { fields, occurrences } = defineProps<{
     id="__log-highlighter__wrapper"
     v-for="(element, occurrenceIndex) in occurrences"
     :key="`${element}-${occurrenceIndex}`"
-    :class="colorClass"
+    :class="[colorClass, 'whitespace-pre']"
   >
     <span id="__log-highlighter__non-highlighted-start">
       {{ fields[occurrenceIndex] }}

@@ -35,8 +35,8 @@ export function changeGlobalState<Key extends keyof GlobalStatesType>(
 
     log.debug(
       `'${mappedKey}.before' iterate: '${index}' index.`,
-      `Hook execution ended in ${currentBeforeHookTime}ms.`,
-      `Hook response: ${JSON.stringify({ status, response }, null, 2)}`,
+      `Hook execution ended in ${currentBeforeHookTime} ms.`,
+      `Hook response: \n${JSON.stringify({ status, response }, null, 2)}`,
     );
 
     if (status === "stop") {
@@ -51,8 +51,8 @@ export function changeGlobalState<Key extends keyof GlobalStatesType>(
   const timeMeasurementEndBefore = performance.now();
   const beforeHooksTime = timeMeasurementEndBefore - timeMeasurementStartBefore;
 
-  log.debug(`All '${mappedKey}.before' hooks were executed in ${beforeHooksTime}ms`);
-  log.debug(`Changing global state. Key: ${key}; value: ${JSON.stringify(value, null, 2)}`);
+  log.debug(`All '${mappedKey}.before' hooks were executed in ${beforeHooksTime} ms`);
+  log.debug(`Changing global state. Key: ${key}; value: \n${JSON.stringify(value, null, 2)}`);
   setValue(key, value);
 
   nextTick().then(async () => {
@@ -75,13 +75,13 @@ export function changeGlobalState<Key extends keyof GlobalStatesType>(
 
       log.debug(
         `'${mappedKey}.before' iterate: '${index}' index.`,
-        `Async hook executed in ${currentBeforeHookTime}ms`,
+        `Async hook executed in ${currentBeforeHookTime} ms`,
       );
     }
 
     const timeMeasurementEndAfter = performance.now();
     const afterHooksTime = timeMeasurementEndAfter - timeMeasurementStartAfter;
 
-    log.debug(`All '${mappedKey}.after' hooks were executed in ${afterHooksTime}ms`);
+    log.debug(`All '${mappedKey}.after' hooks were executed in ${afterHooksTime} ms`);
   });
 }
