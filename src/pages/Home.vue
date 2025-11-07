@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import PageWrapper from "@/components/layout/PageWrapper.vue";
-import { PagesStateHelper } from "@/lib/helpers/global-state-helpers.ts";
+import GlobalStateHelpers from "@/lib/helpers/global-state-helpers.ts";
 
 async function download(): Promise<void> {}
 async function run(): Promise<void> {}
@@ -12,7 +12,7 @@ async function run(): Promise<void> {}
       <div id="__home-page__title w-fit">
         Home
       </div>
-      <button id="__home-page__navigate-button" class="w-fit" @click="() => PagesStateHelper.Navigate('library')">
+      <button id="__home-page__navigate-button" class="w-fit" @click="() => GlobalStateHelpers.Pages.Navigate('library')">
         Navigate to About
       </button>
       <button id="__home-page__download-button" class="w-fit" @click="download">uh, download</button>

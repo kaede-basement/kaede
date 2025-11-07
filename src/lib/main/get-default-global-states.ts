@@ -1,6 +1,6 @@
 import { ContextMenuItems } from "@/constants/application.ts";
 import { RouteItems, Routes } from "@/constants/routes.ts";
-import { PagesStateHelper } from "@/lib/helpers/global-state-helpers.ts";
+import GlobalStateHelpers from "@/lib/helpers/global-state-helpers.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export function getDefaultGlobalStates(): GlobalStatesType {
@@ -30,15 +30,15 @@ export function getDefaultGlobalStates(): GlobalStatesType {
           "path"  : item.Path,
           "icon"  : item.Icon,
           "name"  : item.Path,
-          "action": (): void => PagesStateHelper.Navigate(item.Path),
+          "action": (): void => GlobalStateHelpers.Pages.Navigate(item.Path),
         };
       }),
       "divider",
       {
         "path"  : Routes.AddInstance,
         "icon"  : "i-lucide-plus",
-        "name"  : "Add Instance",
-        "action": (): void => PagesStateHelper.Navigate(Routes.AddInstance),
+        "name"  : Routes.AddInstance,
+        "action": (): void => GlobalStateHelpers.Pages.Navigate(Routes.AddInstance),
       },
     ],
     "contextMenuItems": [...ContextMenuItems],

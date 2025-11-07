@@ -1,6 +1,6 @@
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
 
-import { LogsStateHelper } from "@/lib/helpers/global-state-helpers.ts";
+import GlobalStateHelpers from "@/lib/helpers/global-state-helpers.ts";
 
 export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
@@ -23,7 +23,7 @@ export const ContextMenuItems = [
     "name"  : "Show Logs",
     "icon"  : "i-lucide-bug",
     "action": (): void => {
-      LogsStateHelper.Toggle("show", true);
+      GlobalStateHelpers.Logs.Toggle("show", true);
       window[ApplicationNamespace].functions.closeContextMenu();
     },
   },

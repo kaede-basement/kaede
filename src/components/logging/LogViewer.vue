@@ -11,7 +11,7 @@ import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
 import { log } from "@/lib/handlers/log.ts";
-import { LogsStateHelper } from "@/lib/helpers/global-state-helpers.ts";
+import GlobalStateHelpers from "@/lib/helpers/global-state-helpers.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
@@ -51,7 +51,7 @@ function showContextMenu(event: MouseEvent): void {
   window[ApplicationNamespace].functions.showContextMenu(event);
 }
 function closeLogViewer(): void {
-  LogsStateHelper.Toggle("show", false);
+  GlobalStateHelpers.Logs.Toggle("show", false);
 }
 function getNodeHeight(node: string): number {
   if (node.length === 0 || !globalStates?.logs?.lineBreaks) {
@@ -90,7 +90,7 @@ async function toggleVirtualization(): Promise<void> {
     }
   }
 
-  LogsStateHelper.Toggle("virtualized");
+  GlobalStateHelpers.Logs.Toggle("virtualized");
 }
 function selectAllText(): void {
   const logsContainer = nonVirtualList.value?.nonVirtualizedLogsTarget;
@@ -132,7 +132,7 @@ onMounted(async () => {
   // If the log file is big (>=32 KBs), open it with the virtualized list
   if (existingLogs.length >= 32_768) {
     log.debug(`Log file is too big (${existingLogs.length} bytes), using a virtualized list`);
-    LogsStateHelper.Toggle("virtualized", true);
+    GlobalStateHelpers.Logs.Toggle("virtualized", true);
   }
 
   const filesize = (existingLogs.length / (1024 * 1024)).toFixed(3);
@@ -185,7 +185,7 @@ onMounted(async () => {
             :should-virtualize="globalStates?.logs?.virtualized === true"
             :toggle-should-virtualize="toggleVirtualization"
             :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
-            :toggle-horizontal-scroll="() => LogsStateHelper.Toggle('lineBreaks')"
+            :toggle-horizontal-scroll="() => GlobalStateHelpers.Logs.Toggle('lineBreaks')"
             :select-all-logs="selectAllText"
           />
         </div>

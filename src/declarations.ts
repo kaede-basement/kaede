@@ -21,8 +21,8 @@ import type {
   GlobalStatesChangerType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { LocaleType } from "@/types/application/locale.type.ts";
+import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 
 declare global {
 

@@ -6,7 +6,7 @@ function getGlobalStates(): GlobalStatesType {
   return window[ApplicationNamespace].functions.getGlobalStates();
 }
 
-export const LayoutStateHelper = {
+const Layout = {
   "Toggle": (state?: boolean): void => {
     const layout = getGlobalStates().layout;
 
@@ -17,7 +17,7 @@ export const LayoutStateHelper = {
   },
 };
 
-export const PagesStateHelper = {
+const Pages = {
   "Navigate": (path: RouteType): void => {
     const pages = getGlobalStates().pages;
 
@@ -65,7 +65,7 @@ export const PagesStateHelper = {
   },
 };
 
-export const LogsStateHelper = {
+const Logs = {
   "Toggle": <Key extends keyof GlobalStatesType["logs"]>(
     key: Key,
     state?: boolean,
@@ -83,4 +83,10 @@ export const LogsStateHelper = {
 
     window[ApplicationNamespace].functions.changeGlobalStates("logs", newLogs);
   },
+};
+
+export default {
+  Layout,
+  Pages,
+  Logs,
 };
