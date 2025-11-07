@@ -100,8 +100,11 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
+      - name: Run TypeScript checks
+        run: bun run typecheck
+
       - name: Run ESLint
-        run: bun lint
+        run: bun run lint
 
       - name: Run Vitest
         run: bun run test
