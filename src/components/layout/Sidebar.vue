@@ -91,7 +91,7 @@ function handleButtonAction(action: () => void): void {
   <div id="__sidebar__space-placeholder" class="h-full w-20 shrink-0"></div>
   <div
     id="__sidebar__hovering-tooltip"
-    class="absolute left-20 top-2 z-49000 w-fit transform-gpu select-none rounded-md bg-neutral-950 p-2 leading-none transition-[transform,opacity]"
+    class="pointer-events-none absolute left-20 top-2 z-49000 w-fit transform-gpu select-none rounded-md bg-neutral-950 p-2 leading-none transition-[transform,opacity]"
     :style="{
       transform: `translateY(${tooltip.top}px)`,
       opacity  : tooltip.show ? 1 : 0,
