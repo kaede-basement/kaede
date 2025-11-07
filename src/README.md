@@ -9,8 +9,8 @@ Let me explain the file structure.
 ### Top-level files
 
 - `App.vue` is the Vue entry point file.
-  - Code-side, it contains a single `shallowReactive` object that has almost all application states. Gathering application states in a single big `shallowReactive` object is a bad practice, but in this case it allows for extension hooks to have stable, predictable behaviour. With this approach, we also do not need to use `pinia` for global stores.
-  - HTML-side, it contains application's layout with error boundaries.
+  - Code-wise, it contains a single `shallowReactive` object that has almost all application states. Gathering application states in a single big `shallowReactive` object is a bad practice, but in this case it allows for extension hooks to have stable, predictable behaviour. With this approach, we also do not need to use `pinia` for global stores.
+  - HTML-wise, it contains application's layout with error boundaries.
 - `declarations.ts` contain the `window` type definitions. Otherwise, TypeScript will not know about the custom `window.__KAEDE__` object.
 - `globals.css` contain global CSS styles that are not possible or not convenient to write using the UnoCSS.
 - `main.ts` is the main entry point file. It contains all initialization code and imports CSS styles. This code will be executed the first when the webview will be loaded.

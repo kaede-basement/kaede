@@ -4,10 +4,12 @@ import { log } from "@/lib/handlers/log.ts";
 import { extractError } from "@/lib/helpers/extract-error.ts";
 import { PagesStateHelper } from "@/lib/helpers/global-state-helpers.ts";
 import { getConfigFile } from "@/lib/main/get-config-file.ts";
-import { getDefaultGlobalStates } from "@/lib/main/get-default-global-states.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
-export async function getConfigGlobalStates(): Promise<GlobalStatesType> {
+// TODO: make 'getConfigFile' have the same structure as global states so we can just spread it
+export async function getConfigGlobalStates(
+  defaultGlobalStates: GlobalStatesType,
+): Promise<GlobalStatesType> {
   let currentConfigFile;
 
   try {
@@ -15,17 +17,21 @@ export async function getConfigGlobalStates(): Promise<GlobalStatesType> {
   } catch (error: unknown) {
     log.error("Failed to get a config file:", JSON.stringify(extractError(error)));
 
-    return getDefaultGlobalStates();
+    return defaultGlobalStates;
   }
 
   return {
+    ...defaultGlobalStates,
     "locale": currentConfigFile.locale,
     "layout": {
+      ...defaultGlobalStates.layout,
       "custom": false,
     },
     "pages": {
+      ...defaultGlobalStates.pages,
       "current": Routes.Home,
       "states" : {
+        ...defaultGlobalStates.pages.states,
         "home"        : {},
         "library"     : {},
         "settings"    : { "tab": "extensions" },
@@ -34,6 +40,7 @@ export async function getConfigGlobalStates(): Promise<GlobalStatesType> {
       },
     },
     "logs": {
+      ...defaultGlobalStates.logs,
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,

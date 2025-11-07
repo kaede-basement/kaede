@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onErrorCaptured, ref, watchEffect } from "vue";
 
-import { log } from "@/lib/handlers/log.ts";
 import { extractError } from "@/lib/helpers/extract-error.ts";
+import { handleErrorCapture } from "@/lib/helpers/handle-error-capture.ts";
 
 const { resetKey } = defineProps<{
   "resetKey"?: string;
@@ -11,31 +11,20 @@ const currentError = ref<ReturnType<typeof extractError> | undefined>(undefined)
 
 // Listen for errors
 onErrorCaptured((error: Error) => {
-  const extractedError = extractError(error);
-
-  log.error(
-    "A global error was captured:",
-    extractedError.name + ":",
-    extractedError.message + ";",
-    "Stack:",
-    extractedError.stack,
-  );
-  currentError.value = extractedError;
+  currentError.value = handleErrorCapture(error);
 
   // Prevent error from bubbling further
   return false;
 });
 
 // Provide an error
-const slotProperties = computed(() => {
-  if (!currentError.value) {
-    return {};
-  }
-
-  return { currentError };
-});
+const slotProperties = computed(() => (
+  currentError.value ? { currentError } : {}
+));
 // Show the 'error' template if there is an error
-const slotName = computed(() => (currentError.value ? "error" : "default"));
+const slotName = computed(() => (
+  currentError.value ? "error" : "default"
+));
 
 watchEffect(() => {
   if (resetKey) {

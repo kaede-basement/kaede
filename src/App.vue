@@ -19,7 +19,9 @@ import type {
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 
-/* These components will load only when needed */
+/**
+ * These components will load only when needed.
+ */
 const LogViewer = defineAsyncComponent(
   () => import("@/components/logging/LogViewer.vue"),
 );
@@ -27,31 +29,67 @@ const ExtensionLoader = defineAsyncComponent(
   () => import("@/components/extensions/ExtensionLoader.vue"),
 );
 
+/**
+ * Contains all global application states.
+ *
+ * Gathering everything in one big 'shallowReactive' state
+ * is considered to be a bad practice.
+ *
+ * But I believe that in extensible applications this is the best approach to:
+ * - make extension hooks have an expected behaviour;
+ * - not lose state values across application;
+ * - simplify bidirectional state access between the application and extensions;
+ */
 const globalStates = shallowReactive<GlobalStatesType>(getDefaultGlobalStates());
 
-function getGlobalStates(): ContextGlobalStatesType {
+/**
+ * Returns a reference to the proxied object of global states.
+ */
+function getGlobalStates(): GlobalStatesType {
   return globalStates;
 }
-function setGlobalState<Key extends keyof GlobalStatesType>(
+
+/**
+ * Replaces a specified field in the global states with the provided value.
+ */
+function __setGlobalState<Key extends keyof GlobalStatesType>(
   key: Key,
   value: GlobalStatesType[Key],
 ): void {
   globalStates[key] = value;
 }
+
+/**
+ * Changes a specified field in the global states with the provided value
+ * while handling all attached hooks.
+ */
 function scopedChangeGlobalStates<Key extends keyof GlobalStatesType>(
   key: Key,
   value: GlobalStatesType[Key],
 ): void {
-  changeGlobalState(key, value, setGlobalState);
+  changeGlobalState(key, value, __setGlobalState);
 }
 
+/**
+ * Provides a reference to the instance-reactive global states for all instance children.
+ */
 provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
 
+/**
+ * Provides a reference to the function that returns a reference to the global states object.
+ */
 window[ApplicationNamespace].functions.getGlobalStates = getGlobalStates;
+
+/**
+ * Provides a reference to the function that changes the value of a global states field.
+ */
 window[ApplicationNamespace].functions.changeGlobalStates = scopedChangeGlobalStates;
 
+/**
+ * Applies user config values to the global states.
+ */
 onMounted(async () => {
-  const userConfig = await getConfigGlobalStates();
+  const userConfig = await getConfigGlobalStates(globalStates);
 
   for (const [key, value] of Object.entries(userConfig)) {
     globalStates[key as "locale"] = value as GlobalStatesType["locale"];
