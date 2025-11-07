@@ -10,8 +10,8 @@ import LogEntry from "@/components/logging/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
-import { log } from "@/lib/log/scopes/log.ts";
-import GlobalStateHelpers from "@/lib/helpers/global-state-helpers.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
@@ -48,10 +48,10 @@ const charactersPerLine = Math.ceil(virtualScrollContainerTextWidth / 8);
 const nodeLineSize = 20;
 
 function showContextMenu(event: MouseEvent): void {
-  window[ApplicationNamespace].functions.showContextMenu(event);
+  window[ApplicationNamespace].libs.ContextMenu.show(event);
 }
 function closeLogViewer(): void {
-  GlobalStateHelpers.Logs.Toggle("show", false);
+  GlobalStateHelpers.Logs.toggle("show", false);
 }
 function getNodeHeight(node: string): number {
   if (node.length === 0 || !globalStates?.logs?.lineBreaks) {
@@ -90,7 +90,7 @@ async function toggleVirtualization(): Promise<void> {
     }
   }
 
-  GlobalStateHelpers.Logs.Toggle("virtualized");
+  GlobalStateHelpers.Logs.toggle("virtualized");
 }
 function selectAllText(): void {
   const logsContainer = nonVirtualList.value?.nonVirtualizedLogsTarget;
@@ -132,7 +132,7 @@ onMounted(async () => {
   // If the log file is big (>=32 KBs), open it with the virtualized list
   if (existingLogs.length >= 32_768) {
     log.debug(`Log file is too big (${existingLogs.length} bytes), using a virtualized list`);
-    GlobalStateHelpers.Logs.Toggle("virtualized", true);
+    GlobalStateHelpers.Logs.toggle("virtualized", true);
   }
 
   const filesize = (existingLogs.length / (1024 * 1024)).toFixed(3);
@@ -185,7 +185,7 @@ onMounted(async () => {
             :should-virtualize="globalStates?.logs?.virtualized === true"
             :toggle-should-virtualize="toggleVirtualization"
             :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
-            :toggle-horizontal-scroll="() => GlobalStateHelpers.Logs.Toggle('lineBreaks')"
+            :toggle-horizontal-scroll="() => GlobalStateHelpers.Logs.toggle('lineBreaks')"
             :select-all-logs="selectAllText"
           />
         </div>

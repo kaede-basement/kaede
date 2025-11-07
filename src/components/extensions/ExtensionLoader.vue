@@ -22,7 +22,7 @@ const Huh = defineAsyncComponent(async () => {
   try {
     element = await mf.loadRemote("remote1") as { "MyButton": unknown };
   } catch {
-    console.log("Error loading Remote");
+    // | console.log("Error loading Remote");
   }
 
   return {
@@ -30,10 +30,10 @@ const Huh = defineAsyncComponent(async () => {
   };
 });
 
-console.log(Huh);
+// | console.log(Huh);
 </script>
 
 <template>
   <div id="__extension-loader__wrapper"></div>
-  <!-- Huh -->
+  <Huh />
 </template>

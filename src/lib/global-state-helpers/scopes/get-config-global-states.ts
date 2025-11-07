@@ -1,10 +1,10 @@
 import { ContextMenuItems } from "@/constants/application.ts";
 import { RouteItems, Routes } from "@/constants/routes.ts";
-import { log } from "@/lib/log/scopes/log.ts";
-import { extractError } from "@/lib/helpers/extract-error.ts";
 import { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
-import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import Errors from "@/lib/errors";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
+import { log } from "@/lib/logging/scopes/log.ts";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 // TODO: make 'getConfigFile' have the same structure as global states so we can just spread it
 export async function getConfigGlobalStates(
@@ -15,7 +15,7 @@ export async function getConfigGlobalStates(
   try {
     currentConfigFile = await getConfigFile();
   } catch (error: unknown) {
-    log.error("Failed to get a config file:", JSON.stringify(extractError(error)));
+    log.error("Failed to get a config file:", JSON.stringify(Errors.extract(error)));
 
     return defaultGlobalStates;
   }
@@ -51,7 +51,7 @@ export async function getConfigGlobalStates(
           "path"  : item.Path,
           "icon"  : item.Icon,
           "name"  : item.Path,
-          "action": (): void => GlobalStateHelpers.Pages.Navigate(item.Path),
+          "action": (): void => GlobalStateHelpers.Pages.navigate(item.Path),
         };
       }),
       "divider",
@@ -59,7 +59,7 @@ export async function getConfigGlobalStates(
         "path"  : Routes.AddInstance,
         "icon"  : "i-lucide-plus",
         "name"  : Routes.AddInstance,
-        "action": (): void => GlobalStateHelpers.Pages.Navigate(Routes.AddInstance),
+        "action": (): void => GlobalStateHelpers.Pages.navigate(Routes.AddInstance),
       },
     ],
     "contextMenuItems": [...ContextMenuItems],

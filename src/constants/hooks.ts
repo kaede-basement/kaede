@@ -7,3 +7,8 @@ export const HookMappings = {
   "contextMenuItems": "onContextMenuItemsChange",
 } as const;
 export const HookMappingKeys = Object.keys(HookMappings) as Array<keyof typeof HookMappings>;
+
+export const HookResponseStatus = {
+  "Stop"    : "stop",
+  "Continue": "continue",
+} as const;

@@ -1,8 +1,8 @@
 import { BaseDirectory, writeFile } from "@tauri-apps/plugin-fs";
 
-import { ConfigFilename } from "@/constants/application.ts";
-import { log } from "@/lib/log/scopes/log.ts";
+import { FileStructure } from "@/constants/file-structure.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 
 export async function initializeConfigFile(): Promise<void> {
   log.debug("Getting default config");
@@ -20,7 +20,7 @@ export async function initializeConfigFile(): Promise<void> {
   ));
 
   log.debug("Writing the encoded config file");
-  await writeFile(ConfigFilename, data, {
+  await writeFile(FileStructure.Config.Name, data, {
     "baseDir": BaseDirectory.AppData,
   });
 }

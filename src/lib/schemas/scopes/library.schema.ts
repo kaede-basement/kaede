@@ -1,5 +1,4 @@
 import Type from "typebox";
-import { Compile } from "typebox/compile";
 
 import { DownloadSchema } from "@/lib/schemas/scopes/download.schema.ts";
 import { LibraryRuleSchema } from "@/lib/schemas/scopes/library-rule.schema.ts";
@@ -12,4 +11,3 @@ export const LibrarySchema = Type.Object({
     "exclude": Type.Any(),
   })),
 });
-export const LibraryValidator = Compile(LibrarySchema);

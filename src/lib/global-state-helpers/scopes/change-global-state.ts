@@ -1,7 +1,7 @@
 import { nextTick } from "vue";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
-import { HookMappings } from "@/constants/mappings.ts";
+import { HookMappings } from "@/constants/hooks.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { ExtensionStatusType } from "@/types/extensions/hook-return.type.ts";

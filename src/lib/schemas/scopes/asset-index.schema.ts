@@ -1,5 +1,4 @@
 import Type from "typebox";
-import { Compile } from "typebox/compile";
 
 export const AssetIndexSchema = Type.Object({
   "id"       : Type.String(),
@@ -8,4 +7,3 @@ export const AssetIndexSchema = Type.Object({
   "totalSize": Type.Number(),
   "url"      : Type.String(),
 });
-export const AssetIndexValidator = Compile(AssetIndexSchema);

@@ -1,10 +1,9 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
-import { getGlobalStates } from "@/lib/global-state-helpers/scopes/get-global-states.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 
 function toggle(state?: boolean): void {
-  const layout = getGlobalStates().layout;
+  const layout = GlobalStateHelpers.get().layout;
 
-  window[ApplicationNamespace].functions.changeGlobalStates("layout", {
+  GlobalStateHelpers.change("layout", {
     ...layout,
     "custom": state ?? !layout.custom,
   });

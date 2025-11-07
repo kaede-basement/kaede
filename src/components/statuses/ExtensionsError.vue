@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, type Ref } from "vue";
 
-import type { extractError } from "@/lib/helpers/extract-error.ts";
+import type { NativeErrorType } from "@/types/application/error-handling.type.ts";
 
 const { error } = defineProps<{
   "error": Ref<
-    ReturnType<typeof extractError> | undefined,
-    ReturnType<typeof extractError> | undefined
+    NativeErrorType | undefined,
+    NativeErrorType | undefined
   > | undefined;
 }>();
-const information = computed((): ReturnType<typeof extractError> => {
+const information = computed((): NativeErrorType => {
   return {
-    "name"   : error?.value?.name ?? "Unknown",
-    "message": error?.value?.message ?? "no message provided",
-    "stack"  : error?.value?.stack ?? "No stacktrace?",
+    "name"   : error?.value?.name || "Unknown",
+    "message": error?.value?.message || "no message provided",
+    "stack"  : error?.value?.stack || "No stacktrace?",
   };
 });
 </script>

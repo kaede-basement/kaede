@@ -1,12 +1,11 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
-import { getGlobalStates } from "@/lib/global-state-helpers/scopes/get-global-states.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 function toggle<Key extends keyof GlobalStatesType["logs"]>(
   key: Key,
   state?: boolean,
 ): void {
-  const logs = getGlobalStates().logs;
+  const logs = GlobalStateHelpers.get().logs;
 
   if (typeof logs[key] !== "boolean") {
     return;
@@ -17,7 +16,7 @@ function toggle<Key extends keyof GlobalStatesType["logs"]>(
     [key]: state ?? !logs[key],
   };
 
-  window[ApplicationNamespace].functions.changeGlobalStates("logs", newLogs);
+  GlobalStateHelpers.change("logs", newLogs);
 }
 
 export const Logs = {

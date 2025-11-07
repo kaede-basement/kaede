@@ -1,5 +1,4 @@
 import { Type } from "typebox";
-import { Compile } from "typebox/compile";
 
 export const ConfigSchema = Type.Object({
   "__do_not_touch_VERSION": Type.Number(),
@@ -21,4 +20,3 @@ export const ConfigSchema = Type.Object({
   "minecraftWindowHeight": Type.Number(),
   "minecraftWindowWidth" : Type.Number(),
 });
-export const ConfigValidator = Compile(ConfigSchema);

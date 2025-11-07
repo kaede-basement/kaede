@@ -1,5 +1,4 @@
 import Type from "typebox";
-import { Compile } from "typebox/compile";
 
 export const VersionManifestSchema = Type.Object({
   "latest": Type.Object({
@@ -21,4 +20,3 @@ export const VersionManifestSchema = Type.Object({
     }),
   ),
 });
-export const VersionManifestValidator = Compile(VersionManifestSchema);

@@ -8,11 +8,6 @@ export const ApplicationRootID = "#app";
 
 export const GlobalStatesContextKey = Symbol();
 
-export const ExtensionResponseStatus = {
-  "Stop"    : "stop",
-  "Continue": "continue",
-} as const;
-
 export const ContextMenuItems = [
   {
     "name"  : "Restart UI",
@@ -29,6 +24,7 @@ export const ContextMenuItems = [
   },
 ] as const;
 
+// TODO: remove these
 export const TreeResources = `${BaseDirectory.AppData}/resources`;
 export const TreeAssets = `${TreeResources}/assets`;
 export const TreeAssetObjects = `${TreeAssets}/objects`;

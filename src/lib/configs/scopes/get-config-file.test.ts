@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 
-import type { ConfigType } from "@/lib/schemas/config/config.schema.ts";
+import type { ConfigType } from "@/types/application/config.type.ts";
 
 const defaultConfig: ConfigType = {
   "__do_not_touch_VERSION": 1,

@@ -44,8 +44,8 @@ function showContextMenu(event: MouseEvent): void {
   contextMenu.value.y = event.clientY;
 }
 
-window[ApplicationNamespace].functions.showContextMenu = showContextMenu;
-window[ApplicationNamespace].functions.closeContextMenu = closeContextMenu;
+window[ApplicationNamespace].libs.ContextMenu.show = showContextMenu;
+window[ApplicationNamespace].libs.ContextMenu.close = closeContextMenu;
 
 useEventListener(window, "mousedown", (event: MouseEvent) => {
   const target = event.target as HTMLElement;

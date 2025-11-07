@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, onErrorCaptured, ref, watchEffect } from "vue";
 
-import { extractError } from "@/lib/helpers/extract-error.ts";
-import { handleErrorCapture } from "@/lib/helpers/handle-error-capture.ts";
+import Errors from "@/lib/errors";
+import type { NativeErrorType } from "@/types/application/error-handling.type.ts";
 
 const { resetKey } = defineProps<{
   "resetKey"?: string;
 }>();
-const currentError = ref<ReturnType<typeof extractError> | undefined>(undefined);
+const currentError = ref<NativeErrorType | undefined>(undefined);
 
 // Listen for errors
 onErrorCaptured((error: Error) => {
-  currentError.value = handleErrorCapture(error);
+  currentError.value = Errors.handleCapture(error);
 
   // Prevent error from bubbling further
   return false;

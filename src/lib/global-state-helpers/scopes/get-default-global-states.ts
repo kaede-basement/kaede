@@ -30,7 +30,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
           "path"  : item.Path,
           "icon"  : item.Icon,
           "name"  : item.Path,
-          "action": (): void => GlobalStateHelpers.Pages.Navigate(item.Path),
+          "action": (): void => GlobalStateHelpers.Pages.navigate(item.Path),
         };
       }),
       "divider",
@@ -38,7 +38,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
         "path"  : Routes.AddInstance,
         "icon"  : "i-lucide-plus",
         "name"  : Routes.AddInstance,
-        "action": (): void => GlobalStateHelpers.Pages.Navigate(Routes.AddInstance),
+        "action": (): void => GlobalStateHelpers.Pages.navigate(Routes.AddInstance),
       },
     ],
     "contextMenuItems": [...ContextMenuItems],

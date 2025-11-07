@@ -89,6 +89,7 @@ export default defineConfigWithVueTs(
 
       /* ESLint */
       "capitalized-comments": ["warn", "always"],
+      "no-console"          : "warn",
 
       /* Simple Import Sort */
       "simple-import-sort/imports": "warn",

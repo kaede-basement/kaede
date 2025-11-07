@@ -1,5 +1,4 @@
-import Type, { type Static } from "typebox";
-import { Compile } from "typebox/compile";
+import Type from "typebox";
 
 import { ArgumentSchema } from "@/lib/schemas/scopes/argument.schema.ts";
 import { ArtifactSchema } from "@/lib/schemas/scopes/artifact.schema.ts";
@@ -26,6 +25,3 @@ export const VersionMetaModernSchema = Type.Object({
   "javaVersion": JavaVersionSchema,
   "logging"    : LoggingSchema,
 });
-
-export type VersionMetaModernType = Static<typeof VersionMetaModernSchema>;
-export const VersionMetaModernValidator = Compile(VersionMetaModernSchema);

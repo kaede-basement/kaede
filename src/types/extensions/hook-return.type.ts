@@ -1,6 +1,6 @@
-import { ExtensionResponseStatus } from "@/constants/application.ts";
+import type { HookResponseStatus } from "@/constants/hooks.ts";
 
-type ExtensionResponseStatusType = typeof ExtensionResponseStatus;
+type ExtensionResponseStatusType = typeof HookResponseStatus;
 
 export type ExtensionStatusType = ExtensionResponseStatusType[keyof ExtensionResponseStatusType];
 export type ExtensionHookResponseType<ResponseType> = ResponseType extends "nothing" ? void : {

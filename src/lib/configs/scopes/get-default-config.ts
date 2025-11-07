@@ -1,8 +1,8 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
-import { log } from "@/lib/log/scopes/log.ts";
-import type { ConfigType } from "@/lib/schemas/config/config.schema.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
+import type { ConfigType } from "@/types/application/config.type.ts";
 
 export async function getDefaultConfig(): Promise<ConfigType> {
   const hooksArray = window[ApplicationNamespace].hooks.getDefaultConfig.before;

@@ -1,12 +1,11 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
-import { getGlobalStates } from "@/lib/global-state-helpers/scopes/get-global-states.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 
 const navigate = (path: RouteType): void => {
-  const pages = getGlobalStates().pages;
+  const pages = GlobalStateHelpers.get().pages;
 
-  window[ApplicationNamespace].functions.changeGlobalStates("pages", {
+  GlobalStateHelpers.change("pages", {
     ...pages,
     "current": path,
   });
@@ -14,16 +13,16 @@ const navigate = (path: RouteType): void => {
 const getState = <Key extends keyof GlobalStatesType["pages"]["states"]>(
   key: Key,
 ): GlobalStatesType["pages"]["states"][Key] => {
-  return getGlobalStates().pages.states[key];
+  return GlobalStateHelpers.get().pages.states[key];
 };
 const getAllStates = (): GlobalStatesType["pages"]["states"] => {
-  return getGlobalStates().pages.states;
+  return GlobalStateHelpers.get().pages.states;
 };
 const addToState = <Key extends keyof GlobalStatesType["pages"]["states"]>(
   key: Key,
   value: GlobalStatesType["pages"]["states"][Key],
 ): void => {
-  const pages = getGlobalStates().pages;
+  const pages = GlobalStateHelpers.get().pages;
   const newStates = { ...pages.states };
 
   newStates[key] = {
@@ -31,7 +30,7 @@ const addToState = <Key extends keyof GlobalStatesType["pages"]["states"]>(
     ...value,
   };
 
-  window[ApplicationNamespace].functions.changeGlobalStates("pages", {
+  GlobalStateHelpers.change("pages", {
     ...pages,
     "states": newStates,
   });
@@ -40,10 +39,10 @@ const replaceState = <Key extends keyof GlobalStatesType["pages"]["states"]>(
   key: Key,
   value: GlobalStatesType["pages"]["states"][Key],
 ): void => {
-  const pages = getGlobalStates().pages;
+  const pages = GlobalStateHelpers.get().pages;
   const newStates = { ...pages.states, [key]: value };
 
-  window[ApplicationNamespace].functions.changeGlobalStates("pages", {
+  GlobalStateHelpers.change("pages", {
     ...pages,
     "states": newStates,
   });
