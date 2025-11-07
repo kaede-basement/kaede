@@ -118,7 +118,7 @@ function handleButtonAction(action: () => void): void {
         <button
           v-if="item !== 'divider'"
           :id="`__sidebar__entry-${item.icon}-button`"
-          :disabled="item.path === globalStates?.page"
+          :disabled="item.path === globalStates?.pages?.current"
           @mousedown="() => handleButtonAction(item.action)"
           @touchstart="() => handleButtonAction(item.action)"
           @click="() => handleButtonAction(item.action)"

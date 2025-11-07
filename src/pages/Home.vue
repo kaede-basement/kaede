@@ -1,11 +1,6 @@
 <script setup lang="ts">
-import { inject } from "vue";
-
 import PageWrapper from "@/components/layout/PageWrapper.vue";
-import { GlobalStatesChangerContextKey } from "@/constants/application.ts";
-import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
-
-const changeGlobalState = inject<GlobalStatesChangerType>(GlobalStatesChangerContextKey);
+import { PagesStateHelper } from "@/lib/helpers/global-state-helpers.ts";
 
 async function download(): Promise<void> {}
 async function run(): Promise<void> {}
@@ -17,7 +12,7 @@ async function run(): Promise<void> {}
       <div id="__home-page__title w-fit">
         Home
       </div>
-      <button id="__home-page__navigate-button" class="w-fit" @click="() => changeGlobalState?.('page', 'library')">
+      <button id="__home-page__navigate-button" class="w-fit" @click="() => PagesStateHelper.Navigate('library')">
         Navigate to About
       </button>
       <button id="__home-page__download-button" class="w-fit" @click="download">uh, download</button>

@@ -21,7 +21,6 @@ import type {
   GlobalStatesChangerType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import type { RouteType } from "@/types/application/route.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 
 declare global {
@@ -105,29 +104,45 @@ declare global {
           "before": HookReturnType<unknown, ConfigType>;
           "after" : HookReturnType<ConfigType, ConfigType>;
         };
-        "onRouteChange": {
-          "before": HookReturnType<RouteType, RouteType, "non-promise">;
-          "after" : HookReturnType<unknown, "nothing">;
+        "onLayoutChange": {
+          "before": HookReturnType<
+            GlobalStatesType["layout"],
+            GlobalStatesType["layout"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["layout"], "nothing">;
         };
-        "onCustomLayoutToggle": {
-          "before": HookReturnType<boolean, boolean, "non-promise">;
-          "after" : HookReturnType<unknown, "nothing">;
+        "onPagesChange": {
+          "before": HookReturnType<
+            GlobalStatesType["pages"],
+            GlobalStatesType["pages"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["pages"], "nothing">;
         };
-        "onPageStatesChange": {
-          "before": HookReturnType<unknown, unknown, "non-promise">;
-          "after" : HookReturnType<RouteType, "nothing">;
-        };
-        "onLogViewerToggle": {
-          "before": HookReturnType<unknown, unknown, "non-promise">;
-          "after" : HookReturnType<unknown, "nothing">;
+        "onLogsChange": {
+          "before": HookReturnType<
+            GlobalStatesType["logs"],
+            GlobalStatesType["logs"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["logs"], "nothing">;
         };
         "onSidebarItemsChange": {
-          "before": HookReturnType<unknown, unknown, "non-promise">;
-          "after" : HookReturnType<unknown, "nothing">;
+          "before": HookReturnType<
+            GlobalStatesType["sidebarItems"],
+            GlobalStatesType["sidebarItems"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["sidebarItems"], "nothing">;
         };
         "onContextMenuItemsChange": {
-          "before": HookReturnType<unknown, unknown, "non-promise">;
-          "after" : HookReturnType<unknown, "nothing">;
+          "before": HookReturnType<
+            GlobalStatesType["contextMenuItems"],
+            GlobalStatesType["contextMenuItems"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["contextMenuItems"], "nothing">;
         };
       };
     };

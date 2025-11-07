@@ -1,8 +1,7 @@
 export const HookMappings = {
-  "customLayout"    : "onCustomLayoutToggle",
-  "page"            : "onRouteChange",
-  "pageStates"      : "onPageStatesChange",
-  "showLogs"        : "onLogViewerToggle",
+  "layout"          : "onLayoutChange",
+  "pages"           : "onPagesChange",
+  "logs"            : "onLogsChange",
   "sidebarItems"    : "onSidebarItemsChange",
   "contextMenuItems": "onContextMenuItemsChange",
 } as const;

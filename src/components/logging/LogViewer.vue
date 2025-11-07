@@ -2,16 +2,16 @@
 import { join } from "@tauri-apps/api/path";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
-import { inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
+import { onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
 import LogControls from "@/components/logging/LogControls.vue";
 import LogEntry from "@/components/logging/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
-import { ApplicationNamespace, GlobalStatesChangerContextKey } from "@/constants/application.ts";
+import { ApplicationNamespace } from "@/constants/application.ts";
 import { log } from "@/lib/handlers/log.ts";
-import type { GlobalStatesChangerType } from "@/types/application/global-states.type.ts";
+import { LogsStateHelper } from "@/lib/helpers/global-state-helpers.ts";
 
 const virtualList = useTemplateRef("virtualList");
 const nonVirtualList = useTemplateRef("nonVirtualList");
@@ -26,8 +26,6 @@ const fileData = ref<{
 const searching = ref<string>("");
 // A key that re-renders virtualized list on every log viewer reopen
 const mountedKey = ref<number>(Math.random());
-
-const changeGlobalStates = inject<GlobalStatesChangerType>(GlobalStatesChangerContextKey);
 
 // We do not care about window size changes here, since user can just reopen log viewer
 const windowHeight = window.innerHeight;
@@ -52,7 +50,7 @@ function showContextMenu(event: MouseEvent): void {
   window[ApplicationNamespace].functions.showContextMenu(event);
 }
 function closeLogViewer(): void {
-  changeGlobalStates?.("showLogs", false);
+  LogsStateHelper.Toggle("show", false);
 }
 function getNodeHeight(node: string): number {
   if (node.length === 0 || horizontalScroll.value) {

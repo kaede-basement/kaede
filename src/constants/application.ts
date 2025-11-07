@@ -1,11 +1,12 @@
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
 
+import { LogsStateHelper } from "@/lib/helpers/global-state-helpers.ts";
+
 export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
 export const ApplicationRootID = "#app";
 
 export const GlobalStatesContextKey = Symbol();
-export const GlobalStatesChangerContextKey = Symbol();
 
 export const ExtensionResponseStatus = {
   "Stop"    : "stop",
@@ -22,7 +23,7 @@ export const ContextMenuItems = [
     "name"  : "Show Logs",
     "icon"  : "i-lucide-bug",
     "action": (): void => {
-      window[ApplicationNamespace].functions.changeGlobalStates("showLogs", true);
+      LogsStateHelper.Toggle("show", true);
       window[ApplicationNamespace].functions.closeContextMenu();
     },
   },

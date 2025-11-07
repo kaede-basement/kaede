@@ -2,23 +2,56 @@ import type { ShallowReactive } from "vue";
 
 import type { RouteType } from "@/types/application/route.type.ts";
 
+export type GlobalStatesLayoutType = {
+  "custom": boolean;
+};
+export type GlobalStatesPagesType = {
+  "current": RouteType;
+  "states" : {
+    "home": Partial<{
+      // TODO: none / short / detailed
+      "stats": unknown;
+    }>;
+    "library": Partial<{
+      // TODO: instance list groups
+      "group": unknown;
+    }>;
+    "settings": Partial<{
+      // TODO: general / extensions / etc.
+      "tab": unknown;
+    }>;
+    "add-instance": Partial<{
+      // TODO: modrinth / curseforge / etc.
+      "provider": unknown;
+    }>;
+    // Reserved for extensions' needs
+    "none": Record<string, unknown>;
+  };
+};
+export type GlobalStatesLogsType = {
+  "show"       : boolean;
+  "lineBreaks" : boolean;
+  "virtualized": boolean;
+};
+export type GlobalStatesSidebarItemsType = Array<"divider" | {
+  "path"  : RouteType;
+  "name"  : string;
+  "action": () => void;
+  "icon" ?: string;
+  "image"?: string;
+}>;
+export type GlobalStatesContextMenuItems = Array<{
+  "icon"  : string;
+  "name"  : string;
+  "action": () => void;
+}>;
+
 export type GlobalStatesType = {
-  "customLayout": boolean;
-  "page"        : RouteType;
-  "pageStates"  : Record<RouteType, object>;
-  "showLogs"    : boolean;
-  "sidebarItems": Array<"divider" | {
-    "path"  : RouteType;
-    "name"  : string;
-    "action": () => void;
-    "icon" ?: string;
-    "image"?: string;
-  }>;
-  "contextMenuItems": Array<{
-    "icon"  : string;
-    "name"  : string;
-    "action": () => void;
-  }>;
+  "layout"          : GlobalStatesLayoutType;
+  "pages"           : GlobalStatesPagesType;
+  "logs"            : GlobalStatesLogsType;
+  "sidebarItems"    : GlobalStatesSidebarItemsType;
+  "contextMenuItems": GlobalStatesContextMenuItems;
 };
 export type GlobalStatesChangerType = <Key extends keyof GlobalStatesType>(
   key  : Key,

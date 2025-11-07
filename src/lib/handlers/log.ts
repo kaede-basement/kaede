@@ -2,8 +2,7 @@ import { debug, error, info, warn } from "@tauri-apps/plugin-log";
 
 /*
  * We do not care about promises here
- * Yeah, that can lead to racing conditions...
- * TODO: batch these log operations maybe?
+ * Yeah, that can possibly lead to racing conditions...
  */
 export const log = {
   "debug": (...input: string[]): void => {

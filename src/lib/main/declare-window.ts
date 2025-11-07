@@ -47,19 +47,15 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
-      "onRouteChange": {
+      "onPagesChange": {
         "before": [],
         "after" : [],
       },
-      "onCustomLayoutToggle": {
+      "onLayoutChange": {
         "before": [],
         "after" : [],
       },
-      "onPageStatesChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onLogViewerToggle": {
+      "onLogsChange": {
         "before": [],
         "after" : [],
       },
