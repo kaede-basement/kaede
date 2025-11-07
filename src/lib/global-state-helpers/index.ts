@@ -8,10 +8,14 @@ import {
 import { Layout } from "@/lib/global-state-helpers/scopes/layout.ts";
 import { Logs } from "@/lib/global-state-helpers/scopes/logs.ts";
 import { Pages } from "@/lib/global-state-helpers/scopes/pages.ts";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export default {
-  "get"          : window[ApplicationNamespace].__internals.getGlobalStates,
-  "change"       : window[ApplicationNamespace].__internals.changeGlobalStates,
+  "get"   : () => window[ApplicationNamespace].__internals.getGlobalStates(),
+  "change": <Key extends keyof GlobalStatesType>(
+    key: Key,
+    value: GlobalStatesType[Key],
+  ): void => window[ApplicationNamespace].__internals.changeGlobalStates(key, value),
   "getFromConfig": getConfigGlobalStates,
   "getDefault"   : getDefaultGlobalStates,
   Layout,

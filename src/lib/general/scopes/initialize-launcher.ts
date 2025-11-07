@@ -1,7 +1,6 @@
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
-import { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
-import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
+import Configs from "@/lib/configs";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
@@ -10,11 +9,11 @@ export async function initializeLauncher(): Promise<void> {
 
   try {
     log.debug("Getting a config file");
-    config = await getConfigFile();
+    config = await Configs.get();
   } catch (error: unknown) {
     log.error("Failed to get a config file:", JSON.stringify(error));
     log.debug("Getting default config");
-    config = await getDefaultConfig();
+    config = await Configs.getDefault();
   }
 
   log.info(JSON.stringify(config));
