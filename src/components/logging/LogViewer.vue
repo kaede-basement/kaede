@@ -2,23 +2,24 @@
 import { join } from "@tauri-apps/api/path";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
-import { onMounted, ref, shallowRef, useTemplateRef } from "vue";
+import { inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
 import LogControls from "@/components/logging/LogControls.vue";
 import LogEntry from "@/components/logging/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
 import { log } from "@/lib/handlers/log.ts";
 import { LogsStateHelper } from "@/lib/helpers/global-state-helpers.ts";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const virtualList = useTemplateRef("virtualList");
 const nonVirtualList = useTemplateRef("nonVirtualList");
 
 const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
-const shouldVirtualize = ref<boolean>(false);
-const horizontalScroll = ref<boolean>(false);
 const fileData = ref<{
   "size": string | undefined;
   "time": string | undefined;
@@ -53,7 +54,7 @@ function closeLogViewer(): void {
   LogsStateHelper.Toggle("show", false);
 }
 function getNodeHeight(node: string): number {
-  if (node.length === 0 || horizontalScroll.value) {
+  if (node.length === 0 || !globalStates?.logs?.lineBreaks) {
     return nodeLineSize;
   }
 
@@ -74,7 +75,7 @@ function searchLogs(search: string): Array<number> {
   return found;
 }
 async function toggleVirtualization(): Promise<void> {
-  if (shouldVirtualize.value && logs.value.length >= 512) {
+  if (globalStates?.logs?.virtualized && logs.value.length >= 512) {
     const answer = await ask(
       "Virtualization was enabled because your log file is big. " +
       "Disabling it may freeze your launcher for a bit. Do you want to disable virtualization?",
@@ -89,7 +90,7 @@ async function toggleVirtualization(): Promise<void> {
     }
   }
 
-  shouldVirtualize.value = !shouldVirtualize.value;
+  LogsStateHelper.Toggle("virtualized");
 }
 function selectAllText(): void {
   const logsContainer = nonVirtualList.value?.nonVirtualizedLogsTarget;
@@ -131,7 +132,7 @@ onMounted(async () => {
   // If the log file is big (>=32 KBs), open it with the virtualized list
   if (existingLogs.length >= 32_768) {
     log.debug(`Log file is too big (${existingLogs.length} bytes), using a virtualized list`);
-    shouldVirtualize.value = true;
+    LogsStateHelper.Toggle("virtualized", true);
   }
 
   const filesize = (existingLogs.length / (1024 * 1024)).toFixed(3);
@@ -139,7 +140,7 @@ onMounted(async () => {
   log.info("Log file is not empty");
   log.debug("Adding existing logs to the 'logs' state");
   logs.value = [
-    shouldVirtualize.value ? "__kaede-trigger-virtualized" : "__kaede-trigger-initial",
+    globalStates?.logs?.virtualized ? "__kaede-trigger-virtualized" : "__kaede-trigger-initial",
     ...existingLogs.split("\n"),
   ];
   fileData.value.size = `${filesize} MB`;
@@ -181,10 +182,10 @@ onMounted(async () => {
           <LogControls
             :search-logs="searchLogs"
             :scroll-to-index="(index: number) => virtualList?.scrollToIndex?.(index)"
-            :should-virtualize="shouldVirtualize"
+            :should-virtualize="globalStates?.logs?.virtualized === true"
             :toggle-should-virtualize="toggleVirtualization"
-            :horizontal-scroll="horizontalScroll"
-            :toggle-horizontal-scroll="() => horizontalScroll = !horizontalScroll"
+            :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
+            :toggle-horizontal-scroll="() => LogsStateHelper.Toggle('lineBreaks')"
             :select-all-logs="selectAllText"
           />
         </div>
@@ -202,12 +203,12 @@ onMounted(async () => {
         class="group relative max-w-200 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-800 text-sm font-mono"
       >
         <VirtualisedList
-          v-if="shouldVirtualize"
-          :key="`${logs.length}-${horizontalScroll}-${mountedKey}`"
+          v-if="globalStates?.logs?.virtualized"
+          :key="`${logs.length}-${globalStates?.logs?.lineBreaks}-${mountedKey}`"
           :get-node-height="getNodeHeight"
           :viewport-height="windowHeight - 208"
           :nodes="logs"
-          :id="horizontalScroll ? '__virtualized-list-logs' : ''"
+          :id="globalStates?.logs?.lineBreaks ? '' : '__virtualized-list-logs'"
           ref="virtualList"
           class="w-full"
         >
@@ -224,7 +225,7 @@ onMounted(async () => {
           ref="nonVirtualList"
           :logs="logs"
           :searching="searching"
-          :horizontal-scroll="horizontalScroll"
+          :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
         />
       </div>
     </div>
