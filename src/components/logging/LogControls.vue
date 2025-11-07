@@ -11,6 +11,7 @@ const target = useTemplateRef("target");
 const focused = ref<boolean>(false);
 const found = shallowRef<Array<number>>([]);
 const position = ref(1);
+const currentInput = ref<string>("");
 
 const {
   searchLogs,
@@ -58,7 +59,7 @@ function handleIndex(event: Event): void {
   );
 }
 function handleEnter(event: KeyboardEvent): void {
-  if (event.key !== "Enter") {
+  if (event.key !== "Enter" || currentInput.value === "") {
     return;
   }
 
@@ -82,8 +83,10 @@ async function viewInExplorer(): Promise<void> {
 
 const handleInput = useDebounceFn((event: Event): void => {
   const target = event?.target as HTMLInputElement;
+  const targetValue = target?.value ?? "";
 
-  found.value = searchLogs(target?.value ?? "");
+  currentInput.value = targetValue;
+  found.value = searchLogs(targetValue);
 }, 200);
 
 useEventListener("keydown", (event: KeyboardEvent) => {
@@ -96,6 +99,7 @@ useEventListener("keydown", (event: KeyboardEvent) => {
     target.value.blur?.();
 
     target.value.value = "";
+    currentInput.value = "";
     found.value = searchLogs("");
 
     return;
@@ -174,7 +178,14 @@ watchEffect(() => {
       />
       <MaterialRipple :disabled="focused" />
     </div>
-    <div id="__log-controls__matches-wrapper" class="h-full flex shrink-0 flex-nowrap items-center rounded-md bg-neutral-800 text-sm text-neutral-400">
+    <div
+      id="__log-controls__matches-wrapper"
+      :class="[
+        currentInput === '' ? 'hidden' : 'flex',
+        'h-full shrink-0 flex-nowrap items-center',
+        'rounded-md bg-neutral-800 text-sm text-neutral-400',
+      ]"
+    >
       <button
         id="__log-controls__matches-increment-button"
         @click="incrementIndex"
@@ -208,7 +219,7 @@ watchEffect(() => {
       id="__log-controls__explorer-button"
       @click="viewInExplorer"
       class="relative grid h-full w-fit flex shrink-0 flex-nowrap place-items-center items-center gap-2 rounded-md bg-neutral-800 px-2"
-      data-tooltip="View in Explorer"
+      data-tooltip="View the log file in Explorer"
     >
       <span id="__log-controls__explorer-icon" :class="['i-lucide-external-link block size-4']"></span>
       <span id="__log-controls__explorer-label" class="hidden md:block">
@@ -224,7 +235,7 @@ watchEffect(() => {
         'z-10 shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
         'items-center h-full place-items-center rounded-md transition-[filter]',
       ]"
-      data-tooltip="Line Breaks"
+      data-tooltip="Toggle text wrapping"
     >
       <span id="__log-controls__horizontal-scroll-icon" :class="['i-lucide-text-wrap block size-4']"></span>
       <span id="__log-controls__horizontal-scroll-label" class="hidden lg:block">
@@ -240,7 +251,7 @@ watchEffect(() => {
         'z-10 shrink-0 relative grid px-2 w-fit flex flex-nowrap gap-2 bg-neutral-800',
         'items-center h-full place-items-center rounded-md transition-[filter]',
       ]"
-      data-tooltip="Virtualize"
+      data-tooltip="Improve viewer performance by pre-rendering only visible lines of text"
     >
       <span id="__log-controls__virtualization-icon" :class="['i-lucide-zap block size-4']"></span>
       <span id="__log-controls__virtualization-label" class="hidden lg:block">
