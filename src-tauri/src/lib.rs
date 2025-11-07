@@ -20,26 +20,37 @@ pub fn run() {
         .plugin(tauri_plugin_drpc::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            // Resolves to '${dataDir}/${bundleIdentifier}'
+            let mut path = app.path().app_data_dir()?;
+
+            path.push("logs");
+
+            let _ = std::fs::create_dir_all(&path)?;
+
             // Handle logging strategies differently based on build mode
             if cfg!(debug_assertions) {
+                // Debug mode
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .level(log::LevelFilter::Debug)
+                        // Make a new output target that will save logs in a log file
+                        .target(tauri_plugin_log::Target::new(
+                            tauri_plugin_log::TargetKind::Folder {
+                                path: path,
+                                file_name: Some(format!("latest")),
+                            },
+                        ))
+                        // Use log rotation
+                        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                         .build(),
                 )?;
             } else {
-                // Resolves to '${dataDir}/${bundleIdentifier}'
-                let mut path = app.path().app_data_dir()?;
-
-                path.push("logs");
-
-                let _ = std::fs::create_dir_all(&path)?;
-
+                // Release mode
                 app.handle().plugin(
                     tauri_plugin_log::Builder::new()
                         // Clear any default output targets, such as 'stdout', etc.
                         .clear_targets()
-                        // Make a new output target that will save logs in a file
+                        // Make a new output target that will save logs in a log file
                         .target(tauri_plugin_log::Target::new(
                             tauri_plugin_log::TargetKind::Folder {
                                 path: path,
