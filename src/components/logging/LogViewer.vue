@@ -10,7 +10,7 @@ import LogEntry from "@/components/logging/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
 import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
-import { log } from "@/lib/handlers/log.ts";
+import { log } from "@/lib/log/scopes/log.ts";
 import GlobalStateHelpers from "@/lib/helpers/global-state-helpers.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 

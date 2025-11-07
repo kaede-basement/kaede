@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 
 import type { DeepRequired } from "@/types/utils/deep-required.type.ts";
 
-import { extractError } from "./extract-error";
+import { extract } from "./extract";
 
 const testData: Array<[unknown, DeepRequired<Error>]> = [
   [
@@ -53,7 +53,7 @@ for (const [input, output] of testData) {
 
   test(testName, () => {
     expect(
-      JSON.stringify(extractError(input)),
+      JSON.stringify(extract(input)),
     ).toBe(
       JSON.stringify(output),
     );

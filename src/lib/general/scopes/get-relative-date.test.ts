@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { getRelativeDate } from "./get-relative-date";
+import { getRelativeDate } from "./get-relative-date.ts";
 
 const testData = [
   [

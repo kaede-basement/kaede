@@ -9,7 +9,7 @@ import {
   TreeLogging,
   TreeNatives,
 } from "@/constants/application";
-import { log } from "@/lib/handlers/log";
+import { log } from "@/lib/log/scopes/log.ts";
 import { checksum } from "@/lib/helpers/checksum";
 import { extractError } from "@/lib/helpers/extract-error";
 import { evaluateRules } from "@/lib/helpers/parse-rules";

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, provide, shallowReactive } from "vue";
+import { defineAsyncComponent, onBeforeMount, provide, shallowReactive } from "vue";
 
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 import Layout from "@/components/layout/Layout.vue";
@@ -12,8 +12,8 @@ import {
   GlobalStatesContextKey,
 } from "@/constants/application.ts";
 import { changeGlobalState } from "@/lib/helpers/change-global-state.ts";
-import { getConfigGlobalStates } from "@/lib/main/get-config-global-states.ts";
-import { getDefaultGlobalStates } from "@/lib/main/get-default-global-states.ts";
+import { getConfigGlobalStates } from "@/lib/global-state-helpers/scopes/get-config-global-states.ts";
+import { getDefaultGlobalStates } from "@/lib/global-state-helpers/scopes/get-default-global-states.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
@@ -88,7 +88,7 @@ window[ApplicationNamespace].functions.changeGlobalStates = scopedChangeGlobalSt
 /**
  * Applies user config values to the global states.
  */
-onMounted(async () => {
+onBeforeMount(async () => {
   const userConfig = await getConfigGlobalStates(globalStates);
 
   for (const [key, value] of Object.entries(userConfig)) {

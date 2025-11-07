@@ -1,8 +1,8 @@
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
-import { log } from "@/lib/handlers/log.ts";
-import { getConfigFile } from "@/lib/main/get-config-file.ts";
-import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
+import { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
+import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
+import { log } from "@/lib/log/scopes/log.ts";
 import type { ConfigType } from "@/lib/schemas/config/config.schema.ts";
 
 export async function initializeLauncher(): Promise<void> {

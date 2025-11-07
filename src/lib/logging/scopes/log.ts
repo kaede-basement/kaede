@@ -17,4 +17,17 @@ export const log = {
   "error": (...input: string[]): void => {
     error(input.join(" "));
   },
+  "templates": {
+    "hooks": {
+      "iterate": {
+        "start": (key: string, position: "before" | "after", length: number): string => [
+          `Starting iterating through hooks for '${key}.${position}'.`,
+          `Array length: ${length}`,
+        ].join(" "),
+        "end": (key: string, position: "before" | "after", time: number): string => (
+          `All '${key}.${position}' hooks were executed in ${time} ms`
+        ),
+      },
+    },
+  },
 };

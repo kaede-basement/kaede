@@ -1,12 +1,10 @@
-export function extractError(error: unknown): {
-  "name"   : string;
-  "message": string;
-  "stack"  : string;
-} {
+import type { NativeErrorType } from "@/types/application/error-handling.type.ts";
+
+export function extract(error: unknown): NativeErrorType {
   const safeError = {
-    "name"   : "",
-    "message": "",
-    "stack"  : "",
+    "name"   : "Unknown Error",
+    "message": "unknown",
+    "stack"  : "Unknown Error: unknown",
   };
 
   if (typeof error !== "object" || error === null) {

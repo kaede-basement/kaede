@@ -1,6 +1,6 @@
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
 
-import GlobalStateHelpers from "@/lib/helpers/global-state-helpers.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 
 export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
@@ -28,8 +28,6 @@ export const ContextMenuItems = [
     },
   },
 ] as const;
-
-export const ConfigFilename = "config.json";
 
 export const TreeResources = `${BaseDirectory.AppData}/resources`;
 export const TreeAssets = `${TreeResources}/assets`;

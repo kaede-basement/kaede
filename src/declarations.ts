@@ -10,12 +10,12 @@ import * as TauriUpload from "@tauri-apps/plugin-upload";
 import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 
-import type { log } from "@/lib/handlers/log.ts";
+import type { log } from "@/lib/log/scopes/log.ts";
 import type { extractError } from "@/lib/helpers/extract-error.ts";
-import type { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
-import type { getConfigFile } from "@/lib/main/get-config-file.ts";
-import type { getDefaultConfig } from "@/lib/main/get-default-config.ts";
-import type { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
+import type { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
+import type { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
+import type { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
+import type { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
 import type { ConfigType } from "@/lib/schemas/config/config.schema.ts";
 import type {
   GlobalStatesChangerType,

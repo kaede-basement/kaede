@@ -1,9 +1,10 @@
 import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
 
-import { ApplicationNamespace, ConfigFilename } from "@/constants/application.ts";
-import { log } from "@/lib/handlers/log.ts";
-import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
-import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
+import { ApplicationNamespace } from "@/constants/application.ts";
+import Configs from "@/lib/configs";
+import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
+import { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import { type ConfigType, ConfigValidator } from "@/lib/schemas/config/config.schema.ts";
 
 export async function getConfigFile(): Promise<ConfigType> {
@@ -23,7 +24,7 @@ export async function getConfigFile(): Promise<ConfigType> {
   }
 
   log.debug("Checking if config file exists");
-  const configExists = await exists(ConfigFilename, {
+  const configExists = await exists(Configs.Filename, {
     "baseDir": BaseDirectory.AppData,
   });
 
@@ -40,7 +41,7 @@ export async function getConfigFile(): Promise<ConfigType> {
 
   log.info("Config file exists");
   log.debug("Reading a config file");
-  const configFile = await readTextFile(ConfigFilename, {
+  const configFile = await readTextFile(Configs.Filename, {
     "baseDir": BaseDirectory.AppData,
   });
 

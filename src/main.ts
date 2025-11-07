@@ -11,10 +11,10 @@ import { createApp } from "vue";
 
 import App from "@/App.vue";
 import { ApplicationRootID } from "@/constants/application";
-import { log } from "@/lib/handlers/log.ts";
+import { log } from "@/lib/log/scopes/log.ts";
 import { declareWindow } from "@/lib/main/declare-window.ts";
 import { initializeLauncher } from "@/lib/main/initialize-launcher.ts";
-import { prepareLogFile } from "@/lib/main/prepare-log-file.ts";
+import { prepareLogFile } from "@/lib/log/scopes/prepare-log-file.ts";
 
 // No need to log yet, all logs will go into the previous launch log file
 await prepareLogFile().catch((error: unknown) => {

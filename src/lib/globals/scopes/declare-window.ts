@@ -2,12 +2,12 @@ import * as DiscordRPC from "tauri-plugin-drpc";
 import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
-import { log } from "@/lib/handlers/log.ts";
+import { log } from "@/lib/log/scopes/log.ts";
 import { extractError } from "@/lib/helpers/extract-error.ts";
-import { getRelativeDate } from "@/lib/helpers/get-relative-date.ts";
-import { getConfigFile } from "@/lib/main/get-config-file.ts";
-import { getDefaultConfig } from "@/lib/main/get-default-config.ts";
-import { initializeConfigFile } from "@/lib/main/initialize-config-file.ts";
+import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
+import { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
+import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
+import { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 function placeholderFunction(): void {}

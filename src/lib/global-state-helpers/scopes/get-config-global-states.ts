@@ -1,10 +1,10 @@
 import { ContextMenuItems } from "@/constants/application.ts";
 import { RouteItems, Routes } from "@/constants/routes.ts";
-import { log } from "@/lib/handlers/log.ts";
+import { log } from "@/lib/log/scopes/log.ts";
 import { extractError } from "@/lib/helpers/extract-error.ts";
-import GlobalStateHelpers from "@/lib/helpers/global-state-helpers.ts";
-import { getConfigFile } from "@/lib/main/get-config-file.ts";
+import { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 
 // TODO: make 'getConfigFile' have the same structure as global states so we can just spread it
 export async function getConfigGlobalStates(
