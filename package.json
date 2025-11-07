@@ -9,7 +9,8 @@
     "build:frontend": "vue-tsc -b && vite build",
     "preview:frontend": "vite preview",
     "test": "vitest run ./src",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "vue-tsc -b"
   },
   "dependencies": {
     "@module-federation/enhanced": "^0.19.1",

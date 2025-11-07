@@ -1,47 +1,22 @@
 import Type, { type Static } from "typebox";
 import { Compile } from "typebox/compile";
 
-const VersionLibraryRuleSchema = Type.Object({
-  "action": Type.Union([
-    Type.Literal("allow"),
-    Type.Literal("disallow"),
-  ]),
-  "os": Type.Optional(
-    Type.Object({
-      "name"   : Type.String(),
-      "arch"   : Type.String(),
-      "version": Type.String(),
-    }),
-  ),
-});
-const VersionArgumentSchema = Type.Union([
-  Type.String(),
-  Type.Object({
-    "rules": Type.Array(VersionLibraryRuleSchema),
-    "value": Type.Union([
-      Type.String(),
-      Type.Array(Type.String()),
-    ]),
-  }),
-]);
+import { ArgumentSchema } from "@/lib/schemas/scopes/argument.schema.ts";
+import { ArtifactSchema } from "@/lib/schemas/scopes/artifact.schema.ts";
+import { AssetIndexSchema } from "@/lib/schemas/scopes/asset-index.schema.ts";
+import { JavaVersionSchema } from "@/lib/schemas/scopes/java-version.schema.ts";
+import { LibrarySchema } from "@/lib/schemas/scopes/library.schema.ts";
+import { LoggingSchema } from "@/lib/schemas/scopes/logging.schema.ts";
 
-export const VersionLibrarySchema = Type.Object({
-  "name"     : Type.String(),
-  "downloads": DownloadSchema,
-  "rules"    : Type.Optional(Type.Array(VersionLibraryRuleSchema)),
-  "extract"  : Type.Optional(Type.Object({
-    "exclude": Type.Any(),
-  })),
-});
 export const VersionMetaModernSchema = Type.Object({
   "id"       : Type.String(),
   "type"     : Type.String(),
   "mainClass": Type.String(),
   "arguments": Type.Object({
-    "game": Type.Array(VersionArgumentSchema),
-    "jvm" : Type.Array(VersionArgumentSchema),
+    "game": Type.Array(ArgumentSchema),
+    "jvm" : Type.Array(ArgumentSchema),
   }),
-  "libraries": Type.Array(VersionLibrarySchema),
+  "libraries": Type.Array(LibrarySchema),
   "downloads": Type.Object({
     "client": ArtifactSchema,
     "server": Type.Optional(ArtifactSchema),
@@ -53,7 +28,4 @@ export const VersionMetaModernSchema = Type.Object({
 });
 
 export type VersionMetaModernType = Static<typeof VersionMetaModernSchema>;
-export type VersionLibraryType = Static<typeof VersionLibrarySchema>;
-
 export const VersionMetaModernValidator = Compile(VersionMetaModernSchema);
-export const VersionLibraryValidator = Compile(VersionLibrarySchema);

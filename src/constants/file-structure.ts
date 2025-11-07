@@ -11,4 +11,8 @@ export const FileStructure = {
   "Instances": {
     "Path": "instances",
   },
+  "Logs": {
+    "Path": "logs",
+    "Name": "latest.log",
+  },
 } as const;

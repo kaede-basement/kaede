@@ -6,5 +6,4 @@ export default {
   "get"       : getConfigFile,
   "getDefault": getDefaultConfig,
   "initialize": initializeConfigFile,
-  "Filename"  : "config.json",
 } as const;

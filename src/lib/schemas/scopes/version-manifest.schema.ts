@@ -1,7 +1,7 @@
-import Type, { type Static } from "typebox";
+import Type from "typebox";
 import { Compile } from "typebox/compile";
 
-const VersionManifestSchema = Type.Object({
+export const VersionManifestSchema = Type.Object({
   "latest": Type.Object({
     "release" : Type.String(),
     "snapshot": Type.String(),
@@ -21,6 +21,4 @@ const VersionManifestSchema = Type.Object({
     }),
   ),
 });
-
 export const VersionManifestValidator = Compile(VersionManifestSchema);
-export type VersionManifestType = Static<typeof VersionManifestSchema>;

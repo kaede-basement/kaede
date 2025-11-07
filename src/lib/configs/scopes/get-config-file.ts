@@ -1,11 +1,12 @@
 import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
-import Configs from "@/lib/configs";
+import { FileStructure } from "@/constants/file-structure.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import { type ConfigType, ConfigValidator } from "@/lib/schemas/config/config.schema.ts";
+import Schemas from "@/lib/schemas";
+import type { ConfigType } from "@/types/application/config.type.ts";
 
 export async function getConfigFile(): Promise<ConfigType> {
   const hooksArray = window[ApplicationNamespace].hooks.getConfigFile.before;
@@ -24,7 +25,7 @@ export async function getConfigFile(): Promise<ConfigType> {
   }
 
   log.debug("Checking if config file exists");
-  const configExists = await exists(Configs.Filename, {
+  const configExists = await exists(FileStructure.Config.Name, {
     "baseDir": BaseDirectory.AppData,
   });
 
@@ -41,7 +42,7 @@ export async function getConfigFile(): Promise<ConfigType> {
 
   log.info("Config file exists");
   log.debug("Reading a config file");
-  const configFile = await readTextFile(Configs.Filename, {
+  const configFile = await readTextFile(FileStructure.Config.Name, {
     "baseDir": BaseDirectory.AppData,
   });
 
@@ -51,10 +52,10 @@ export async function getConfigFile(): Promise<ConfigType> {
   log.debug("Validating config file");
 
   /*
-   * If there is additional unknown properties in object, validation will pass it
+   * If there is additional unknown properties in object, validation will pass them
    * which is actually good because extensions can use same config as the app
    */
-  const validatedConfig = ConfigValidator.Check(parsedConfig);
+  const validatedConfig = Schemas.ConfigValidator.Check(parsedConfig);
 
   if (!validatedConfig) {
     log.info("Config file is invalid");

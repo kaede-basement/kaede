@@ -23,8 +23,8 @@ export const ContextMenuItems = [
     "name"  : "Show Logs",
     "icon"  : "i-lucide-bug",
     "action": (): void => {
-      GlobalStateHelpers.Logs.Toggle("show", true);
-      window[ApplicationNamespace].functions.closeContextMenu();
+      GlobalStateHelpers.Logs.toggle("show", true);
+      window[ApplicationNamespace].libs.ContextMenu.close();
     },
   },
 ] as const;
