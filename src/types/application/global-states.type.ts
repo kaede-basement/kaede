@@ -1,5 +1,6 @@
 import type { ShallowReactive } from "vue";
 
+import type { LocaleType } from "@/types/application/locale.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 
 export type GlobalStatesLayoutType = {
@@ -47,6 +48,7 @@ export type GlobalStatesContextMenuItems = Array<{
 }>;
 
 export type GlobalStatesType = {
+  "locale"          : LocaleType;
   "layout"          : GlobalStatesLayoutType;
   "pages"           : GlobalStatesPagesType;
   "logs"            : GlobalStatesLogsType;

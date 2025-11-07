@@ -22,6 +22,7 @@ import type {
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
+import type { LocaleType } from "@/types/application/locale.type.ts";
 
 declare global {
 
@@ -103,6 +104,10 @@ declare global {
         "getDefaultConfig": {
           "before": HookReturnType<unknown, ConfigType>;
           "after" : HookReturnType<ConfigType, ConfigType>;
+        };
+        "onLocaleChange": {
+          "before": HookReturnType<LocaleType, LocaleType, "non-promise">;
+          "after" : HookReturnType<LocaleType, "nothing">;
         };
         "onLayoutChange": {
           "before": HookReturnType<

@@ -9,7 +9,7 @@ const defaultConfig: ConfigType = {
     "accent"    : "rose",
     "background": "none",
   },
-  "locale"               : "system",
+  "locale"               : "en",
   "minecraftWindowHeight": 480,
   "minecraftWindowWidth" : 854,
 };
@@ -61,7 +61,7 @@ const tests: Array<{
         "apparently": "extra fields are going to pass the validation. i " +
           "spent 2 days thinking my tests were broken xd",
       },
-      "locale"               : "system",
+      "locale"               : "en",
       "minecraftWindowHeight": 480,
       "minecraftWindowWidth" : 854,
       "TUYU"                 : "is awesome",
@@ -118,7 +118,7 @@ const tests: Array<{
         "accent"    : "rose",
         "background": "some-url",
       },
-      "locale"               : "system",
+      "locale"               : "en",
       "minecraftWindowHeight": 480,
       "minecraftWindowWidth" : 854,
     },

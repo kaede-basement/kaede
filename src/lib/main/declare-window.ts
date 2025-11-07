@@ -47,6 +47,10 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onLocaleChange": {
+        "before": [],
+        "after" : [],
+      },
       "onPagesChange": {
         "before": [],
         "after" : [],

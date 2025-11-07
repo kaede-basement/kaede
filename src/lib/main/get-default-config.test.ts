@@ -24,7 +24,7 @@ test(testName, async () => {
       "accent"    : "rose",
       "background": "none",
     },
-    "locale"               : "system",
+    "locale"               : "en",
     "minecraftWindowHeight": 480,
     "minecraftWindowWidth" : 854,
   };

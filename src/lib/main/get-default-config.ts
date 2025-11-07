@@ -30,7 +30,7 @@ export async function getDefaultConfig(): Promise<ConfigType> {
       "accent"    : "rose",
       "background": "none",
     },
-    "locale"               : "system",
+    "locale"               : "en",
     "minecraftWindowHeight": 480,
     "minecraftWindowWidth" : 854,
   };

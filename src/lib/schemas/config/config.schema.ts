@@ -15,7 +15,9 @@ const ConfigSchema = Type.Object({
     ]),
     "background": Type.String(),
   }),
-  "locale"               : Type.String(),
+  "locale": Type.Union([
+    Type.Literal("en"),
+  ]),
   "minecraftWindowHeight": Type.Number(),
   "minecraftWindowWidth" : Type.Number(),
 });

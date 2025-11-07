@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent, provide, shallowReactive } from "vue";
+import { defineAsyncComponent, onMounted, provide, shallowReactive } from "vue";
 
 import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
 import Layout from "@/components/layout/Layout.vue";
@@ -9,18 +9,17 @@ import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
 import GlobalError from "@/components/statuses/GlobalError.vue";
 import {
   ApplicationNamespace,
-  ContextMenuItems,
   GlobalStatesContextKey,
 } from "@/constants/application.ts";
-import { RouteItems, Routes } from "@/constants/routes.ts";
-import { capitalize } from "@/lib/helpers/capitalize.ts";
 import { changeGlobalState } from "@/lib/helpers/change-global-state.ts";
-import { PagesStateHelper } from "@/lib/helpers/global-state-helpers.ts";
+import { getConfigGlobalStates } from "@/lib/main/get-config-global-states.ts";
+import { getDefaultGlobalStates } from "@/lib/main/get-default-global-states.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 
+/* These components will load only when needed */
 const LogViewer = defineAsyncComponent(
   () => import("@/components/logging/LogViewer.vue"),
 );
@@ -28,44 +27,7 @@ const ExtensionLoader = defineAsyncComponent(
   () => import("@/components/extensions/ExtensionLoader.vue"),
 );
 
-const globalStates = shallowReactive<GlobalStatesType>({
-  "layout": {
-    "custom": false,
-  },
-  "pages": {
-    "current": Routes.Home,
-    "states" : {
-      "home"        : {},
-      "library"     : {},
-      "settings"    : { "tab": "extensions" },
-      "add-instance": {},
-      "none"        : {},
-    },
-  },
-  "logs": {
-    "show"       : false,
-    "lineBreaks" : false,
-    "virtualized": false,
-  },
-  "sidebarItems": [
-    ...RouteItems.map(item => {
-      return {
-        "path"  : item.Path,
-        "icon"  : item.Icon,
-        "name"  : capitalize(item.Path),
-        "action": (): void => PagesStateHelper.Navigate(item.Path),
-      };
-    }),
-    "divider",
-    {
-      "path"  : Routes.AddInstance,
-      "icon"  : "i-lucide-plus",
-      "name"  : "Add Instance",
-      "action": (): void => PagesStateHelper.Navigate(Routes.AddInstance),
-    },
-  ],
-  "contextMenuItems": [...ContextMenuItems],
-});
+const globalStates = shallowReactive<GlobalStatesType>(getDefaultGlobalStates());
 
 function getGlobalStates(): ContextGlobalStatesType {
   return globalStates;
@@ -87,6 +49,14 @@ provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
 
 window[ApplicationNamespace].functions.getGlobalStates = getGlobalStates;
 window[ApplicationNamespace].functions.changeGlobalStates = scopedChangeGlobalStates;
+
+onMounted(async () => {
+  const userConfig = await getConfigGlobalStates();
+
+  for (const [key, value] of Object.entries(userConfig)) {
+    globalStates[key as "locale"] = value as GlobalStatesType["locale"];
+  }
+});
 </script>
 
 <template>
