@@ -1,0 +1,13 @@
+export type LogButtonType = {
+  "icon" : string;
+  "label": string;
+  "ids"  : {
+    "wrapper": string;
+    "icon"   : string;
+    "label"  : string;
+  };
+  "tooltip" ?: string;
+  "onClick" ?: () => void;
+  "invert"  ?: boolean;
+  "hideOnSm"?: boolean;
+};
