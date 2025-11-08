@@ -18,7 +18,7 @@ defineExpose({ "nonVirtualizedLogsTarget": target });
   <div
     :id="horizontalScroll ? '__non-virtualized-list-logs' : ''"
     ref="target"
-    class="h-[calc(100vh-208px)] w-fit"
+    class="h-[calc(100vh-248px)] w-fit"
   >
     <template
       v-for="(entry, index) in logs"

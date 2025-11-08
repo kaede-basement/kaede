@@ -18,7 +18,16 @@ function toggle<Key extends keyof GlobalStatesType["logs"]>(
 
   GlobalStateHelpers.change("logs", newLogs);
 }
+function filterBy(newValue: string): void {
+  const logs = GlobalStateHelpers.get().logs;
+
+  GlobalStateHelpers.change("logs", {
+    ...logs,
+    "filtering": newValue,
+  });
+}
 
 export const Logs = {
   toggle,
+  filterBy,
 };

@@ -80,9 +80,9 @@ function getNodeHeight(node: string): number {
 
   return nodeLineSize * Math.ceil(node.length / charactersPerLine);
 }
-function searchLogs(search: string): Array<number> {
+function searchLogs(searchValue: string): Array<number> {
   const found: Array<number> = [];
-  const lowerCaseSearch = search.toLowerCase();
+  const lowerCaseSearch = searchValue.toLowerCase();
   const currentLogsArray = filteredLogs.value ?? logs.value;
 
   searching.value = lowerCaseSearch;
@@ -96,6 +96,9 @@ function searchLogs(search: string): Array<number> {
   }
 
   return found;
+}
+function filterLogs(filterValue: string): void {
+  GlobalStateHelpers.Logs.filterBy(filterValue);
 }
 async function toggleVirtualization(): Promise<void> {
   if (globalStates?.logs?.virtualized && logs.value.length >= 512) {
@@ -203,7 +206,10 @@ onMounted(async () => {
             </span>
           </p>
           <LogControls
+            :searching="searching"
             :search-logs="searchLogs"
+            :filtering="filtering"
+            :filter-logs="filterLogs"
             :scroll-to-index="(index: number) => virtualList?.scrollToIndex?.(index)"
             :should-virtualize="globalStates?.logs?.virtualized === true"
             :toggle-should-virtualize="toggleVirtualization"
@@ -229,7 +235,7 @@ onMounted(async () => {
           v-if="globalStates?.logs?.virtualized"
           :key="`${logs.length}-${globalStates?.logs?.lineBreaks}-${mountedKey}`"
           :get-node-height="getNodeHeight"
-          :viewport-height="windowHeight - 208"
+          :viewport-height="windowHeight - 248"
           :nodes="filteredLogs ?? logs"
           :id="globalStates?.logs?.lineBreaks ? '' : '__virtualized-list-logs'"
           ref="virtualList"
