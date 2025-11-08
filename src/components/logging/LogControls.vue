@@ -7,9 +7,11 @@ import { computed, ref, shallowRef, watchEffect } from "vue";
 import CustomButton from "@/components/base/CustomButton.vue";
 import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
+import Errors from "@/lib/errors";
 import {
   handleVirtualListTextSelection,
 } from "@/lib/logging/scopes/handle-virtual-list-text-selection.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { LogButtonType } from "@/types/ui/log-button.type.ts";
 
 const {
@@ -27,6 +29,7 @@ const {
   toggleTextSelection,
   textSelectionRange,
   setTextSelectionRange,
+  logsArray,
 } = defineProps<{
   "searching"             : string;
   "searchLogs"            : (search: string) => Array<number>;
@@ -42,6 +45,7 @@ const {
   "toggleTextSelection"   : () => void;
   "textSelectionRange"    : [number, number] | undefined;
   "setTextSelectionRange" : (range: [number, number] | undefined) => void;
+  "logsArray"             : Array<string | [number, string]>;
 }>();
 
 const found = shallowRef<Array<number>>([]);
@@ -70,16 +74,65 @@ function selectTextVirtualized(): void {
 
   toggleTextSelection();
 }
-function copyTextSelection(): void {
-  if (copied.value) {
+async function copyTextSelection(): Promise<void> {
+  if (copied.value || !textSelectionRange || !logsArray[0]) {
     return;
   }
 
-  copied.value = true;
+  try {
+    const rangeStartIndex = Math.min(
+      textSelectionRange[0],
+      textSelectionRange[1],
+    );
+    const rangeEndIndex = Math.max(
+      textSelectionRange[0],
+      textSelectionRange[1],
+    );
 
-  setTimeout(() => {
-    copied.value = false;
-  }, 500);
+    let slicedSelectionText: string;
+
+    if (typeof logsArray[0] === "string") {
+      slicedSelectionText = logsArray.slice(rangeStartIndex, rangeEndIndex + 1).join("\n");
+    } else {
+      let relativeIndexStart: number = 0;
+      let relativeIndexEnd: number = 0;
+
+      for (const [index, currentLog] of logsArray.entries()) {
+        const currentLogIndex = currentLog[0] as number;
+
+        if (currentLogIndex === rangeStartIndex) {
+          relativeIndexStart = index;
+        }
+
+        if (currentLogIndex === rangeEndIndex) {
+          relativeIndexEnd = index;
+
+          break;
+        }
+      }
+
+      slicedSelectionText = logsArray
+        .map(mappingEntry => mappingEntry[1])
+        .slice(
+          relativeIndexStart,
+          relativeIndexEnd + 1,
+        )
+        .join("\n");
+    }
+
+    await navigator.clipboard.writeText(slicedSelectionText);
+
+    copied.value = true;
+
+    setTimeout(() => {
+      copied.value = false;
+    }, 500);
+  } catch (error: unknown) {
+    log.error(
+      "Couldn't copy the selected text in virtualized log viewer:",
+      Errors.stringify(error),
+    );
+  }
 }
 function setPosition(newValue: number): void {
   position.value = newValue;

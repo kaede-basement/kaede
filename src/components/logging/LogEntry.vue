@@ -175,15 +175,14 @@ const isInRange = computed((): boolean => {
     return false;
   }
 
-  const rangeFirst = Number(selectionIndexes?.[0]);
-  const rangeSecond = Number(selectionIndexes?.[1]);
+  const rangeFirst = Number(selectionIndexes[0]);
+  const rangeSecond = Number(selectionIndexes[1]);
+  const rangeStart = Math.min(rangeFirst, rangeSecond);
+  const rangeEnd = Math.max(rangeFirst, rangeSecond);
 
   return (
-    (rangeFirst <= index) &&
-    (rangeSecond >= index)
-  ) || (
-    (rangeFirst >= index) &&
-    (rangeSecond <= index)
+    (rangeStart <= index) &&
+    (rangeEnd >= index)
   );
 });
 

@@ -66,6 +66,9 @@ const virtualScrollContainerTextWidth = Math.min(800, window.innerWidth - 128) -
 const charactersPerLine = Math.ceil(virtualScrollContainerTextWidth / 8);
 const nodeLineSize = 20;
 
+function scrollToIndex(index: number): void {
+  virtualList?.value?.scrollToIndex?.(index);
+}
 function setTextSelectionRange(newValue: [number, number] | undefined): void {
   currentTextSelection.value = newValue;
 }
@@ -217,7 +220,7 @@ onMounted(async () => {
             :search-logs="searchLogs"
             :filtering="filtering"
             :filter-logs="filterLogs"
-            :scroll-to-index="(index: number) => virtualList?.scrollToIndex?.(index)"
+            :scroll-to-index="scrollToIndex"
             :should-virtualize="globalStates?.logs?.virtualized === true"
             :toggle-should-virtualize="toggleVirtualization"
             :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
@@ -227,6 +230,7 @@ onMounted(async () => {
             :toggle-text-selection="toggleTextSelection"
             :text-selection-range="currentTextSelection"
             :set-text-selection-range="setTextSelectionRange"
+            :logs-array="filteredLogs ?? logs"
           />
         </div>
         <button
