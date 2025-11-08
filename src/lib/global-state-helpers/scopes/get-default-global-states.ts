@@ -23,6 +23,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,
+      "filtering"  : "",
     },
     "sidebarItems": [
       ...RouteItems.map(item => {

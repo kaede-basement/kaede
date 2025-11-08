@@ -44,6 +44,7 @@ export async function getConfigGlobalStates(
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,
+      "filtering"  : "",
     },
     "sidebarItems": [
       ...RouteItems.map(item => {

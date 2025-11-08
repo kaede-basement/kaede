@@ -2,7 +2,7 @@
 import { join } from "@tauri-apps/api/path";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
-import { inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
+import { computed, inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
 import LogControls from "@/components/logging/LogControls.vue";
@@ -27,6 +27,26 @@ const fileData = ref<{
 const searching = ref<string>("");
 // A key that re-renders virtualized list on every log viewer reopen
 const mountedKey = ref<number>(Math.random());
+const filtering = computed((): string => globalStates?.logs?.filtering ?? "");
+const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
+  if (filtering.value === "") {
+    return undefined;
+  }
+
+  const filteredArray: Array<[number, string]> = [];
+
+  for (const [_index, _log] of logs.value.entries()) {
+    if (_index % 5000 === 0) {
+      log.debug("heehee");
+    }
+
+    if (_log.includes(filtering.value)) {
+      filteredArray.push([_index, _log]);
+    }
+  }
+
+  return filteredArray;
+});
 
 // We do not care about window size changes here, since user can just reopen log viewer
 const windowHeight = window.innerHeight;
@@ -63,11 +83,14 @@ function getNodeHeight(node: string): number {
 function searchLogs(search: string): Array<number> {
   const found: Array<number> = [];
   const lowerCaseSearch = search.toLowerCase();
+  const currentLogsArray = filteredLogs.value ?? logs.value;
 
   searching.value = lowerCaseSearch;
 
-  for (const [index, value] of logs.value.entries()) {
-    if (value.toLowerCase().includes(lowerCaseSearch)) {
+  for (const [index, value] of currentLogsArray.entries()) {
+    const actualValue = typeof value === "string" ? value : value[1];
+
+    if (actualValue.toLowerCase().includes(lowerCaseSearch)) {
       found.push(index);
     }
   }
@@ -207,7 +230,7 @@ onMounted(async () => {
           :key="`${logs.length}-${globalStates?.logs?.lineBreaks}-${mountedKey}`"
           :get-node-height="getNodeHeight"
           :viewport-height="windowHeight - 208"
-          :nodes="logs"
+          :nodes="filteredLogs ?? logs"
           :id="globalStates?.logs?.lineBreaks ? '' : '__virtualized-list-logs'"
           ref="virtualList"
           class="w-full"
@@ -223,7 +246,7 @@ onMounted(async () => {
         <NonVirtualizedLogs
           v-else
           ref="nonVirtualList"
-          :logs="logs"
+          :logs="filteredLogs ?? logs"
           :searching="searching"
           :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
         />

@@ -6,7 +6,7 @@ import LogEntry from "@/components/logging/LogEntry.vue";
 const target = useTemplateRef("target");
 
 const { logs, searching, horizontalScroll } = defineProps<{
-  "logs"            : Array<string>;
+  "logs"            : Array<string | [number, string]>;
   "searching"       : string;
   "horizontalScroll": boolean;
 }>();
@@ -20,12 +20,15 @@ defineExpose({ "nonVirtualizedLogsTarget": target });
     ref="target"
     class="h-[calc(100vh-208px)] w-fit"
   >
-    <LogEntry
+    <template
       v-for="(entry, index) in logs"
       :key="index"
-      :line="entry"
-      :index="index"
-      :searching="searching"
-    />
+    >
+      <LogEntry
+        :line="entry"
+        :index="index"
+        :searching="searching"
+      />
+    </template>
   </div>
 </template>

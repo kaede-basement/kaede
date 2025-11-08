@@ -58,7 +58,7 @@ export async function getConfigFile(): Promise<ConfigType> {
   const validatedConfig = Schemas.ConfigValidator.Check(parsedConfig);
 
   if (!validatedConfig) {
-    log.info("Config file is invalid");
+    log.warn("Config file is invalid");
     log.debug("Returning a promise with default config");
 
     // Awaiting here will just be an unnecessary action

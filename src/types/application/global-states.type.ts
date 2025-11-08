@@ -33,6 +33,7 @@ export type GlobalStatesLogsType = {
   "show"       : boolean;
   "lineBreaks" : boolean;
   "virtualized": boolean;
+  "filtering"  : string;
 };
 export type GlobalStatesSidebarItemsType = Array<"divider" | {
   "path"  : RouteType;

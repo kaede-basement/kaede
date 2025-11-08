@@ -10,7 +10,7 @@ type FieldTextType = {
 
 /** Format: [date][time][target?][level] message */
 const { line, index, searching } = defineProps<{
-  "line"     : string;
+  "line"     : string | [number, string];
   "index"    : number;
   "searching": string;
 }>();
@@ -59,7 +59,9 @@ const information = computed((): {
   "level"  : string;
   "message": string;
 } => {
-  const parts = line.split("]");
+  const actualLine = typeof line === "string" ? line : line[1];
+
+  const parts = actualLine.split("]");
   const current: {
     "date"   : string;
     "time"   : string;
@@ -68,19 +70,19 @@ const information = computed((): {
     "message": string;
   } = { "date": "", "time": "", "target": "", "level": "", "message": "" };
 
-  if (line.startsWith("__kaede-trigger-initial")) {
+  if (actualLine.startsWith("__kaede-trigger-initial")) {
     current.target = "All logs will be displayed here ᓀ‸ᓂ";
 
     return current;
   }
 
-  if (line.startsWith("__kaede-trigger-virtualized")) {
+  if (actualLine.startsWith("__kaede-trigger-virtualized")) {
     current.target = "Virtualized mode. All logs will be displayed here ᓀ‸ᓂ";
 
     return current;
   }
 
-  if (line.startsWith("__kaede-trigger-loading")) {
+  if (actualLine.startsWith("__kaede-trigger-loading")) {
     current.target = "Loading your logs...";
 
     return current;
@@ -192,7 +194,7 @@ function getLevelColor(level: string): string {
 <template>
   <div id="__log-entry__wrapper" class="flex shrink-0 flex-nowrap gap-1 px-1">
     <p id="__log-entry__index" class="w-14 shrink-0 select-none text-center text-neutral-400">
-      {{ index - 1 }}
+      {{ typeof line === "string" ? index - 1 : line[0] - 1 }}
     </p>
     <div id="__log-entry__text-wrapper" class="break-all">
       <span
