@@ -8,6 +8,7 @@ const {
   icon,
   placeholder,
   debounceTime,
+  defaultValue,
   listenToEvents,
   focusOnKeyF,
   ids,
@@ -19,6 +20,7 @@ const {
   "icon"           : string;
   "placeholder"    : string;
   "debounceTime"   : number;
+  "defaultValue"  ?: string;
   "listenToEvents"?: boolean;
   "focusOnKeyF"   ?: boolean;
   "ids"            : {
@@ -105,6 +107,7 @@ if (listenToEvents) {
       ]"
       type="text"
       :placeholder="focused ? '' : placeholder"
+      :value="defaultValue"
       @input="handleInput"
       @keydown="onKeyDown"
       @blur="() => focused = false"

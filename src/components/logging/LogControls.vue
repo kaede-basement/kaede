@@ -4,6 +4,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { computed, ref, shallowRef, watchEffect } from "vue";
 
 import CustomButton from "@/components/base/CustomButton.vue";
+import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
 import type { LogButtonType } from "@/types/ui/log-button.type.ts";
 
@@ -54,7 +55,7 @@ const lineBreaksControl = computed((): LogButtonType => ({
   },
   "tooltip" : "Toggle text wrapping",
   "onClick" : toggleHorizontalScroll,
-  "invert"  : horizontalScroll,
+  "invert"  : !horizontalScroll,
   "hideOnSm": true,
 }));
 const virtualizeControl = computed((): LogButtonType => ({
@@ -113,6 +114,10 @@ watchEffect(() => {
         :search-logs="searchLogs"
         :set-position="setPosition"
         :set-found="setFound"
+      />
+      <log-filterer
+        :filtering="filtering"
+        :filter-logs="filterLogs"
       />
     </div>
     <div id="__log-controls__second-row" class="h-8 w-full flex flex-nowrap gap-2">

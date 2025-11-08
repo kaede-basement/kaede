@@ -36,11 +36,7 @@ const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
   const filteredArray: Array<[number, string]> = [];
 
   for (const [_index, _log] of logs.value.entries()) {
-    if (_index % 5000 === 0) {
-      log.debug("heehee");
-    }
-
-    if (_log.includes(filtering.value)) {
+    if (_log.toLowerCase().includes(filtering.value.toLowerCase())) {
       filteredArray.push([_index, _log]);
     }
   }
@@ -73,12 +69,14 @@ function showContextMenu(event: MouseEvent): void {
 function closeLogViewer(): void {
   GlobalStateHelpers.Logs.toggle("show", false);
 }
-function getNodeHeight(node: string): number {
-  if (node.length === 0 || !globalStates?.logs?.lineBreaks) {
+function getNodeHeight(node: string | [number, string]): number {
+  const actualNodeLine = typeof node === "string" ? node : node[1];
+
+  if (actualNodeLine.length === 0 || !globalStates?.logs?.lineBreaks) {
     return nodeLineSize;
   }
 
-  return nodeLineSize * Math.ceil(node.length / charactersPerLine);
+  return nodeLineSize * Math.ceil(actualNodeLine.length / charactersPerLine);
 }
 function searchLogs(searchValue: string): Array<number> {
   const found: Array<number> = [];
@@ -196,7 +194,7 @@ onMounted(async () => {
             Logs
           </p>
           <p id="__log-viewer__information-subtitle" class="select-none text-neutral-300">
-            <span id="__log-viewer__information-subtitle-static">View current Kaede logs</span>
+            <span id="__log-viewer__information-subtitle-static">View Kaede logs</span>
             <span
               v-if="fileData?.size !== undefined && fileData?.time !== undefined"
               id="__log-viewer__information-subtitle-file-data"
@@ -233,7 +231,7 @@ onMounted(async () => {
       >
         <VirtualisedList
           v-if="globalStates?.logs?.virtualized"
-          :key="`${logs.length}-${globalStates?.logs?.lineBreaks}-${mountedKey}`"
+          :key="`${logs.length}-${globalStates?.logs?.lineBreaks}-${filtering}-${mountedKey}`"
           :get-node-height="getNodeHeight"
           :viewport-height="windowHeight - 248"
           :nodes="filteredLogs ?? logs"

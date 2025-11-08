@@ -141,14 +141,14 @@ function handleTextSelection(event: KeyboardEvent): void {
     </button>
     <input
       id="__log-controls__matches-input"
-      class="w-4 bg-transparent text-end outline-none sm:w-12 focus:outline-none"
+      class="w-8 bg-transparent pr-4 text-end outline-none sm:w-12 md:pr-0 focus:outline-none"
       type="number"
       :min="1"
       :max="Math.max(0, found.length)"
       :value="position"
       @input="handleIndex"
     />
-    <p id="__log-controls__matches-text" class="px-2">
+    <p id="__log-controls__matches-text" class="hidden px-2 md:block">
       of {{ found.length }} matches
     </p>
   </div>
