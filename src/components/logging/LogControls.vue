@@ -12,6 +12,7 @@ import {
 } from "@/lib/logging/scopes/handle-virtual-list-text-selection.ts";
 import { handleVirtualTextCopy } from "@/lib/logging/scopes/handle-virtual-text-copy.ts";
 import type { LogButtonType } from "@/types/ui/log-button.type.ts";
+import type { LogControlsType } from "@/types/ui/log-controls.type.ts";
 
 const {
   searching,
@@ -29,23 +30,7 @@ const {
   textSelectionRange,
   setTextSelectionRange,
   logsArray,
-} = defineProps<{
-  "searching"             : string;
-  "searchLogs"            : (search: string) => Array<number>;
-  "filtering"             : string;
-  "filterLogs"            : (filter: string) => void;
-  "scrollToIndex"         : (index: number) => void;
-  "shouldVirtualize"      : boolean;
-  "toggleShouldVirtualize": () => void;
-  "horizontalScroll"      : boolean;
-  "toggleHorizontalScroll": () => void;
-  "selectAllLogs"         : () => void;
-  "textIsInSelection"     : boolean;
-  "toggleTextSelection"   : () => void;
-  "textSelectionRange"    : [number, number] | undefined;
-  "setTextSelectionRange" : (range: [number, number] | undefined) => void;
-  "logsArray"             : Array<string | [number, string]>;
-}>();
+} = defineProps<LogControlsType>();
 
 const found = shallowRef<Array<number>>([]);
 const position = ref<number>(1);

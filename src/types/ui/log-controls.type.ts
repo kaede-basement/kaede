@@ -1,0 +1,17 @@
+export type LogControlsType = {
+  "searching"             : string;
+  "searchLogs"            : (search: string) => Array<number>;
+  "filtering"             : string;
+  "filterLogs"            : (filter: string) => void;
+  "scrollToIndex"         : (index: number) => void;
+  "shouldVirtualize"      : boolean;
+  "toggleShouldVirtualize": () => void;
+  "horizontalScroll"      : boolean;
+  "toggleHorizontalScroll": () => void;
+  "selectAllLogs"         : () => void;
+  "textIsInSelection"     : boolean;
+  "toggleTextSelection"   : () => void;
+  "textSelectionRange"    : [number, number] | undefined;
+  "setTextSelectionRange" : (range: [number, number] | undefined) => void;
+  "logsArray"             : Array<string | [number, string]>;
+};
