@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { useEventListener } from "@vueuse/core";
 import { computed, ref, shallowRef, watchEffect } from "vue";
 
 import CustomButton from "@/components/base/CustomButton.vue";
 import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
+import {
+  handleVirtualListTextSelection,
+} from "@/lib/logging/scopes/handle-virtual-list-text-selection.ts";
 import type { LogButtonType } from "@/types/ui/log-button.type.ts";
 
 const {
@@ -19,6 +23,10 @@ const {
   horizontalScroll,
   toggleHorizontalScroll,
   selectAllLogs,
+  textIsInSelection,
+  toggleTextSelection,
+  textSelectionRange,
+  setTextSelectionRange,
 } = defineProps<{
   "searching"             : string;
   "searchLogs"            : (search: string) => Array<number>;
@@ -30,7 +38,61 @@ const {
   "horizontalScroll"      : boolean;
   "toggleHorizontalScroll": () => void;
   "selectAllLogs"         : () => void;
+  "textIsInSelection"     : boolean;
+  "toggleTextSelection"   : () => void;
+  "textSelectionRange"    : [number, number] | undefined;
+  "setTextSelectionRange" : (range: [number, number] | undefined) => void;
 }>();
+
+const found = shallowRef<Array<number>>([]);
+const position = ref<number>(1);
+const copied = ref<boolean>(false);
+
+function toggleShouldVirtualizeWithCursorHandling(): void {
+  toggleShouldVirtualize();
+
+  if (textIsInSelection) {
+    selectTextVirtualized();
+  }
+}
+function selectTextVirtualized(): void {
+  const container = document.getElementById("__log-viewer__virtual-list-wrapper");
+
+  if (!container) {
+    return;
+  }
+
+  if (textIsInSelection) {
+    setTextSelectionRange(undefined);
+  }
+
+  container.style.cursor = textIsInSelection ? "default" : "text";
+
+  toggleTextSelection();
+}
+function copyTextSelection(): void {
+  if (copied.value) {
+    return;
+  }
+
+  copied.value = true;
+
+  setTimeout(() => {
+    copied.value = false;
+  }, 500);
+}
+function setPosition(newValue: number): void {
+  position.value = newValue;
+}
+function setFound(newValue: Array<number>): void {
+  found.value = newValue;
+}
+
+async function viewInExplorer(): Promise<void> {
+  const latestLogAbsolutePath = await join(await appDataDir(), "logs", "latest.log");
+
+  await revealItemInDir(latestLogAbsolutePath);
+}
 
 const explorerControl: LogButtonType = {
   "icon" : "i-lucide-external-link",
@@ -67,31 +129,41 @@ const virtualizeControl = computed((): LogButtonType => ({
     "label"  : "__log-controls__virtualization-label",
   },
   "tooltip" : "Improve viewer performance by pre-rendering only visible lines of text",
-  "onClick" : toggleShouldVirtualize,
+  "onClick" : toggleShouldVirtualizeWithCursorHandling,
   "invert"  : shouldVirtualize,
   "hideOnSm": true,
+}));
+const textSelectionControl = computed((): LogButtonType => ({
+  "icon": "i-lucide-text-cursor",
+  "ids" : {
+    "wrapper": "__log-controls__text-selection-button",
+    "icon"   : "__log-controls__text-selection-icon",
+    "label"  : "__log-controls__text-selection-label",
+  },
+  "tooltip": "Select a text",
+  "onClick": selectTextVirtualized,
+  "invert" : textIsInSelection,
+  "hidden" : !shouldVirtualize,
+}));
+const textSelectionCopyControl = computed((): LogButtonType => ({
+  "icon": "i-lucide-copy",
+  "ids" : {
+    "wrapper": "__log-controls__text-copy-button",
+    "icon"   : "__log-controls__text-copy-icon",
+    "label"  : "__log-controls__text-copy-label",
+  },
+  "tooltip": "Copy the selected text",
+  "onClick": copyTextSelection,
+  "invert" : copied.value,
+  "hidden" : !textSelectionRange,
 }));
 const controlButtons = computed((): Array<LogButtonType> => [
   explorerControl,
   lineBreaksControl.value,
   virtualizeControl.value,
+  textSelectionControl.value,
+  textSelectionCopyControl.value,
 ]);
-
-const found = shallowRef<Array<number>>([]);
-const position = ref<number>(1);
-
-function setPosition(newValue: number): void {
-  position.value = newValue;
-}
-function setFound(newValue: Array<number>): void {
-  found.value = newValue;
-}
-
-async function viewInExplorer(): Promise<void> {
-  const latestLogAbsolutePath = await join(await appDataDir(), "logs", "latest.log");
-
-  await revealItemInDir(latestLogAbsolutePath);
-}
 
 watchEffect(() => {
   if (found.value[position.value - 1] === undefined) {
@@ -99,6 +171,20 @@ watchEffect(() => {
   }
 
   scrollToIndex(found.value[position.value - 1]);
+});
+
+useEventListener("click", (event: MouseEvent) => {
+  const newRange = handleVirtualListTextSelection(
+    event,
+    textIsInSelection,
+    textSelectionRange,
+  );
+
+  if (newRange === "save") {
+    return;
+  }
+
+  setTextSelectionRange(newRange);
 });
 </script>
 
@@ -131,6 +217,7 @@ watchEffect(() => {
         :on-click="controlButton.onClick"
         :invert="controlButton.invert"
         :hide-on-sm="controlButton.hideOnSm"
+        :hidden="controlButton.hidden"
       />
     </div>
   </div>

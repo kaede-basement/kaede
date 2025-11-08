@@ -69,7 +69,7 @@ button[data-tooltip] {
 
 /* Allow log viewer to have a horizontal scroll */
 #__non-virtualized-list-logs {
-  #__log-entry__text-wrapper {
+  .__log-entry__text-wrapper {
     white-space: nowrap;
   }
 }
@@ -83,7 +83,7 @@ button[data-tooltip] {
   overflow: visible !important;
 }
 #__virtualized-list-logs {
-  #__log-entry__text-wrapper {
+  .__log-entry__text-wrapper {
     white-space: nowrap;
   }
 }

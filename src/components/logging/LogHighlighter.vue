@@ -1,26 +1,27 @@
 <script setup lang="ts">
-const { fields, occurrences } = defineProps<{
+const { fields, occurrences, index, colorClass } = defineProps<{
   "fields"     : Array<string>;
   "occurrences": Array<string>;
+  "index"      : number;
   "colorClass"?: string;
 }>();
 </script>
 
 <template>
   <span
-    id="__log-highlighter__wrapper"
+    :id="`__log-highlighter__wrapper-${index}`"
     v-for="(element, occurrenceIndex) in occurrences"
     :key="`${element}-${occurrenceIndex}`"
     :class="[colorClass, 'whitespace-pre']"
   >
-    <span id="__log-highlighter__non-highlighted-start">
+    <span :id="`__log-highlighter__non-highlighted-start-${index}`">
       {{ fields[occurrenceIndex] }}
     </span>
-    <span id="__log-highlighter__highlighted" class="bg-indigo-600 text-[16px]">
+    <span :id="`__log-highlighter__highlighted-${index}`" class="bg-indigo-600 text-[16px]">
       {{ element }}
     </span>
   </span>
-  <span id="__log-highlighter__non-highlighted-end" :class="colorClass">
+  <span :id="`__log-highlighter__non-highlighted-end-${index}`" :class="colorClass">
     {{ fields[fields.length - 1] }}
   </span>
 </template>

@@ -26,7 +26,9 @@ defineExpose({ "nonVirtualizedLogsTarget": target });
     >
       <LogEntry
         :line="entry"
-        :index="index"
+        :index="typeof entry === 'string'
+          ? index
+          : entry[0]"
         :searching="searching"
       />
     </template>

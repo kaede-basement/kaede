@@ -27,6 +27,9 @@ const fileData = ref<{
 const searching = ref<string>("");
 // A key that re-renders virtualized list on every log viewer reopen
 const mountedKey = ref<number>(Math.random());
+const textSelected = ref<boolean>(false);
+const currentTextSelection = ref<[number, number] | undefined>(undefined);
+
 const filtering = computed((): string => globalStates?.logs?.filtering ?? "");
 const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
   if (filtering.value === "") {
@@ -63,6 +66,12 @@ const virtualScrollContainerTextWidth = Math.min(800, window.innerWidth - 128) -
 const charactersPerLine = Math.ceil(virtualScrollContainerTextWidth / 8);
 const nodeLineSize = 20;
 
+function setTextSelectionRange(newValue: [number, number] | undefined): void {
+  currentTextSelection.value = newValue;
+}
+function toggleTextSelection(): void {
+  textSelected.value = !textSelected.value;
+}
 function showContextMenu(event: MouseEvent): void {
   window[ApplicationNamespace].libs.ContextMenu.show(event);
 }
@@ -214,6 +223,10 @@ onMounted(async () => {
             :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
             :toggle-horizontal-scroll="() => GlobalStateHelpers.Logs.toggle('lineBreaks')"
             :select-all-logs="selectAllText"
+            :text-is-in-selection="textSelected"
+            :toggle-text-selection="toggleTextSelection"
+            :text-selection-range="currentTextSelection"
+            :set-text-selection-range="setTextSelectionRange"
           />
         </div>
         <button
@@ -237,13 +250,16 @@ onMounted(async () => {
           :nodes="filteredLogs ?? logs"
           :id="globalStates?.logs?.lineBreaks ? '' : '__virtualized-list-logs'"
           ref="virtualList"
-          class="w-full"
+          class="w-full select-none"
         >
           <template #cell="slotProps">
             <LogEntry
               :line="slotProps.node"
-              :index="slotProps.index"
+              :index="typeof slotProps.node === 'string'
+                ? slotProps.index
+                : slotProps.node[0]"
               :searching="searching"
+              :selection-indexes="currentTextSelection"
             />
           </template>
         </VirtualisedList>

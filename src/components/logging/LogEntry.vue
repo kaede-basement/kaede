@@ -8,11 +8,12 @@ type FieldTextType = {
   "fields"     : Array<string>;
 };
 
-/** Format: [date][time][target?][level] message */
-const { line, index, searching } = defineProps<{
-  "line"     : string | [number, string];
-  "index"    : number;
-  "searching": string;
+/** 'line' format: [date][time][target?][level] message */
+const { line, index, searching, selectionIndexes } = defineProps<{
+  "line"             : string | [number, string];
+  "index"            : number;
+  "searching"        : string;
+  "selectionIndexes"?: [number, number] | undefined;
 }>();
 
 function getFieldText(input: string, toSearch: string): string | FieldTextType {
@@ -88,8 +89,8 @@ const information = computed((): {
     return current;
   }
 
-  for (const [index, part] of parts.entries()) {
-    switch (index) {
+  for (const [partIndex, part] of parts.entries()) {
+    switch (partIndex) {
       case 0: {
         if (parts.length === 1) {
           current.date = part;
@@ -139,7 +140,7 @@ const information = computed((): {
       }
       default: {
         // If true, then we stumbled upon a closing bracket in the message
-        if (index !== parts.length - 1) {
+        if (partIndex !== parts.length - 1) {
           current.message = current.message + part + "]";
 
           break;
@@ -169,6 +170,22 @@ const extractedInformation = computed((): {
 
   return { date, time, target, level, message };
 });
+const isInRange = computed((): boolean => {
+  if (!selectionIndexes) {
+    return false;
+  }
+
+  const rangeFirst = Number(selectionIndexes?.[0]);
+  const rangeSecond = Number(selectionIndexes?.[1]);
+
+  return (
+    (rangeFirst <= index) &&
+    (rangeSecond >= index)
+  ) || (
+    (rangeFirst >= index) &&
+    (rangeSecond <= index)
+  );
+});
 
 function getLevelColor(level: string): string {
   if (level.includes("DEBUG")) {
@@ -192,77 +209,89 @@ function getLevelColor(level: string): string {
 </script>
 
 <template>
-  <div id="__log-entry__wrapper" class="flex shrink-0 flex-nowrap gap-1 px-1">
-    <p id="__log-entry__index" class="w-14 shrink-0 select-none text-center text-neutral-400">
-      {{ typeof line === "string" ? index - 1 : line[0] - 1 }}
+  <div
+    :id="`__log-entry__wrapper-${index}`"
+    :class="[
+      '__log-entry__wrapper',
+      isInRange && 'bg-indigo-950',
+      'flex shrink-0 flex-nowrap gap-1 px-1',
+    ]"
+  >
+    <p :id="`__log-entry__index-${index}`" class="__log-entry__index w-14 shrink-0 select-none text-center text-neutral-400">
+      {{ index }}
     </p>
-    <div id="__log-entry__text-wrapper" class="break-all">
+    <div :id="`__log-entry__text-wrapper-${index}`" class="__log-entry__text-wrapper break-all">
       <span
-        id="__log-entry__level"
+        :id="`__log-entry__level-${index}`"
         v-if="typeof extractedInformation.level === 'string'"
-        :class="getLevelColor(information.level)"
+        :class="['__log-entry__level', getLevelColor(information.level)]"
       >
         {{ extractedInformation.level }}
       </span>
       <LogHighlighter
         v-else
         :color-class="getLevelColor(information.level)"
+        :index="index"
         :fields="extractedInformation.level.fields"
         :occurrences="extractedInformation.level.extractions"
       />
 
       <span
-        id="__log-entry__date"
+        :id="`__log-entry__date-${index}`"
         v-if="typeof extractedInformation.date === 'string'"
-        class="whitespace-pre text-neutral-400"
+        class="__log-entry__date whitespace-pre text-neutral-400"
       >
         {{ extractedInformation.date }}
       </span>
       <LogHighlighter
         v-else
         color-class="text-neutral-400"
+        :index="index"
         :fields="extractedInformation.date.fields"
         :occurrences="extractedInformation.date.extractions"
       />
 
       <span
-        id="__log-entry__time"
+        :id="`__log-entry__time-${index}`"
         v-if="typeof extractedInformation.time === 'string'"
-        class="text-neutral-400"
+        class="__log-entry__time text-neutral-400"
       >
         {{ extractedInformation.time }}
       </span>
       <LogHighlighter
         v-else
         color-class="text-neutral-400"
+        :index="index"
         :fields="extractedInformation.time.fields"
         :occurrences="extractedInformation.time.extractions"
       />
 
       <span
-        id="__log-entry__target"
+        :id="`__log-entry__target-${index}`"
         v-if="typeof extractedInformation.target === 'string'"
-        class="text-lime-300"
+        class="__log-entry__target text-lime-300"
       >
         {{ extractedInformation.target }}
       </span>
       <LogHighlighter
         v-else
         color-class="text-lime-300"
+        :index="index"
         :fields="extractedInformation.target.fields"
         :occurrences="extractedInformation.target.extractions"
       />
 
       <span
-        id="__log-entry__message"
+        :id="`__log-entry__message-${index}`"
         v-if="typeof extractedInformation.message === 'string'"
-        class="text-neutral-300"
+        class="__log-entry__message text-neutral-300"
       >
         {{ extractedInformation.message }}
       </span>
       <LogHighlighter
         v-else
         color-class="text-neutral-300"
+        :index="index"
         :fields="extractedInformation.message.fields"
         :occurrences="extractedInformation.message.extractions"
       />
