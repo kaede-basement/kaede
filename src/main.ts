@@ -11,6 +11,7 @@ import { createApp } from "vue";
 
 import App from "@/App.vue";
 import { ApplicationRootID } from "@/constants/application";
+import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import Globals from "@/lib/globals";
 import Logging from "@/lib/logging";
@@ -18,7 +19,7 @@ import { log } from "@/lib/logging/scopes/log.ts";
 
 // No need to log yet, all logs will go into the previous launch log file
 await Logging.prepareLogFile().catch((error: unknown) => {
-  log.error("Failed to prepare a log file:", JSON.stringify(error));
+  log.error("Failed to prepare a log file:", Errors.stringify(error));
 });
 
 // Now the log file preparation is done (unless something threw an error)
@@ -34,5 +35,5 @@ AppInstance.mount(ApplicationRootID);
 
 log.debug("Initializing launcher");
 await General.initializeLauncher().catch((error: unknown) => {
-  log.error("Failed to initialize launcher:", JSON.stringify(error));
+  log.error("Failed to initialize launcher:", Errors.stringify(error));
 });

@@ -15,7 +15,7 @@ export async function getConfigGlobalStates(
   try {
     currentConfigFile = await getConfigFile();
   } catch (error: unknown) {
-    log.error("Failed to get a config file:", JSON.stringify(Errors.extract(error)));
+    log.error("Failed to get a config file:", Errors.stringify(error));
 
     return defaultGlobalStates;
   }

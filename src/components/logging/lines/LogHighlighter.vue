@@ -17,7 +17,7 @@ const { fields, occurrences, index, colorClass } = defineProps<{
     <span :id="`__log-highlighter__non-highlighted-start-${index}`">
       {{ fields[occurrenceIndex] }}
     </span>
-    <span :id="`__log-highlighter__highlighted-${index}`" class="bg-indigo-600 text-[16px]">
+    <span :id="`__log-highlighter__highlighted-${index}`" class="bg-pink-700">
       {{ element }}
     </span>
   </span>

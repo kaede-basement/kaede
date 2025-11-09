@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import CustomInput from "@/components/general/base/CustomInput.vue";
 
-const { filterLogs } = defineProps<{
+const { filtering, filterLogs } = defineProps<{
   "filtering" : string;
   "filterLogs": (filter: string) => void;
 }>();
@@ -10,6 +10,10 @@ function handleInput(newValue: string): void {
   filterLogs(newValue);
 }
 function handleEscape(): void {
+  if (filtering === "") {
+    return;
+  }
+
   filterLogs("");
 }
 </script>

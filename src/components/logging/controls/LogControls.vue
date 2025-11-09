@@ -147,7 +147,15 @@ const controlButtons = computed((): Array<LogButtonType> => [
 ]);
 
 watchEffect(() => {
-  if (found.value[position.value - 1] === undefined) {
+  // Check if the searching position exists
+  if (found.value?.[position.value - 1] === undefined) {
+    return;
+  }
+
+  const logsArrayPosition = found.value[position.value - 1];
+
+  // Check if index overflows the logs array
+  if (logsArray.length <= logsArrayPosition) {
     return;
   }
 

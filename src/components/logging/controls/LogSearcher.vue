@@ -52,6 +52,10 @@ function handleInput(inputValue: string): void {
   setFound(searchLogs(inputValue));
 }
 function handleEscape(): void {
+  if (searching === "") {
+    return;
+  }
+
   setFound(searchLogs(""));
 }
 function handleEnter(event: KeyboardEvent): void {
