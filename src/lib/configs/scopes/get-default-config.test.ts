@@ -18,8 +18,7 @@ const testName = "Default Config: No arguments";
 
 test(testName, async () => {
   const defaultConfig: ConfigType = {
-    "__do_not_touch_VERSION": 1,
-    "customization"         : {
+    "customization": {
       "theme"     : "dark",
       "accent"    : "rose",
       "background": "none",

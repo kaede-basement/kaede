@@ -53,6 +53,6 @@ vi.stubGlobal("window", {
   },
 });
 // Replace 'log' function that accesses Tauri API with a mock
-vi.mock("@/lib/handlers/log.ts", async () => {
+vi.mock("@/lib/logging/scopes/log.ts", async () => {
   return await vi.importActual("@/__mocks__/log.cjs");
 });

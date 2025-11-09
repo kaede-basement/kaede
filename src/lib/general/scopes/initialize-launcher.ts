@@ -17,7 +17,7 @@ export async function initializeLauncher(): Promise<void> {
     config = await Configs.getDefault();
   }
 
-  log.info(Errors.stringify(config));
+  log.info("Config contents:", "\n" + JSON.stringify(config, null, 2));
 
   /*
    * Webview window was hidden by default, so make it visible now

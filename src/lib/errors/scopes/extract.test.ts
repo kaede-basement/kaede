@@ -4,34 +4,43 @@ import type { DeepRequired } from "@/types/utils/deep-required.type.ts";
 
 import { extract } from "./extract";
 
+const defaultError = {
+  "name"   : "Unknown Error",
+  "message": "unknown",
+  "stack"  : "Unknown Error: unknown",
+};
 const testData: Array<[unknown, DeepRequired<Error>]> = [
   [
     { "days": 8 },
-    { "name": "", "message": "", "stack": "" },
+    defaultError,
   ],
   [
     "",
-    { "name": "", "message": "", "stack": "" },
+    defaultError,
   ],
   [
     1,
-    { "name": "", "message": "", "stack": "" },
+    defaultError,
   ],
   [
     undefined,
-    { "name": "", "message": "", "stack": "" },
+    defaultError,
   ],
   [
     { "name": 3, "message": "lol" },
-    { "name": "", "message": "lol", "stack": "" },
+    { "name": defaultError.name, "message": "lol", "stack": defaultError.stack },
   ],
   [
     { "name": "moondrop space travel", "message": 0 },
-    { "name": "moondrop space travel", "message": "", "stack": "" },
+    {
+      "name"   : "moondrop space travel",
+      "message": defaultError.message,
+      "stack"  : defaultError.stack,
+    },
   ],
   [
     { "name": { "name": "tf is this" }, "message": "" },
-    { "name": "", "message": "", "stack": "" },
+    { "name": defaultError.name, "message": "", "stack": defaultError.stack },
   ],
   [
     {

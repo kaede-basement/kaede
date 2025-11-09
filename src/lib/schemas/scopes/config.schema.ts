@@ -1,8 +1,7 @@
 import { Type } from "typebox";
 
 export const ConfigSchema = Type.Object({
-  "__do_not_touch_VERSION": Type.Number(),
-  "customization"         : Type.Object({
+  "customization": Type.Object({
     "theme": Type.Union([
       Type.Literal("light"),
       Type.Literal("dark"),

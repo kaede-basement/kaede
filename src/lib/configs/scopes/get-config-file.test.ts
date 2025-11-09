@@ -3,8 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
 const defaultConfig: ConfigType = {
-  "__do_not_touch_VERSION": 1,
-  "customization"         : {
+  "customization": {
     "theme"     : "dark",
     "accent"    : "rose",
     "background": "none",
@@ -14,12 +13,12 @@ const defaultConfig: ConfigType = {
   "minecraftWindowWidth" : 854,
 };
 
-vi.mock("@/lib/main/get-default-config.ts", async () => {
+vi.mock("@/lib/configs/scopes/get-default-config.ts", async () => {
   return {
     "getDefaultConfig": async (): Promise<ConfigType> => defaultConfig,
   };
 });
-vi.mock("@/lib/main/initialize-config-file.ts", async () => {
+vi.mock("@/lib/globals/scopes/initialize-config-file.ts", async () => {
   return {
     "initializeConfigFile": async (): Promise<void> => {},
   };
@@ -53,8 +52,7 @@ const tests: Array<{
       }),
     },
     "output": {
-      "__do_not_touch_VERSION": 1,
-      "customization"         : {
+      "customization": {
         "theme"     : "dark",
         "accent"    : "rose",
         "background": "none",
@@ -72,8 +70,7 @@ const tests: Array<{
       "exists"       : true,
       "fetchedConfig": JSON.stringify({
         ...defaultConfig,
-        "__do_not_touch_VERSION": "-1",
-        "customization"         : {
+        "customization": {
           "theme": "blue",
         },
       }),
@@ -85,8 +82,7 @@ const tests: Array<{
       "exists"       : true,
       "fetchedConfig": JSON.stringify({
         ...defaultConfig,
-        "__do_not_touch_VERSION": -1,
-        "customization"         : {
+        "customization": {
           "theme"     : "light",
           "accent"    : "red",
           "background": "some-url",
@@ -104,16 +100,14 @@ const tests: Array<{
       "exists"       : true,
       "fetchedConfig": JSON.stringify({
         ...defaultConfig,
-        "__do_not_touch_VERSION": 2,
-        "customization"         : {
+        "customization": {
           ...defaultConfig.customization,
           "background": "some-url",
         },
       }),
     },
     "output": {
-      "__do_not_touch_VERSION": 2,
-      "customization"         : {
+      "customization": {
         "theme"     : "dark",
         "accent"    : "rose",
         "background": "some-url",
@@ -150,6 +144,7 @@ beforeEach(() => {
       },
       "exists"      : async (): Promise<boolean> => tests[index].arguments.exists,
       "readTextFile": async (): Promise<string> => tests[index].arguments.fetchedConfig,
+      "writeFile"   : async (): Promise<void> => {},
     };
   });
 });

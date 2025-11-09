@@ -27,7 +27,7 @@ import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 
 declare global {
 
-  /* Declared in the '@/lib/main/declare-window.ts' */
+  /* Declared in the '@/lib/globals/scopes/declare-window.ts' */
   interface Window {
 
     /* Tauri exposes these */

@@ -24,8 +24,7 @@ export async function getDefaultConfig(): Promise<ConfigType> {
   const currentTheme: "dark" | "light" = await getCurrentWindow().theme() ?? "dark";
 
   return {
-    "__do_not_touch_VERSION": 1,
-    "customization"         : {
+    "customization": {
       "theme"     : currentTheme,
       "accent"    : "rose",
       "background": "none",

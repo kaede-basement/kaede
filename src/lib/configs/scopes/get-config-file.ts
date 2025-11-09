@@ -11,13 +11,32 @@ import type { ConfigType } from "@/types/application/config.type.ts";
 export async function getConfigFile(): Promise<ConfigType> {
   const hooksArray = window[ApplicationNamespace].hooks.getConfigFile.before;
 
-  log.debug("Starting iterating through hooks for 'getConfigFile.before'");
+  log.debug(log.templates.hooks.iterate.start(
+    "getConfigFile",
+    "before",
+    hooksArray.length,
+  ));
   for (const [hookIndex, hookFunction] of hooksArray.entries()) {
-    log.debug("Executing a hook with the next index:", hookIndex.toString());
+    const timeMeasurementStartHook = performance.now();
+
+    log.debug(log.templates.hooks.iterate.execution(
+      "getConfigFile",
+      "before",
+      hookIndex,
+      "async",
+    ));
     const hookResponse = await hookFunction();
+    const timeMeasurementEndHook = performance.now();
+    const currentBeforeHookTime = timeMeasurementEndHook - timeMeasurementStartHook;
 
     if (hookResponse.status === "stop") {
-      log.debug(`A hook with the index of ${hookIndex} has aborted execution`);
+      log.debug(log.templates.hooks.iterate.response(
+        "getConfigFile",
+        hookResponse,
+        "before",
+        hookIndex,
+        currentBeforeHookTime,
+      ));
 
       // Awaiting here will just be an unnecessary action
       return hookResponse.response;
@@ -46,10 +65,10 @@ export async function getConfigFile(): Promise<ConfigType> {
     "baseDir": BaseDirectory.AppData,
   });
 
-  log.debug("Parsing config file");
-  const parsedConfig: unknown = await JSON.parse(configFile);
+  log.debug("Parsing a config file");
+  const parsedConfig: unknown = JSON.parse(configFile);
 
-  log.debug("Validating config file");
+  log.debug("Validating the config file");
 
   /*
    * If there is additional unknown properties in object, validation will pass them
