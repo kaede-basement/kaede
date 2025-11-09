@@ -7,10 +7,7 @@ import { computed, ref, shallowRef, watchEffect } from "vue";
 import CustomButton from "@/components/base/CustomButton.vue";
 import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
-import {
-  handleVirtualListTextSelection,
-} from "@/lib/logging/scopes/handle-virtual-list-text-selection.ts";
-import { handleVirtualTextCopy } from "@/lib/logging/scopes/handle-virtual-text-copy.ts";
+import Logging from "@/lib/logging";
 import type { LogButtonType } from "@/types/ui/log-button.type.ts";
 import type { LogControlsType } from "@/types/ui/log-controls.type.ts";
 
@@ -65,7 +62,7 @@ function setFound(newValue: Array<number>): void {
   found.value = newValue;
 }
 async function copyTextSelection(): Promise<void> {
-  await handleVirtualTextCopy(
+  await Logging.handleVirtualTextCopy(
     copied.value,
     textSelectionRange,
     logsArray,
@@ -158,7 +155,7 @@ watchEffect(() => {
 });
 
 useEventListener("click", (event: MouseEvent) => {
-  const newRange = handleVirtualListTextSelection(
+  const newRange = Logging.handleVirtualListTextSelection(
     event,
     textIsInSelection,
     textSelectionRange,
