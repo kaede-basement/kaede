@@ -8,7 +8,9 @@ type FieldTextType = {
   "fields"     : Array<string>;
 };
 
-/** 'line' format: [date][time][target?][level] message */
+/**
+ * 'line' format: [date][time][target?][level] message
+ */
 const { line, index, searching, selectionIndexes } = defineProps<{
   "line"             : string | [number, string];
   "index"            : number;

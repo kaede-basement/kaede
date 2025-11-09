@@ -124,10 +124,10 @@ Launcher should expose everything that it can through the `window.__KAEDE__`. Pr
 For example, see the next code:
 
 ```ts
-/** Launcher */
+/* Launcher */
 window.postMessage("kaede-route-changed", /* some data */)
 
-/** Extension */
+/* Extension */
 const handleRouteChange = (pathname: string) => {
   if (pathname === "/home") {
     // do something
@@ -151,17 +151,17 @@ While it works, it doesn't look good to me. Adding a lot of window listeners can
 Now I'm suggesting the next structure:
 
 ```ts
-/** Launcher */
+/* Launcher */
 window.__KAEDE__.hooks.onRouteChange.before = [];
 
-/** Extension */
+/* Extension */
 const currentRoute = ref<RouteType>("home");
 
 window.__KAEDE__.hooks.onRouteChange.before.push(({ pathname }: { pathname: RouteType }) => {
   currentRoute.value = pathname;
 });
 
-/** Launcher */
+/* Launcher */
 // example with the '@kitbag/router'
 onBeforeRouteChange(() => {
   for (const hook of window.__KAEDE__.hooks.onRouteChange.before) {

@@ -47,7 +47,9 @@ declare global {
       "discord": typeof TauriDiscordRpc & typeof TauriDiscordRpcClasses;
     };
 
-    /** Application namespace */
+    /**
+     * Application namespace
+     */
     "__KAEDE__": {
 
       "__internals": {
@@ -55,7 +57,9 @@ declare global {
         "changeGlobalStates": GlobalStatesChangerType;
       };
 
-      /** Global utilities */
+      /**
+       * Global utilities
+       */
       "libs": {
         "Configs"           : typeof Configs;
         "Errors"            : typeof Errors;
@@ -70,16 +74,22 @@ declare global {
         };
       };
 
-      /** Global variables that are allowed to be changed by plugins */
+      /**
+       * Global variables that are allowed to be changed by plugins
+       */
       "variables": {
         "rippleColor"     : string;
         "sparklesColorRGB": string;
       };
 
-      /** Application hooks */
+      /**
+       * Application hooks
+       */
       "hooks": {
 
-        /** Executed on the config retrieve */
+        /**
+         * Executed on the config retrieve
+         */
         "getConfigFile": {
 
           /**
