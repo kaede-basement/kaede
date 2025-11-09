@@ -144,6 +144,10 @@ export default defineConfigWithVueTs(
         "ignore"    : [],
         "ignoreTags": [],
       }],
+      "vue/component-name-in-template-casing": ["warn", "PascalCase", {
+        "registeredComponentsOnly": true,
+        "ignores"                 : [],
+      }],
       "vue/no-duplicate-attributes": ["warn", {
         "allowCoexistClass": true,
         "allowCoexistStyle": true,

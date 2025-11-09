@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { defineAsyncComponent, onBeforeMount, provide, shallowReactive } from "vue";
 
-import ErrorBoundary from "@/components/handlers/ErrorBoundary.vue";
-import Layout from "@/components/layout/Layout.vue";
-import Router from "@/components/layout/Router.vue";
-import NonBundledClasses from "@/components/misc/NonBundledClasses.vue";
-import ExtensionsError from "@/components/statuses/ExtensionsError.vue";
-import GlobalError from "@/components/statuses/GlobalError.vue";
+import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
+import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
+import GlobalError from "@/components/general/errors/GlobalError.vue";
+import Layout from "@/components/general/layout/Layout.vue";
+import Router from "@/components/general/layout/Router.vue";
+import NonBundledClasses from "@/components/general/misc/NonBundledClasses.vue";
 import {
   ApplicationNamespace,
   GlobalStatesContextKey,
@@ -25,7 +25,7 @@ const LogViewer = defineAsyncComponent(
   () => import("@/components/logging/LogViewer.vue"),
 );
 const ExtensionLoader = defineAsyncComponent(
-  () => import("@/components/extensions/ExtensionLoader.vue"),
+  () => import("@/components/general/extensions/ExtensionLoader.vue"),
 );
 
 /**

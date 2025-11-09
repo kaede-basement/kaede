@@ -6,7 +6,7 @@ This folder contains frontend-specific and backend-specific code. The frontend u
 
 Let me explain the file structure.
 
-### Top-level files
+## Top-level files
 
 - `App.vue` is the Vue entry point file.
   - Code-wise, it contains a single `shallowReactive` object that has almost all application states. Gathering application states in a single big `shallowReactive` object is a bad practice, but in this case it allows for extension hooks to have stable, predictable behaviour. With this approach, we also do not need to use `pinia` for global stores.
@@ -18,7 +18,7 @@ Let me explain the file structure.
 - `main.ts` is the main entry point file. It contains all initialization code and imports CSS styles. This code will be executed the first when the webview will be loaded.
 - `vite-env.d.ts` is just a default file that `vite` generates.
 
-### Top-level folders
+## Top-level folders
 
 Every folder has its own `README` file for more detailed explanations.
 

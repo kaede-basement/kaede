@@ -2,7 +2,7 @@
 import { useDebounceFn, useEventListener } from "@vueuse/core";
 import { ref, useTemplateRef } from "vue";
 
-import MaterialRipple from "@/components/misc/MaterialRipple.vue";
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 
 const {
   icon,

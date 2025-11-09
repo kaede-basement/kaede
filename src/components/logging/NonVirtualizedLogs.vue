@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useTemplateRef } from "vue";
 
-import LogEntry from "@/components/logging/LogEntry.vue";
+import LogEntry from "@/components/logging/lines/LogEntry.vue";
 
 const target = useTemplateRef("target");
 

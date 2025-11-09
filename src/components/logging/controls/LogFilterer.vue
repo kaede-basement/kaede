@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CustomInput from "@/components/base/CustomInput.vue";
+import CustomInput from "@/components/general/base/CustomInput.vue";
 
 const { filterLogs } = defineProps<{
   "filtering" : string;
@@ -15,7 +15,7 @@ function handleEscape(): void {
 </script>
 
 <template>
-  <custom-input
+  <CustomInput
     icon="i-lucide-list-filter"
     placeholder="Filter..."
     :debounce-time="200"

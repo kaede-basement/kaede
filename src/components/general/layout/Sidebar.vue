@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { inject, ref, shallowRef } from "vue";
 
-import Image from "@/components/base/Image.vue";
-import MaterialRipple from "@/components/misc/MaterialRipple.vue";
+import Image from "@/components/general/base/Image.vue";
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
 import iochiMariCat from "@/resources/iochi_mari_cat.webp";
 import type {

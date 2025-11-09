@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { inject } from "vue";
 
-import MaterialRipple from "@/components/misc/MaterialRipple.vue";
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 

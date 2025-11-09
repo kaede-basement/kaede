@@ -5,10 +5,10 @@ import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
 import { computed, inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
-import LogControls from "@/components/logging/LogControls.vue";
-import LogEntry from "@/components/logging/LogEntry.vue";
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import LogControls from "@/components/logging/controls/LogControls.vue";
+import LogEntry from "@/components/logging/lines/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
-import MaterialRipple from "@/components/misc/MaterialRipple.vue";
 import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";

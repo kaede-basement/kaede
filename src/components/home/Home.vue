@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PageWrapper from "@/components/layout/PageWrapper.vue";
+import PageWrapper from "@/components/general/layout/PageWrapper.vue";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 
 async function download(): Promise<void> {}

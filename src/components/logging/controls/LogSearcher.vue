@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { message } from "@tauri-apps/plugin-dialog";
 
-import CustomInput from "@/components/base/CustomInput.vue";
-import MaterialRipple from "@/components/misc/MaterialRipple.vue";
+import CustomInput from "@/components/general/base/CustomInput.vue";
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 
 const {
   searching,
@@ -99,7 +99,7 @@ function handleTextSelection(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <custom-input
+  <CustomInput
     icon="i-lucide-search"
     placeholder="Search..."
     :debounce-time="200"

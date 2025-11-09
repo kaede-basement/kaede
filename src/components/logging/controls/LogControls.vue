@@ -4,7 +4,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useEventListener } from "@vueuse/core";
 import { computed, ref, shallowRef, watchEffect } from "vue";
 
-import CustomButton from "@/components/base/CustomButton.vue";
+import CustomButton from "@/components/general/base/CustomButton.vue";
 import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
 import Logging from "@/lib/logging";
@@ -185,7 +185,7 @@ useEventListener("keydown", (event: KeyboardEvent) => {
 <template>
   <div id="__log-controls__wrapper" class="h-18 w-full flex flex-col select-none gap-2">
     <div id="__log-controls__first-row" class="h-8 w-full flex flex-nowrap gap-2">
-      <log-searcher
+      <LogSearcher
         :searching="searching"
         :position="position"
         :found="found"
@@ -195,13 +195,13 @@ useEventListener("keydown", (event: KeyboardEvent) => {
         :set-position="setPosition"
         :set-found="setFound"
       />
-      <log-filterer
+      <LogFilterer
         :filtering="filtering"
         :filter-logs="filterLogs"
       />
     </div>
     <div id="__log-controls__second-row" class="h-8 w-full flex flex-nowrap gap-2">
-      <custom-button
+      <CustomButton
         v-for="controlButton in controlButtons"
         :key="controlButton.icon"
         :icon="controlButton.icon"

@@ -7,10 +7,10 @@ const { page } = defineProps<{
   "page": RouteType;
 }>();
 
-const Home = defineAsyncComponent(() => import("@/pages/Home.vue"));
-const Library = defineAsyncComponent(() => import("@/pages/Library.vue"));
-const Settings = defineAsyncComponent(() => import("@/pages/Settings.vue"));
-const AddInstance = defineAsyncComponent(() => import("@/pages/AddInstance.vue"));
+const Home = defineAsyncComponent(() => import("@/components/home/Home.vue"));
+const Library = defineAsyncComponent(() => import("@/components/library/Library.vue"));
+const Settings = defineAsyncComponent(() => import("@/components/settings/Settings.vue"));
+const AddInstance = defineAsyncComponent(() => import("@/components/add-instance/AddInstance.vue"));
 </script>
 
 <template>

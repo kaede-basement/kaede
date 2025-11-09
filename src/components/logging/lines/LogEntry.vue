@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import LogHighlighter from "@/components/logging/LogHighlighter.vue";
+import LogHighlighter from "@/components/logging/lines/LogHighlighter.vue";
 import Logging from "@/lib/logging";
 import type { LogEntryInformationType } from "@/types/application/log-entry-information.type.ts";
 import type { FieldTextType } from "@/types/application/log-field-text.type.ts";
