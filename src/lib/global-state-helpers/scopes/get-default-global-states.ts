@@ -5,8 +5,9 @@ import type { GlobalStatesType } from "@/types/application/global-states.type.ts
 
 export function getDefaultGlobalStates(): GlobalStatesType {
   return {
-    "locale": "en",
-    "layout": {
+    "locale"    : "en",
+    "fileSystem": undefined,
+    "layout"    : {
       "custom": false,
     },
     "pages": {

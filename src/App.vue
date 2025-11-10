@@ -91,10 +91,10 @@ window[ApplicationNamespace].__internals.changeGlobalStates = scopedChangeGlobal
  */
 onBeforeMount(async () => {
   // We can't use top-level await, so we apply config here
-  log.debug("App.vue::onBeforeMount: getting global states from config");
+  log.debug("Getting global states from a config");
   const userConfig = await GlobalStateHelpers.getFromConfig(globalStates);
 
-  log.debug("App.vue::onBeforeMount: applying global states from config");
+  log.debug("Applying global states from a config to the 'globalStates' reactive state");
   for (const [key, value] of Object.entries(userConfig)) {
     globalStates[key as "locale"] = value as GlobalStatesType["locale"];
   }

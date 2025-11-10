@@ -3,6 +3,10 @@ import type { ShallowReactive } from "vue";
 import type { LocaleType } from "@/types/application/locale.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 
+export type GlobalStatesFileSystemType = {
+  "portable": boolean;
+  "base"    : string;
+};
 export type GlobalStatesLayoutType = {
   "custom": boolean;
 };
@@ -50,6 +54,8 @@ export type GlobalStatesContextMenuItems = Array<{
 
 export type GlobalStatesType = {
   "locale"          : LocaleType;
+  // Requires async access to Tauri API before initialization, so we also add undefined
+  "fileSystem"      : GlobalStatesFileSystemType | undefined;
   "layout"          : GlobalStatesLayoutType;
   "pages"           : GlobalStatesPagesType;
   "logs"            : GlobalStatesLogsType;

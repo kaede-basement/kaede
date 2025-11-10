@@ -52,7 +52,7 @@ function selectTextVirtualized(): void {
     setTextSelectionRange(undefined);
   }
 
-  container.style.cursor = textIsInSelection ? "default" : "text";
+  container.style.cursor = textIsInSelection ? "" : "text";
 
   toggleTextSelection();
 }
