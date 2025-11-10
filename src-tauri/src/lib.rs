@@ -6,6 +6,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // If user tries to open the launcher when it is already opened,
+            // then focus the already opened window
             let _ = app
                 .get_webview_window("main")
                 .expect("no main window found - tauri single instance plugin")
@@ -20,8 +22,29 @@ pub fn run() {
         .plugin(tauri_plugin_drpc::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
-            // Resolves to '${dataDir}/${bundleIdentifier}'
-            let mut path = app.path().app_data_dir()?;
+            // Since I am a complete newbie in Rust and Tauri,
+            // I couldn't think up of anything better than detecting
+            // whether the launcher is in the portable mode or not
+            // by checking if a window title contains a "Portable" string
+            //
+            // Reading window label took '225.60µs' on my laptop,
+            // so no worries about performance I guess
+            let window_title = app
+                .get_webview_window("main")
+                .expect("no main window found - tauri setup")
+                .title()
+                .unwrap()
+                .to_string();
+
+            let mut path;
+
+            if window_title.contains("Portable") {
+                // Resolves to the launcher executable file directory
+                path = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
+            } else {
+                // Resolves to '${dataDir}/${bundleIdentifier}'
+                path = app.path().app_data_dir()?;
+            }
 
             path.push("logs");
 

@@ -60,7 +60,7 @@ export async function getConfigFile(): Promise<ConfigType> {
   if (!configExists) {
     log.info("Config file doesn't exist");
     log.debug("Initializing a config file");
-    await initializeConfigFile();
+    await initializeConfigFile(configFileDirectory);
 
     log.debug("Returning a promise with default config");
 

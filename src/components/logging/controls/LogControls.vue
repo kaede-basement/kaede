@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { appDataDir, join } from "@tauri-apps/api/path";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useEventListener } from "@vueuse/core";
 import { computed, ref, shallowRef, watchEffect } from "vue";
@@ -7,6 +6,7 @@ import { computed, ref, shallowRef, watchEffect } from "vue";
 import CustomButton from "@/components/general/base/CustomButton.vue";
 import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
 import type { LogButtonType } from "@/types/ui/log-button.type.ts";
 import type { LogControlsType } from "@/types/ui/log-controls.type.ts";
@@ -68,7 +68,11 @@ async function copyTextSelection(): Promise<void> {
   );
 }
 async function viewInExplorer(): Promise<void> {
-  const latestLogAbsolutePath = await join(await appDataDir(), "logs", "latest.log");
+  const latestLogAbsolutePath = GlobalStateHelpers.get().fileSystem?.files?.log;
+
+  if (!latestLogAbsolutePath) {
+    return;
+  }
 
   await revealItemInDir(latestLogAbsolutePath);
 }

@@ -11,7 +11,7 @@ export async function checkIsPortable(): Promise<boolean> {
      * then the 'exists' function should throw an error before this statement
      */
     return true;
-  } catch {}
-
-  return false;
+  } catch {
+    return false;
+  }
 }

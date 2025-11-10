@@ -1,20 +1,9 @@
-import { appDataDir, join } from "@tauri-apps/api/path";
 import { writeFile } from "@tauri-apps/plugin-fs";
 
-import { FileStructure } from "@/constants/file-structure.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
-import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 
-export async function initializeConfigFile(): Promise<void> {
-  log.debug("Checking if launcher is in portable version");
-  const portable = await General.checkIsPortable();
-
-  log.debug("Getting base directory");
-  const baseDirectory = portable
-    ? await General.getExecutableDirectory()
-    : await appDataDir();
-
+export async function initializeConfigFile(configFilePath: string): Promise<void> {
   log.debug("Getting default config");
   const defaultConfig = await getDefaultConfig();
 
@@ -28,8 +17,6 @@ export async function initializeConfigFile(): Promise<void> {
     // With two spaces as an indent
     2,
   ));
-
-  const configFilePath = await join(baseDirectory, FileStructure.Config.Name);
 
   log.debug("Writing the encoded config file");
   await writeFile(configFilePath, data);

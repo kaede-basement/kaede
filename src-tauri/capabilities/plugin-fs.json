@@ -8,47 +8,51 @@
   "permissions": [
     {
       "identifier": "fs:allow-rename",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-read",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-read-file",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-read-dir",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-create",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-copy-file",
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
+    },
+    {
+      "identifier": "fs:allow-write-file",
       "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-read-text-file-lines",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     },
     {
       "identifier": "fs:allow-stat",
-      "allow": [{ "path": "**/*" }, { "path": "$APPDATA/**/*" }]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
     }
   ]
 }
