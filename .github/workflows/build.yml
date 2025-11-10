@@ -186,7 +186,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Upload binary (Windows, NSIS)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows' && matrix.type != 'portable'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -194,7 +194,7 @@ jobs:
           path: "./src-tauri/target/release/bundle/nsis/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64-setup.exe"
 
       - name: Upload binary (Windows, MSI)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows' && matrix.type != 'portable'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
