@@ -25,6 +25,7 @@ import type {
 import type { LocaleType } from "@/types/application/locale.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 
+/* Expand the globals with Kaede and Tauri namespaces */
 declare global {
 
   /* Declared in the '@/lib/globals/scopes/declare-window.ts' */
@@ -79,7 +80,7 @@ declare global {
        */
       "variables": {
         "rippleColor"     : string;
-        "sparklesColorRGB": string;
+        "sparklesColorRGB": `${number} ${number} ${number}`;
       };
 
       /**
@@ -170,3 +171,6 @@ declare global {
     };
   }
 }
+
+/* Export the Kaede namespace type */
+export type KaedeNamespaceType = Window["__KAEDE__"];

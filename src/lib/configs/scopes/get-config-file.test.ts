@@ -18,7 +18,7 @@ vi.mock("@/lib/configs/scopes/get-default-config.ts", async () => {
     "getDefaultConfig": async (): Promise<ConfigType> => defaultConfig,
   };
 });
-vi.mock("@/lib/globals/scopes/initialize-config-file.ts", async () => {
+vi.mock("@/lib/configs/scopes/initialize-config-file.ts", async () => {
   return {
     "initializeConfigFile": async (): Promise<void> => {},
   };
@@ -144,7 +144,6 @@ beforeEach(() => {
       },
       "exists"      : async (): Promise<boolean> => tests[index].arguments.exists,
       "readTextFile": async (): Promise<string> => tests[index].arguments.fetchedConfig,
-      "writeFile"   : async (): Promise<void> => {},
     };
   });
 });

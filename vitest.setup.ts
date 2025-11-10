@@ -1,43 +1,40 @@
 import { vi } from "vitest";
 
+import type { KaedeNamespaceType } from "./src/declarations";
+
 // Overwrite 'window' object for tests only
 vi.stubGlobal("window", {
   "__KAEDE__": {
-    "variables": {
-      "rippleColor": "",
+    "__internals": {
+      "getGlobalStates"   : (): void => {},
+      "changeGlobalStates": (): void => {},
     },
-    "functions": {
-      "getGlobalStates"     : (): void => {},
-      "changeGlobalStates"  : (): void => {},
-      "showContextMenu"     : (): void => {},
-      "closeContextMenu"    : (): void => {},
-      "log"                 : (): void => {},
-      "extractError"        : (): void => {},
-      "getRelativeDate"     : (): void => {},
-      "getConfigFile"       : (): void => {},
-      "getDefaultConfig"    : (): void => {},
-      "initializeConfigFile": (): void => {},
+    "variables": {
+      "rippleColor"     : "",
+      "sparklesColorRGB": "255 255 255",
     },
     "hooks": {
       "getConfigFile": {
         "before": [],
+        "after" : [],
       },
       "getDefaultConfig": {
         "before": [],
+        "after" : [],
       },
-      "onRouteChange": {
+      "onLocaleChange": {
         "before": [],
         "after" : [],
       },
-      "onCustomLayoutToggle": {
+      "onPagesChange": {
         "before": [],
         "after" : [],
       },
-      "onPageStatesChange": {
+      "onLayoutChange": {
         "before": [],
         "after" : [],
       },
-      "onLogViewerToggle": {
+      "onLogsChange": {
         "before": [],
         "after" : [],
       },
@@ -51,8 +48,30 @@ vi.stubGlobal("window", {
       },
     },
   },
+} satisfies {
+
+  /*
+   * Kaede itself uses only "__internals", "variables", and "hooks" properties.
+   * The rest is for the extensions
+   */
+  "__KAEDE__": Pick<
+    KaedeNamespaceType,
+    "__internals" | "variables" | "hooks"
+  >;
 });
-// Replace 'log' function that accesses Tauri API with a mock
+
+// Mock the logging utility
 vi.mock("@/lib/logging/scopes/log.ts", async () => {
   return await vi.importActual("@/__mocks__/log.cjs");
+});
+
+// Mock Tauri APIs
+vi.mock("@tauri-apps/api/window", async () => {
+  const mockedWindow: typeof window.__TAURI__.window = {
+    "getCurrentWindow": () => ({
+      "theme": async () => "dark",
+    }),
+  } as typeof window.__TAURI__.window;
+
+  return mockedWindow;
 });
