@@ -10,7 +10,7 @@ export function handleCapture(error: Error): NativeErrorType {
     extractedError.name + ":",
     extractedError.message + ";",
     "Stack:",
-    extractedError.stack,
+    "\n" + extractedError.stack,
   );
 
   return extractedError;

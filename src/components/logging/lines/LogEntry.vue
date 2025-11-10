@@ -2,17 +2,20 @@
 import { computed } from "vue";
 
 import LogHighlighter from "@/components/logging/lines/LogHighlighter.vue";
+import Errors from "@/lib/errors";
 import Logging from "@/lib/logging";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { LogEntryInformationType } from "@/types/application/log-entry-information.type.ts";
 import type { FieldTextType } from "@/types/application/log-field-text.type.ts";
 
 /**
  * 'line' format: [date][time][target?][level] message
  */
-const { line, index, searching, selectionIndexes } = defineProps<{
+const { line, index, searching, searchPosition, selectionIndexes } = defineProps<{
   "line"             : string | [number, string];
   "index"            : number;
   "searching"        : string;
+  "searchPosition"  ?: number | undefined;
   "selectionIndexes"?: [number, number] | undefined;
 }>();
 
@@ -24,11 +27,27 @@ const extractedInformation = computed((): {
   "level"  : string | FieldTextType;
   "message": string | FieldTextType;
 } => {
-  const date = Logging.getLogFieldText(information.value.date, searching);
-  const time = Logging.getLogFieldText(information.value.time, searching);
-  const target = Logging.getLogFieldText(information.value.target, searching);
-  const level = Logging.getLogFieldText(information.value.level, searching);
-  const message = Logging.getLogFieldText(information.value.message, searching);
+  let safeSearching: string = searching;
+
+  try {
+    "".matchAll(new RegExp(searching, "g"));
+  } catch (error: unknown) {
+    const extractedError = Errors.extract(error);
+
+    log.error(
+      "Couldn't parse the searching value",
+      "(stacktrace is absent to avoid huge logs flooding):",
+      extractedError.name + ":",
+      extractedError.message,
+    );
+    safeSearching = "Invalid regular expression";
+  }
+
+  const date = Logging.getLogFieldText(information.value.date, safeSearching);
+  const time = Logging.getLogFieldText(information.value.time, safeSearching);
+  const target = Logging.getLogFieldText(information.value.target, safeSearching);
+  const level = Logging.getLogFieldText(information.value.level, safeSearching);
+  const message = Logging.getLogFieldText(information.value.message, safeSearching);
 
   return { date, time, target, level, message };
 });
@@ -75,6 +94,7 @@ const isInRange = computed((): boolean => {
         :index="index"
         :fields="extractedInformation.level.fields"
         :occurrences="extractedInformation.level.extractions"
+        :search-position="searchPosition"
       />
 
       <span
@@ -90,6 +110,7 @@ const isInRange = computed((): boolean => {
         :index="index"
         :fields="extractedInformation.date.fields"
         :occurrences="extractedInformation.date.extractions"
+        :search-position="searchPosition"
       />
 
       <span
@@ -105,6 +126,7 @@ const isInRange = computed((): boolean => {
         :index="index"
         :fields="extractedInformation.time.fields"
         :occurrences="extractedInformation.time.extractions"
+        :search-position="searchPosition"
       />
 
       <span
@@ -120,6 +142,7 @@ const isInRange = computed((): boolean => {
         :index="index"
         :fields="extractedInformation.target.fields"
         :occurrences="extractedInformation.target.extractions"
+        :search-position="searchPosition"
       />
 
       <span
@@ -135,6 +158,7 @@ const isInRange = computed((): boolean => {
         :index="index"
         :fields="extractedInformation.message.fields"
         :occurrences="extractedInformation.message.extractions"
+        :search-position="searchPosition"
       />
     </div>
   </div>

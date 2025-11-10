@@ -12,6 +12,8 @@ import type { LogButtonType } from "@/types/ui/log-button.type.ts";
 import type { LogControlsType } from "@/types/ui/log-controls.type.ts";
 
 const {
+  searchPosition,
+  setSearchPosition,
   searching,
   searchLogs,
   filtering,
@@ -30,7 +32,6 @@ const {
 } = defineProps<LogControlsType>();
 
 const found = shallowRef<Array<number>>([]);
-const position = ref<number>(1);
 const copied = ref<boolean>(false);
 
 function toggleShouldVirtualizeWithCursorHandling(): void {
@@ -54,9 +55,6 @@ function selectTextVirtualized(): void {
   container.style.cursor = textIsInSelection ? "default" : "text";
 
   toggleTextSelection();
-}
-function setPosition(newValue: number): void {
-  position.value = newValue;
 }
 function setFound(newValue: Array<number>): void {
   found.value = newValue;
@@ -148,18 +146,18 @@ const controlButtons = computed((): Array<LogButtonType> => [
 
 watchEffect(() => {
   // Check if the searching position exists
-  if (found.value?.[position.value - 1] === undefined) {
+  if (found.value?.[searchPosition - 1] === undefined) {
     return;
   }
 
-  const logsArrayPosition = found.value[position.value - 1];
+  const logsArrayPosition = found.value[searchPosition - 1];
 
   // Check if index overflows the logs array
   if (logsArray.length <= logsArrayPosition) {
     return;
   }
 
-  scrollToIndex(found.value[position.value - 1]);
+  scrollToIndex(found.value[searchPosition - 1]);
 });
 
 useEventListener("click", (event: MouseEvent) => {
@@ -194,13 +192,14 @@ useEventListener("keydown", (event: KeyboardEvent) => {
   <div id="__log-controls__wrapper" class="h-18 w-full flex flex-col select-none gap-2">
     <div id="__log-controls__first-row" class="h-8 w-full flex flex-nowrap gap-2">
       <LogSearcher
+        v-if="shouldVirtualize"
         :searching="searching"
-        :position="position"
+        :search-position="searchPosition"
         :found="found"
         :should-virtualize="shouldVirtualize"
         :select-all-logs="selectAllLogs"
         :search-logs="searchLogs"
-        :set-position="setPosition"
+        :set-search-position="setSearchPosition"
         :set-found="setFound"
       />
       <LogFilterer

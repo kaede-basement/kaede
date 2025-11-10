@@ -12,7 +12,7 @@ export async function initializeLauncher(): Promise<void> {
     log.debug("Getting a config file");
     config = await Configs.get();
   } catch (error: unknown) {
-    log.error("Failed to get a config file:", Errors.stringify(error));
+    log.error("Failed to get a config file:", Errors.prettify(error));
     log.debug("Getting default config");
     config = await Configs.getDefault();
   }

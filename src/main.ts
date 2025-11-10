@@ -19,7 +19,7 @@ import { log } from "@/lib/logging/scopes/log.ts";
 
 // No need to log yet, all logs will go into the previous launch log file
 await Logging.prepareLogFile().catch((error: unknown) => {
-  log.error("Failed to prepare a log file:", Errors.stringify(error));
+  log.error("Failed to prepare a log file:", Errors.prettify(error));
 });
 
 // Now the log file preparation is done (unless something threw an error)
@@ -35,5 +35,5 @@ AppInstance.mount(ApplicationRootID);
 
 log.debug("Initializing launcher");
 await General.initializeLauncher().catch((error: unknown) => {
-  log.error("Failed to initialize launcher:", Errors.stringify(error));
+  log.error("Failed to initialize launcher:", Errors.prettify(error));
 });

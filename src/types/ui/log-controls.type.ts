@@ -1,4 +1,6 @@
 export type LogControlsType = {
+  "searchPosition"        : number;
+  "setSearchPosition"     : (position: number, absolutePosition: number | undefined) => void;
   "searching"             : string;
   "searchLogs"            : (search: string) => Array<number>;
   "filtering"             : string;

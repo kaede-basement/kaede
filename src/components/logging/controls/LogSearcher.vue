@@ -6,29 +6,33 @@ import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 
 const {
   searching,
-  position,
+  searchPosition,
   found,
   shouldVirtualize,
   selectAllLogs,
   searchLogs,
-  setPosition,
+  setSearchPosition,
   setFound,
 } = defineProps<{
-  "searching"       : string;
-  "position"        : number;
-  "found"           : Array<number>;
-  "shouldVirtualize": boolean;
-  "selectAllLogs"   : () => void;
-  "searchLogs"      : (newSearch: string) => Array<number>;
-  "setPosition"     : (newPosition: number) => void;
-  "setFound"        : (newFound: Array<number>) => void;
+  "searching"        : string;
+  "searchPosition"   : number;
+  "found"            : Array<number>;
+  "shouldVirtualize" : boolean;
+  "selectAllLogs"    : () => void;
+  "searchLogs"       : (newSearch: string) => Array<number>;
+  "setSearchPosition": (newPosition: number, newAbsoluteValue: number | undefined) => void;
+  "setFound"         : (newFound: Array<number>) => void;
 }>();
 
 function incrementIndex(): void {
-  setPosition(Math.min(found.length, position + 1));
+  const relativePosition = Math.min(found.length, searchPosition + 1);
+
+  setSearchPosition(relativePosition, found?.[relativePosition]);
 }
 function decrementIndex(): void {
-  setPosition(Math.max(0, position - 1));
+  const relativePosition = Math.max(0, searchPosition - 1);
+
+  setSearchPosition(relativePosition, found?.[relativePosition]);
 }
 function handleIndex(event: Event): void {
   const target = event?.target as HTMLInputElement;
@@ -38,14 +42,15 @@ function handleIndex(event: Event): void {
   }
 
   const newValue = Number(target.value);
-
-  setPosition(Math.min(
+  const relativePosition = Math.min(
     Math.max(0, found.length),
     Math.max(
       0,
       newValue,
     ),
-  ));
+  );
+
+  setSearchPosition(relativePosition, found?.[relativePosition]);
 }
 
 function handleInput(inputValue: string): void {
@@ -64,15 +69,19 @@ function handleEnter(event: KeyboardEvent): void {
   }
 
   if (event.shiftKey) {
-    setPosition(Math.max(0, position - 1));
+    const relativePosition = Math.max(0, searchPosition - 1);
+
+    setSearchPosition(relativePosition, found?.[relativePosition]);
 
     return;
   }
 
-  setPosition(Math.min(
+  const relativePosition = Math.min(
     Math.max(0, found.length),
-    position + 1,
-  ));
+    searchPosition + 1,
+  );
+
+  setSearchPosition(relativePosition, found?.[relativePosition]);
 }
 function handleTextSelection(event: KeyboardEvent): void {
   if (
@@ -149,7 +158,7 @@ function handleTextSelection(event: KeyboardEvent): void {
       type="number"
       :min="1"
       :max="Math.max(0, found.length)"
-      :value="position"
+      :value="searchPosition"
       @input="handleIndex"
     />
     <p id="__log-controls__matches-text" class="hidden px-2 md:block">

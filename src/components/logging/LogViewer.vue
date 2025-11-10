@@ -25,6 +25,10 @@ const fileData = ref<{
   "time": string | undefined;
 }>({ "size": undefined, "time": undefined });
 const searching = ref<string>("");
+// Takes indexes from the relative matches array (example: [0, 1, 2, ...])
+const searchPosition = ref<number>(1);
+// Takes indexes from the logs array (example: [4, 23, 95, ...])
+const absoluteSearchPosition = ref<number | undefined>(undefined);
 // A key that re-renders virtualized list on every log viewer reopen
 const mountedKey = ref<number>(Math.random());
 const textSelected = ref<boolean>(false);
@@ -68,6 +72,10 @@ const nodeLineSize = 20;
 
 function scrollToIndex(index: number): void {
   virtualList?.value?.scrollToIndex?.(index);
+}
+function setSearchPosition(newValue: number, newAbsoluteValue: number | undefined): void {
+  searchPosition.value = newValue;
+  absoluteSearchPosition.value = newAbsoluteValue;
 }
 function setTextSelectionRange(newValue: [number, number] | undefined): void {
   currentTextSelection.value = newValue;
@@ -216,6 +224,8 @@ onMounted(async () => {
             </span>
           </p>
           <LogControls
+            :search-position="searchPosition"
+            :set-search-position="setSearchPosition"
             :searching="searching"
             :search-logs="searchLogs"
             :filtering="filtering"
@@ -263,6 +273,7 @@ onMounted(async () => {
                 ? slotProps.index
                 : slotProps.node[0]"
               :searching="searching"
+              :search-position="absoluteSearchPosition"
               :selection-indexes="currentTextSelection"
             />
           </template>

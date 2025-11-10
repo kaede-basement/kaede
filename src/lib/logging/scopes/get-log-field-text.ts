@@ -1,3 +1,5 @@
+import Errors from "@/lib/errors";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { FieldTextType } from "@/types/application/log-field-text.type.ts";
 
 export function getLogFieldText(input: string, toSearch: string): string | FieldTextType {
@@ -7,9 +9,21 @@ export function getLogFieldText(input: string, toSearch: string): string | Field
     return input;
   }
 
-  const occurrences = [
-    ...lowerCasedInput.matchAll(new RegExp(toSearch, "g")),
-  ];
+  let occurrences: Array<RegExpExecArray>;
+
+  try {
+    occurrences = [
+      ...lowerCasedInput.matchAll(new RegExp(toSearch, "g")),
+    ];
+  } catch (error: unknown) {
+    log.error(
+      "Couldn't match all search keyword occurrences in the logs:",
+      Errors.prettify(error),
+    );
+
+    return input;
+  }
+
   const noOccurrenceFields = [];
   const occurrenceExtractions = [];
   let previousIndex = 0;
