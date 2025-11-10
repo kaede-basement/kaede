@@ -36,7 +36,7 @@ const testData = [
 for (const [input, output] of testData) {
   const testName = `Relative Date: ${JSON.stringify(input)}`;
   // Example date was taken from MDN docs
-  const equalDate = new Date("December 17, 1995 03:24:00");
+  const equalDate = new Date("December 17, 1995 00:24:00 UTC");
 
   test(testName, () => {
     expect(
