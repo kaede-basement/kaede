@@ -28,15 +28,19 @@ jobs:
       matrix:
         include:
           - name: "macOS-ARM"
+            identifier: "macos-arm"
             platform: "macos-latest" # For Arm based macs (M1 and above).
             args: "--target aarch64-apple-darwin"
           - name: "macOS-x86_64"
+            identifier: "macos-x86"
             platform: "macos-latest" # For Intel based macs.
             args: "--target x86_64-apple-darwin"
           - name: "Linux"
+            identifier: "linux"
             platform: "ubuntu-22.04"
             args: ""
           - name: "Windows"
+            identifier: "windows"
             platform: "windows-latest"
             args: ""
 
@@ -67,16 +71,19 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Use version from Github Tag (Non-Windows)
-        if: startsWith(github.ref, 'refs/tags/') && matrix.name != 'Windows'
+        if: startsWith(github.ref, 'refs/tags/') && matrix.identifier != 'windows'
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           echo "APP_VERSION=${TAG_NAME}" >> $GITHUB_ENV
 
       - name: Use version from Github Tag (Windows)
-        if: startsWith(github.ref, 'refs/tags/') && matrix.name == 'Windows'
+        if: startsWith(github.ref, 'refs/tags/') && matrix.identifier == 'windows'
         run: |
           $TAG_NAME = $env:GITHUB_REF -replace 'refs/tags/', ''
           echo "APP_VERSION=$TAG_NAME" >> $env:GITHUB_ENV
+
+      - name: Remove File System restrictions (Portable-only)
+        if: matrix.portable
 
       - name: Bump tauri.conf.json version
         uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
@@ -130,7 +137,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Upload binary (Windows, NSIS)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'Windows'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -138,7 +145,7 @@ jobs:
           path: "./src-tauri/target/release/bundle/nsis/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64-setup.exe"
 
       - name: Upload binary (Windows, MSI)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'Windows'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -146,7 +153,7 @@ jobs:
           path: "./src-tauri/target/release/bundle/msi/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64_en-US.msi"
 
       - name: Upload binary (Windows, portable)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'Windows'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -154,7 +161,7 @@ jobs:
           path: "./src-tauri/target/release/${{ steps.json_properties.outputs.productName }}.exe"
 
       - name: Upload binary (Linux, DEB)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'Linux'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'linux'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -162,7 +169,7 @@ jobs:
           path: "./src-tauri/target/release/bundle/deb/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_amd64.deb"
 
       - name: Upload binary (Linux, RPM)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'Linux'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'linux'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -170,7 +177,7 @@ jobs:
           path: "./src-tauri/target/release/bundle/rpm/${{ steps.json_properties.outputs.productName }}-${{steps.json_properties.outputs.version}}-1.x86_64.rpm"
 
       - name: Upload binary (Linux, AppImage)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'Linux'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'linux'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -178,7 +185,7 @@ jobs:
           path: "./src-tauri/target/release/bundle/appimage/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_amd64.AppImage"
 
       - name: Upload binary (macOS, x86_64, DMG)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'macOS-x86_64'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'macos-x86'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -186,7 +193,7 @@ jobs:
           path: "./src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64.dmg"
 
       - name: Upload binary (macOS, x86_64, tarball)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'macOS-x86_64'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'macos-x86'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -194,7 +201,7 @@ jobs:
           path: "./src-tauri/target/x86_64-apple-darwin/release/bundle/macos/${{ steps.json_properties.outputs.productName }}.app.tar.gz"
 
       - name: Upload binary (macOS, ARM, DMG)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'macOS-ARM'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'macos-arm'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
@@ -202,7 +209,7 @@ jobs:
           path: "./src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_aarch64.dmg"
 
       - name: Upload binary (macOS, ARM, tarball)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.name == 'macOS-ARM'
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'macos-arm'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
