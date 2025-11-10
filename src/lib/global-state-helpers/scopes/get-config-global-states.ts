@@ -1,7 +1,7 @@
-import { appDataDir, BaseDirectory } from "@tauri-apps/api/path";
-import { exists } from "@tauri-apps/plugin-fs";
+import { appDataDir, join } from "@tauri-apps/api/path";
 
 import { ContextMenuItems } from "@/constants/application.ts";
+import { FileStructure } from "@/constants/file-structure.ts";
 import { RouteItems, Routes } from "@/constants/routes.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
@@ -24,26 +24,17 @@ export async function getConfigGlobalStates(
     return defaultGlobalStates;
   }
 
-  let portable: boolean = false;
+  log.debug("Checking if launcher is in portable version");
+  const portable: boolean = await General.checkIsPortable();
 
-  try {
-    await exists("i_need_to_prepare_for_my_final_terms.txt", {
-      "baseDir": BaseDirectory.Desktop,
-    });
-
-    /*
-     * If user is using a non-portable version of the launcher,
-     * then the 'exists' function should throw an error before this assignment
-     */
-    portable = true;
-  } catch {
-    log.info("Kaede Non-portable version");
-  }
-
-  const portablePrettyString = portable ? "Portable version" : "Non-portable version";
+  log.debug("Getting base directory");
+  const baseDirectory = portable
+    ? await General.getExecutableDirectory()
+    : await appDataDir();
+  const portableVersion = portable ? "Portable version" : "Non-portable version";
 
   log.info(
-    `Running in the ${portablePrettyString}` + "\n" +
+    `Running in the ${portableVersion}` + "\n" +
     "    __                  __   \n" +
     "   / /______ ____  ____/ /__ \n" +
     "  / //_/ __ `/ _ \\/ __  / _ \\\n" +
@@ -51,15 +42,23 @@ export async function getConfigGlobalStates(
     "/_/|_|\\__,_/\\___/\\__,_/\\___/ \n" +
     "                             ",
   );
+  log.debug("Finishing 'getConfigGlobalStates' execution");
 
   return {
     ...defaultGlobalStates,
     "locale"    : currentConfigFile.locale,
     "fileSystem": {
       "portable": portable,
-      "base"    : portable
-        ? await General.getExecutableDirectory()
-        : await appDataDir(),
+      "base"    : baseDirectory,
+      "folders" : {
+        "logs"     : await join(baseDirectory, FileStructure.Logs.Path),
+        "instances": await join(baseDirectory, FileStructure.Instances.Path),
+        "resources": await join(baseDirectory, FileStructure.Resources.Path),
+      },
+      "files": {
+        "config": await join(baseDirectory, FileStructure.Config.Name),
+        "log"   : await join(baseDirectory, FileStructure.Logs.Path, FileStructure.Logs.Name),
+      },
     },
     "layout": {
       ...defaultGlobalStates.layout,

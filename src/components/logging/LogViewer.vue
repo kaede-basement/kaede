@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { join } from "@tauri-apps/api/path";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { computed, inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
@@ -159,12 +158,16 @@ onMounted(async () => {
 
   log.debug("LogViewer.vue mounted");
   log.debug("Getting 'latest.log' file path");
-  const latestLogPath: string = await join("logs", "latest.log");
+  const latestLogPath: string | undefined = globalStates?.fileSystem?.files?.log;
+
+  if (!latestLogPath) {
+    log.warn("'latest.log' file path is missing");
+
+    return;
+  }
 
   log.debug("Reading 'latest.log' file");
-  const existingLogs: string = await readTextFile(latestLogPath, {
-    "baseDir": BaseDirectory.AppData,
-  });
+  const existingLogs: string = await readTextFile(latestLogPath);
 
   if (existingLogs === "") {
     log.warn("Log file is empty");

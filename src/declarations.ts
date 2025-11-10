@@ -96,7 +96,7 @@ declare global {
           /**
            * Executed before the config was read.
            *
-           * No arguments are passed to the hook.
+           * Absolute pathname of the config file is passed as the argument.
            *
            * If the hook returns a 'stop' status,
            * it should also return a 'ConfigType' typed object in the 'response' field.
@@ -104,7 +104,7 @@ declare global {
            * If the hook returns a 'continue' status,
            * code execution will continue as if that hook did not exist.
            */
-          "before": HookReturnType<unknown, ConfigType>;
+          "before": HookReturnType<string, ConfigType>;
 
           /**
            * Executed after the config was read, parsed, and validated.
@@ -126,6 +126,14 @@ declare global {
         "onLocaleChange": {
           "before": HookReturnType<LocaleType, LocaleType, "non-promise">;
           "after" : HookReturnType<LocaleType, "nothing">;
+        };
+        "onFileSystemChange": {
+          "before": HookReturnType<
+            GlobalStatesType["fileSystem"],
+            GlobalStatesType["fileSystem"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["fileSystem"], "nothing">;
         };
         "onLayoutChange": {
           "before": HookReturnType<

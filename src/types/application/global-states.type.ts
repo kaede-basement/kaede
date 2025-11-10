@@ -6,6 +6,15 @@ import type { RouteType } from "@/types/application/route.type.ts";
 export type GlobalStatesFileSystemType = {
   "portable": boolean;
   "base"    : string;
+  "folders" : {
+    "logs"     : string;
+    "instances": string;
+    "resources": string;
+  };
+  "files": {
+    "config": string;
+    "log"   : string;
+  };
 };
 export type GlobalStatesLayoutType = {
   "custom": boolean;

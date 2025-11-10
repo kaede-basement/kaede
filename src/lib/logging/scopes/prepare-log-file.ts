@@ -1,6 +1,5 @@
-import { join } from "@tauri-apps/api/path";
+import { appDataDir, join } from "@tauri-apps/api/path";
 import {
-  BaseDirectory,
   copyFile,
   create,
   type DirEntry,
@@ -11,6 +10,7 @@ import {
 } from "@tauri-apps/plugin-fs";
 
 import { ApplicationName } from "@/constants/application.ts";
+import General from "@/lib/general";
 
 function getNumberFromLogFilename(filename: string): number {
   // 'kaede-0.log' -> 'kaede-0'
@@ -36,6 +36,13 @@ function getNumberFromLogFilename(filename: string): number {
  * else just write into 'latest.log' without other manipulations
  */
 export async function prepareLogFile(): Promise<void> {
+  const portable: boolean = await General.checkIsPortable();
+
+  const baseDirectory = portable
+    ? await General.getExecutableDirectory()
+    : await appDataDir();
+  const logsDirectory = await join(baseDirectory, "logs");
+
   // We are assuming that 'latest.log' doesn't exist
   let latestLogExists = false;
   // And we will keep track of the biggest log file number to make a unique name
@@ -45,16 +52,12 @@ export async function prepareLogFile(): Promise<void> {
   let entries: DirEntry[];
 
   try {
-    entries = await readDir("logs", {
-      "baseDir": BaseDirectory.AppData,
-    });
+    entries = await readDir(logsDirectory);
   } catch {
     entries = [];
 
     // Error means that 'logs' directory doesn't exist
-    await mkdir("logs", {
-      "baseDir": BaseDirectory.AppData,
-    });
+    await mkdir(logsDirectory);
   }
 
   for (const entry of entries) {
@@ -68,22 +71,18 @@ export async function prepareLogFile(): Promise<void> {
     biggestLogNumber = Math.max(biggestLogNumber, getNumberFromLogFilename(entry.name));
   }
 
-  const latestLogPath = await join("logs", "latest.log");
+  const latestLogPath = await join(logsDirectory, "latest.log");
 
   if (!latestLogExists) {
     // 'latest.log' doesn't exist, so we manually create it
-    const newLatestLogFile = await create(latestLogPath, {
-      "baseDir": BaseDirectory.AppData,
-    });
+    const newLatestLogFile = await create(latestLogPath);
 
     await newLatestLogFile.close();
 
     return;
   }
 
-  const latestLogContent = await readTextFile(latestLogPath, {
-    "baseDir": BaseDirectory.AppData,
-  });
+  const latestLogContent = await readTextFile(latestLogPath);
 
   // 'latest.log' is empty; no need to copy empty contents into another log file
   if (latestLogContent === "") {
@@ -91,19 +90,14 @@ export async function prepareLogFile(): Promise<void> {
   }
 
   const renamedLogPath = await join(
-    "logs",
+    logsDirectory,
     `${ApplicationName.toLowerCase()}-${biggestLogNumber + 1}.log`,
   );
 
   // Copy existing contents from 'latest.log' to 'kaede-{number}.log'
-  await copyFile(latestLogPath, renamedLogPath, {
-    "fromPathBaseDir": BaseDirectory.AppData,
-    "toPathBaseDir"  : BaseDirectory.AppData,
-  });
+  await copyFile(latestLogPath, renamedLogPath);
   // Clear the 'latest.log' file
-  await writeTextFile(latestLogPath, "", {
-    "baseDir": BaseDirectory.AppData,
-  });
+  await writeTextFile(latestLogPath, "");
 
   return;
 }

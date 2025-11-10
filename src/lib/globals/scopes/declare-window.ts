@@ -59,6 +59,10 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onFileSystemChange": {
+        "before": [],
+        "after" : [],
+      },
       "onPagesChange": {
         "before": [],
         "after" : [],

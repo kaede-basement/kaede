@@ -1,5 +1,6 @@
 export const HookMappings = {
   "locale"          : "onLocaleChange",
+  "fileSystem"      : "onFileSystemChange",
   "layout"          : "onLayoutChange",
   "pages"           : "onPagesChange",
   "logs"            : "onLogsChange",

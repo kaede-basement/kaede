@@ -1,15 +1,26 @@
-import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
+import { appDataDir, join } from "@tauri-apps/api/path";
+import { exists, readTextFile } from "@tauri-apps/plugin-fs";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { FileStructure } from "@/constants/file-structure.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
+import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
 export async function getConfigFile(): Promise<ConfigType> {
   const hooksArray = window[ApplicationNamespace].hooks.getConfigFile.before;
+
+  log.debug("Checking if launcher is in portable version");
+  const portable = await General.checkIsPortable();
+
+  log.debug("Getting base directory");
+  const baseDirectory = portable
+    ? await General.getExecutableDirectory()
+    : await appDataDir();
+  const configFileDirectory = await join(baseDirectory, FileStructure.Config.Name);
 
   log.debug(log.templates.hooks.iterate.start(
     "getConfigFile",
@@ -25,7 +36,7 @@ export async function getConfigFile(): Promise<ConfigType> {
       hookIndex,
       "async",
     ));
-    const hookResponse = await hookFunction();
+    const hookResponse = await hookFunction(configFileDirectory);
     const timeMeasurementEndHook = performance.now();
     const currentBeforeHookTime = timeMeasurementEndHook - timeMeasurementStartHook;
 
@@ -44,9 +55,7 @@ export async function getConfigFile(): Promise<ConfigType> {
   }
 
   log.debug("Checking if config file exists");
-  const configExists = await exists(FileStructure.Config.Name, {
-    "baseDir": BaseDirectory.AppData,
-  });
+  const configExists = await exists(configFileDirectory);
 
   if (!configExists) {
     log.info("Config file doesn't exist");
@@ -61,9 +70,7 @@ export async function getConfigFile(): Promise<ConfigType> {
 
   log.info("Config file exists");
   log.debug("Reading a config file");
-  const configFile = await readTextFile(FileStructure.Config.Name, {
-    "baseDir": BaseDirectory.AppData,
-  });
+  const configFile = await readTextFile(configFileDirectory);
 
   log.debug("Parsing a config file");
   const parsedConfig: unknown = JSON.parse(configFile);
