@@ -123,8 +123,16 @@ jobs:
             \"permissions[7].allow\": [{\"path\":\"**/*\"}],
             \"permissions[8].allow\": [{\"path\":\"**/*\"}],
             \"permissions[9].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[10].allow\": [{\"path\":\"**/*\"}]
+            \"permissions[10].allow\": [{\"path\":\"**/*\"}],
+            \"permissions[11].allow\": [{\"path\":\"**/*\"}]
           }"
+
+      - name: Mark window title as Portable (Portable-only)
+        if: matrix.type == 'portable'
+        uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
+        with:
+          file: "./src-tauri/tauri.conf.json"
+          fields: "{\"app.windows[0].title\": \"Kaede Portable\"}"
 
       - name: Bump tauri.conf.json version
         uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
