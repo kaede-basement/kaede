@@ -1,9 +1,26 @@
 <script setup lang="ts">
+import { join } from "@tauri-apps/api/path";
+import { readDir } from "@tauri-apps/plugin-fs";
+
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
+import { getExecutableDirectory } from "@/lib/general/scopes/get-executable-directory.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
+import { log } from "@/lib/logging/scopes/log.ts";
 
 async function download(): Promise<void> {}
 async function run(): Promise<void> {}
+
+(async (): Promise<void> => {
+  log.info("\n" + JSON.stringify(
+    await readDir(
+      await join(
+        await getExecutableDirectory(),
+      ),
+    ),
+    null,
+    2,
+  ));
+})();
 </script>
 
 <template>

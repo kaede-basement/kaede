@@ -13,6 +13,7 @@ import {
 } from "@/constants/application.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
@@ -90,8 +91,10 @@ window[ApplicationNamespace].__internals.changeGlobalStates = scopedChangeGlobal
  */
 onBeforeMount(async () => {
   // We can't use top-level await, so we apply config here
+  log.debug("App.vue::onBeforeMount: getting global states from config");
   const userConfig = await GlobalStateHelpers.getFromConfig(globalStates);
 
+  log.debug("App.vue::onBeforeMount: applying global states from config");
   for (const [key, value] of Object.entries(userConfig)) {
     globalStates[key as "locale"] = value as GlobalStatesType["locale"];
   }
