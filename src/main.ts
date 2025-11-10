@@ -11,18 +11,29 @@ import { createApp } from "vue";
 
 import App from "@/App.vue";
 import { ApplicationRootID } from "@/constants/application";
+import { getASCIIArt } from "@/constants/ascii-art.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import Globals from "@/lib/globals";
 import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
 
-// No need to log yet, all logs will go into the previous launch log file
-await Logging.prepareLogFile().catch((error: unknown) => {
-  log.error("Failed to prepare a log file:", Errors.prettify(error));
-});
+// Share the 'portable' status between other functions
+let portable: boolean = false;
 
-// Now the log file preparation is done (unless something threw an error)
+// No need to log yet, all logs will go into the previous launch log file
+try {
+  const result = await Logging.prepareLogFile();
+
+  // Now the log file preparation is done (unless something threw an error)
+  portable = result.portable;
+} catch (error: unknown) {
+  log.error("Failed to prepare a log file:", Errors.prettify(error));
+}
+
+// Show a pretty ASCII art with the launcher name :3
+log.info(getASCIIArt(portable));
+
 log.debug("Extending global window object in the app namespace");
 Globals.declareWindow();
 
@@ -34,6 +45,6 @@ log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})`);
 AppInstance.mount(ApplicationRootID);
 
 log.debug("Initializing launcher");
-await General.initializeLauncher().catch((error: unknown) => {
+await General.initializeLauncher(portable).catch((error: unknown) => {
   log.error("Failed to initialize launcher:", Errors.prettify(error));
 });

@@ -35,7 +35,9 @@ function getNumberFromLogFilename(filename: string): number {
  *
  * else just write into 'latest.log' without other manipulations
  */
-export async function prepareLogFile(): Promise<void> {
+export async function prepareLogFile(): Promise<{
+  "portable": boolean;
+}> {
   const portable: boolean = await General.checkIsPortable();
 
   const baseDirectory = portable
@@ -79,14 +81,14 @@ export async function prepareLogFile(): Promise<void> {
 
     await newLatestLogFile.close();
 
-    return;
+    return { portable };
   }
 
   const latestLogContent = await readTextFile(latestLogPath);
 
   // 'latest.log' is empty; no need to copy empty contents into another log file
   if (latestLogContent === "") {
-    return;
+    return { portable };
   }
 
   const renamedLogPath = await join(
@@ -99,5 +101,5 @@ export async function prepareLogFile(): Promise<void> {
   // Clear the 'latest.log' file
   await writeTextFile(latestLogPath, "");
 
-  return;
+  return { portable };
 }

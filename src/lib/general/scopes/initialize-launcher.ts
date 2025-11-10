@@ -5,12 +5,12 @@ import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
-export async function initializeLauncher(): Promise<void> {
+export async function initializeLauncher(portable: boolean): Promise<void> {
   let config: ConfigType;
 
   try {
     log.debug("Getting a config file");
-    config = await Configs.get();
+    config = await Configs.get(portable);
   } catch (error: unknown) {
     log.error("Failed to get a config file:", Errors.prettify(error));
     log.debug("Getting default config");

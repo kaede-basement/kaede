@@ -10,11 +10,11 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
-export async function getConfigFile(): Promise<ConfigType> {
+export async function getConfigFile(portableStatus?: boolean): Promise<ConfigType> {
   const hooksArray = window[ApplicationNamespace].hooks.getConfigFile.before;
 
   log.debug("Checking if launcher is in portable version");
-  const portable = await General.checkIsPortable();
+  const portable = portableStatus ?? await General.checkIsPortable();
 
   log.debug("Getting base directory");
   const baseDirectory = portable

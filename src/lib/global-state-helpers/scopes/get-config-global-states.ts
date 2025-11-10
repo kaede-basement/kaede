@@ -31,17 +31,9 @@ export async function getConfigGlobalStates(
   const baseDirectory = portable
     ? await General.getExecutableDirectory()
     : await appDataDir();
-  const portableVersion = portable ? "Portable version" : "Non-portable version";
+  const portableVersion = portable ? "Portable" : "Non-portable";
 
-  log.info(
-    `Running in the ${portableVersion}` + "\n" +
-    "    __                  __   \n" +
-    "   / /______ ____  ____/ /__ \n" +
-    "  / //_/ __ `/ _ \\/ __  / _ \\\n" +
-    " / ,< / /_/ /  __/ /_/ /  __/\n" +
-    "/_/|_|\\__,_/\\___/\\__,_/\\___/ \n" +
-    "                             ",
-  );
+  log.info(`Running in the '${portableVersion}' version`);
   log.debug("Finishing 'getConfigGlobalStates' execution");
 
   return {
@@ -78,7 +70,7 @@ export async function getConfigGlobalStates(
     },
     "logs": {
       ...defaultGlobalStates.logs,
-      "show"       : false,
+      "show"       : true,
       "lineBreaks" : false,
       "virtualized": false,
       "filtering"  : "",
