@@ -11,6 +11,7 @@ on:
       - beta
       - rc
       - release
+      - extensions
     tags:
       - "*"
   workflow_dispatch:
@@ -31,18 +32,22 @@ jobs:
             identifier: "macos-arm"
             platform: "macos-latest" # For Arm based macs (M1 and above).
             args: "--target aarch64-apple-darwin"
+            portable: false
           - name: "macOS-x86_64"
             identifier: "macos-x86"
             platform: "macos-latest" # For Intel based macs.
             args: "--target x86_64-apple-darwin"
+            portable: false
           - name: "Linux"
             identifier: "linux"
             platform: "ubuntu-22.04"
             args: ""
+            portable: false
           - name: "Windows"
             identifier: "windows"
             platform: "windows-latest"
             args: ""
+            portable: true
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -84,12 +89,16 @@ jobs:
 
       - name: Remove File System restrictions (Portable-only)
         if: matrix.portable
+        uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
+        with:
+          file: "./src-tauri/capabilities/plugin-fs.json"
+          fields: "{'permissions[5].allow': [{'path':'**'}]}"
 
       - name: Bump tauri.conf.json version
         uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
         with:
           file: "./src-tauri/tauri.conf.json"
-          fields: '{"version": "${{ env.APP_VERSION }}"}'
+          fields: "{'version': '${{ env.APP_VERSION }}'}"
 
       - name: Bump Cargo.toml version
         uses: colt-1/toml-editor@da6b46ee7779ed730d2160393ed95fb20e82696d
