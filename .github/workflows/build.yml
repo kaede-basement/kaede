@@ -28,12 +28,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "macOS-ARM"
+          - name: "macOS ARM"
             identifier: "macos-arm"
             platform: "macos-latest" # For Arm based macs (M1 and above).
             args: "--target aarch64-apple-darwin"
             portable: false
-          - name: "macOS-x86_64"
+          - name: "macOS x86_64"
             identifier: "macos-x86"
             platform: "macos-latest" # For Intel based macs.
             args: "--target x86_64-apple-darwin"
@@ -44,6 +44,26 @@ jobs:
             args: ""
             portable: false
           - name: "Windows"
+            identifier: "windows"
+            platform: "windows-latest"
+            args: ""
+            portable: false
+          - name: "macOS ARM (Portable)"
+            identifier: "macos-arm"
+            platform: "macos-latest" # For Arm based macs (M1 and above).
+            args: "--target aarch64-apple-darwin"
+            portable: true
+          - name: "macOS x86_64 (Portable)"
+            identifier: "macos-x86"
+            platform: "macos-latest" # For Intel based macs.
+            args: "--target x86_64-apple-darwin"
+            portable: true
+          - name: "Linux (Portable)"
+            identifier: "linux"
+            platform: "ubuntu-22.04"
+            args: ""
+            portable: true
+          - name: "Windows (Portable)"
             identifier: "windows"
             platform: "windows-latest"
             args: ""
@@ -92,7 +112,19 @@ jobs:
         uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
         with:
           file: "./src-tauri/capabilities/plugin-fs.json"
-          fields: "{\"permissions[5].allow\": [{\"path\":\"**\"}]}"
+          fields: "{
+            \"permissions[0].allow\": [{\"path\":\"**\"}],
+            \"permissions[1].allow\": [{\"path\":\"**\"}],
+            \"permissions[2].allow\": [{\"path\":\"**\"}],
+            \"permissions[3].allow\": [{\"path\":\"**\"}],
+            \"permissions[4].allow\": [{\"path\":\"**\"}],
+            \"permissions[5].allow\": [{\"path\":\"**\"}],
+            \"permissions[6].allow\": [{\"path\":\"**\"}],
+            \"permissions[7].allow\": [{\"path\":\"**\"}],
+            \"permissions[8].allow\": [{\"path\":\"**\"}],
+            \"permissions[9].allow\": [{\"path\":\"**\"}],
+            \"permissions[10].allow\": [{\"path\":\"**\"}],
+          }"
 
       - name: Bump tauri.conf.json version
         uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
