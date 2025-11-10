@@ -17,7 +17,8 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": false, // Default: true. Conflicts with packages that use typescript enums if true
+    // Default: true. Conflicts with packages that use typescript enums if true
+    "erasableSyntaxOnly": false,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },

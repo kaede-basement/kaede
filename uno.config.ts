@@ -15,7 +15,7 @@ export default defineConfig({
   "presets": [
 
     /*
-     * 'presetWind4' requires Chrome 111+ (March 9, 2023)
+     * 'presetWind4' requires Chrome 111+ (March 9, 2023).
      * Otherwise colors won't work, so not worth it
      */
     presetWind3({
