@@ -92,13 +92,13 @@ jobs:
         uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
         with:
           file: "./src-tauri/capabilities/plugin-fs.json"
-          fields: "{'permissions[5].allow': [{'path':'**'}]}"
+          fields: "{\"permissions[5].allow\": [{\"path\":\"**\"}]}"
 
       - name: Bump tauri.conf.json version
         uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
         with:
           file: "./src-tauri/tauri.conf.json"
-          fields: "{'version': '${{ env.APP_VERSION }}'}"
+          fields: "{\"version\": \"${{ env.APP_VERSION }}\"}"
 
       - name: Bump Cargo.toml version
         uses: colt-1/toml-editor@da6b46ee7779ed730d2160393ed95fb20e82696d
