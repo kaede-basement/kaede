@@ -1,4 +1,4 @@
-import { appDataDir, join } from "@tauri-apps/api/path";
+import { join } from "@tauri-apps/api/path";
 import { exists, readTextFile } from "@tauri-apps/plugin-fs";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
@@ -17,9 +17,7 @@ export async function getConfigFile(portableStatus?: boolean): Promise<ConfigTyp
   const portable = portableStatus ?? await General.checkIsPortable();
 
   log.debug("Getting base directory");
-  const baseDirectory = portable
-    ? await General.getExecutableDirectory()
-    : await appDataDir();
+  const baseDirectory = await General.getBaseDirectory(portable);
   const configFileDirectory = await join(baseDirectory, FileStructure.Config.Name);
 
   log.debug(log.templates.hooks.iterate.start(

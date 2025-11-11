@@ -1,4 +1,4 @@
-import { appDataDir, join } from "@tauri-apps/api/path";
+import { join } from "@tauri-apps/api/path";
 
 import { ContextMenuItems } from "@/constants/application.ts";
 import { FileStructure } from "@/constants/file-structure.ts";
@@ -28,9 +28,7 @@ export async function getConfigGlobalStates(
   const portable: boolean = await General.checkIsPortable();
 
   log.debug("Getting base directory");
-  const baseDirectory = portable
-    ? await General.getExecutableDirectory()
-    : await appDataDir();
+  const baseDirectory = await General.getBaseDirectory(portable);
   const portableVersion = portable ? "Portable" : "Non-portable";
 
   log.info(`Running in the '${portableVersion}' version`);

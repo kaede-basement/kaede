@@ -1,4 +1,4 @@
-import { appDataDir, join } from "@tauri-apps/api/path";
+import { join } from "@tauri-apps/api/path";
 import {
   copyFile,
   create,
@@ -36,9 +36,7 @@ function getNumberFromLogFilename(filename: string): number {
  * else just write into 'latest.log' without other manipulations
  */
 export async function prepareLogFile(portable: boolean): Promise<void> {
-  const baseDirectory = portable
-    ? await General.getExecutableDirectory()
-    : await appDataDir();
+  const baseDirectory = await General.getBaseDirectory(portable);
   const logsDirectory = await join(baseDirectory, "logs");
 
   // We are assuming that 'latest.log' doesn't exist
