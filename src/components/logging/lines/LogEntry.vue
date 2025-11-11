@@ -11,10 +11,11 @@ import type { FieldTextType } from "@/types/application/log-field-text.type.ts";
 /**
  * 'line' format: [date][time][target?][level] message
  */
-const { line, index, searching, searchPosition, selectionIndexes } = defineProps<{
+const { line, index, searching, showDates, searchPosition, selectionIndexes } = defineProps<{
   "line"             : string | [number, string];
   "index"            : number;
   "searching"        : string;
+  "showDates"       ?: boolean;
   "searchPosition"  ?: number | undefined;
   "selectionIndexes"?: [number, number] | undefined;
 }>();
@@ -102,21 +103,23 @@ const isInRange = computed((): boolean => {
         :search-position="searchPosition"
       />
 
-      <span
-        :id="`__log-entry__date-${index}`"
-        v-if="typeof extractedInformation.date === 'string'"
-        class="__log-entry__date text-neutral-400"
-      >
+      <template v-if="showDates">
+        <span
+          :id="`__log-entry__date-${index}`"
+          v-if="typeof extractedInformation.date === 'string'"
+          class="__log-entry__date text-neutral-400"
+        >
         {{ extractedInformation.date }}
       </span>
-      <LogHighlighter
-        v-else
-        color-class="text-neutral-400"
-        :index="index"
-        :fields="extractedInformation.date.fields"
-        :occurrences="extractedInformation.date.extractions"
-        :search-position="searchPosition"
-      />
+        <LogHighlighter
+          v-else
+          color-class="text-neutral-400"
+          :index="index"
+          :fields="extractedInformation.date.fields"
+          :occurrences="extractedInformation.date.extractions"
+          :search-position="searchPosition"
+        />
+      </template>
 
       <span
         :id="`__log-entry__time-${index}`"

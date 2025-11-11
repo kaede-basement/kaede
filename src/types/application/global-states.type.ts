@@ -46,6 +46,7 @@ export type GlobalStatesLogsType = {
   "show"       : boolean;
   "lineBreaks" : boolean;
   "virtualized": boolean;
+  "dates"      : boolean;
   "filtering"  : string;
 };
 export type GlobalStatesSidebarItemsType = Array<"divider" | {

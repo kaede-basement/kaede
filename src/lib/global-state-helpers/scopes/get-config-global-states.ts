@@ -70,9 +70,10 @@ export async function getConfigGlobalStates(
     },
     "logs": {
       ...defaultGlobalStates.logs,
-      "show"       : true,
+      "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,
+      "dates"      : false,
       "filtering"  : "",
     },
     "sidebarItems": [

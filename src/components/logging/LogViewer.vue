@@ -276,6 +276,7 @@ onMounted(async () => {
                 ? slotProps.index
                 : slotProps.node[0]"
               :searching="searching"
+              :show-dates="globalStates?.logs?.dates"
               :search-position="absoluteSearchPosition"
               :selection-indexes="currentTextSelection"
             />
@@ -286,6 +287,7 @@ onMounted(async () => {
           ref="nonVirtualList"
           :logs="filteredLogs ?? logs"
           :searching="searching"
+          :show-dates="globalStates?.logs?.dates"
           :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
         />
       </div>

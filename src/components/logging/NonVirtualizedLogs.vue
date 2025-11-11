@@ -5,9 +5,10 @@ import LogEntry from "@/components/logging/lines/LogEntry.vue";
 
 const target = useTemplateRef("target");
 
-const { logs, searching, horizontalScroll } = defineProps<{
+const { logs, searching, showDates, horizontalScroll } = defineProps<{
   "logs"            : Array<string | [number, string]>;
   "searching"       : string;
+  "showDates"      ?: boolean;
   "horizontalScroll": boolean;
 }>();
 
@@ -30,6 +31,7 @@ defineExpose({ "nonVirtualizedLogsTarget": target });
           ? index
           : entry[0]"
         :searching="searching"
+        :show-dates="showDates"
       />
     </template>
   </div>
