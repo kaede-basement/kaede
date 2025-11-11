@@ -4,7 +4,6 @@ import { inject, ref, shallowRef } from "vue";
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
-import iochiMariCat from "@/resources/iochi_mari_cat.webp";
 import type {
   ContextGlobalStatesType,
 } from "@/types/application/global-states.type.ts";
@@ -90,7 +89,7 @@ function handleButtonAction(action: () => void): void {
 <template>
   <div
     id="__sidebar__hovering-tooltip"
-    class="pointer-events-none absolute left-20 top-2 z-49000 w-fit transform-gpu select-none rounded-md bg-neutral-950 p-2 leading-none transition-[transform,opacity]"
+    class="pointer-events-none absolute left-20 top-2 z-49000 w-fit transform-gpu rounded-md bg-neutral-950 p-2 leading-none transition-[transform,opacity]"
     :style="{
       transform: `translateY(${tooltip.top}px)`,
       opacity  : tooltip.show ? 1 : 0,
@@ -151,11 +150,5 @@ function handleButtonAction(action: () => void): void {
         ></div>
       </template>
     </TransitionGroup>
-    <Image
-      :src="iochiMariCat"
-      id="__sidebar__entry-iochi-mari-cat"
-      alt="Iochi Mari, a character from Blue Archive"
-      class-names="fixed bottom-2 left-2 size-16 rounded-md overflow-hidden opacity-20 pointer-events-none"
-    />
   </div>
 </template>

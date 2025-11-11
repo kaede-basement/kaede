@@ -213,10 +213,10 @@ onMounted(async () => {
     >
       <div id="__log-viewer__information-wrapper" class="w-full flex shrink-0 flex-nowrap items-start justify-between gap-4 pb-2">
         <div id="__log-viewer__information-text-wrapper" class="flex flex-col gap-2">
-          <p id="__log-viewer__information-title" class="select-none text-xl font-medium leading-none">
+          <p id="__log-viewer__information-title" class="text-xl font-medium leading-none">
             Logs
           </p>
-          <p id="__log-viewer__information-subtitle" class="select-none text-neutral-300">
+          <p id="__log-viewer__information-subtitle" class="text-neutral-300">
             <span id="__log-viewer__information-subtitle-static">View Kaede logs</span>
             <span
               v-if="fileData?.size !== undefined && fileData?.time !== undefined"
@@ -267,7 +267,7 @@ onMounted(async () => {
           :nodes="filteredLogs ?? logs"
           :id="globalStates?.logs?.lineBreaks ? '' : '__virtualized-list-logs'"
           ref="virtualList"
-          class="w-full select-none"
+          class="w-full"
         >
           <template #cell="slotProps">
             <LogEntry

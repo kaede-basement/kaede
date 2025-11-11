@@ -10,6 +10,11 @@ html {
   color-scheme: dark;
 }
 
+#app {
+  /* Text selections are going to be whitelisted */
+  user-select: none;
+}
+
 .text-justify-last {
   text-align-last: justify;
 }
@@ -32,11 +37,6 @@ input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
-}
-
-/* These elements should not allow text selection */
-img, button, button span {
-  user-select: none;
 }
 
 /* Show a custom tooltip on button hover */

@@ -9,9 +9,9 @@ const { page } = defineProps<{
 }>();
 
 const __urls: Record<string, string> = {
-  "home"        : "https://i.redd.it/5e6h5ml67x961.jpg",
+  "home"        : "https://motionbgs.com/media/2787/morizuki-suzumi-blue-archive.jpg",
   "library"     : "https://moewalls.com/wp-content/uploads/2023/01/arona-stargazing-blue-archive-thumb.jpg",
-  "settings"    : "https://motionbgs.com/media/2787/morizuki-suzumi-blue-archive.jpg",
+  "settings"    : "https://i.redd.it/5e6h5ml67x961.jpg",
   "add-instance": "https://i.pinimg.com/736x/c2/1d/a7/c21da7189d927e4727e5697c22005f3a.jpg",
 };
 

@@ -78,7 +78,7 @@ const isInRange = computed((): boolean => {
       'flex shrink-0 flex-nowrap gap-1 px-1',
     ]"
   >
-    <p :id="`__log-entry__index-${index}`" class="__log-entry__index w-14 shrink-0 select-none text-center text-neutral-400">
+    <p :id="`__log-entry__index-${index}`" class="__log-entry__index w-14 shrink-0 text-center text-neutral-400">
       {{ index }}
     </p>
     <div :id="`__log-entry__text-wrapper-${index}`" class="__log-entry__text-wrapper break-all">

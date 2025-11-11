@@ -193,7 +193,7 @@ useEventListener("keydown", (event: KeyboardEvent) => {
 </script>
 
 <template>
-  <div id="__log-controls__wrapper" class="h-18 w-full flex flex-col select-none gap-2">
+  <div id="__log-controls__wrapper" class="h-18 w-full flex flex-col gap-2">
     <div id="__log-controls__first-row" class="h-8 w-full flex flex-nowrap gap-2">
       <LogSearcher
         v-if="shouldVirtualize"

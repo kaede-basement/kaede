@@ -3,13 +3,17 @@ import { Ripple } from "m3ripple-vue";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
 
-const { id, label, disabled } = defineProps<{
+const { id, label, disabled, colors } = defineProps<{
   "id"      ?: string;
   "label"   ?: string;
   "disabled"?: boolean;
+  "colors"  ?: {
+    "ripple"  ?: string;
+    "sparkles"?: `${number} ${number} ${number}`;
+  };
 }>();
 
-const colors = {
+const defaultColors = {
   "ripple"  : window[ApplicationNamespace].variables.rippleColor,
   "sparkles": window[ApplicationNamespace].variables.sparklesColorRGB,
 };
@@ -21,7 +25,7 @@ const colors = {
     :aria-label="label"
     :aria-hidden="true"
     :class="[disabled ? 'pointer-events-none' : '']"
-    :ripple-color="colors.ripple"
-    :sparkles-color-r-g-b="colors.sparkles"
+    :ripple-color="colors?.ripple ?? defaultColors.ripple"
+    :sparkles-color-r-g-b="colors?.sparkles ?? defaultColors.sparkles"
   />
 </template>
