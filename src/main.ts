@@ -18,20 +18,22 @@ import Globals from "@/lib/globals";
 import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
 
+// Get the exact timestamp in milliseconds before initialization
+const startTime = performance.now();
+
 // Share the 'portable' status between other functions
-let portable: boolean = false;
+const portable: boolean = await General.checkIsPortable();
 
 // No need to log yet, all logs will go into the previous launch log file
-try {
-  const result = await Logging.prepareLogFile();
-
-  // Now the log file preparation is done (unless something threw an error)
-  portable = result.portable;
-} catch (error: unknown) {
+await Logging.prepareLogFile(portable).catch((error: unknown) => {
   log.error("Failed to prepare a log file:", Errors.prettify(error));
-}
+});
 
-// Show a pretty ASCII art with the launcher name :3
+/*
+ * Now the log file preparation is done (unless something threw an error).
+ *
+ * Show a pretty ASCII art with the launcher name :3
+ */
 log.info(getASCIIArt(portable));
 
 log.debug("Extending global window object in the app namespace");
@@ -48,3 +50,12 @@ log.debug("Initializing launcher");
 await General.initializeLauncher(portable).catch((error: unknown) => {
   log.error("Failed to initialize launcher:", Errors.prettify(error));
 });
+
+// Get the exact timestamp in milliseconds after initialization
+const endTime = performance.now();
+
+log.info(
+  "Launcher was initialized in",
+  (endTime - startTime).toFixed(2),
+  "ms",
+);
