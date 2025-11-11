@@ -88,7 +88,6 @@ function handleButtonAction(action: () => void): void {
 </script>
 
 <template>
-  <div id="__sidebar__space-placeholder" class="h-full w-20 shrink-0"></div>
   <div
     id="__sidebar__hovering-tooltip"
     class="pointer-events-none absolute left-20 top-2 z-49000 w-fit transform-gpu select-none rounded-md bg-neutral-950 p-2 leading-none transition-[transform,opacity]"
@@ -109,7 +108,7 @@ function handleButtonAction(action: () => void): void {
       name="fade"
       tag="div"
       id="__sidebar__inner"
-      class="h-fit min-h-full w-full flex flex-col items-center gap-2 rounded-md bg-neutral-950 p-2"
+      class="h-fit min-h-full w-full flex flex-col items-center gap-2 rounded-md bg-[theme(colors.neutral.950/.3)] backdrop-blur-md p-2"
     >
       <template
         v-for="(item, index) in globalStates?.sidebarItems"

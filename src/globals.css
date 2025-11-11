@@ -117,6 +117,22 @@ button[data-tooltip] {
 }
 .page-leave-to {}
 
+/* 'global-background' transition */
+.global-background-enter-active {
+  transition: opacity 150ms ease, transform 400ms ease;
+}
+.global-background-leave-active {
+  transition: opacity 150ms ease, transform 400ms ease;
+  transform: translateY(-16px);
+  opacity: 0;
+}
+
+.global-background-enter-from {
+  transform: translateY(16px);
+  opacity: 0;
+}
+.global-background-leave-to {}
+
 /* 'pop' transition */
 .pop-enter-active {
   transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
