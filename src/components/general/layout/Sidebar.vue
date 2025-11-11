@@ -108,7 +108,7 @@ function handleButtonAction(action: () => void): void {
       name="fade"
       tag="div"
       id="__sidebar__inner"
-      class="h-fit min-h-full w-full flex flex-col items-center gap-2 rounded-md bg-[theme(colors.neutral.950/.3)] backdrop-blur-md p-2"
+      class="h-fit min-h-full w-full flex flex-col items-center gap-2 rounded-md p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
     >
       <template
         v-for="(item, index) in globalStates?.sidebarItems"
