@@ -4,6 +4,8 @@ import { inject, ref, shallowRef } from "vue";
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
+import { Routes } from "@/constants/routes.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type {
   ContextGlobalStatesType,
 } from "@/types/application/global-states.type.ts";
@@ -84,6 +86,9 @@ function handleButtonAction(action: () => void): void {
   action();
   closeTooltip();
 }
+function handleProfileNavigation(): void {
+  GlobalStateHelpers.Pages.navigate(Routes.Profile);
+}
 </script>
 
 <template>
@@ -98,16 +103,42 @@ function handleButtonAction(action: () => void): void {
     {{ tooltip.text }}
   </div>
   <div
+    @mouseleave="closeTooltip"
     id="__sidebar__wrapper"
-    class="thin-scrollbar scroll-gutter-stable-both absolute bottom-0 left-0 top-0 z-10000 w-20 overflow-x-hidden overflow-y-auto py-2"
+    class="thin-scrollbar scroll-gutter-stable-both flex flex-col gap-2 absolute bottom-0 left-0 top-0 z-10000 w-20 overflow-x-hidden overflow-y-auto py-2"
   >
+    <div
+      id="__sidebar__inner-profile"
+      @mouseover="handleMouseOver"
+      class="p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)] shrink-0 rounded-md"
+    >
+      <button
+        id="__sidebar__entry-profile-button"
+        :disabled="Routes.Profile === globalStates?.pages?.current"
+        @mousedown="() => handleButtonAction(handleProfileNavigation)"
+        @touchstart="() => handleButtonAction(handleProfileNavigation)"
+        @click="() => handleButtonAction(handleProfileNavigation)"
+        class="relative grid size-12 shrink-0 place-items-center rounded-md text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
+        aria-label="profile"
+      >
+        <Image
+          :id="`__sidebar__entry-profile-image`"
+          :src="`https://new.freesmlauncher.org/skins/windstone.png`"
+          :alt="`An image for the profile sidebar item`"
+          class-names="rounded-md size-8"
+        />
+        <MaterialRipple
+          :id="`__sidebar__entry-profile-overlay`"
+          :label="`profile`"
+        />
+      </button>
+    </div>
     <TransitionGroup
       @mouseover="handleMouseOver"
-      @mouseleave="closeTooltip"
       name="fade"
       tag="div"
       id="__sidebar__inner"
-      class="h-fit min-h-full w-full flex flex-col items-center gap-2 rounded-md p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
+      class="h-fit min-h-[calc(100%-72px)] w-full flex flex-col items-center gap-2 rounded-md p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
     >
       <template
         v-for="(item, index) in globalStates?.sidebarItems"
@@ -123,14 +154,14 @@ function handleButtonAction(action: () => void): void {
           class="relative grid size-12 shrink-0 place-items-center rounded-md text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
           :aria-label="item.name"
         >
-        <span
-          v-if="item.icon"
-          :id="`__sidebar__entry-${item.icon}-icon`"
-          :class="[
-            item.icon,
-            'block size-6 shrink-0',
-          ]"
-        ></span>
+          <span
+            v-if="item.icon"
+            :id="`__sidebar__entry-${item.icon}-icon`"
+            :class="[
+              item.icon,
+              'block size-6 shrink-0',
+            ]"
+          ></span>
           <Image
             v-else-if="item.image"
             :id="`__sidebar__entry-${item.icon}-image`"

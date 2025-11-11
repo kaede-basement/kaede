@@ -427,6 +427,7 @@ nothing here yet
 ## Features
 
 - Cross-platform
+- Available as Non-Portable/Portable
 - Open Source, GPL-3.0
 - Written in TypeScript
 
@@ -443,6 +444,7 @@ Not implemented yet:
 - [ ] Authentication
   - [ ] Microsoft authentication
   - [ ] Offline accounts if user has a Microsoft account with the game
+  - [ ] Profile systems (?) (basically different launcher settings for different users)
 - [ ] Instance management
   - [ ] All Minecraft versions launch
   - [ ] Instance import (from Prism Launcher, Modrinth, etc.)

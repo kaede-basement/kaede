@@ -3,6 +3,7 @@ export const Routes = {
   "Library"    : "library",
   "Settings"   : "settings",
   "AddInstance": "add-instance",
+  "Profile"    : "profile",
   "None"       : "none",
 } as const;
 export const RouteItems = [
