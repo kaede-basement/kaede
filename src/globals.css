@@ -10,6 +10,10 @@ html {
   color-scheme: dark;
 }
 
+.text-justify-last {
+  text-align-last: justify;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 12px }
 ::-webkit-scrollbar-corner { background: transparent }

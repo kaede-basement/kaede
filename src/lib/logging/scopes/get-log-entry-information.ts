@@ -40,23 +40,24 @@ export function getLogEntryInformation(line: string | [number, string]): LogEntr
     switch (partIndex) {
       case 0: {
         if (parts.length === 1) {
-          current.date = part;
+          current.time = part;
+
           break;
         }
 
-        current.date = part + "]";
+        current.date = "[ " + part.slice(1) + " ]";
 
         break;
       }
       case 1: {
-        current.time = part + "]";
+        current.time = "[ " + part.slice(1) + " ]";
 
         break;
       }
       case 2: {
         // If true, then the target part is empty
         if (part.startsWith(" ")) {
-          current.level = part.trim() + "]";
+          current.level = "[ " + part.trim().slice(1) + " ]";
 
           break;
         }
@@ -64,12 +65,12 @@ export function getLogEntryInformation(line: string | [number, string]): LogEntr
         if (part.startsWith("[webview:")) {
           const targetParts = part.split("/");
 
-          current.target = "[" + targetParts[targetParts.length - 1] + "]";
+          current.target = "[ " + targetParts[targetParts.length - 1] + " ]";
 
           break;
         }
 
-        current.target = part + "]";
+        current.target = "[ " + part.slice(1) + " ]";
 
         break;
       }
@@ -81,7 +82,7 @@ export function getLogEntryInformation(line: string | [number, string]): LogEntr
           break;
         }
 
-        current.level = part + "]";
+        current.level = "[ " + part.slice(1) + " ]";
 
         break;
       }

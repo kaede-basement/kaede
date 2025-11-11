@@ -84,7 +84,12 @@ const isInRange = computed((): boolean => {
       <span
         :id="`__log-entry__level-${index}`"
         v-if="typeof extractedInformation.level === 'string'"
-        :class="['__log-entry__level', Logging.getLogLevelColor(information.level)]"
+        :class="[
+          '__log-entry__level',
+          extractedInformation.level !== ''
+            && 'text-justify-last inline-block w-[70px]',
+          Logging.getLogLevelColor(information.level),
+        ]"
       >
         {{ extractedInformation.level }}
       </span>
@@ -100,7 +105,7 @@ const isInRange = computed((): boolean => {
       <span
         :id="`__log-entry__date-${index}`"
         v-if="typeof extractedInformation.date === 'string'"
-        class="__log-entry__date whitespace-pre text-neutral-400"
+        class="__log-entry__date text-neutral-400"
       >
         {{ extractedInformation.date }}
       </span>
@@ -116,7 +121,7 @@ const isInRange = computed((): boolean => {
       <span
         :id="`__log-entry__time-${index}`"
         v-if="typeof extractedInformation.time === 'string'"
-        class="__log-entry__time text-neutral-400"
+        class="__log-entry__time whitespace-pre text-neutral-400"
       >
         {{ extractedInformation.time }}
       </span>
