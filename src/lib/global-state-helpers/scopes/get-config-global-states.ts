@@ -51,18 +51,24 @@ export async function getConfigGlobalStates(
       },
     },
     "layout": {
-      ...defaultGlobalStates.layout,
       "custom"    : false,
       "background": {
-        "url": undefined,
-        "key": undefined,
+        "url"  : "https://s126-isny.freeconvert.com/task/6914e6c5121a9b1c5c48b781/morizuki-suzumi-blue-archive.960x540.gif",
+        "key"  : undefined,
+        "blur" : 4,
+        "color": "rgba(0, 0, 0, 0.7)",
+      },
+      "sidebar": {
+        "blur"      : 12,
+        "color"     : "rgb(255, 255, 255)",
+        "ripple"    : undefined,
+        "sparkles"  : undefined,
+        "background": "rgba(23, 0, 0, 0.3)",
       },
     },
     "pages": {
-      ...defaultGlobalStates.pages,
       "current": Routes.Home,
       "states" : {
-        ...defaultGlobalStates.pages.states,
         "home"        : {},
         "library"     : {},
         "settings"    : { "tab": "extensions" },
@@ -71,7 +77,6 @@ export async function getConfigGlobalStates(
       },
     },
     "logs": {
-      ...defaultGlobalStates.logs,
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,

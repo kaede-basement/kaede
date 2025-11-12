@@ -7,6 +7,7 @@ import "@/globals.css";
 // Import styles that are necessary for Material You ripple effect
 import "m3ripple-vue/style.css";
 
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { createApp } from "vue";
 
 import App from "@/App.vue";
@@ -17,6 +18,9 @@ import General from "@/lib/general";
 import Globals from "@/lib/globals";
 import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
+
+// TODO: temporary
+await getCurrentWebviewWindow().show();
 
 // Get the exact timestamp in milliseconds before initialization
 const startTime = performance.now();

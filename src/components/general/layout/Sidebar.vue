@@ -1,16 +1,26 @@
 <script setup lang="ts">
-import { inject, ref, shallowRef } from "vue";
+import { computed, inject, ref, shallowRef } from "vue";
 
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import SidebarProfile from "@/components/general/layout/SidebarProfile.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
-import { Routes } from "@/constants/routes.ts";
-import GlobalStateHelpers from "@/lib/global-state-helpers";
+import General from "@/lib/general";
 import type {
   ContextGlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+
+const innerStyles = computed(
+  (): ReturnType<typeof General.getSidebarInnerStyles> => (
+    General.getSidebarInnerStyles(
+      globalStates?.layout?.sidebar?.background,
+      globalStates?.layout?.sidebar?.color,
+      globalStates?.layout?.sidebar?.blur,
+    )
+  ),
+);
 
 const delayed = ref<NodeJS.Timeout | undefined>(undefined);
 const tooltip = shallowRef<{
@@ -86,16 +96,14 @@ function handleButtonAction(action: () => void): void {
   action();
   closeTooltip();
 }
-function handleProfileNavigation(): void {
-  GlobalStateHelpers.Pages.navigate(Routes.Profile);
-}
 </script>
 
 <template>
   <div
     id="__sidebar__hovering-tooltip"
-    class="pointer-events-none absolute left-20 top-2 z-49000 w-fit transform-gpu rounded-md bg-neutral-950 p-2 leading-none transition-[transform,opacity]"
+    class="pointer-events-none absolute left-20 top-2 z-49000 w-fit rounded-md p-2 leading-none transition-[transform,opacity]"
     :style="{
+      ...innerStyles,
       transform: `translateY(${tooltip.top}px)`,
       opacity  : tooltip.show ? 1 : 0,
     }"
@@ -107,56 +115,36 @@ function handleProfileNavigation(): void {
     id="__sidebar__wrapper"
     class="absolute bottom-0 left-0 top-0 z-10000 w-20 flex flex-col gap-2 p-2"
   >
-    <div
-      id="__sidebar__inner-profile"
-      @mouseover="handleMouseOver"
-      class="shrink-0 rounded-md p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
-    >
-      <button
-        id="__sidebar__entry-profile-button"
-        :disabled="Routes.Profile === globalStates?.pages?.current"
-        @mousedown="() => handleButtonAction(handleProfileNavigation)"
-        @touchstart="() => handleButtonAction(handleProfileNavigation)"
-        @click="() => handleButtonAction(handleProfileNavigation)"
-        class="relative grid size-12 shrink-0 place-items-center rounded-md text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
-        aria-label="profile"
-      >
-        <Image
-          :id="`__sidebar__entry-profile-image`"
-          :src="`https://new.freesmlauncher.org/skins/windstone.png`"
-          :alt="`An image for the profile sidebar item`"
-          class-names="rounded-md size-8"
-        />
-        <MaterialRipple
-          :id="`__sidebar__entry-profile-overlay`"
-          :label="`profile`"
-        />
-      </button>
-    </div>
+    <SidebarProfile
+      :inner-styles="innerStyles"
+      :handle-mouse-over="handleMouseOver"
+      :handle-button-action="handleButtonAction"
+    />
     <TransitionGroup
       @mouseover="handleMouseOver"
       name="fade"
       tag="div"
       id="__sidebar__inner"
-      class="thin-scrollbar scroll-gutter-stable-both h-fit w-full flex flex-col items-center gap-2 overflow-y-auto rounded-md py-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
+      class="thin-scrollbar scroll-gutter-stable-both h-fit w-full flex flex-col items-center gap-2 overflow-y-auto rounded-md p-2"
+      :style="innerStyles"
     >
       <template
         v-for="(item, index) in globalStates?.sidebarItems"
-        :key="item === 'divider' ? `divider-${index}` : item.icon"
+        :key="item === 'divider' ? `divider-${index}` : item.name"
       >
         <button
           v-if="item !== 'divider'"
-          :id="`__sidebar__entry-${item.icon}-button`"
+          :id="`__sidebar__entry-${item.name}-button`"
           :disabled="item.path === globalStates?.pages?.current"
           @mousedown="() => handleButtonAction(item.action)"
           @touchstart="() => handleButtonAction(item.action)"
           @click="() => handleButtonAction(item.action)"
-          class="relative grid size-12 shrink-0 place-items-center rounded-md text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
+          class="relative grid size-12 shrink-0 place-items-center rounded-md transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
           :aria-label="item.name"
         >
           <span
             v-if="item.icon"
-            :id="`__sidebar__entry-${item.icon}-icon`"
+            :id="`__sidebar__entry-${item.name}-icon`"
             :class="[
               item.icon,
               'block size-6 shrink-0',
@@ -164,20 +152,24 @@ function handleProfileNavigation(): void {
           ></span>
           <Image
             v-else-if="item.image"
-            :id="`__sidebar__entry-${item.icon}-image`"
+            :id="`__sidebar__entry-${item.name}-image`"
             :src="item.image"
             :alt="`An image for the ${item.name} sidebar item`"
             class-names="rounded-md size-8"
           />
           <MaterialRipple
-            :id="`__sidebar__entry-${item.icon}-overlay`"
+            :id="`__sidebar__entry-${item.name}-overlay`"
             :label="item.name"
+            :colors="{
+              ripple  : globalStates?.layout?.sidebar?.ripple,
+              sparkles: globalStates?.layout?.sidebar?.sparkles,
+            }"
           />
         </button>
         <div
           v-else
           :id="`__sidebar__entry-divider-${index}`"
-          class="h-[1px] w-[calc(100%-16px)] bg-[theme(colors.neutral.100/.1)]"
+          class="h-[1px] w-[calc(100%-24px)] bg-[theme(colors.neutral.100/.1)]"
         ></div>
       </template>
     </TransitionGroup>

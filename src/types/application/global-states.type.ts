@@ -18,10 +18,19 @@ export type GlobalStatesFileSystemType = {
 };
 export type GlobalStatesLayoutType = {
   "custom"    : boolean;
-  "background": {
-    "url": string | undefined;
-    "key": string | number | undefined;
-  };
+  "background": Partial<{
+    "url"  : string;
+    "key"  : string | number;
+    "blur" : number;
+    "color": string;
+  }>;
+  "sidebar": Partial<{
+    "blur"      : number;
+    "color"     : string;
+    "ripple"    : string;
+    "sparkles"  : `${number} ${number} ${number}`;
+    "background": string;
+  }>;
 };
 export type GlobalStatesPagesType = {
   "current": RouteType;

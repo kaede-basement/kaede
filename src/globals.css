@@ -119,17 +119,15 @@ button[data-tooltip] {
 
 /* 'global-background' transition */
 .global-background-enter-active {
-  transition: opacity 150ms ease, transform 400ms ease;
+  transition: transform 400ms ease;
 }
 .global-background-leave-active {
-  transition: opacity 150ms ease, transform 400ms ease;
+  transition: transform 400ms ease;
   transform: translateY(-16px);
-  opacity: 0;
 }
 
 .global-background-enter-from {
   transform: translateY(16px);
-  opacity: 0;
 }
 .global-background-leave-to {}
 

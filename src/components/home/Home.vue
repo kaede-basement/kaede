@@ -73,13 +73,13 @@ import PageWrapper from "@/components/general/layout/PageWrapper.vue";
               Launch
             </span>
             <MaterialRipple
-              :colors="{ 'ripple': '#00000033', 'sparkles': '0 0 0' }"
+              :colors="{ ripple: '#00000033', sparkles: '0 0 0' }"
             />
           </button>
           <button class="relative w-fit rounded-l-sm rounded-r-md bg-white px-1 py-2 text-black">
             <span class="i-lucide-chevron-down block" />
             <MaterialRipple
-              :colors="{ 'ripple': '#00000033', 'sparkles': '0 0 0' }"
+              :colors="{ ripple: '#00000033', sparkles: '0 0 0' }"
             />
           </button>
         </div>

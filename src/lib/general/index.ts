@@ -3,6 +3,7 @@ import { checkIsPortable } from "@/lib/general/scopes/check-is-portable.ts";
 import { getBaseDirectory } from "@/lib/general/scopes/get-base-directory.ts";
 import { getExecutableDirectory } from "@/lib/general/scopes/get-executable-directory.ts";
 import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
+import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-styles.ts";
 import { initializeLauncher } from "@/lib/general/scopes/initialize-launcher.ts";
 
 export default {
@@ -11,5 +12,6 @@ export default {
   getBaseDirectory,
   getExecutableDirectory,
   getRelativeDate,
+  getSidebarInnerStyles,
   initializeLauncher,
 } as const;

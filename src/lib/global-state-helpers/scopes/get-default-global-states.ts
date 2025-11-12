@@ -10,8 +10,17 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     "layout"    : {
       "custom"    : false,
       "background": {
-        "url": undefined,
-        "key": undefined,
+        "url"  : undefined,
+        "key"  : undefined,
+        "blur" : undefined,
+        "color": undefined,
+      },
+      "sidebar": {
+        "blur"      : undefined,
+        "color"     : undefined,
+        "ripple"    : undefined,
+        "sparkles"  : undefined,
+        "background": undefined,
       },
     },
     "pages": {

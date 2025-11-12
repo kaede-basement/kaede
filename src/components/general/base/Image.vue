@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, type StyleValue } from "vue";
 
-const { id, src, alt, classNames } = defineProps<{
+const { id, src, alt, classNames, style } = defineProps<{
   "id"         : string;
   "src"        : string;
   "alt"        : string;
   "classNames"?: string;
+  "style"     ?: StyleValue;
 }>();
 const shown = ref<boolean>(false);
 </script>
@@ -22,5 +23,6 @@ const shown = ref<boolean>(false);
       shown ? 'opacity-100' : '!opacity-0',
       classNames,
     ]"
+    :style="style"
   />
 </template>
