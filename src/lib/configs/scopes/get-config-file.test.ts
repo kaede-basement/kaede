@@ -140,15 +140,14 @@ beforeEach(() => {
   vi.doMock("@/lib/general", async () => {
     return {
       "default": {
-        "checkIsPortable"       : async (): Promise<boolean> => false,
-        "getExecutableDirectory": async (): Promise<string> => "",
+        "checkIsPortable" : async (): Promise<boolean> => false,
+        "getBaseDirectory": async (): Promise<string> => "",
       },
     };
   });
   vi.doMock("@tauri-apps/api/path", async () => {
     return {
-      "appDataDir": async (): Promise<string> => "",
-      "join"      : async (): Promise<string> => "",
+      "join": async (): Promise<string> => "",
     };
   });
   vi.doMock("@tauri-apps/plugin-fs", async () => {

@@ -15,24 +15,24 @@ import PageWrapper from "@/components/general/layout/PageWrapper.vue";
           id="__home-page__header-title"
           class="text-3xl"
         >
-          В большой семье
+          A promising future
         </p>
         <p
           id="__home-page__header-subtitle"
           class="text-lg text-neutral-300"
         >
-          Еблом не щёлкают.
+          Without JavaScript
         </p>
       </div>
       <div
         id="__home-page__content"
-        class="flex flex-nowrap items-end justify-between gap-2 pr-2 pb-2"
+        class="flex flex-nowrap items-end justify-between gap-2 pb-2 pr-2"
       >
         <div
           class="flex flex-col items-stretch gap-0"
         >
           <button
-            class="relative p-2 rounded-md flex flex-nowrap gap-2 items-center"
+            class="relative flex flex-nowrap items-center gap-2 rounded-md p-2"
           >
             <Image
               id="__"
@@ -51,16 +51,16 @@ import PageWrapper from "@/components/general/layout/PageWrapper.vue";
             <MaterialRipple />
           </button>
           <button
-            class="relative p-2 rounded-md flex flex-nowrap gap-2 items-center"
+            class="relative flex flex-nowrap items-center gap-2 rounded-md p-2"
           >
-            <span class="size-12 shrink-0 grid place-items-center">
-              <span class="block size-8 i-lucide-clock" />
+            <span class="grid size-12 shrink-0 place-items-center">
+              <span class="i-lucide-clock block size-8" />
             </span>
             <span class="flex flex-col items-start pr-1">
               <p class="font-medium">
                 Playtime
               </p>
-              <p class="text-neutral-400 text-sm">
+              <p class="text-sm text-neutral-400">
                 73 hours, 8 minutes, 56 seconds
               </p>
             </span>
@@ -68,7 +68,7 @@ import PageWrapper from "@/components/general/layout/PageWrapper.vue";
           </button>
         </div>
         <div class="flex flex-nowrap gap-1 p-2">
-          <button class="relative px-4 py-2 w-fit rounded-l-md rounded-r-sm bg-white text-black">
+          <button class="relative w-fit rounded-l-md rounded-r-sm bg-white px-4 py-2 text-black">
             <span class="block">
               Launch
             </span>
@@ -76,8 +76,8 @@ import PageWrapper from "@/components/general/layout/PageWrapper.vue";
               :colors="{ 'ripple': '#00000033', 'sparkles': '0 0 0' }"
             />
           </button>
-          <button class="relative w-fit px-1 py-2 rounded-l-sm rounded-r-md bg-white text-black">
-            <span class="block i-lucide-chevron-down" />
+          <button class="relative w-fit rounded-l-sm rounded-r-md bg-white px-1 py-2 text-black">
+            <span class="i-lucide-chevron-down block" />
             <MaterialRipple
               :colors="{ 'ripple': '#00000033', 'sparkles': '0 0 0' }"
             />

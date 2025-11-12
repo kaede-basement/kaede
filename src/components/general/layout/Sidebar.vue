@@ -105,12 +105,12 @@ function handleProfileNavigation(): void {
   <div
     @mouseleave="closeTooltip"
     id="__sidebar__wrapper"
-    class="thin-scrollbar scroll-gutter-stable-both flex flex-col gap-2 absolute bottom-0 left-0 top-0 z-10000 w-20 overflow-x-hidden overflow-y-auto py-2"
+    class="thin-scrollbar scroll-gutter-stable-both absolute bottom-0 left-0 top-0 z-10000 w-20 flex flex-col gap-2 overflow-x-hidden overflow-y-auto py-2"
   >
     <div
       id="__sidebar__inner-profile"
       @mouseover="handleMouseOver"
-      class="p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)] shrink-0 rounded-md"
+      class="shrink-0 rounded-md p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
     >
       <button
         id="__sidebar__entry-profile-button"
