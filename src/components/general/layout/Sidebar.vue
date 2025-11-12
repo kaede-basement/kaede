@@ -138,7 +138,7 @@ function handleProfileNavigation(): void {
       name="fade"
       tag="div"
       id="__sidebar__inner"
-      class="thin-scrollbar scroll-gutter-stable-both h-fit w-full flex flex-col items-center gap-2 overflow-y-auto rounded-md p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
+      class="thin-scrollbar scroll-gutter-stable-both h-fit w-full flex flex-col items-center gap-2 overflow-y-auto rounded-md py-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
     >
       <template
         v-for="(item, index) in globalStates?.sidebarItems"
@@ -177,7 +177,7 @@ function handleProfileNavigation(): void {
         <div
           v-else
           :id="`__sidebar__entry-divider-${index}`"
-          class="h-[1px] w-full bg-[theme(colors.neutral.100/.1)]"
+          class="h-[1px] w-[calc(100%-16px)] bg-[theme(colors.neutral.100/.1)]"
         ></div>
       </template>
     </TransitionGroup>

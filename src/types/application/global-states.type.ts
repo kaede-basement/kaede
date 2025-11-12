@@ -17,7 +17,11 @@ export type GlobalStatesFileSystemType = {
   };
 };
 export type GlobalStatesLayoutType = {
-  "custom": boolean;
+  "custom"    : boolean;
+  "background": {
+    "url": string | undefined;
+    "key": string | number | undefined;
+  };
 };
 export type GlobalStatesPagesType = {
   "current": RouteType;

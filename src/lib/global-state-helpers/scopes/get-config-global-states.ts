@@ -52,7 +52,11 @@ export async function getConfigGlobalStates(
     },
     "layout": {
       ...defaultGlobalStates.layout,
-      "custom": false,
+      "custom"    : false,
+      "background": {
+        "url": undefined,
+        "key": undefined,
+      },
     },
     "pages": {
       ...defaultGlobalStates.pages,

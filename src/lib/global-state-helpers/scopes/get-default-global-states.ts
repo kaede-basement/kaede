@@ -8,7 +8,11 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     "locale"    : "en",
     "fileSystem": undefined,
     "layout"    : {
-      "custom": false,
+      "custom"    : false,
+      "background": {
+        "url": undefined,
+        "key": undefined,
+      },
     },
     "pages": {
       "current": Routes.Home,
