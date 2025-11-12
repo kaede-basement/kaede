@@ -105,7 +105,7 @@ function handleProfileNavigation(): void {
   <div
     @mouseleave="closeTooltip"
     id="__sidebar__wrapper"
-    class="thin-scrollbar scroll-gutter-stable-both absolute bottom-0 left-0 top-0 z-10000 w-20 flex flex-col gap-2 overflow-x-hidden overflow-y-auto py-2"
+    class="absolute bottom-0 left-0 top-0 z-10000 w-20 flex flex-col gap-2 p-2"
   >
     <div
       id="__sidebar__inner-profile"
@@ -138,7 +138,7 @@ function handleProfileNavigation(): void {
       name="fade"
       tag="div"
       id="__sidebar__inner"
-      class="h-fit min-h-[calc(100%-72px)] w-full flex flex-col items-center gap-2 rounded-md p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
+      class="thin-scrollbar scroll-gutter-stable-both h-fit w-full flex flex-col items-center gap-2 overflow-y-auto rounded-md p-2 backdrop-blur-md bg-[theme(colors.neutral.950/.3)]"
     >
       <template
         v-for="(item, index) in globalStates?.sidebarItems"
