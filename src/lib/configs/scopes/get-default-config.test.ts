@@ -16,6 +16,10 @@ test(testName, async () => {
     "locale"               : "en",
     "minecraftWindowHeight": 480,
     "minecraftWindowWidth" : 854,
+    "development"          : {
+      "enableDebugMode": true,
+    },
+    "showBeforeInitialization": false,
   };
 
   expect(

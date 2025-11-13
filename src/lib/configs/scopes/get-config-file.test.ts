@@ -11,6 +11,10 @@ const defaultConfig: ConfigType = {
   "locale"               : "en",
   "minecraftWindowHeight": 480,
   "minecraftWindowWidth" : 854,
+  "development"          : {
+    "enableDebugMode": true,
+  },
+  "showBeforeInitialization": false,
 };
 
 vi.mock("@/lib/configs/scopes/get-default-config.ts", async () => {
@@ -62,7 +66,11 @@ const tests: Array<{
       "locale"               : "en",
       "minecraftWindowHeight": 480,
       "minecraftWindowWidth" : 854,
-      "TUYU"                 : "is awesome",
+      "development"          : {
+        "enableDebugMode": true,
+      },
+      "showBeforeInitialization": false,
+      "TUYU"                    : "is awesome",
     },
   },
   {
@@ -115,6 +123,10 @@ const tests: Array<{
       "locale"               : "en",
       "minecraftWindowHeight": 480,
       "minecraftWindowWidth" : 854,
+      "development"          : {
+        "enableDebugMode": true,
+      },
+      "showBeforeInitialization": false,
     },
   },
   {
