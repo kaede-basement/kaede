@@ -28,6 +28,9 @@ const LogViewer = defineAsyncComponent(
 const ExtensionLoader = defineAsyncComponent(
   () => import("@/components/general/extensions/ExtensionLoader.vue"),
 );
+const DevelopmentMode = defineAsyncComponent(
+  () => import("@/components/general/development-mode/DevelopmentMode.vue"),
+);
 
 /**
  * Contains all global application states.
@@ -115,6 +118,7 @@ onBeforeMount(async () => {
           <LogViewer v-if="globalStates.logs.show" />
         </Transition>
 
+        <DevelopmentMode v-if="globalStates.development.enabled" />
         <NonBundledClasses />
       </Layout>
     </template>

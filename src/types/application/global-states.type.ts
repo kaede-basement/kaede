@@ -69,11 +69,17 @@ export type GlobalStatesSidebarItemsType = Array<"divider" | {
   "icon" ?: string;
   "image"?: string;
 }>;
-export type GlobalStatesContextMenuItems = Array<{
+export type GlobalStatesContextMenuItemsType = Array<{
   "icon"  : string;
   "name"  : string;
   "action": () => void;
 }>;
+export type GlobalStatesDevelopmentType = {
+  "enabled"                   : boolean;
+  "showFPS"                   : boolean;
+  "enableDebugMode"           : boolean;
+  "enableNativeReloadKeyBinds": boolean;
+};
 
 export type GlobalStatesType = {
   "locale"          : LocaleType;
@@ -83,7 +89,8 @@ export type GlobalStatesType = {
   "pages"           : GlobalStatesPagesType;
   "logs"            : GlobalStatesLogsType;
   "sidebarItems"    : GlobalStatesSidebarItemsType;
-  "contextMenuItems": GlobalStatesContextMenuItems;
+  "contextMenuItems": GlobalStatesContextMenuItemsType;
+  "development"     : GlobalStatesDevelopmentType;
 };
 export type GlobalStatesChangerType = <Key extends keyof GlobalStatesType>(
   key  : Key,

@@ -292,7 +292,7 @@
 
 <div align="center">
 
-<img width="128" height="128" align="center" src="../src-tauri/icons/128x128.png" alt="Favicon">
+<img width="128" height="128" align="center" src="../src-tauri/icons/128x128.png" alt="Tendou Arisu's halo recreation (Blue Archive)">
 
 <h1>
 <a style="color:#a1fee4" href="https://github.com/kaede-basement/kaede">Kaede</a>

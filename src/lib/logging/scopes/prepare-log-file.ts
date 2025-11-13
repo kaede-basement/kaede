@@ -10,7 +10,6 @@ import {
 } from "@tauri-apps/plugin-fs";
 
 import { ApplicationName } from "@/constants/application.ts";
-import General from "@/lib/general";
 
 function getNumberFromLogFilename(filename: string): number {
   // 'kaede-0.log' -> 'kaede-0'
@@ -35,8 +34,7 @@ function getNumberFromLogFilename(filename: string): number {
  *
  * else just write into 'latest.log' without other manipulations
  */
-export async function prepareLogFile(portable: boolean): Promise<void> {
-  const baseDirectory = await General.getBaseDirectory(portable);
+export async function prepareLogFile(baseDirectory: string): Promise<void> {
   const logsDirectory = await join(baseDirectory, "logs");
 
   // We are assuming that 'latest.log' doesn't exist

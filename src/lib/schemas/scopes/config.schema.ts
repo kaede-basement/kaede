@@ -18,4 +18,8 @@ export const ConfigSchema = Type.Object({
   ]),
   "minecraftWindowHeight": Type.Number(),
   "minecraftWindowWidth" : Type.Number(),
+  "development"          : Type.Object({
+    "enableDebugMode": Type.Boolean(),
+  }),
+  "showBeforeInitialization": Type.Boolean(),
 });

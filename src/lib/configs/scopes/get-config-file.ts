@@ -10,14 +10,19 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
-export async function getConfigFile(portableStatus?: boolean): Promise<ConfigType> {
+export async function getConfigFile(passedBaseDirectory?: string): Promise<ConfigType> {
   const hooksArray = window[ApplicationNamespace].hooks.getConfigFile.before;
+  let baseDirectory: string | undefined = passedBaseDirectory;
 
-  log.debug("Checking if launcher is in portable version");
-  const portable = portableStatus ?? await General.checkIsPortable();
+  if (!baseDirectory) {
+    log.debug("No base directory was passed");
+    log.debug("Checking if launcher is in portable version");
+    const portable = await General.checkIsPortable();
 
-  log.debug("Getting base directory");
-  const baseDirectory = await General.getBaseDirectory(portable);
+    log.debug("Getting base directory");
+    baseDirectory = await General.getBaseDirectory(portable);
+  }
+
   const configFileDirectory = await join(baseDirectory, FileStructure.Config.Name);
 
   log.debug(log.templates.hooks.iterate.start(

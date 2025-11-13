@@ -83,6 +83,10 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onDevelopmentChange": {
+        "before": [],
+        "after" : [],
+      },
     },
   };
 }

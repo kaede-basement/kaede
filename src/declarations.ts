@@ -175,6 +175,14 @@ declare global {
           >;
           "after": HookReturnType<GlobalStatesType["contextMenuItems"], "nothing">;
         };
+        "onDevelopmentChange": {
+          "before": HookReturnType<
+            GlobalStatesType["development"],
+            GlobalStatesType["development"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["development"], "nothing">;
+        };
       };
     };
   }

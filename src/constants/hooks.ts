@@ -6,6 +6,7 @@ export const HookMappings = {
   "logs"            : "onLogsChange",
   "sidebarItems"    : "onSidebarItemsChange",
   "contextMenuItems": "onContextMenuItemsChange",
+  "development"     : "onDevelopmentChange",
 } as const;
 export const HookMappingKeys = Object.keys(HookMappings) as Array<keyof typeof HookMappings>;
 

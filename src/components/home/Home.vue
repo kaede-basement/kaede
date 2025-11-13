@@ -2,6 +2,7 @@
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 </script>
 
 <template>
@@ -36,7 +37,7 @@ import PageWrapper from "@/components/general/layout/PageWrapper.vue";
           >
             <Image
               id="__"
-              class-names="rounded-md size-12 transition-none p-1"
+              class-names="rounded-md size-12 p-1"
               src="https://media.forgecdn.net/avatars/thumbnails/286/772/64/64/637305737753885398.png"
               alt="Fabulously optimized"
             />
@@ -68,7 +69,11 @@ import PageWrapper from "@/components/general/layout/PageWrapper.vue";
           </button>
         </div>
         <div class="flex flex-nowrap gap-1 p-2">
-          <button class="relative w-fit rounded-l-md rounded-r-sm bg-white px-4 py-2 text-black">
+          <button @click="() => GlobalStateHelpers.change('development', {
+            ...GlobalStateHelpers.get().development,
+            'enabled'        : true,
+            'enableDebugMode': !GlobalStateHelpers.get().development.enableDebugMode,
+          })" class="relative w-fit rounded-l-md rounded-r-sm bg-white px-4 py-2 text-black">
             <span class="block">
               Launch
             </span>

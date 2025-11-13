@@ -58,5 +58,11 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       },
     ],
     "contextMenuItems": [...ContextMenuItems],
+    "development"     : {
+      "enabled"                   : false,
+      "showFPS"                   : false,
+      "enableDebugMode"           : false,
+      "enableNativeReloadKeyBinds": false,
+    },
   };
 }

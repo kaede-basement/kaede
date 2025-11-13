@@ -101,5 +101,11 @@ export async function getConfigGlobalStates(
       },
     ],
     "contextMenuItems": [...ContextMenuItems],
+    "development"     : {
+      "enabled"                   : false,
+      "showFPS"                   : false,
+      "enableDebugMode"           : false,
+      "enableNativeReloadKeyBinds": false,
+    },
   };
 }
