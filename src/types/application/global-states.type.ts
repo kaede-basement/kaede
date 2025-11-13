@@ -80,6 +80,18 @@ export type GlobalStatesDevelopmentType = {
   "enableDebugMode"           : boolean;
   "enableNativeReloadKeyBinds": boolean;
 };
+export type GlobalStatesMiscType = {
+  "showBeforeInitialization": boolean;
+  "enableDiscordRPC"        : boolean;
+};
+// Global minecraft settings
+export type GlobalStatesMinecraftType = {
+  "windowHeight": number;
+  "windowWidth" : number;
+  "jvmArgs"     : string;
+};
+// Per-instance minecraft settings
+export type GlobalStatesMinecraftInstancesType = Record<string, GlobalStatesMinecraftType>;
 
 export type GlobalStatesType = {
   "locale"          : LocaleType;
@@ -91,6 +103,9 @@ export type GlobalStatesType = {
   "sidebarItems"    : GlobalStatesSidebarItemsType;
   "contextMenuItems": GlobalStatesContextMenuItemsType;
   "development"     : GlobalStatesDevelopmentType;
+  "misc"            : GlobalStatesMiscType;
+  "minecraft"       : GlobalStatesMinecraftType;
+  "instances"       : GlobalStatesMinecraftInstancesType;
 };
 export type GlobalStatesChangerType = <Key extends keyof GlobalStatesType>(
   key  : Key,
