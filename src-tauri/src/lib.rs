@@ -1,4 +1,5 @@
 use tauri::Manager;
+use chrono::{DateTime, Utc};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -63,11 +64,27 @@ pub fn run() {
                                 file_name: Some(format!("latest")),
                             },
                         ))
+                        // Make a custom logs format
+                        .format(|out, message, record| {
+                            let now_utc: DateTime<Utc> = Utc::now();
+                            let formatted_date = now_utc.format("%d-%m-%Y").to_string();
+                            let formatted_time = now_utc.format("%H:%M:%S%.3f").to_string();
+
+                            out.finish(format_args!(
+                                "[{}][{}][{}][{}] {}",
+                                formatted_date,
+                                formatted_time,
+                                record.target(),
+                                record.level(),
+                                message,
+                            ))
+                        })
                         // Use log rotation
                         .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                         .build(),
                 )?;
             } else {
+                // Basically the same, but I don't know Rust to refactor these duplicates
                 // Release mode
                 app.handle().plugin(
                     tauri_plugin_log::Builder::new()
@@ -80,6 +97,21 @@ pub fn run() {
                                 file_name: Some(format!("latest")),
                             },
                         ))
+                        // Make a custom logs format
+                        .format(|out, message, record| {
+                            let now_utc: DateTime<Utc> = Utc::now();
+                            let formatted_date = now_utc.format("%d-%m-%Y").to_string();
+                            let formatted_time = now_utc.format("%H:%M:%S%.3f").to_string();
+
+                            out.finish(format_args!(
+                                "[{}][{}][{}][{}] {}",
+                                formatted_date,
+                                formatted_time,
+                                record.target(),
+                                record.level(),
+                                message,
+                            ))
+                        })
                         // Keep log file size at 8 MB
                         .max_file_size(8_388_608)
                         // Use log rotation

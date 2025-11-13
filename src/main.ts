@@ -22,6 +22,9 @@ import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
+// Measure high resolution timestamp before launcher initialization
+const startTime = performance.now();
+
 // Check if launcher is in a portable version
 const portable: boolean = await General.checkIsPortable();
 // Get the launcher base directory
@@ -66,7 +69,6 @@ log.debug(
   "\n" + JSON.stringify(config, null, 2),
 );
 
-log.debug("Creating an app instance");
 const AppInstance = createApp(App);
 
 // Attach the app to an element with the 'ApplicationRootID' id
@@ -74,6 +76,6 @@ log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})`);
 AppInstance.mount(ApplicationRootID);
 
 log.debug("Initializing launcher");
-await General.initializeLauncher(config).catch((error: unknown) => {
+await General.initializeLauncher(config, startTime).catch((error: unknown) => {
   log.error("Failed to initialize launcher:", Errors.prettify(error));
 });

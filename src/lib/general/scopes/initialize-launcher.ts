@@ -5,6 +5,7 @@ import type { ConfigType } from "@/types/application/config.type.ts";
 
 export async function initializeLauncher(
   config: ConfigType,
+  startTime: number,
 ): Promise<void> {
   if (!config.showBeforeInitialization) {
     /*
@@ -15,5 +16,9 @@ export async function initializeLauncher(
     await getCurrentWebviewWindow().show();
   }
 
-  log.info("Launcher successfully started");
+  log.info(
+    "Launcher successfully started in:",
+    (performance.now() - startTime).toFixed(1),
+    "ms",
+  );
 }
