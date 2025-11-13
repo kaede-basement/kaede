@@ -120,6 +120,8 @@ function handleButtonAction(action: () => void): void {
       :handle-mouse-over="handleMouseOver"
       :handle-button-action="handleButtonAction"
     />
+    <!-- Using 'py-2' instead of 'p-2' seems more logical, -->
+    <!-- but somehow buttons are clipped on container overflow when I remove horizontal padding -->
     <TransitionGroup
       @mouseover="handleMouseOver"
       name="fade"
@@ -169,7 +171,7 @@ function handleButtonAction(action: () => void): void {
         <div
           v-else
           :id="`__sidebar__entry-divider-${index}`"
-          class="h-[1px] w-[calc(100%-24px)] bg-[theme(colors.neutral.100/.1)]"
+          class="h-[1px] w-[calc(100%-8px)] bg-[theme(colors.neutral.100/.1)]"
         ></div>
       </template>
     </TransitionGroup>

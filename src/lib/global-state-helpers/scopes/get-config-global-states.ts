@@ -53,17 +53,17 @@ export async function getConfigGlobalStates(
     "layout": {
       "custom"    : false,
       "background": {
-        "url"  : "https://s126-isny.freeconvert.com/task/6914e6c5121a9b1c5c48b781/morizuki-suzumi-blue-archive.960x540.gif",
+        "url"  : undefined,
         "key"  : undefined,
-        "blur" : 4,
-        "color": "rgba(0, 0, 0, 0.7)",
+        "blur" : undefined,
+        "color": undefined,
       },
       "sidebar": {
-        "blur"      : 12,
-        "color"     : "rgb(255, 255, 255)",
+        "blur"      : undefined,
+        "color"     : undefined,
         "ripple"    : undefined,
         "sparkles"  : undefined,
-        "background": "rgba(23, 0, 0, 0.3)",
+        "background": undefined,
       },
     },
     "pages": {

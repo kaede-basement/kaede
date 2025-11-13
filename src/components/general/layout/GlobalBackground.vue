@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, shallowReactive } from "vue";
+import { computed, inject } from "vue";
 
 import Image from "@/components/general/base/Image.vue";
-import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
-import GlobalStateHelpers from "@/lib/global-state-helpers";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
@@ -18,37 +17,9 @@ const image = computed((): GlobalStatesType["layout"]["background"] => {
     "key"  : background?.key ?? Math.random(),
     "url"  : background?.url,
     "blur" : background?.blur ?? 0,
-    "color": background?.color ?? "rgb(23, 23, 23)",
+    "color": background?.color ?? "rgb(17, 17, 17)",
   };
 });
-
-// TODO Temporary code: implement as a plugin
-const previousRoute = shallowReactive<{
-  "value": GlobalStatesType["pages"]["current"] | undefined;
-}>({
-  "value": undefined,
-});
-
-async function updateImageKey(data: GlobalStatesType["pages"]): Promise<void> {
-  if (!globalStates) {
-    return;
-  }
-
-  if (previousRoute.value !== data.current) {
-    GlobalStateHelpers.change("layout", {
-      ...globalStates.layout,
-      "background": {
-        ...globalStates.layout?.background,
-        "key": Math.random(),
-      },
-    });
-  }
-
-  previousRoute.value = data.current;
-}
-
-window[ApplicationNamespace].hooks.onPagesChange.after.push(updateImageKey);
-// TODO Temporary code end
 </script>
 
 <template>
