@@ -1,4 +1,5 @@
 export type LogControlsType = {
+  "logDatesShown"         : boolean | undefined;
   "searchPosition"        : number;
   "setSearchPosition"     : (position: number, absolutePosition: number | undefined) => void;
   "searching"             : string;

@@ -227,6 +227,7 @@ onMounted(async () => {
             </span>
           </p>
           <LogControls
+            :log-dates-shown="globalStates?.logs?.dates === true"
             :search-position="searchPosition"
             :set-search-position="setSearchPosition"
             :searching="searching"

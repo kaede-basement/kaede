@@ -12,6 +12,7 @@ import type { LogButtonType } from "@/types/ui/log-button.type.ts";
 import type { LogControlsType } from "@/types/ui/log-controls.type.ts";
 
 const {
+  logDatesShown,
   searchPosition,
   setSearchPosition,
   searching,
@@ -58,6 +59,9 @@ function selectTextVirtualized(): void {
 }
 function setFound(newValue: Array<number>): void {
   found.value = newValue;
+}
+function toggleLogDates(): void {
+  GlobalStateHelpers.Logs.toggle("dates");
 }
 async function copyTextSelection(): Promise<void> {
   await Logging.handleVirtualTextCopy(
@@ -114,7 +118,7 @@ const virtualizeControl = computed((): LogButtonType => ({
   "tooltip" : "Improve viewer performance by pre-rendering only visible lines of text",
   "onClick" : toggleShouldVirtualizeWithCursorHandling,
   "invert"  : shouldVirtualize,
-  "hideOnSm": true,
+  "hideOnMd": true,
 }));
 const textSelectionControl = computed((): LogButtonType => ({
   "icon": "i-lucide-text-cursor",
@@ -140,12 +144,24 @@ const textSelectionCopyControl = computed((): LogButtonType => ({
   "invert" : copied.value,
   "hidden" : !textSelectionRange,
 }));
+const logDatesControl = computed((): LogButtonType => ({
+  "icon": "i-lucide-calendar",
+  "ids" : {
+    "wrapper": "__log-controls__dates-button",
+    "icon"   : "__log-controls__dates-icon",
+    "label"  : "__log-controls__dates-label",
+  },
+  "tooltip": "Toggle log dates",
+  "onClick": toggleLogDates,
+  "invert" : logDatesShown,
+}));
 const controlButtons = computed((): Array<LogButtonType> => [
   explorerControl,
   lineBreaksControl.value,
   virtualizeControl.value,
   textSelectionControl.value,
   textSelectionCopyControl.value,
+  logDatesControl.value,
 ]);
 
 watchEffect(() => {
@@ -222,6 +238,7 @@ useEventListener("keydown", (event: KeyboardEvent) => {
         :on-click="controlButton.onClick"
         :invert="controlButton.invert"
         :hide-on-sm="controlButton.hideOnSm"
+        :hide-on-md="controlButton.hideOnMd"
         :hidden="controlButton.hidden"
       />
     </div>

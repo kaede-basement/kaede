@@ -9,6 +9,7 @@ const {
   onClick,
   invert,
   hideOnSm,
+  hideOnMd,
   ids,
   hidden,
 } = defineProps<LogButtonType>();
@@ -30,7 +31,11 @@ const {
     <span
       v-if="ids?.label && label"
       :id="ids?.label"
-      :class="[hideOnSm ? 'hidden sm:block' : 'block']"
+      :class="[
+        hideOnSm
+          ? 'hidden sm:block'
+          : hideOnMd ? 'hidden md:block' : 'block',
+      ]"
     >
       {{ label }}
     </span>

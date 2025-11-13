@@ -10,5 +10,6 @@ export type LogButtonType = {
   "onClick" ?: () => void;
   "invert"  ?: boolean;
   "hideOnSm"?: boolean;
+  "hideOnMd"?: boolean;
   "hidden"  ?: boolean;
 };
