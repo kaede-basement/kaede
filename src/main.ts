@@ -1,6 +1,6 @@
 // Import UnoCSS essentials
 import "virtual:uno.css";
-// Reset all CSS styles in a Tailwind style
+// Reset all CSS styles in a Tailwind-like way
 import "@unocss/reset/tailwind.css";
 // Import custom CSS styles
 import "@/globals.css";
@@ -22,36 +22,34 @@ import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
-// Get the exact timestamp in milliseconds before initialization
-const startTime = performance.now();
-
-// Share the 'portable' status between other functions
+// Check if launcher is in a portable version
 const portable: boolean = await General.checkIsPortable();
-// Get launcher base directory
+// Get the launcher base directory
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
-// No need to log yet, all logs will go into the previous launch log file
+// No need to log yet since all logs will go into the previous launch log file
 await Logging.prepareLogFile(baseDirectory).catch((error: unknown) => {
   log.error("Failed to prepare a log file:", Errors.prettify(error));
 });
 
-log.debug("Extending global window object in the app namespace");
+/*
+ * Now the log file preparation is done (unless something threw an error).
+ *
+ * Previous code doesn't access the 'window' object, but config reading does
+ */
+log.debug("Extending global window object with the app namespace");
 Globals.declareWindow();
 
 // Get user's launcher configuration
 const config: ConfigType = await Configs.getSafe(baseDirectory);
 
+// Show a pretty ASCII art with the launcher name :3
+log.info(getASCIIArt(portable, config.development.enableDebugMode));
+
 // Enabling debug mode means that debug-level messages will be logged
 if (config.development.enableDebugMode) {
   DevelopmentModeHelpers.enableDebugMode();
 }
-
-/*
- * Now the log file preparation is done (unless something threw an error).
- *
- * Show a pretty ASCII art with the launcher name :3
- */
-log.info(getASCIIArt(portable, config.development.enableDebugMode));
 
 if (config.showBeforeInitialization) {
   try {
@@ -79,12 +77,3 @@ log.debug("Initializing launcher");
 await General.initializeLauncher(config).catch((error: unknown) => {
   log.error("Failed to initialize launcher:", Errors.prettify(error));
 });
-
-// Get the exact timestamp in milliseconds after initialization
-const endTime = performance.now();
-
-log.info(
-  "Launcher was initialized in",
-  (endTime - startTime).toFixed(2),
-  "ms",
-);

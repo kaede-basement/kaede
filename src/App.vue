@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useEventListener } from "@vueuse/core";
 import { defineAsyncComponent, onBeforeMount, provide, shallowReactive } from "vue";
 
 import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
@@ -11,6 +12,7 @@ import {
   ApplicationNamespace,
   GlobalStatesContextKey,
 } from "@/constants/application.ts";
+import { DevelopmentModeHelpers } from "@/lib/development-mode-helpers";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -102,6 +104,16 @@ onBeforeMount(async () => {
     globalStates[key as "locale"] = value as GlobalStatesType["locale"];
   }
 });
+
+/**
+ * Handles 'F5', 'Ctrl+R', and 'Command+R' key binds that reload the launcher
+ */
+useEventListener("keydown", (event: KeyboardEvent) => (
+  DevelopmentModeHelpers.handleNativeReloadKeyBinds(
+    event,
+    globalStates.development.enableNativeReloadKeyBinds,
+  )
+));
 </script>
 
 <template>
@@ -118,7 +130,7 @@ onBeforeMount(async () => {
           <LogViewer v-if="globalStates.logs.show" />
         </Transition>
 
-        <DevelopmentMode v-if="globalStates.development.enabled" />
+        <DevelopmentMode v-if="true || globalStates.development.enabled" />
         <NonBundledClasses />
       </Layout>
     </template>
