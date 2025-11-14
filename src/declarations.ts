@@ -54,9 +54,11 @@ declare global {
     "__KAEDE__": {
 
       "__internals": {
-        "getGlobalStates"   : () => GlobalStatesType;
-        "changeGlobalStates": GlobalStatesChangerType;
-        "initialConfig"     : ConfigType;
+        "getGlobalStates"      : () => GlobalStatesType;
+        "changeGlobalStates"   : GlobalStatesChangerType;
+        "initialConfig"        : ConfigType;
+        "initialPortable"     ?: boolean;
+        "initialBaseDirectory"?: string;
       };
 
       /**

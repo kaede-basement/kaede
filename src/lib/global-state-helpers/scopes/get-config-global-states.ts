@@ -1,34 +1,44 @@
 import { join } from "@tauri-apps/api/path";
 
-import { ContextMenuItems } from "@/constants/application.ts";
+import { ApplicationNamespace, ContextMenuItems } from "@/constants/application.ts";
 import { FileStructure } from "@/constants/file-structure.ts";
 import { RouteItems, Routes } from "@/constants/routes.ts";
 import Configs from "@/lib/configs";
-import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
+import type { ConfigType } from "@/types/application/config.type.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 // TODO: make 'getConfigFile' have the same structure as global states so we can just spread it
 export async function getConfigGlobalStates(
   defaultGlobalStates: GlobalStatesType,
+  fresh?: boolean,
 ): Promise<GlobalStatesType> {
-  let currentConfigFile;
-
-  try {
-    currentConfigFile = await Configs.get();
-  } catch (error: unknown) {
-    log.error("Failed to get a config file:", Errors.prettify(error));
-
-    return defaultGlobalStates;
-  }
+  /*
+   * We are saving at least 30 ms by re-using already fetched config, portable and base directory.
+   *
+   * Initial config was provided by the 'main.ts' code
+   */
+  let currentConfigFile: ConfigType = window[ApplicationNamespace].__internals.initialConfig;
 
   log.debug("Checking if launcher is in portable version");
-  const portable: boolean = await General.checkIsPortable();
+  // Portable status was provided by the 'main.ts' code
+  const portable: boolean = window[ApplicationNamespace].__internals.initialPortable
+    // Unless it was not?
+    ?? await General.checkIsPortable();
 
   log.debug("Getting base directory");
-  const baseDirectory = await General.getBaseDirectory(portable);
+  // Base directory was provided by the 'main.ts' code
+  const baseDirectory = window[ApplicationNamespace].__internals.initialBaseDirectory
+    // Unless it was not?
+    ?? await General.getBaseDirectory(portable);
+
+  if (fresh) {
+    log.debug("Getting a fresh copy of config since the 'fresh' state is:", fresh.toString());
+    currentConfigFile = await Configs.getSafe(baseDirectory);
+  }
+
   const portableVersion = portable ? "Portable" : "Non-portable";
 
   log.info(`Running in the '${portableVersion}' version`);

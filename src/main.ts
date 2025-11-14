@@ -52,8 +52,17 @@ log.info("Extended the global window object with the app namespace");
 // Get user's launcher configuration
 const config: ConfigType = await Configs.getSafe(baseDirectory);
 
-// Define launcher's initial config at globals to make it accessible from 'App.vue'
+/*
+ * Define launcher's initial values at globals to make them accessible from 'App.vue':
+ * - portable
+ * - baseDirectory
+ * - config
+ *
+ * This way we can save at least 30 ms of time
+ */
 window[ApplicationNamespace].__internals.initialConfig = config;
+window[ApplicationNamespace].__internals.initialPortable = portable;
+window[ApplicationNamespace].__internals.initialBaseDirectory = baseDirectory;
 
 // Enabling debug mode means that debug-level messages will be logged
 if (config.development.enableDebugMode) {
