@@ -22,6 +22,7 @@ import type {
   GlobalStatesChangerType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
+import type { RouteType } from "@/types/application/route.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { LocaleType } from "@/types/translations/locale.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
@@ -79,6 +80,10 @@ declare global {
         "ContextMenu"       : {
           "show" : (event: MouseEvent) => void;
           "close": () => void;
+        };
+        "Pages": {
+          "mount"  : (page: Exclude<RouteType, "none">, id: string) => void;
+          "unmount": (page: Exclude<RouteType, "none">) => void;
         };
       };
 

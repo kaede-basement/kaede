@@ -7,6 +7,7 @@ import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
 import GlobalError from "@/components/general/errors/GlobalError.vue";
 import CustomLayout from "@/components/general/layout/CustomLayout.vue";
 import Layout from "@/components/general/layout/Layout.vue";
+import PageTeleports from "@/components/general/layout/PageTeleports.vue";
 import Router from "@/components/general/layout/Router.vue";
 import ConfigSyncer from "@/components/general/misc/ConfigSyncer.vue";
 import NonBundledClasses from "@/components/general/misc/NonBundledClasses.vue";
@@ -159,6 +160,8 @@ useEventListener("keydown", (event: KeyboardEvent) => (
   <ErrorBoundary>
     <template #default>
       <ExtensionLoader v-if="false" />
+
+      <PageTeleports />
     </template>
 
     <!-- In case of an error, show this template -->

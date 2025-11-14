@@ -48,6 +48,12 @@ export function declareWindow(): void {
         "show" : placeholderFunction,
         "close": placeholderFunction,
       },
+      "Pages": {
+
+        /* Fields that contain a 'placeholderFunction' will be overwritten */
+        "mount"  : placeholderFunction,
+        "unmount": placeholderFunction,
+      },
     },
     "hooks": {
       "getConfigFile": {
