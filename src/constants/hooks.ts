@@ -7,8 +7,10 @@ export const HookMappings = {
   "sidebarItems"    : "onSidebarItemsChange",
   "contextMenuItems": "onContextMenuItemsChange",
   "development"     : "onDevelopmentChange",
+  "misc"            : "onMiscChange",
+  "minecraft"       : "onMinecraftChange",
+  "instances"       : "onInstancesChange",
 } as const;
-export const HookMappingKeys = Object.keys(HookMappings) as Array<keyof typeof HookMappings>;
 
 export const HookResponseStatus = {
   "Stop"    : "stop",

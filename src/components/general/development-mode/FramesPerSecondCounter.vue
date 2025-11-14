@@ -110,7 +110,7 @@ onUnmounted(() => {
         {{ limits.latency }} ms
       </p>
       <p id="__dev-fps-counter__latency-current">
-        {{ limits.peak }} ms peak
+        {{ limits.peak }} peak
       </p>
     </div>
   </div>

@@ -64,5 +64,15 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       "enableDebugMode"           : false,
       "enableNativeReloadKeyBinds": false,
     },
+    "misc": {
+      "showBeforeInitialization": false,
+      "enableDiscordRPC"        : false,
+    },
+    "minecraft": {
+      "windowHeight": 480,
+      "windowWidth" : 854,
+      "jvmArgs"     : "",
+    },
+    "instances": {},
   };
 }

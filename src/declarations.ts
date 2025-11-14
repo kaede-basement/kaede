@@ -56,6 +56,7 @@ declare global {
       "__internals": {
         "getGlobalStates"   : () => GlobalStatesType;
         "changeGlobalStates": GlobalStatesChangerType;
+        "initialConfig"     : ConfigType;
       };
 
       /**
@@ -182,6 +183,30 @@ declare global {
             "non-promise"
           >;
           "after": HookReturnType<GlobalStatesType["development"], "nothing">;
+        };
+        "onMiscChange": {
+          "before": HookReturnType<
+            GlobalStatesType["misc"],
+            GlobalStatesType["misc"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["misc"], "nothing">;
+        };
+        "onMinecraftChange": {
+          "before": HookReturnType<
+            GlobalStatesType["minecraft"],
+            GlobalStatesType["minecraft"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["minecraft"], "nothing">;
+        };
+        "onInstancesChange": {
+          "before": HookReturnType<
+            GlobalStatesType["instances"],
+            GlobalStatesType["instances"],
+            "non-promise"
+          >;
+          "after": HookReturnType<GlobalStatesType["instances"], "nothing">;
         };
       };
     };

@@ -17,7 +17,7 @@ test(testName, async () => {
     "minecraftWindowHeight": 480,
     "minecraftWindowWidth" : 854,
     "development"          : {
-      "enableDebugMode": true,
+      "enableDebugMode": false,
     },
     "showBeforeInitialization": false,
   };

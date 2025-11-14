@@ -11,7 +11,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { createApp } from "vue";
 
 import App from "@/App.vue";
-import { ApplicationRootID } from "@/constants/application";
+import { ApplicationNamespace, ApplicationRootID } from "@/constants/application";
 import { getASCIIArt } from "@/constants/ascii-art.ts";
 import Configs from "@/lib/configs";
 import { DevelopmentModeHelpers } from "@/lib/development-mode-helpers";
@@ -25,9 +25,9 @@ import type { ConfigType } from "@/types/application/config.type.ts";
 // Measure high resolution timestamp before launcher initialization
 const startTime = performance.now();
 
-// Check if launcher is in a portable version
+// Check if launcher is in a portable mode to share the status between multiple functions
 const portable: boolean = await General.checkIsPortable();
-// Get the launcher base directory
+// Get the launcher's base directory to share the directory between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
 // No need to log yet since all logs will go into the previous launch log file
@@ -38,22 +38,32 @@ await Logging.prepareLogFile(baseDirectory).catch((error: unknown) => {
 /*
  * Now the log file preparation is done (unless something threw an error).
  *
- * Previous code doesn't access the 'window' object, but config reading does
+ * Show a pretty ASCII art with the launcher name :3
  */
-log.debug("Extending global window object with the app namespace");
+log.info(getASCIIArt(portable));
+
+/*
+ * Previous code doesn't access the 'window[ApplicationNamespace]' object,
+ * but config reading does. That's why we extend the globals only now
+ */
 Globals.declareWindow();
+log.info("Extended the global window object with the app namespace");
 
 // Get user's launcher configuration
 const config: ConfigType = await Configs.getSafe(baseDirectory);
 
-// Show a pretty ASCII art with the launcher name :3
-log.info(getASCIIArt(portable, config.development.enableDebugMode));
+// Define launcher's initial config at globals to make it accessible from 'App.vue'
+window[ApplicationNamespace].__internals.initialConfig = config;
 
 // Enabling debug mode means that debug-level messages will be logged
 if (config.development.enableDebugMode) {
   DevelopmentModeHelpers.enableDebugMode();
 }
 
+/*
+ * Launcher's window is not visible by default
+ * to prevent white screen flashing while webview has not loaded
+ */
 if (config.showBeforeInitialization) {
   try {
     log.debug("Showing webview window before initialization according to user's config");
@@ -69,10 +79,11 @@ log.debug(
   "\n" + JSON.stringify(config, null, 2),
 );
 
+// Create a Vue instance with the 'App.vue' entry
 const AppInstance = createApp(App);
 
-// Attach the app to an element with the 'ApplicationRootID' id
 log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})`);
+// Attach the app to a DOM element with the '#app' id
 AppInstance.mount(ApplicationRootID);
 
 log.debug("Initializing launcher");

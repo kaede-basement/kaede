@@ -9,6 +9,7 @@ import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Globals from "@/lib/globals";
 import Logging from "@/lib/logging";
 import Schemas from "@/lib/schemas";
+import type { ConfigType } from "@/types/application/config.type.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 function placeholderFunction(): void {}
@@ -26,6 +27,8 @@ export function declareWindow(): void {
       /* Fields that contain a 'placeholderFunction' will be overwritten */
       "getGlobalStates"   : placeholderFunction as () => GlobalStatesType,
       "changeGlobalStates": placeholderFunction,
+      // This field will be overwritten too
+      "initialConfig"     : {} as ConfigType,
     },
     "variables": {
       "rippleColor"     : "#ffffff15",
@@ -84,6 +87,18 @@ export function declareWindow(): void {
         "after" : [],
       },
       "onDevelopmentChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onMiscChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onInstancesChange": {
         "before": [],
         "after" : [],
       },
