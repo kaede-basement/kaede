@@ -8,10 +8,13 @@ import { MinecraftSchema } from "@/lib/schemas/scopes/config/minecraft.schema.ts
 import { MiscSchema } from "@/lib/schemas/scopes/config/misc.schema.ts";
 
 export const ConfigSchema = Type.Object({
-  "development": DevelopmentSchema,
-  "layout"     : LayoutSchema,
-  "locale"     : LocaleSchema,
-  "logs"       : LogsSchema,
-  "minecraft"  : MinecraftSchema,
-  "misc"       : MiscSchema,
+  "development": Type.Union([
+    DevelopmentSchema,
+    Type.Null(),
+  ]),
+  "layout"   : LayoutSchema,
+  "locale"   : LocaleSchema,
+  "logs"     : LogsSchema,
+  "minecraft": MinecraftSchema,
+  "misc"     : MiscSchema,
 });

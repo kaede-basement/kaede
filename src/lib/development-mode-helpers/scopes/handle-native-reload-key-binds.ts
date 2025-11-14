@@ -1,6 +1,6 @@
 import { log } from "@/lib/logging/scopes/log.ts";
 
-export function handleNativeReloadKeyBinds(event: KeyboardEvent, ignore: boolean): void {
+export function handleNativeReloadKeyBinds(event: KeyboardEvent, ignore?: boolean): void {
   // If user has enabled native reload key binds, then do not prevent them from firing
   if (ignore) {
     return;

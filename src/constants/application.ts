@@ -1,6 +1,9 @@
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
+import Errors from "@/lib/errors";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
+import { log } from "@/lib/logging/scopes/log.ts";
 
 export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
@@ -23,6 +26,18 @@ export const ContextMenuItems = [
     "action": (): void => {
       GlobalStateHelpers.Logs.toggle("show", true);
       window[ApplicationNamespace].libs.ContextMenu.close();
+    },
+  },
+  {
+    "name"  : "Open Root Folder",
+    "icon"  : "i-lucide-folder",
+    "action": (): void => {
+      window[ApplicationNamespace].libs.ContextMenu.close();
+      revealItemInDir(
+        GlobalStateHelpers.get().fileSystem?.files?.config ?? "",
+      ).catch((error: unknown) => {
+        log.error("Failed to reveal the config file in the explorer:", Errors.prettify(error));
+      });
     },
   },
 ] as const;

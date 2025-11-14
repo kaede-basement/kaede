@@ -65,7 +65,7 @@ window[ApplicationNamespace].__internals.initialPortable = portable;
 window[ApplicationNamespace].__internals.initialBaseDirectory = baseDirectory;
 
 // Enabling debug mode means that debug-level messages will be logged
-if (config.development.enableDebugMode) {
+if (config.development?.enableDebugMode) {
   DevelopmentModeHelpers.enableDebugMode();
 }
 

@@ -8,8 +8,8 @@ const { id, label, disabled, colors } = defineProps<{
   "label"   ?: string;
   "disabled"?: boolean;
   "colors"  ?: {
-    "ripple"  ?: string;
-    "sparkles"?: string;
+    "ripple"  ?: string | null;
+    "sparkles"?: string | null;
   };
 }>();
 

@@ -19,19 +19,23 @@ export type GlobalStatesFileSystemType = {
 };
 export type GlobalStatesLayoutType = {
   "custom"    : boolean;
-  "background": Partial<{
-    "url"  : string;
-    "key"  : string | number;
-    "blur" : number;
-    "color": string;
-  }>;
-  "sidebar": Partial<{
-    "blur"      : number;
-    "color"     : string;
-    "ripple"    : string;
-    "sparkles"  : string;
-    "background": string;
-  }>;
+  "background": {
+    "url"  : string | null;
+    "key"  : string | number | null;
+    "blur" : number | null;
+    "color": string | null;
+  };
+  "sidebar": {
+    "blur"      : number | null;
+    "color"     : string | null;
+    "ripple"    : string | null;
+    "sparkles"  : string | null;
+    "background": string | null;
+  };
+  "atAGlance": {
+    "title"   : string | null;
+    "subtitle": string | null;
+  };
 };
 export type GlobalStatesPagesType = {
   "current": RouteType;
@@ -76,7 +80,6 @@ export type GlobalStatesContextMenuItemsType = Array<{
   "action": () => void;
 }>;
 export type GlobalStatesDevelopmentType = {
-  "enabled"                   : boolean;
   "showFPS"                   : boolean;
   "enableDebugMode"           : boolean;
   "enableNativeReloadKeyBinds": boolean;
@@ -95,19 +98,26 @@ export type GlobalStatesMinecraftType = {
 export type GlobalStatesMinecraftInstancesType = Record<string, GlobalStatesMinecraftType>;
 
 export type GlobalStatesType = {
-  "locale"          : LocaleType;
+
+  /*
+   * Specified in config (only JSON values)
+   *
+   * JSON doesn't have 'undefined' value, so we use 'null' instead of it
+   */
+  "development": GlobalStatesDevelopmentType | null;
+  "layout"     : GlobalStatesLayoutType;
+  "locale"     : LocaleType;
+  "logs"       : GlobalStatesLogsType;
+  "misc"       : GlobalStatesMiscType;
+  "minecraft"  : GlobalStatesMinecraftType;
+
+  // Not specified in config (non-JSON values)
   "translations"    : TranslationsType;
-  // Requires async access to Tauri API before initialization, so we also add undefined
-  "fileSystem"      : GlobalStatesFileSystemType | undefined;
-  "layout"          : GlobalStatesLayoutType;
-  "pages"           : GlobalStatesPagesType;
-  "logs"            : GlobalStatesLogsType;
+  "instances"       : GlobalStatesMinecraftInstancesType;
   "sidebarItems"    : GlobalStatesSidebarItemsType;
   "contextMenuItems": GlobalStatesContextMenuItemsType;
-  "development"     : GlobalStatesDevelopmentType;
-  "misc"            : GlobalStatesMiscType;
-  "minecraft"       : GlobalStatesMinecraftType;
-  "instances"       : GlobalStatesMinecraftInstancesType;
+  "pages"           : GlobalStatesPagesType;
+  "fileSystem"      : GlobalStatesFileSystemType | undefined;
 };
 export type GlobalStatesChangerType = <Key extends keyof GlobalStatesType>(
   key  : Key,

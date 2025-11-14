@@ -9,26 +9,25 @@ const testName = "Default Config: No arguments";
 
 test(testName, async () => {
   const defaultConfig: ConfigType = {
-    "development": {
-      "enabled"                   : false,
-      "enableDebugMode"           : false,
-      "enableNativeReloadKeyBinds": false,
-      "showFPS"                   : false,
-    },
-    "layout": {
+    "development": null,
+    "layout"     : {
       "custom"    : false,
       "background": {
-        "url"  : undefined,
-        "key"  : undefined,
-        "blur" : undefined,
-        "color": undefined,
+        "url"  : null,
+        "key"  : null,
+        "blur" : null,
+        "color": null,
       },
       "sidebar": {
-        "background": undefined,
-        "blur"      : undefined,
-        "color"     : undefined,
-        "ripple"    : undefined,
-        "sparkles"  : undefined,
+        "background": null,
+        "blur"      : null,
+        "color"     : null,
+        "ripple"    : null,
+        "sparkles"  : null,
+      },
+      "atAGlance": {
+        "title"   : null,
+        "subtitle": null,
       },
     },
     "locale": DefaultLocale,

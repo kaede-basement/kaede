@@ -118,7 +118,7 @@ onBeforeMount(async () => {
 useEventListener("keydown", (event: KeyboardEvent) => (
   DevelopmentModeHelpers.handleNativeReloadKeyBinds(
     event,
-    globalStates.development.enableNativeReloadKeyBinds,
+    globalStates.development?.enableNativeReloadKeyBinds,
   )
 ));
 </script>
@@ -137,7 +137,10 @@ useEventListener("keydown", (event: KeyboardEvent) => (
           <LogViewer v-if="globalStates.logs.show" />
         </Transition>
 
-        <DevelopmentMode v-if="globalStates.development.enabled" />
+        <DevelopmentMode
+          v-if="globalStates.development"
+          :development="globalStates.development"
+        />
         <NonBundledClasses />
       </Layout>
     </template>

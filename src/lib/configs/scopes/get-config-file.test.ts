@@ -3,26 +3,25 @@ import { beforeEach, expect, test, vi } from "vitest";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
 const defaultConfig: ConfigType = {
-  "development": {
-    "enabled"                   : false,
-    "enableDebugMode"           : false,
-    "enableNativeReloadKeyBinds": false,
-    "showFPS"                   : false,
-  },
-  "layout": {
+  "development": null,
+  "layout"     : {
     "custom"    : false,
     "background": {
-      "url"  : undefined,
-      "key"  : undefined,
-      "blur" : undefined,
-      "color": undefined,
+      "url"  : null,
+      "key"  : null,
+      "blur" : null,
+      "color": null,
     },
     "sidebar": {
-      "background": undefined,
-      "blur"      : undefined,
-      "color"     : undefined,
-      "ripple"    : undefined,
-      "sparkles"  : undefined,
+      "background": null,
+      "blur"      : null,
+      "color"     : null,
+      "ripple"    : null,
+      "sparkles"  : null,
+    },
+    "atAGlance": {
+      "title"   : null,
+      "subtitle": null,
     },
   },
   "locale": "en",
@@ -128,6 +127,7 @@ const tests: Array<{
         "layout": {
           ...defaultConfig.layout,
           "background": {
+            ...defaultConfig.layout.background,
             "url": "some-url",
           },
         },
@@ -138,6 +138,7 @@ const tests: Array<{
       "layout": {
         ...defaultConfig.layout,
         "background": {
+          ...defaultConfig.layout.background,
           "url": "some-url",
         },
       },

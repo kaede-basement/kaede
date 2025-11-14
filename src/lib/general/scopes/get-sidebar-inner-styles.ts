@@ -1,7 +1,7 @@
 export function getSidebarInnerStyles(
-  background: string | undefined,
-  textColor: string | undefined,
-  blur: number | undefined,
+  background: string | null | undefined,
+  textColor: string | null | undefined,
+  blur: number | null | undefined,
 ): {
   "backgroundColor": string;
   "color"          : string;

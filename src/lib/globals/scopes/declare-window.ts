@@ -102,6 +102,10 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onTranslationsChange": {
+        "before": [],
+        "after" : [],
+      },
     },
   };
 }

@@ -12,17 +12,21 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     "layout"      : {
       "custom"    : false,
       "background": {
-        "url"  : undefined,
-        "key"  : undefined,
-        "blur" : undefined,
-        "color": undefined,
+        "url"  : null,
+        "key"  : null,
+        "blur" : null,
+        "color": null,
       },
       "sidebar": {
-        "blur"      : undefined,
-        "color"     : undefined,
-        "ripple"    : undefined,
-        "sparkles"  : undefined,
-        "background": undefined,
+        "blur"      : null,
+        "color"     : null,
+        "ripple"    : null,
+        "sparkles"  : null,
+        "background": null,
+      },
+      "atAGlance": {
+        "title"   : null,
+        "subtitle": null,
       },
     },
     "pages": {
@@ -61,7 +65,6 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     ],
     "contextMenuItems": [...ContextMenuItems],
     "development"     : {
-      "enabled"                   : false,
       "showFPS"                   : false,
       "enableDebugMode"           : false,
       "enableNativeReloadKeyBinds": false,

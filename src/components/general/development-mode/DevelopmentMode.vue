@@ -1,20 +1,17 @@
 <script setup lang="ts">
-import { inject, onUnmounted, watchEffect } from "vue";
+import { onUnmounted, watchEffect } from "vue";
 
 import FramesPerSecond from "@/components/general/development-mode/FramesPerSecondCounter.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
 import { DevelopmentModeHelpers } from "@/lib/development-mode-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+const { development } = defineProps<{
+  "development": NonNullable<GlobalStatesType["development"]>;
+}>();
 
 watchEffect(() => {
-  if (globalStates?.development?.enableDebugMode === undefined) {
-    return;
-  }
-
-  if (globalStates.development.enableDebugMode) {
+  if (development.enableDebugMode) {
     DevelopmentModeHelpers.enableDebugMode();
 
     return;
@@ -32,5 +29,5 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <FramesPerSecond v-if="globalStates?.development?.showFPS" />
+  <FramesPerSecond v-if="development.showFPS" />
 </template>
