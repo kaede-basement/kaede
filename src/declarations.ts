@@ -83,7 +83,7 @@ declare global {
        */
       "variables": {
         "rippleColor"     : string;
-        "sparklesColorRGB": `${number} ${number} ${number}`;
+        "sparklesColorRGB": string;
       };
 
       /**

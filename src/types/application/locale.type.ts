@@ -1,1 +1,1 @@
-export type LocaleType = "en";
+export type LocaleType = string;

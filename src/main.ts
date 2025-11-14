@@ -73,7 +73,7 @@ if (config.development.enableDebugMode) {
  * Launcher's window is not visible by default
  * to prevent white screen flashing while webview has not loaded
  */
-if (config.showBeforeInitialization) {
+if (config.misc.showBeforeInitialization) {
   try {
     log.debug("Showing webview window before initialization according to user's config");
     await getCurrentWebviewWindow().show();

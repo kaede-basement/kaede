@@ -28,7 +28,7 @@ export type GlobalStatesLayoutType = {
     "blur"      : number;
     "color"     : string;
     "ripple"    : string;
-    "sparkles"  : `${number} ${number} ${number}`;
+    "sparkles"  : string;
     "background": string;
   }>;
 };

@@ -6,6 +6,8 @@ export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
 export const ApplicationRootID = "#app";
 
+export const DefaultLocale = "en";
+
 export const GlobalStatesContextKey = Symbol();
 
 export const ContextMenuItems = [

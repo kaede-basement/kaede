@@ -1,6 +1,4 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
-
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { ApplicationNamespace, DefaultLocale } from "@/constants/application.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
@@ -20,21 +18,45 @@ export async function getDefaultConfig(): Promise<ConfigType> {
     }
   }
 
-  log.debug("Getting current window theme");
-  const currentTheme: "dark" | "light" = await getCurrentWindow().theme() ?? "dark";
-
   return {
-    "customization": {
-      "theme"     : currentTheme,
-      "accent"    : "rose",
-      "background": "none",
+    "development": {
+      "enabled"                   : false,
+      "enableDebugMode"           : false,
+      "enableNativeReloadKeyBinds": false,
+      "showFPS"                   : false,
     },
-    "locale"               : "en",
-    "minecraftWindowHeight": 480,
-    "minecraftWindowWidth" : 854,
-    "development"          : {
-      "enableDebugMode": false,
+    "layout": {
+      "custom"    : false,
+      "background": {
+        "url"  : undefined,
+        "key"  : undefined,
+        "blur" : undefined,
+        "color": undefined,
+      },
+      "sidebar": {
+        "background": undefined,
+        "blur"      : undefined,
+        "color"     : undefined,
+        "ripple"    : undefined,
+        "sparkles"  : undefined,
+      },
     },
-    "showBeforeInitialization": false,
+    "locale": DefaultLocale,
+    "logs"  : {
+      "show"       : false,
+      "lineBreaks" : false,
+      "virtualized": false,
+      "dates"      : false,
+      "filtering"  : "",
+    },
+    "minecraft": {
+      "windowHeight": 480,
+      "windowWidth" : 854,
+      "jvmArgs"     : "",
+    },
+    "misc": {
+      "enableDiscordRPC"        : false,
+      "showBeforeInitialization": false,
+    },
   };
 }

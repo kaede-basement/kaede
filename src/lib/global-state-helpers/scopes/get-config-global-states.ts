@@ -10,17 +10,13 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
-// TODO: make 'getConfigFile' have the same structure as global states so we can just spread it
-export async function getConfigGlobalStates(
-  defaultGlobalStates: GlobalStatesType,
-  fresh?: boolean,
-): Promise<GlobalStatesType> {
+export async function getConfigGlobalStates(fresh?: boolean): Promise<GlobalStatesType> {
   /*
    * We are saving at least 30 ms by re-using already fetched config, portable and base directory.
    *
    * Initial config was provided by the 'main.ts' code
    */
-  let currentConfigFile: ConfigType = window[ApplicationNamespace].__internals.initialConfig;
+  let configFile: ConfigType = window[ApplicationNamespace].__internals.initialConfig;
 
   log.debug("Checking if launcher is in portable version");
   // Portable status was provided by the 'main.ts' code
@@ -36,7 +32,7 @@ export async function getConfigGlobalStates(
 
   if (fresh) {
     log.debug("Getting a fresh copy of config since the 'fresh' state is:", fresh.toString());
-    currentConfigFile = await Configs.getSafe(baseDirectory);
+    configFile = await Configs.getSafe(baseDirectory);
   }
 
   const portableVersion = portable ? "Portable" : "Non-portable";
@@ -45,8 +41,8 @@ export async function getConfigGlobalStates(
   log.debug("Finishing 'getConfigGlobalStates' execution");
 
   return {
-    ...defaultGlobalStates,
-    "locale"    : currentConfigFile.locale,
+    ...configFile,
+    "instances" : {},
     "fileSystem": {
       "portable": portable,
       "base"    : baseDirectory,
@@ -60,22 +56,6 @@ export async function getConfigGlobalStates(
         "log"   : await join(baseDirectory, FileStructure.Logs.Path, FileStructure.Logs.Name),
       },
     },
-    "layout": {
-      "custom"    : false,
-      "background": {
-        "url"  : undefined,
-        "key"  : undefined,
-        "blur" : undefined,
-        "color": undefined,
-      },
-      "sidebar": {
-        "blur"      : undefined,
-        "color"     : undefined,
-        "ripple"    : undefined,
-        "sparkles"  : undefined,
-        "background": undefined,
-      },
-    },
     "pages": {
       "current": Routes.Home,
       "states" : {
@@ -85,13 +65,6 @@ export async function getConfigGlobalStates(
         "add-instance": {},
         "none"        : {},
       },
-    },
-    "logs": {
-      "show"       : false,
-      "lineBreaks" : false,
-      "virtualized": false,
-      "dates"      : false,
-      "filtering"  : "",
     },
     "sidebarItems": [
       ...RouteItems.map(item => {
@@ -111,21 +84,5 @@ export async function getConfigGlobalStates(
       },
     ],
     "contextMenuItems": [...ContextMenuItems],
-    "development"     : {
-      "enabled"                   : false,
-      "showFPS"                   : false,
-      "enableDebugMode"           : false,
-      "enableNativeReloadKeyBinds": false,
-    },
-    "misc": {
-      "showBeforeInitialization": false,
-      "enableDiscordRPC"        : false,
-    },
-    "minecraft": {
-      "windowHeight": 480,
-      "windowWidth" : 854,
-      "jvmArgs"     : "",
-    },
-    "instances": {},
   };
 }

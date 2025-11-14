@@ -97,7 +97,7 @@ window[ApplicationNamespace].__internals.changeGlobalStates = scopedChangeGlobal
 onBeforeMount(async () => {
   // We can't use top-level await, so we apply config here
   log.debug("Getting global states from a config");
-  const userConfig = await GlobalStateHelpers.getFromConfig(globalStates);
+  const userConfig = await GlobalStateHelpers.getFromConfig();
 
   log.debug("Applying global states from a config to the 'globalStates' reactive state");
   for (const [key, value] of Object.entries(userConfig)) {
@@ -130,7 +130,7 @@ useEventListener("keydown", (event: KeyboardEvent) => (
           <LogViewer v-if="globalStates.logs.show" />
         </Transition>
 
-        <DevelopmentMode v-if="true || globalStates.development.enabled" />
+        <DevelopmentMode v-if="globalStates.development.enabled" />
         <NonBundledClasses />
       </Layout>
     </template>
