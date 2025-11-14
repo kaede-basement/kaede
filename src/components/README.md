@@ -19,3 +19,20 @@ Let me explain the file structure.
 ### `general` folder
 
 - `base` contains all basic UI blocks with pre-defined styles and logic, such as buttons, inputs, sliders.
+
+## Styles
+
+### `z-index`
+
+```
+(development mode)
+frames per second counter has 65000 z-index
+
+(not development mode)
+context menu             has 50000 z-index
+sidebar hovering tooltip has 49000 z-index
+log menu                 has 40000 z-index
+sidebar                  has 10000 z-index
+config sync loader icon  has 5000 z-index
+global background        has -10 z-index
+```

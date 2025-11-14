@@ -18,7 +18,7 @@ You need this section only if you want to develop an extension.
 
 Kaede has two built-in plugin repositories.
 
-The first one is a [Kaede Add-ons User Repository (KAUR)](https://github.com/kaede-basement/kaur), similar to [AUR](https://aur.archlinux.org/) and [nixpkgs](https://github.com/NixOS/nixpkgs). That repository contains user published extensions.
+The first one is a [Kaede Add-ons User Repository (KAUR)](https://github.com/kaede-basement/kaur), similar to [AUR](https://aur.archlinux.org/) and [nixpkgs](https://github.com/NixOS/nixpkgs). This repository contains user published extensions.
 
 The second one is a [trusted-extensions repository](https://github.com/kaede-basement/trusted-extensions). I publish my extensions there. Others may publish there too, but only by contacting me. A plugin publisher must provide me the plugin source code and build manuals. I will manually review the provided code and provide the feedback if something is not good. The reviewing procedure will happen each time a plugin publisher wants to update their extension in the repository.
 
@@ -38,13 +38,13 @@ All files are formatted with [ESLint](https://eslint.org/) using the configurati
 
 Please also follow the project's conventions for frontend:
 
-- No AI slops in the launcher code. Although you can do whatever you want in your plugins.
+- No AI slops in the launcher code (plugins don't count).
 - TypeScript is highly recommended.
 - `.vue` file names should be formatted as `PascalCase`. All other files should use `kebab-case`.
 - Exported constants should be formatted as `PascalCase`.
 - Functions, variables, non-exported constants should be formatted as `camelCase`.
 - Element styling is preferred by using `Tailwind v3` classes. If there is no utility class for some cases, then make your own with CSS.
-- [BEM](https://en.bem.info/methodology/) methodology is the preferred way to name element IDs and classes.
+- [BEM](https://en.bem.info/methodology/) methodology is the preferred way to name element IDs and classes to simplify styling by extensions. All elements should have unique IDs.
 
 ## Commit Messages
 

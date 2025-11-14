@@ -11,7 +11,7 @@ import type { ConfigType } from "@/types/application/config.type.ts";
 
 const syncing = ref<boolean>(false);
 
-useIntervalFn(async () => {
+async function handleConfigSync(): Promise<void> {
   const t1 = performance.now();
 
   syncing.value = true;
@@ -70,8 +70,10 @@ useIntervalFn(async () => {
     "ms",
   );
   syncing.value = false;
-  // Trigger config sync every 30 seconds
-}, 30_000);
+}
+
+// Trigger config sync every 30 seconds
+useIntervalFn(handleConfigSync, 30_000);
 </script>
 
 <template>

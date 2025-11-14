@@ -292,13 +292,15 @@
 
 <div align="center">
 
-<img width="128" height="128" align="center" src="../src-tauri/icons/128x128.png" alt="Tendou Arisu's halo recreation (Blue Archive)">
+<a target="_blank" href="https://bluearchive.wiki/wiki/Arisu">
+<img width="128" height="128" align="center" src="../src-tauri/icons/128x128.png" alt="My re-creation of Tendou Arisu's halo">
+</a>
 
 <h1>
 <a style="color:#a1fee4" href="https://github.com/kaede-basement/kaede">Kaede</a>
 </h1>
 
-An extensible Tauri-based Minecraft launcher written with Vue and Tauri
+An extensible Tauri-based Minecraft launcher written in Typescript and Vue
 
 <p align="center">
 <strong>English</strong> | <a style="color:#a1fee4" href="./README.ru.md">Русский</a>
@@ -313,7 +315,7 @@ An extensible Tauri-based Minecraft launcher written with Vue and Tauri
 
 ## Plans
 
-Kaede is not even in a development stage yet. Check the [plan](./PLAN.md) to see more about this launcher
+Kaede is in really early stages of development. Check the [plan](./PLAN.md) to see more about this launcher
 
 ## Contributing
 

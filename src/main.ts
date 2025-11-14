@@ -66,7 +66,9 @@ window[ApplicationNamespace].__internals.initialBaseDirectory = baseDirectory;
 
 // Enabling debug mode means that debug-level messages will be logged
 if (config.development?.enableDebugMode) {
-  DevelopmentModeHelpers.enableDebugMode();
+  DevelopmentModeHelpers.enableDebugMode(
+    DevelopmentModeHelpers.getDefault(),
+  );
 }
 
 /*
