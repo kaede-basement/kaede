@@ -8,6 +8,7 @@ import GlobalError from "@/components/general/errors/GlobalError.vue";
 import CustomLayout from "@/components/general/layout/CustomLayout.vue";
 import Layout from "@/components/general/layout/Layout.vue";
 import Router from "@/components/general/layout/Router.vue";
+import ConfigSyncer from "@/components/general/misc/ConfigSyncer.vue";
 import NonBundledClasses from "@/components/general/misc/NonBundledClasses.vue";
 import {
   ApplicationNamespace,
@@ -142,6 +143,7 @@ useEventListener("keydown", (event: KeyboardEvent) => (
           v-if="globalStates.development"
           :development="globalStates.development"
         />
+        <ConfigSyncer />
         <NonBundledClasses />
       </Layout>
       <CustomLayout v-else />
