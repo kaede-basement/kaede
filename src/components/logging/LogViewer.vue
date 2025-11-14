@@ -258,7 +258,7 @@ onMounted(async () => {
       </div>
       <div
         id="__log-viewer__virtual-list-wrapper"
-        class="group relative max-w-200 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-950 text-sm font-mono"
+        class="group relative max-w-320 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-950 text-sm font-mono"
       >
         <VirtualisedList
           v-if="globalStates?.logs?.virtualized"
