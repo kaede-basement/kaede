@@ -51,38 +51,112 @@ declare global {
     };
 
     /**
-     * Application namespace
+     * Application namespace.
+     *
+     * Extensions can extend this namespace
      */
     "__KAEDE__": {
 
       /**
-       * Workarounds for application internals
+       * Workarounds for application internals.
+       *
+       * Should not be modified by extensions
        */
       "__internals": {
+        // Gets current application's global states (use 'libs.GlobalStateHelpers#get')
         "getGlobalStates"      : () => GlobalStatesType;
+        // Changes application's global states (use 'libs.GlobalStateHelpers#change')
         "changeGlobalStates"   : GlobalStatesChangerType;
+        // Application's config state before launcher initialization
         "initialConfig"        : ConfigType;
+        // Application's portable state before launcher initialization
         "initialPortable"     ?: boolean;
+        // Application's base directory state before launcher initialization
         "initialBaseDirectory"?: string;
       };
 
       /**
-       * Global utilities
+       * Global utilities.
+       *
+       * Changing any field of the listed objects
+       * will alter behaviour of that field for everyone.
+       *
+       * Example:
+       *
+       * ```ts
+       * // Somewhere in a plugin
+       * const arrayInADifferentScope: Array<unknown> = [];
+       *
+       * function customDebugFunction(...input: Array<unknown>): void {
+       *   arrayInADifferentScope.push(input);
+       * };
+       *
+       * // This assignment overwrites the 'debug' field in the 'log' object
+       * // with a reference to the 'customDebugFunction' function,
+       * // so all upcoming 'log#debug' calls will use the 'customDebugFunction' function
+       * // even if calls were not made via accessing the 'window' object
+       * window[ApplicationNamespace].libs.Logging.log.debug = customDebugFunction;
+       * ```
        */
       "libs": {
-        "Configs"           : typeof Configs;
-        "Errors"            : typeof Errors;
-        "General"           : typeof General;
+
+        /**
+         * Launcher's configuration-related collection of utilities
+         */
+        "Configs": typeof Configs;
+
+        /**
+         * Launcher's errors-related collection of utilities
+         */
+        "Errors": typeof Errors;
+
+        /**
+         * Launcher's general-purpose collection of utilities
+         */
+        "General": typeof General;
+
+        /**
+         * Launcher's global states related collection of utilities
+         */
         "GlobalStateHelpers": typeof GlobalStateHelpers;
-        "Globals"           : typeof Globals;
-        "Logging"           : typeof Logging;
-        "Schemas"           : typeof Schemas;
-        "ContextMenu"       : {
+
+        /**
+         * Launcher's 'window' object related collection of utilities
+         */
+        "Globals": typeof Globals;
+
+        /**
+         * Launcher's logging-related collection of utilities
+         */
+        "Logging": typeof Logging;
+
+        /**
+         * Launcher's collection of typebox validation schemas
+         */
+        "Schemas": typeof Schemas;
+
+        /**
+         * Launcher's context menu related collection of utilities
+         */
+        "ContextMenu": {
+
+          /*
+           * Shows context menu. Requires the 'MouseEvent' typed event
+           * as the argument, since the context menu dynamically calculates
+           * its absolute position in the DOM by reading the provided event
+           */
           "show" : (event: MouseEvent) => void;
+          // Hides context menu
           "close": () => void;
         };
+
+        /**
+         * Launcher's pages-related collection of utilities
+         */
         "Pages": {
+          // Teleports the specified page to an element with the provided selector
           "mount"  : (page: Exclude<RouteType, "none">, id: string) => void;
+          // Removes the specified page from DOM
           "unmount": (page: Exclude<RouteType, "none">) => void;
         };
       };
@@ -91,7 +165,9 @@ declare global {
        * Global variables that are allowed to be changed by plugins
        */
       "variables": {
+        // Applies background color to the ripple effect
         "rippleColor"     : string;
+        // Applies sparkles color to the ripple effect
         "sparklesColorRGB": string;
       };
 
