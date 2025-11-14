@@ -5,6 +5,7 @@ import { defineAsyncComponent, onBeforeMount, provide, shallowReactive } from "v
 import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
 import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
 import GlobalError from "@/components/general/errors/GlobalError.vue";
+import CustomLayout from "@/components/general/layout/CustomLayout.vue";
 import Layout from "@/components/general/layout/Layout.vue";
 import Router from "@/components/general/layout/Router.vue";
 import NonBundledClasses from "@/components/general/misc/NonBundledClasses.vue";
@@ -143,6 +144,7 @@ useEventListener("keydown", (event: KeyboardEvent) => (
         />
         <NonBundledClasses />
       </Layout>
+      <CustomLayout v-else />
     </template>
 
     <!-- In case of an error, show this template -->
