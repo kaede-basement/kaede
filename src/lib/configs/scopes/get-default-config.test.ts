@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 
+import { DefaultLocale } from "@/constants/application.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
 import { getDefaultConfig } from "./get-default-config.ts";
@@ -8,18 +9,45 @@ const testName = "Default Config: No arguments";
 
 test(testName, async () => {
   const defaultConfig: ConfigType = {
-    "customization": {
-      "theme"     : "dark",
-      "accent"    : "rose",
-      "background": "none",
+    "development": {
+      "enabled"                   : false,
+      "enableDebugMode"           : false,
+      "enableNativeReloadKeyBinds": false,
+      "showFPS"                   : false,
     },
-    "locale"               : "en",
-    "minecraftWindowHeight": 480,
-    "minecraftWindowWidth" : 854,
-    "development"          : {
-      "enableDebugMode": false,
+    "layout": {
+      "custom"    : false,
+      "background": {
+        "url"  : undefined,
+        "key"  : undefined,
+        "blur" : undefined,
+        "color": undefined,
+      },
+      "sidebar": {
+        "background": undefined,
+        "blur"      : undefined,
+        "color"     : undefined,
+        "ripple"    : undefined,
+        "sparkles"  : undefined,
+      },
     },
-    "showBeforeInitialization": false,
+    "locale": DefaultLocale,
+    "logs"  : {
+      "show"       : false,
+      "lineBreaks" : false,
+      "virtualized": false,
+      "dates"      : false,
+      "filtering"  : "",
+    },
+    "minecraft": {
+      "windowHeight": 480,
+      "windowWidth" : 854,
+      "jvmArgs"     : "",
+    },
+    "misc": {
+      "enableDiscordRPC"        : false,
+      "showBeforeInitialization": false,
+    },
   };
 
   expect(

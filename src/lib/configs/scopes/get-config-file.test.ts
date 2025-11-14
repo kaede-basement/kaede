@@ -3,18 +3,45 @@ import { beforeEach, expect, test, vi } from "vitest";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
 const defaultConfig: ConfigType = {
-  "customization": {
-    "theme"     : "dark",
-    "accent"    : "rose",
-    "background": "none",
+  "development": {
+    "enabled"                   : false,
+    "enableDebugMode"           : false,
+    "enableNativeReloadKeyBinds": false,
+    "showFPS"                   : false,
   },
-  "locale"               : "en",
-  "minecraftWindowHeight": 480,
-  "minecraftWindowWidth" : 854,
-  "development"          : {
-    "enableDebugMode": true,
+  "layout": {
+    "custom"    : false,
+    "background": {
+      "url"  : undefined,
+      "key"  : undefined,
+      "blur" : undefined,
+      "color": undefined,
+    },
+    "sidebar": {
+      "background": undefined,
+      "blur"      : undefined,
+      "color"     : undefined,
+      "ripple"    : undefined,
+      "sparkles"  : undefined,
+    },
   },
-  "showBeforeInitialization": false,
+  "locale": "en",
+  "logs"  : {
+    "show"       : false,
+    "lineBreaks" : false,
+    "virtualized": false,
+    "dates"      : false,
+    "filtering"  : "",
+  },
+  "minecraft": {
+    "windowHeight": 480,
+    "windowWidth" : 854,
+    "jvmArgs"     : "",
+  },
+  "misc": {
+    "enableDiscordRPC"        : false,
+    "showBeforeInitialization": false,
+  },
 };
 
 vi.mock("@/lib/configs/scopes/get-default-config.ts", async () => {
@@ -47,30 +74,22 @@ const tests: Array<{
       "exists"       : true,
       "fetchedConfig": JSON.stringify({
         ...defaultConfig,
-        "customization": {
-          ...defaultConfig.customization,
+        "layout": {
+          ...defaultConfig.layout,
           "apparently": "extra fields are going to pass the validation. i " +
-            "spent 2 days thinking my tests were broken xd",
+            "spent 2 days thinking why my tests were broken xd",
         },
         "TUYU": "is awesome",
       }),
     },
     "output": {
-      "customization": {
-        "theme"     : "dark",
-        "accent"    : "rose",
-        "background": "none",
+      ...defaultConfig,
+      "layout": {
+        ...defaultConfig.layout,
         "apparently": "extra fields are going to pass the validation. i " +
-          "spent 2 days thinking my tests were broken xd",
+          "spent 2 days thinking why my tests were broken xd",
       },
-      "locale"               : "en",
-      "minecraftWindowHeight": 480,
-      "minecraftWindowWidth" : 854,
-      "development"          : {
-        "enableDebugMode": true,
-      },
-      "showBeforeInitialization": false,
-      "TUYU"                    : "is awesome",
+      "TUYU": "is awesome",
     },
   },
   {
@@ -78,8 +97,9 @@ const tests: Array<{
       "exists"       : true,
       "fetchedConfig": JSON.stringify({
         ...defaultConfig,
-        "customization": {
-          "theme": "blue",
+        "layout": {
+          // 'custom' field can only be a boolean
+          "custom": "blue",
         },
       }),
     },
@@ -90,15 +110,12 @@ const tests: Array<{
       "exists"       : true,
       "fetchedConfig": JSON.stringify({
         ...defaultConfig,
-        "customization": {
-          "theme"     : "light",
-          "accent"    : "red",
-          "background": "some-url",
-          "nyaa"      : "si",
+        "minecraft": {
+          // 'windowHeight' should have a 'number' type
+          "windowHeight": "480",
+          "windowWidth" : 854,
+          "jvmArgs"     : "",
         },
-        "locale"                : 2,
-        "minecraftWindowHeight" : "480",
-        "minecraftWindowHeight ": 500,
       }),
     },
     "output": defaultConfig,
@@ -108,25 +125,22 @@ const tests: Array<{
       "exists"       : true,
       "fetchedConfig": JSON.stringify({
         ...defaultConfig,
-        "customization": {
-          ...defaultConfig.customization,
-          "background": "some-url",
+        "layout": {
+          ...defaultConfig.layout,
+          "background": {
+            "url": "some-url",
+          },
         },
       }),
     },
     "output": {
-      "customization": {
-        "theme"     : "dark",
-        "accent"    : "rose",
-        "background": "some-url",
+      ...defaultConfig,
+      "layout": {
+        ...defaultConfig.layout,
+        "background": {
+          "url": "some-url",
+        },
       },
-      "locale"               : "en",
-      "minecraftWindowHeight": 480,
-      "minecraftWindowWidth" : 854,
-      "development"          : {
-        "enableDebugMode": true,
-      },
-      "showBeforeInitialization": false,
     },
   },
   {

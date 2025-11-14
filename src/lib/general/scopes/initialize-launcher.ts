@@ -7,7 +7,7 @@ export async function initializeLauncher(
   config: ConfigType,
   startTime: number,
 ): Promise<void> {
-  if (!config.showBeforeInitialization) {
+  if (!config.misc.showBeforeInitialization) {
     /*
      * Webview window is still hidden, so make it visible now
      * Because frontend is already loaded by this time
