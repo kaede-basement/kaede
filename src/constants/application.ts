@@ -9,6 +9,7 @@ export const ApplicationRootID = "#app";
 export const DefaultLocale = "en";
 
 export const GlobalStatesContextKey = Symbol();
+export const TranslationsContextKey = Symbol();
 
 export const ContextMenuItems = [
   {

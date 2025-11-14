@@ -14,6 +14,7 @@ Let me explain the file structure.
 - `home` contains all components that are used only on the `Home` page.
 - `library` contains all components that are used only on the `Library` page.
 - `settings` contains all components that are used only on the `Settings` page.
+- `profile` contains all components that are used only on the `Profile` page.
 
 ### `general` folder
 

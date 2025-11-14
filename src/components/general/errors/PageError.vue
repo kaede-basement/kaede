@@ -23,17 +23,12 @@ const information = computed((): NativeErrorType => {
 </script>
 
 <template>
-  <div id="__global-error__wrapper" class="min-h-vh w-full flex flex-col select-text gap-4 bg-black p-20 text-white">
-    <p id="__global-error__emoji" class="text-7xl">
-      {{ Translations?.Messages?.["general.errors.global-error.emoji"] }}
+  <div id="__layout__error-wrapper" class="h-full w-full flex flex-col select-text gap-4 bg-black py-8 pl-28 pr-8 text-white">
+    <p id="__layout__error-message" class="text-xl font-light">
+      <span id="__layout__error-message-intro">{{ Translations?.Messages?.["general.errors.page-error.message"] }}</span>
+      <span id="__layout__error-message-error">{{ information.name }}: {{ information.message }}</span>
     </p>
-    <p id="__global-error__title" class="text-balance text-2xl font-light">
-      {{ Translations?.Messages?.["general.errors.global-error.message"] }}
-    </p>
-    <p id="__global-error__message" v-if="information.name || information.message" class="text-xl font-light">
-      {{ information.name }}: {{ information.message }}
-    </p>
-    <p id="__global-error__stack" v-if="information.stack" class="break-words text-sm text-neutral-300 font-light">
+    <p id="__layout__error-stack" class="break-words text-sm text-neutral-300 font-light">
       {{ information.stack }}
     </p>
   </div>

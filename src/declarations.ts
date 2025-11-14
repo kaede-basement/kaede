@@ -22,8 +22,9 @@ import type {
   GlobalStatesChangerType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import type { LocaleType } from "@/types/application/locale.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
+import type { LocaleType } from "@/types/translations/locale.type.ts";
+import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 /* Expand the globals with Kaede and Tauri namespaces */
 declare global {
@@ -53,6 +54,9 @@ declare global {
      */
     "__KAEDE__": {
 
+      /**
+       * Workarounds for application internals
+       */
       "__internals": {
         "getGlobalStates"      : () => GlobalStatesType;
         "changeGlobalStates"   : GlobalStatesChangerType;
@@ -129,6 +133,10 @@ declare global {
         "onLocaleChange": {
           "before": HookReturnType<LocaleType, LocaleType, "non-promise">;
           "after" : HookReturnType<LocaleType, "nothing">;
+        };
+        "onTranslationsChange": {
+          "before": HookReturnType<TranslationsType, TranslationsType, "non-promise">;
+          "after" : HookReturnType<TranslationsType, "nothing">;
         };
         "onFileSystemChange": {
           "before": HookReturnType<

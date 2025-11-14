@@ -1,7 +1,8 @@
 import type { ShallowReactive } from "vue";
 
-import type { LocaleType } from "@/types/application/locale.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
+import type { LocaleType } from "@/types/translations/locale.type.ts";
+import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 export type GlobalStatesFileSystemType = {
   "portable": boolean;
@@ -95,6 +96,7 @@ export type GlobalStatesMinecraftInstancesType = Record<string, GlobalStatesMine
 
 export type GlobalStatesType = {
   "locale"          : LocaleType;
+  "translations"    : TranslationsType;
   // Requires async access to Tauri API before initialization, so we also add undefined
   "fileSystem"      : GlobalStatesFileSystemType | undefined;
   "layout"          : GlobalStatesLayoutType;

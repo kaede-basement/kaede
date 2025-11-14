@@ -11,6 +11,7 @@ import NonBundledClasses from "@/components/general/misc/NonBundledClasses.vue";
 import {
   ApplicationNamespace,
   GlobalStatesContextKey,
+  TranslationsContextKey,
 } from "@/constants/application.ts";
 import { DevelopmentModeHelpers } from "@/lib/development-mode-helpers";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -20,6 +21,7 @@ import type {
   ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
+import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 /**
  * These components will load only when needed.
@@ -77,9 +79,14 @@ function scopedChangeGlobalStates<Key extends keyof GlobalStatesType>(
 }
 
 /**
- * Provides a reference to the instance-reactive global states for all instance children.
+ * Provides a reference to the instance-level reactive global states for all instance children.
  */
 provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
+
+/**
+ * Provides a reference to the instance-level reactive translations state for all instance children.
+ */
+provide<TranslationsType>(TranslationsContextKey, globalStates.translations);
 
 /**
  * Provides a reference to the function that returns a reference to the global states object.

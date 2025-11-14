@@ -3,6 +3,7 @@ import { useEventListener } from "@vueuse/core";
 import { ref } from "vue";
 
 import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
+import PageError from "@/components/general/errors/PageError.vue";
 import ContextMenu from "@/components/general/layout/ContextMenu.vue";
 import Sidebar from "@/components/general/layout/Sidebar.vue";
 import { ApplicationNamespace } from "@/constants/application.ts";
@@ -11,6 +12,7 @@ import type { RouteType } from "@/types/application/route.type.ts";
 const { page } = defineProps<{
   "page": RouteType;
 }>();
+
 const contextMenu = ref<{
   "opened": boolean;
   "x"     : number;
@@ -82,14 +84,7 @@ useEventListener(window, "mousedown", (event: MouseEvent) => {
 
       <!-- In case of an error, show this template -->
       <template #error="{ currentError }">
-        <div id="__layout__error-wrapper" class="h-full w-full flex flex-col select-text gap-4 bg-black p-8 text-white">
-          <p id="__layout__error-message" class="text-xl font-light">
-            Something went wrong. {{ currentError?.value?.name }}: {{ currentError?.value?.message }}
-          </p>
-          <p id="__layout__error-stack" class="break-words text-sm text-neutral-300 font-light">
-            {{ currentError?.value?.stack }}
-          </p>
-        </div>
+        <PageError :error="currentError" />
       </template>
     </ErrorBoundary>
   </div>

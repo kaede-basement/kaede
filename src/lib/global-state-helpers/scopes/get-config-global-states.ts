@@ -1,6 +1,7 @@
 import { join } from "@tauri-apps/api/path";
 
 import { ApplicationNamespace, ContextMenuItems } from "@/constants/application.ts";
+import EnglishTranslations from "@/constants/english.json";
 import { FileStructure } from "@/constants/file-structure.ts";
 import { RouteItems, Routes } from "@/constants/routes.ts";
 import Configs from "@/lib/configs";
@@ -42,8 +43,9 @@ export async function getConfigGlobalStates(fresh?: boolean): Promise<GlobalStat
 
   return {
     ...configFile,
-    "instances" : {},
-    "fileSystem": {
+    "translations": EnglishTranslations,
+    "instances"   : {},
+    "fileSystem"  : {
       "portable": portable,
       "base"    : baseDirectory,
       "folders" : {

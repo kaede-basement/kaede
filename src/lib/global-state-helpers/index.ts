@@ -11,7 +11,7 @@ import { Pages } from "@/lib/global-state-helpers/scopes/pages.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export default {
-  "get"   : () => window[ApplicationNamespace].__internals.getGlobalStates(),
+  "get"   : (): GlobalStatesType => window[ApplicationNamespace].__internals.getGlobalStates(),
   "change": <Key extends keyof GlobalStatesType>(
     key: Key,
     value: GlobalStatesType[Key],

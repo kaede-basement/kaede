@@ -32,5 +32,5 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <FramesPerSecond v-if="true || globalStates?.development?.showFPS" />
+  <FramesPerSecond v-if="globalStates?.development?.showFPS" />
 </template>

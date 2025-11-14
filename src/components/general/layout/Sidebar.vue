@@ -6,6 +6,7 @@ import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import SidebarProfile from "@/components/general/layout/SidebarProfile.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
 import General from "@/lib/general";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type {
   ContextGlobalStatesType,
 } from "@/types/application/global-states.type.ts";
@@ -95,6 +96,8 @@ function handleMouseOver(event: MouseEvent): void {
 function handleButtonAction(action: () => void): void {
   action();
   closeTooltip();
+  // Close the log viewer
+  GlobalStateHelpers.Logs.toggle("show", false);
 }
 </script>
 
