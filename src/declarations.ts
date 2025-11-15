@@ -24,7 +24,6 @@ import type {
 } from "@/types/application/global-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
-import type { LocaleType } from "@/types/translations/locale.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 /* Expand the globals with Kaede and Tauri namespaces */
@@ -165,9 +164,9 @@ declare global {
        * Global variables that are allowed to be changed by plugins
        */
       "variables": {
-        // Applies background color to the ripple effect
+        // Applies a background color to the ripple effect
         "rippleColor"     : string;
-        // Applies sparkles color to the ripple effect
+        // Applies a sparkles color to the ripple effect
         "sparklesColorRGB": string;
       };
 
@@ -182,7 +181,7 @@ declare global {
         "getConfigFile": {
 
           /**
-           * Executed before the config was read.
+           * Executes 'async' or 'sync' functions before the config was read.
            *
            * Absolute pathname of the config file is passed as the argument.
            *
@@ -195,7 +194,7 @@ declare global {
           "before": HookReturnType<string, ConfigType>;
 
           /**
-           * Executed after the config was read, parsed, and validated.
+           * Executes 'async' or 'sync' functions after the config was read, parsed, and validated.
            *
            * A validated config is passed as the argument.
            *
@@ -207,96 +206,403 @@ declare global {
            */
           "after": HookReturnType<ConfigType, ConfigType>;
         };
+
+        /**
+         * Executed on the default config retrieve
+         */
         "getDefaultConfig": {
+
+          /**
+           * Executes 'async' or 'sync' functions before the default config was returned.
+           *
+           * No arguments.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'ConfigType' typed object in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<unknown, ConfigType>;
-          "after" : HookReturnType<ConfigType, ConfigType>;
         };
-        "onLocaleChange": {
-          "before": HookReturnType<LocaleType, LocaleType, "non-promise">;
-          "after" : HookReturnType<LocaleType, "nothing">;
-        };
+
+        /**
+         * Executed on the translations replacement in global states
+         */
         "onTranslationsChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'translations' property
+           * in the global states will change.
+           *
+           * 'TranslationsType' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'TranslationsType' typed object in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<TranslationsType, TranslationsType, "non-promise">;
-          "after" : HookReturnType<TranslationsType, "nothing">;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'translations' property in the global states has changed.
+           *
+           * 'TranslationsType' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
+          "after": HookReturnType<TranslationsType, "nothing">;
         };
+
+        /**
+         * Executed on the 'fileSystem' field replacement in global states
+         */
         "onFileSystemChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'fileSystem' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["fileSystem"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["fileSystem"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["fileSystem"],
             GlobalStatesType["fileSystem"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'fileSystem' property in the global states has changed.
+           *
+           * 'GlobalStatesType["fileSystem"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["fileSystem"], "nothing">;
         };
+
+        /**
+         * Executed on the 'layout' field replacement in global states
+         */
         "onLayoutChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'layout' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["layout"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["layout"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["layout"],
             GlobalStatesType["layout"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'layout' property in the global states has changed.
+           *
+           * 'GlobalStatesType["layout"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["layout"], "nothing">;
         };
+
+        /**
+         * Executed on the 'pages' field replacement in global states
+         */
         "onPagesChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'pages' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["pages"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["pages"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["pages"],
             GlobalStatesType["pages"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'pages' property in the global states has changed.
+           *
+           * 'GlobalStatesType["pages"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["pages"], "nothing">;
         };
+
+        /**
+         * Executed on the 'logs' field replacement in global states
+         */
         "onLogsChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'logs' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["logs"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["logs"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["logs"],
             GlobalStatesType["logs"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'logs' property in the global states has changed.
+           *
+           * 'GlobalStatesType["logs"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["logs"], "nothing">;
         };
+
+        /**
+         * Executed on the 'sidebarItems' field replacement in global states
+         */
         "onSidebarItemsChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'sidebarItems' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["sidebarItems"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["sidebarItems"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["sidebarItems"],
             GlobalStatesType["sidebarItems"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'sidebarItems' property in the global states has changed.
+           *
+           * 'GlobalStatesType["sidebarItems"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["sidebarItems"], "nothing">;
         };
+
+        /**
+         * Executed on the 'contextMenuItems' field replacement in global states
+         */
         "onContextMenuItemsChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'contextMenuItems' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["contextMenuItems"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["contextMenuItems"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["contextMenuItems"],
             GlobalStatesType["contextMenuItems"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'contextMenuItems' property in the global states has changed.
+           *
+           * 'GlobalStatesType["contextMenuItems"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["contextMenuItems"], "nothing">;
         };
+
+        /**
+         * Executed on the 'development' field replacement in global states
+         */
         "onDevelopmentChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'development' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["development"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["development"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["development"],
             GlobalStatesType["development"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'development' property in the global states has changed.
+           *
+           * 'GlobalStatesType["development"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["development"], "nothing">;
         };
+
+        /**
+         * Executed on the 'misc' field replacement in global states
+         */
         "onMiscChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'misc' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["misc"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["misc"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["misc"],
             GlobalStatesType["misc"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'misc' property in the global states has changed.
+           *
+           * 'GlobalStatesType["misc"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["misc"], "nothing">;
         };
+
+        /**
+         * Executed on the 'minecraft' field replacement in global states
+         */
         "onMinecraftChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'minecraft' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["minecraft"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["minecraft"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["minecraft"],
             GlobalStatesType["minecraft"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'minecraft' property in the global states has changed.
+           *
+           * 'GlobalStatesType["minecraft"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["minecraft"], "nothing">;
         };
+
+        /**
+         * Executed on the 'instances' field replacement in global states
+         */
         "onInstancesChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'instances' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["instances"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["instances"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
           "before": HookReturnType<
             GlobalStatesType["instances"],
             GlobalStatesType["instances"],
             "non-promise"
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'instances' property in the global states has changed.
+           *
+           * 'GlobalStatesType["instances"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
           "after": HookReturnType<GlobalStatesType["instances"], "nothing">;
         };
       };
