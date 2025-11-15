@@ -62,11 +62,6 @@ export function declareWindow(): void {
       },
       "getDefaultConfig": {
         "before": [],
-        "after" : [],
-      },
-      "onLocaleChange": {
-        "before": [],
-        "after" : [],
       },
       "onFileSystemChange": {
         "before": [],

@@ -1,4 +1,4 @@
-import { ContextMenuItems, DefaultLocale } from "@/constants/application.ts";
+import { ContextMenuItems } from "@/constants/application.ts";
 import EnglishTranslations from "@/constants/english.json";
 import { RouteItems, Routes } from "@/constants/routes.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -6,7 +6,6 @@ import type { GlobalStatesType } from "@/types/application/global-states.type.ts
 
 export function getDefaultGlobalStates(): GlobalStatesType {
   return {
-    "locale"      : DefaultLocale,
     "translations": EnglishTranslations,
     "fileSystem"  : undefined,
     "layout"      : {

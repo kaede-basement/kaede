@@ -36,7 +36,6 @@ async function handleConfigSync(): Promise<void> {
     // Arrange these properties in a way that the config itself arranges them
     "development": currentGlobalStates.development,
     "layout"     : currentGlobalStates.layout,
-    "locale"     : currentGlobalStates.locale,
     "logs"       : {
       ...currentGlobalStates.logs,
       "show": false,

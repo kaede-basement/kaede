@@ -1,7 +1,6 @@
 import type { ShallowReactive } from "vue";
 
 import type { RouteType } from "@/types/application/route.type.ts";
-import type { LocaleType } from "@/types/translations/locale.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 export type GlobalStatesFileSystemType = {
@@ -106,7 +105,6 @@ export type GlobalStatesType = {
    */
   "development": GlobalStatesDevelopmentType | null;
   "layout"     : GlobalStatesLayoutType;
-  "locale"     : LocaleType;
   "logs"       : GlobalStatesLogsType;
   "misc"       : GlobalStatesMiscType;
   "minecraft"  : GlobalStatesMinecraftType;

@@ -1,4 +1,4 @@
-import { ApplicationNamespace, DefaultLocale } from "@/constants/application.ts";
+import { ApplicationNamespace } from "@/constants/application.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
@@ -40,8 +40,7 @@ export async function getDefaultConfig(): Promise<ConfigType> {
         "subtitle": null,
       },
     },
-    "locale": DefaultLocale,
-    "logs"  : {
+    "logs": {
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,

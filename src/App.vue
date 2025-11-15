@@ -104,14 +104,14 @@ window[ApplicationNamespace].__internals.changeGlobalStates = scopedChangeGlobal
 /**
  * Applies user config values to the global states.
  */
-onBeforeMount(async () => {
+onBeforeMount(async <Key extends keyof GlobalStatesType>() => {
   // We can't use top-level await, so we apply config here
   log.debug("Getting global states from a config");
   const userConfig = await GlobalStateHelpers.getFromConfig();
 
   log.debug("Applying global states from a config to the 'globalStates' reactive state");
   for (const [key, value] of Object.entries(userConfig)) {
-    globalStates[key as "locale"] = value as GlobalStatesType["locale"];
+    globalStates[key as Key] = value as GlobalStatesType[Key];
   }
 });
 

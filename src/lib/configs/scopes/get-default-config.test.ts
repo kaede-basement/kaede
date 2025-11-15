@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
 
-import { DefaultLocale } from "@/constants/application.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
 import { getDefaultConfig } from "./get-default-config.ts";
@@ -30,8 +29,7 @@ test(testName, async () => {
         "subtitle": null,
       },
     },
-    "locale": DefaultLocale,
-    "logs"  : {
+    "logs": {
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,

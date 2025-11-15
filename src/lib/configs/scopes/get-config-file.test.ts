@@ -24,8 +24,7 @@ const defaultConfig: ConfigType = {
       "subtitle": null,
     },
   },
-  "locale": "en",
-  "logs"  : {
+  "logs": {
     "show"       : false,
     "lineBreaks" : false,
     "virtualized": false,
