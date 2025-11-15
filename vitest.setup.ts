@@ -8,6 +8,7 @@ vi.stubGlobal("window", {
     "__internals": {
       "getGlobalStates"   : (): void => {},
       "changeGlobalStates": (): void => {},
+      "initialConfig"     : {},
     },
     "variables": {
       "rippleColor"     : "",
@@ -20,11 +21,6 @@ vi.stubGlobal("window", {
       },
       "getDefaultConfig": {
         "before": [],
-        "after" : [],
-      },
-      "onLocaleChange": {
-        "before": [],
-        "after" : [],
       },
       "onPagesChange": {
         "before": [],
@@ -43,6 +39,30 @@ vi.stubGlobal("window", {
         "after" : [],
       },
       "onContextMenuItemsChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onTranslationsChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onFileSystemChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onDevelopmentChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onMiscChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onInstancesChange": {
         "before": [],
         "after" : [],
       },

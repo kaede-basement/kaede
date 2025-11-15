@@ -25,6 +25,7 @@ import type {
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
+import type { AtAGlanceType } from "@/types/ui/at-a-glance.type.ts";
 
 /* Expand the globals with Kaede and Tauri namespaces */
 declare global {
@@ -59,7 +60,7 @@ declare global {
       /**
        * Workarounds for application internals.
        *
-       * Should not be modified by extensions
+       * These fields are not intended to be modified by extensions
        */
       "__internals": {
         // Gets current application's global states (use 'libs.GlobalStateHelpers#get')
@@ -72,6 +73,8 @@ declare global {
         "initialPortable"     ?: boolean;
         // Application's base directory state before launcher initialization
         "initialBaseDirectory"?: string;
+        // A temporary storage for the 'At a Glance' widget
+        "atAGlance"           ?: AtAGlanceType;
       };
 
       /**
