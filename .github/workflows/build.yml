@@ -113,18 +113,7 @@ jobs:
         with:
           file: "./src-tauri/capabilities/plugin-fs.json"
           fields: "{
-            \"permissions[0].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[1].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[2].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[3].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[4].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[5].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[6].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[7].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[8].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[9].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[10].allow\": [{\"path\":\"**/*\"}],
-            \"permissions[11].allow\": [{\"path\":\"**/*\"}]
+            \"permissions[0].allow\": [{\"path\":\"**/*\"}]
           }"
 
       - name: Mark window title as Portable (Portable-only)
