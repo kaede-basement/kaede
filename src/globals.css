@@ -16,6 +16,7 @@ html {
 }
 
 .text-justify-last {
+  /* Justify the last line of text */
   text-align-last: justify;
 }
 
@@ -29,6 +30,7 @@ html {
 .thin-scrollbar::-webkit-scrollbar { width: 8px }
 
 .scroll-gutter-stable-both {
+  /* Leave a fixed space for scrollbar on both edges */
   scrollbar-gutter: stable both-edges;
 }
 

@@ -70,6 +70,7 @@ pub fn run() {
                         .format(|out, message, record| {
                             let now_utc: DateTime<Utc> = Utc::now();
                             let formatted_date = now_utc.format("%d-%m-%Y").to_string();
+                            // Default tauri logging format doesn't include milliseconds
                             let formatted_time = now_utc.format("%H:%M:%S%.3f").to_string();
 
                             out.finish(format_args!(
@@ -81,6 +82,8 @@ pub fn run() {
                                 message,
                             ))
                         })
+                        // Keep the log file size at 8 MB
+                        .max_file_size(8_388_608)
                         // Use log rotation
                         .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                         .build(),
@@ -103,6 +106,7 @@ pub fn run() {
                         .format(|out, message, record| {
                             let now_utc: DateTime<Utc> = Utc::now();
                             let formatted_date = now_utc.format("%d-%m-%Y").to_string();
+                            // Default tauri logging format doesn't include milliseconds
                             let formatted_time = now_utc.format("%H:%M:%S%.3f").to_string();
 
                             out.finish(format_args!(
@@ -114,7 +118,7 @@ pub fn run() {
                                 message,
                             ))
                         })
-                        // Keep log file size at 8 MB
+                        // Keep the log file size at 8 MB
                         .max_file_size(8_388_608)
                         // Use log rotation
                         .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)

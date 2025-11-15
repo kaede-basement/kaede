@@ -15,14 +15,14 @@ Let me explain the file structure.
   - `void` means that the hook returns `{ "status": "stop" | "continue", "response": void }`. Hooks with this type can control whether to continue caller's code execution or not (caller is the function that executes these hooks).
   - `"nothing"` means that the hook returns `void` (or anything else, the caller will just not care about it). Hooks with this type cannot abort caller's code execution.
 - `globals.css` contain global CSS styles that are not possible or not convenient to write using the UnoCSS.
-- `main.ts` is the main entry point file. It contains all initialization code and imports CSS styles. This code will be executed the first when the webview will be loaded.
-- `vite-env.d.ts` is just a default file that `vite` generates.
+- `main.ts` is the main entry point file. It contains all initialization code and imports CSS styles. This code will be executed the first when the webview has loaded.
+- `vite-env.d.ts` is just a default file that the `vite` generates.
 
 ## Top-level folders
 
 Every folder has its own `README` file for more detailed explanations.
 
-- `__mocks__` contain library mocks and is purely for testing environment. [More](./__mocks__/README.md)
+- `__mocks__` contain library mocks and are purely for testing environment. [More](./__mocks__/README.md)
 - `components` contain only Vue components. These components are used for the application UI. [More](./components/README.md)
 - `constants` contain reusable global constants. [More](./constants/README.md)
 - `lib` contains the backend part. [More](./lib/README.md)
