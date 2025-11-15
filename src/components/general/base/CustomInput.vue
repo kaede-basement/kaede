@@ -38,6 +38,10 @@ const target = useTemplateRef("target");
 
 const focused = ref<boolean>(false);
 
+function unFocus(): void {
+  focused.value = false;
+}
+
 const handleInput = useDebounceFn((event: Event): void => {
   const target = event?.target as HTMLInputElement;
   const targetValue = target?.value ?? "";
@@ -110,7 +114,7 @@ if (listenToEvents) {
       :value="defaultValue"
       @input="handleInput"
       @keydown="onKeyDown"
-      @blur="() => focused = false"
+      @blur="unFocus"
     />
     <MaterialRipple :disabled="focused" />
   </div>
