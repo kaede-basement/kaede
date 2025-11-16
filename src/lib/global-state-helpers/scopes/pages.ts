@@ -1,3 +1,4 @@
+import { Routes } from "@/constants/routes.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
@@ -47,6 +48,21 @@ const replaceState = <Key extends keyof GlobalStatesType["pages"]["states"]>(
     "states": newStates,
   });
 };
+const getRouteFromSearchParameters = (searchParameters: URLSearchParams): RouteType => {
+  const route: string | null = searchParameters.get("route");
+
+  if (!route) {
+    return Routes.Home;
+  }
+
+  for (const path of Object.values(Routes)) {
+    if (route === path) {
+      return path;
+    }
+  }
+
+  return Routes.Home;
+};
 
 export const Pages = {
   navigate,
@@ -54,4 +70,5 @@ export const Pages = {
   getAllStates,
   addToState,
   replaceState,
+  getRouteFromSearchParameters,
 };

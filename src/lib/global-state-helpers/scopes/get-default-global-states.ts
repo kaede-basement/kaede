@@ -5,6 +5,8 @@ import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export function getDefaultGlobalStates(): GlobalStatesType {
+  const searchParameters = new URLSearchParams(location.search);
+
   return {
     "translations": EnglishTranslations,
     "fileSystem"  : undefined,
@@ -29,7 +31,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       },
     },
     "pages": {
-      "current": Routes.Home,
+      "current": GlobalStateHelpers.Pages.getRouteFromSearchParameters(searchParameters),
       "states" : {
         "home"        : {},
         "library"     : {},

@@ -1,3 +1,42 @@
+<details>
+
+```ts
+function handleNavigation(path: RouteType): void {
+  const webviewId = path === "home" ? "main" : `navigation_window_${path}`;
+
+  new WebviewWindow(webviewId, {
+    "url"    : `/?route=${path}`,
+    "visible": false,
+    "title"  : "Kaede - " + General.capitalize(path),
+  });
+}
+
+export async function temporaryShit(): Promise<void> {
+  window.__KAEDE__.libs.GlobalStateHelpers.Pages.navigate = handleNavigation;
+
+  const currentWebviewWindow = getCurrentWebviewWindow();
+  const currentId = currentWebviewWindow.label;
+
+  if (currentId !== "navigationWindow") {
+    return;
+  }
+
+  document.head.insertAdjacentHTML(
+    "beforeend",
+    "<style>" +
+    "#__sidebar__wrapper {" +
+    "display: none" +
+    "}" +
+    "#__page-wrapper {" +
+    "left: 8px" +
+    "}" +
+    "</style>",
+  );
+}
+```
+
+</details>
+
 A video demonstration of the isolated plugin that renders an interactive Live2D of [Misono Mika](https://bluearchive.wiki/wiki/Mika). Isolated plugin has the access to DOM (`document`); also can use `window.log` (a custom logger function that wraps tauri-plugin-log), `Math`, `Date`, `URL`, `Buffer`, `window["__core-js_shared__"]`, `console`, etc. This list is not full because it is really long, and the key thing here is that we can manually pass down global variables, so important and dangerous `window.__TAURI__.*` functions are not accessible.
 
 Isolation was done using the [Secure ECMAScript](https://github.com/endojs/endo). All globals were frozen using the `lockdown` function that `ses` library provides. So plugins can't rewrite any globals, prototypes, etc.

@@ -12,6 +12,8 @@ import type { ConfigType } from "@/types/application/config.type.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export async function getConfigGlobalStates(fresh?: boolean): Promise<GlobalStatesType> {
+  const searchParameters = new URLSearchParams(location.search);
+
   /*
    * We are saving at least 30 ms by re-using already fetched config, portable and base directory.
    *
@@ -59,7 +61,7 @@ export async function getConfigGlobalStates(fresh?: boolean): Promise<GlobalStat
       },
     },
     "pages": {
-      "current": Routes.Home,
+      "current": GlobalStateHelpers.Pages.getRouteFromSearchParameters(searchParameters),
       "states" : {
         "home"        : {},
         "library"     : {},
