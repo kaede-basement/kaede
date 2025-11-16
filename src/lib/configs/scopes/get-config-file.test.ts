@@ -181,6 +181,7 @@ beforeEach(() => {
       "BaseDirectory": {
         "AppData": 14,
       },
+      "rename"      : async (): Promise<void> => {},
       "exists"      : async (): Promise<boolean> => tests[index].arguments.exists,
       "readTextFile": async (): Promise<string> => tests[index].arguments.fetchedConfig,
     };
