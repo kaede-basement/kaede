@@ -3,7 +3,7 @@
   "identifier": "plugin-notification",
   "description": "enables the notification:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "notification:allow-batch",

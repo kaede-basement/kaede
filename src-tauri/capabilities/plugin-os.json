@@ -3,7 +3,7 @@
   "identifier": "plugin-os",
   "description": "enables the os:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "os:allow-arch",

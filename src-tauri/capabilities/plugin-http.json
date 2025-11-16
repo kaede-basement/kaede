@@ -3,7 +3,7 @@
   "identifier": "plugin-http",
   "description": "enables the http:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "http:allow-fetch",

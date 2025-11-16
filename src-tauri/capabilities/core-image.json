@@ -3,7 +3,7 @@
   "identifier": "core-image",
   "description": "enables the core:image:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:image:allow-from-bytes",

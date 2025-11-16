@@ -3,7 +3,7 @@
   "identifier": "plugin-dialog",
   "description": "enables the dialog:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "dialog:allow-ask",

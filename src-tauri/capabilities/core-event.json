@@ -3,7 +3,7 @@
   "identifier": "core-event",
   "description": "enables the core:event:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:event:allow-emit",

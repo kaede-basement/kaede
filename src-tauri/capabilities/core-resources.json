@@ -3,7 +3,7 @@
   "identifier": "core-resources",
   "description": "enables the core:resources:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:resources:allow-close"

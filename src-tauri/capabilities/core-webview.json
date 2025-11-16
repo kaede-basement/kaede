@@ -3,7 +3,7 @@
   "identifier": "core-webview",
   "description": "enables the core:webview:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:webview:allow-clear-all-browsing-data",

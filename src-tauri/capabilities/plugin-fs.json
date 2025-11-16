@@ -3,7 +3,7 @@
   "identifier": "plugin-fs",
   "description": "manages the fs:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     {

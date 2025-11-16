@@ -3,7 +3,7 @@
   "identifier": "plugin-shell",
   "description": "manages the shell:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     {

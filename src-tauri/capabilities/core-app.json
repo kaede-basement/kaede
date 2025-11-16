@@ -3,7 +3,7 @@
   "identifier": "core-app",
   "description": "enables the core:app:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:app:allow-app-hide",

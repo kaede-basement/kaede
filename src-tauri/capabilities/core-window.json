@@ -3,7 +3,7 @@
   "identifier": "core-window",
   "description": "enables the core:window:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:window:allow-available-monitors",

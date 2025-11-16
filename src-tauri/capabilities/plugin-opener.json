@@ -3,7 +3,7 @@
   "identifier": "plugin-opener",
   "description": "manages the opener:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "opener:allow-open-url",

@@ -3,7 +3,7 @@
   "identifier": "plugin-process",
   "description": "enables the process:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "process:allow-exit",

@@ -3,7 +3,7 @@
   "identifier": "plugin-upload",
   "description": "enables the upload:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "upload:allow-download",

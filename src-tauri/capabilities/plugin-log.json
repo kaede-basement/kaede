@@ -3,7 +3,7 @@
   "identifier": "plugin-log",
   "description": "enables the log:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "log:allow-log"

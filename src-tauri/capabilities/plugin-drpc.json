@@ -3,7 +3,7 @@
   "identifier": "plugin-drpc",
   "description": "enables the drpc:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "drpc:allow-spawn-thread",

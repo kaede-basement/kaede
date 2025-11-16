@@ -3,7 +3,7 @@
   "identifier": "core-path",
   "description": "enables the core:path:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:path:allow-basename",

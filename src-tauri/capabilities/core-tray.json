@@ -3,7 +3,7 @@
   "identifier": "core-tray",
   "description": "enables the core:tray:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:tray:allow-get-by-id",

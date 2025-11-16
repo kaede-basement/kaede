@@ -3,7 +3,7 @@
   "identifier": "core-menu",
   "description": "enables the core:menu:* permissions",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:menu:allow-append",
