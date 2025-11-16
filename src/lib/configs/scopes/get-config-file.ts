@@ -1,10 +1,11 @@
 import { join } from "@tauri-apps/api/path";
-import { exists, readTextFile } from "@tauri-apps/plugin-fs";
+import { exists, readTextFile, rename } from "@tauri-apps/plugin-fs";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { FileStructure } from "@/constants/file-structure.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
+import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
@@ -76,7 +77,14 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
   const configFile = await readTextFile(configFileDirectory);
 
   log.debug("Parsing a config file");
-  const parsedConfig: unknown = JSON.parse(configFile);
+  let parsedConfig: unknown;
+
+  try {
+    parsedConfig = JSON.parse(configFile);
+  } catch (error: unknown) {
+    log.error("Couldn't parse the config file:", Errors.prettify(error));
+    parsedConfig = {};
+  }
 
   log.debug("Validating the config file");
 
@@ -88,6 +96,20 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
 
   if (!validatedConfig) {
     log.warn("Config file is invalid");
+    log.debug("Renaming the invalid config file");
+    const currentTimestamp: string = Date.now().toString();
+
+    await rename(
+      configFileDirectory,
+      await join(
+        baseDirectory,
+        "config_invalid_" + currentTimestamp + ".json",
+      ),
+    );
+
+    log.debug("Initializing a new config file with default values");
+    await initializeConfigFile(configFileDirectory);
+
     log.debug("Returning a promise with default config");
 
     // Awaiting here will just be an unnecessary action
@@ -96,5 +118,6 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
 
   log.info("Config file is valid");
 
-  return parsedConfig;
+  // Assure TypeScript that the parsed config is valid
+  return parsedConfig as ConfigType;
 }
