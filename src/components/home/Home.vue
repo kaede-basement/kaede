@@ -3,6 +3,7 @@ import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
 import AtAGlance from "@/components/home/glance/AtAGlance.vue";
+import LaunchOptions from "@/components/home/instance/LaunchOptions.vue";
 </script>
 
 <template>
@@ -61,12 +62,7 @@ import AtAGlance from "@/components/home/glance/AtAGlance.vue";
               :colors="{ ripple: '#00000033', sparkles: '0 0 0' }"
             />
           </button>
-          <button class="relative w-fit rounded-l-sm rounded-r-md bg-white px-1 py-2 text-black">
-            <span class="i-lucide-chevron-down block"></span>
-            <MaterialRipple
-              :colors="{ ripple: '#00000033', sparkles: '0 0 0' }"
-            />
-          </button>
+          <LaunchOptions />
         </div>
       </div>
     </div>
