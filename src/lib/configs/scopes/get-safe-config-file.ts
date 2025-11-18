@@ -7,7 +7,8 @@ export async function getSafeConfigFile(baseDirectory?: string): Promise<ConfigT
   try {
     log.debug("Getting a config file");
 
-    return Configs.get(baseDirectory);
+    // Await here to catch errors
+    return await Configs.get(baseDirectory);
   } catch (error: unknown) {
     log.error("Failed to get a config file:", Errors.prettify(error));
     log.debug("Getting a default config");
