@@ -22,6 +22,10 @@ import type {
   GlobalStatesChangerType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
+import type {
+  InstanceStatesChangerType,
+  InstanceStatesType,
+} from "@/types/application/instance-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
@@ -67,6 +71,10 @@ declare global {
         "getGlobalStates"      : () => GlobalStatesType;
         // Changes application's global states (use 'libs.GlobalStateHelpers#change')
         "changeGlobalStates"   : GlobalStatesChangerType;
+        // Gets current application's instance states (use 'libs.Instances#get')
+        "getInstanceStates"    : () => InstanceStatesType;
+        // Changes application's instance states (use 'libs.Instances#change')
+        "changeInstanceStates" : InstanceStatesChangerType;
         // Application's config state before launcher initialization
         "initialConfig"        : ConfigType;
         // Application's portable state before launcher initialization
@@ -575,38 +583,44 @@ declare global {
         };
 
         /**
-         * Executed on the 'instances' field replacement in global states
+         * Executed on the field addition/overwrite/deletion in instance states
          */
-        "onInstancesChange": {
+        "onInstanceChange": {
 
           /**
-           * Executes 'sync'-only functions before the 'instances' property
-           * in the global states will change.
+           * Executes 'sync'-only functions before the provided field
+           * in the instance states will change.
            *
-           * 'GlobalStatesType["instances"]' typed object is passed as the argument.
+           * '{ key: string, value: GlobalStatesType["minecraft"] }' typed object
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["instances"]' typed object
+           * it should also return
+           * a '{ key: string, value: GlobalStatesType["minecraft"] }' typed object
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
            * code execution will continue as if that hook did not exist.
            */
           "before": HookReturnType<
-            GlobalStatesType["instances"],
-            GlobalStatesType["instances"],
+            { "key": string; "value": GlobalStatesType["minecraft"] },
+            { "key": string; "value": GlobalStatesType["minecraft"] },
             "non-promise"
           >;
 
           /**
            * Executes 'async' or 'sync' functions on the next Vue tick,
-           * after the 'instances' property in the global states has changed.
+           * after the provided field in the instance states has changed.
            *
-           * 'GlobalStatesType["instances"]' typed object is passed as the argument.
+           * '{ key: string, value: GlobalStatesType["minecraft"] }' typed object
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
-          "after": HookReturnType<GlobalStatesType["instances"], "nothing">;
+          "after": HookReturnType<
+            { "key": string; "value": GlobalStatesType["minecraft"] },
+            "nothing"
+          >;
         };
       };
     };

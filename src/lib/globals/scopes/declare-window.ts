@@ -11,6 +11,7 @@ import Logging from "@/lib/logging";
 import Schemas from "@/lib/schemas";
 import type { ConfigType } from "@/types/application/config.type.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 
 function placeholderFunction(): void {}
 
@@ -25,10 +26,12 @@ export function declareWindow(): void {
     "__internals": {
 
       /* Fields that contain a 'placeholderFunction' will be overwritten */
-      "getGlobalStates"   : placeholderFunction as () => GlobalStatesType,
-      "changeGlobalStates": placeholderFunction,
+      "getGlobalStates"     : placeholderFunction as () => GlobalStatesType,
+      "changeGlobalStates"  : placeholderFunction,
+      "getInstanceStates"   : placeholderFunction as () => InstanceStatesType,
+      "changeInstanceStates": placeholderFunction,
       // This field will be overwritten too
-      "initialConfig"     : {} as ConfigType,
+      "initialConfig"       : {} as ConfigType,
     },
     "variables": {
       "rippleColor"     : "#ffffff15",
@@ -99,11 +102,11 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
-      "onInstancesChange": {
+      "onTranslationsChange": {
         "before": [],
         "after" : [],
       },
-      "onTranslationsChange": {
+      "onInstanceChange": {
         "before": [],
         "after" : [],
       },

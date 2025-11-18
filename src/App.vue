@@ -14,17 +14,22 @@ import NonBundledClasses from "@/components/general/misc/NonBundledClasses.vue";
 import {
   ApplicationNamespace,
   GlobalStatesContextKey,
+  InstanceStatesContextKey,
   TranslationsContextKey,
 } from "@/constants/application.ts";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
+import { __changeInstanceState } from "@/lib/instances/scopes/change-instance-state.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import type {
+  ContextInstanceStatesType,
+  InstanceStatesType,
+} from "@/types/application/instance-states.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 /**
@@ -68,6 +73,13 @@ function getGlobalStates(): GlobalStatesType {
 }
 
 /**
+ * Returns a reference to the proxied object of instance states.
+ */
+function getInstanceStates(): InstanceStatesType {
+  return instanceStates;
+}
+
+/**
  * Replaces a specified field in the global states with the provided value.
  */
 function __setGlobalState<Key extends keyof GlobalStatesType>(
@@ -75,6 +87,16 @@ function __setGlobalState<Key extends keyof GlobalStatesType>(
   value: GlobalStatesType[Key],
 ): void {
   globalStates[key] = value;
+}
+
+/**
+ * Replaces a specified field in the instance states with the provided value.
+ */
+function __setInstanceState<Key extends keyof InstanceStatesType>(
+  key: Key,
+  value: InstanceStatesType[Key],
+): void {
+  instanceStates[key] = value;
 }
 
 /**
@@ -89,14 +111,33 @@ function scopedChangeGlobalStates<Key extends keyof GlobalStatesType>(
 }
 
 /**
- * Provides a reference to the instance-level reactive global states for all instance children.
+ * Changes a specified field in the instance states with the provided value
+ * while handling all attached hooks.
+ */
+function scopedChangeInstanceStates<Key extends keyof InstanceStatesType>(
+  key: Key,
+  value: InstanceStatesType[Key],
+): void {
+  __changeInstanceState(key, value, __setInstanceState);
+}
+
+/**
+ * Provides a reference to the instance-level reactive global states
+ * for all component children.
  */
 provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
 
 /**
- * Provides a reference to the instance-level reactive translations state for all instance children.
+ * Provides a reference to the instance-level reactive translations state
+ * for all component children.
  */
 provide<TranslationsType>(TranslationsContextKey, globalStates.translations);
+
+/**
+ * Provides a reference to the instance-level reactive Minecraft instance states
+ * for all component children.
+ */
+provide<ContextInstanceStatesType>(InstanceStatesContextKey, instanceStates);
 
 /**
  * Provides a reference to the function that returns a reference to the global states object.
@@ -107,6 +148,16 @@ window[ApplicationNamespace].__internals.getGlobalStates = getGlobalStates;
  * Provides a reference to the function that changes the value of a global states field.
  */
 window[ApplicationNamespace].__internals.changeGlobalStates = scopedChangeGlobalStates;
+
+/**
+ * Provides a reference to the function that returns a reference to the instance states object.
+ */
+window[ApplicationNamespace].__internals.getInstanceStates = getInstanceStates;
+
+/**
+ * Provides a reference to the function that changes the value of an instance states field.
+ */
+window[ApplicationNamespace].__internals.changeInstanceStates = scopedChangeInstanceStates;
 
 /**
  * Applies user config values to the global states.

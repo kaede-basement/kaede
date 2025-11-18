@@ -15,7 +15,7 @@ const atAGlanceMessages = [
   },
   {
     "title"   : "%date%",
-    "subtitle": "What a great day to play minecraft, right?",
+    "subtitle": "What a great day to play Minecraft, right?",
   },
 ];
 

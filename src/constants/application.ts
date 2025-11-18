@@ -11,6 +11,7 @@ export const ApplicationRootID = "#app";
 
 export const GlobalStatesContextKey = Symbol();
 export const TranslationsContextKey = Symbol();
+export const InstanceStatesContextKey = Symbol();
 
 export const ContextMenuItems = [
   {

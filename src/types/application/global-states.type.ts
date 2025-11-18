@@ -93,8 +93,6 @@ export type GlobalStatesMinecraftType = {
   "windowWidth" : number;
   "jvmArgs"     : string;
 };
-// Per-instance minecraft settings
-export type GlobalStatesMinecraftInstancesType = Record<string, GlobalStatesMinecraftType>;
 
 export type GlobalStatesType = {
 
@@ -111,7 +109,6 @@ export type GlobalStatesType = {
 
   // Not specified in config (non-JSON values)
   "translations"    : TranslationsType;
-  "instances"       : GlobalStatesMinecraftInstancesType;
   "sidebarItems"    : GlobalStatesSidebarItemsType;
   "contextMenuItems": GlobalStatesContextMenuItemsType;
   "pages"           : GlobalStatesPagesType;

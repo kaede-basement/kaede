@@ -79,6 +79,5 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       "windowWidth" : 854,
       "jvmArgs"     : "",
     },
-    "instances": {},
   };
 }

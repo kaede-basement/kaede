@@ -1,5 +1,12 @@
-import { getAllInstances } from "@/lib/instances/scopes/get-all-instances.ts";
+import { ApplicationNamespace } from "@/constants/application.ts";
+import { readStoredInstances } from "@/lib/instances/scopes/read-stored-instances.ts";
+import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 
 export default {
-  "getAll": getAllInstances,
+  "get"   : (): InstanceStatesType => window[ApplicationNamespace].__internals.getInstanceStates(),
+  "change": <Key extends keyof InstanceStatesType>(
+    key: Key,
+    value: InstanceStatesType[Key],
+  ): void => window[ApplicationNamespace].__internals.changeInstanceStates(key, value),
+  "readStored": readStoredInstances,
 } as const;

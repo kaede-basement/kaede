@@ -46,7 +46,6 @@ export async function getConfigGlobalStates(fresh?: boolean): Promise<GlobalStat
   return {
     ...configFile,
     "translations": EnglishTranslations,
-    "instances"   : {},
     "fileSystem"  : {
       "portable": portable,
       "base"    : baseDirectory,
