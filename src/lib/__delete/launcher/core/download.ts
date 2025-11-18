@@ -8,13 +8,13 @@ import {
   TreeLibraries,
   TreeLogging,
   TreeNatives,
-} from "@/constants/application";
+} from "@/constants/application.ts";
 import Errors from "@/lib/errors";
-import { checksum } from "@/lib/helpers/checksum";
-import { evaluateRules } from "@/lib/helpers/parse-rules";
-import { transformPlatform } from "@/lib/helpers/transform-platform";
-import { unzipFile } from "@/lib/helpers/unzip-file";
-import { validateFileSize } from "@/lib/helpers/validate-file-size";
+import { checksum } from "@/lib/__delete/helpers/checksum.ts";
+import { evaluateRules } from "@/lib/__delete/helpers/parse-rules.ts";
+import { transformPlatform } from "@/lib/__delete/helpers/transform-platform.ts";
+import { unzipFile } from "@/lib/__delete/helpers/unzip-file.ts";
+import { validateFileSize } from "@/lib/__delete/helpers/validate-file-size.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import { VersionManifestSchema } from "@/lib/schemas/scopes/version-manifest.schema.ts";

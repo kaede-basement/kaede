@@ -1,6 +1,6 @@
 import { readFile } from "@tauri-apps/plugin-fs";
 
-import { ChecksumError } from "../launcher/core/errors";
+import { ChecksumError } from "@/lib/__delete/launcher/core/errors.ts";
 
 export async function checksum(path: string, hash: string): Promise<void | ChecksumError> {
   const file = await readFile(path);

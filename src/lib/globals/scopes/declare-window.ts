@@ -3,10 +3,12 @@ import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
 import Configs from "@/lib/configs";
+import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Globals from "@/lib/globals";
+import Instances from "@/lib/instances";
 import Logging from "@/lib/logging";
 import Schemas from "@/lib/schemas";
 import type { ConfigType } from "@/types/application/config.type.ts";
@@ -39,10 +41,12 @@ export function declareWindow(): void {
     },
     "libs": {
       Configs,
+      DevelopmentModeHelpers,
       Errors,
       General,
       GlobalStateHelpers,
       Globals,
+      Instances,
       Logging,
       Schemas,
       "ContextMenu": {

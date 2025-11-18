@@ -1,6 +1,6 @@
 import { arch, version } from "@tauri-apps/plugin-os";
 
-import { transformPlatform } from "@/lib/helpers/transform-platform";
+import { transformPlatform } from "@/lib/__delete/helpers/transform-platform.ts";
 import type { LibraryRuleType } from "@/types/minecraft/minecraft.type.ts";
 
 export async function evaluateRules(rules: LibraryRuleType[]): Promise<boolean> {

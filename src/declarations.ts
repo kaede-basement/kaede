@@ -3,6 +3,7 @@ import * as TauriDialog from "@tauri-apps/plugin-dialog";
 import * as TauriFs from "@tauri-apps/plugin-fs";
 import * as TauriHttp from "@tauri-apps/plugin-http";
 import * as TauriNotification from "@tauri-apps/plugin-notification";
+import * as TauriOpener from "@tauri-apps/plugin-opener";
 import * as TauriOs from "@tauri-apps/plugin-os";
 import * as TauriProcess from "@tauri-apps/plugin-process";
 import * as TauriShell from "@tauri-apps/plugin-shell";
@@ -11,10 +12,12 @@ import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 
 import type Configs from "@/lib/configs";
+import type DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import type Errors from "@/lib/errors";
 import type General from "@/lib/general";
 import type GlobalStateHelpers from "@/lib/global-state-helpers";
 import type Globals from "@/lib/globals";
+import type Instances from "@/lib/instances";
 import type Logging from "@/lib/logging";
 import type Schemas from "@/lib/schemas";
 import type { ConfigType } from "@/types/application/config.type.ts";
@@ -43,6 +46,7 @@ declare global {
       "fs"          : typeof TauriFs;
       "http"        : typeof TauriHttp;
       "notification": typeof TauriNotification;
+      "opener"      : typeof TauriOpener;
       "os"          : typeof TauriOs;
       "process"     : typeof TauriProcess;
       "shell"       : typeof TauriShell;
@@ -116,6 +120,11 @@ declare global {
         "Configs": typeof Configs;
 
         /**
+         * Launcher's development mode related collection of utilities
+         */
+        "DevelopmentModeHelpers": typeof DevelopmentModeHelpers;
+
+        /**
          * Launcher's errors-related collection of utilities
          */
         "Errors": typeof Errors;
@@ -134,6 +143,11 @@ declare global {
          * Launcher's 'window' object related collection of utilities
          */
         "Globals": typeof Globals;
+
+        /**
+         * Launcher's Minecraft instances related collection of utilities
+         */
+        "Instances": typeof Instances;
 
         /**
          * Launcher's logging-related collection of utilities
