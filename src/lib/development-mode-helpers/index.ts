@@ -9,7 +9,7 @@ import {
 } from "@/lib/development-mode-helpers/scopes/handle-native-reload-key-binds.ts";
 import { initialize } from "@/lib/development-mode-helpers/scopes/initialize.ts";
 
-export const DevelopmentModeHelpers = {
+export default {
   "getDefault": getDefaultDevelopmentStates,
   disableDebugMode,
   enableDebugMode,

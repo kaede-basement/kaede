@@ -16,7 +16,7 @@ import {
   GlobalStatesContextKey,
   TranslationsContextKey,
 } from "@/constants/application.ts";
-import { DevelopmentModeHelpers } from "@/lib/development-mode-helpers";
+import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -24,6 +24,7 @@ import type {
   ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
+import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 /**
@@ -52,6 +53,12 @@ const DevelopmentMode = defineAsyncComponent(
  * - simplify bidirectional state access between the application and extensions;
  */
 const globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getDefault());
+
+/**
+ * Contains all Minecraft instance states.
+ * Initially takes an empty object, then the stored instances are applied.
+ */
+const instanceStates = shallowReactive<InstanceStatesType>({});
 
 /**
  * Returns a reference to the proxied object of global states.

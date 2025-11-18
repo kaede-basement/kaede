@@ -14,7 +14,7 @@ import App from "@/App.vue";
 import { ApplicationNamespace, ApplicationRootID } from "@/constants/application";
 import { getASCIIArt } from "@/constants/ascii-art.ts";
 import Configs from "@/lib/configs";
-import { DevelopmentModeHelpers } from "@/lib/development-mode-helpers";
+import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import Globals from "@/lib/globals";
