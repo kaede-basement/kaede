@@ -1,3 +1,4 @@
+import * as TauriOAuth2 from "@fabianlars/tauri-plugin-oauth";
 import * as TauriApi from "@tauri-apps/api";
 import * as TauriDialog from "@tauri-apps/plugin-dialog";
 import * as TauriFs from "@tauri-apps/plugin-fs";
@@ -56,6 +57,7 @@ declare global {
     /* Tauri community plugins */
     "__TAURI_PLUGINS_COMMUNITY__": {
       "discord": typeof TauriDiscordRpc & typeof TauriDiscordRpcClasses;
+      "oauth2" : typeof TauriOAuth2;
     };
 
     /**

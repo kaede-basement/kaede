@@ -15,7 +15,6 @@ async function handleConfigSync(): Promise<void> {
   const t1 = performance.now();
 
   syncing.value = true;
-  log.info("Config syncing started");
 
   log.debug("Getting current global states");
   const currentGlobalStates = GlobalStateHelpers.get();

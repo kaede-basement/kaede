@@ -1,3 +1,4 @@
+import { cancel, onInvalidUrl, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
 import * as DiscordRPC from "tauri-plugin-drpc";
 import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 
@@ -22,6 +23,12 @@ export function declareWindow(): void {
     "discord": {
       ...DiscordRPC,
       ...DiscordRPCClasses,
+    },
+    "oauth2": {
+      cancel,
+      onInvalidUrl,
+      onUrl,
+      start,
     },
   };
   window[ApplicationNamespace] = {

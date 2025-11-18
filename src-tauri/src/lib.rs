@@ -23,6 +23,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_drpc::init())
+        .plugin(tauri_plugin_oauth::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             // Since I am a complete newbie in Rust and Tauri,
