@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import Image from "@/components/general/base/Image.vue";
-import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
 import AtAGlance from "@/components/home/glance/AtAGlance.vue";
+import CurrentInstance from "@/components/home/instance/CurrentInstance.vue";
+import CurrentPlaytime from "@/components/home/instance/CurrentPlaytime.vue";
+import Launch from "@/components/home/instance/Launch.vue";
 import LaunchOptions from "@/components/home/instance/LaunchOptions.vue";
 </script>
 
@@ -15,53 +16,14 @@ import LaunchOptions from "@/components/home/instance/LaunchOptions.vue";
         class="flex flex-nowrap items-end justify-between gap-2 pb-2 pr-2"
       >
         <div
+          id="__home-page__instance-section-wrapper"
           class="flex flex-col items-stretch gap-0"
         >
-          <button
-            class="relative flex flex-nowrap items-center gap-2 rounded-md p-2"
-          >
-            <Image
-              id="__"
-              class-names="rounded-md size-12 p-1"
-              src="https://media.forgecdn.net/avatars/thumbnails/286/772/64/64/637305737753885398.png"
-              alt="Fabulously optimized"
-            />
-            <span class="flex flex-col items-start pr-1">
-              <p class="font-medium">
-                Fabulously Optimized
-              </p>
-              <p class="text-neutral-400">
-                1.21.10
-              </p>
-            </span>
-            <MaterialRipple />
-          </button>
-          <button
-            class="relative flex flex-nowrap items-center gap-2 rounded-md p-2"
-          >
-            <span class="grid size-12 shrink-0 place-items-center">
-              <span class="i-lucide-clock block size-8"></span>
-            </span>
-            <span class="flex flex-col items-start pr-1">
-              <p class="font-medium">
-                Playtime
-              </p>
-              <p class="text-sm text-neutral-400">
-                73 hours, 8 minutes, 56 seconds
-              </p>
-            </span>
-            <MaterialRipple />
-          </button>
+          <CurrentInstance />
+          <CurrentPlaytime />
         </div>
-        <div class="flex flex-nowrap gap-1 p-2">
-          <button class="relative w-fit rounded-l-md rounded-r-sm bg-white px-4 py-2 text-black">
-            <span class="block">
-              Launch
-            </span>
-            <MaterialRipple
-              :colors="{ ripple: '#00000033', sparkles: '0 0 0' }"
-            />
-          </button>
+        <div id="__home-page__launch-section-wrapper" class="flex flex-nowrap gap-1 p-2">
+          <Launch />
           <LaunchOptions />
         </div>
       </div>
