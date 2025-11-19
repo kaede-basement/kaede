@@ -15,6 +15,7 @@ import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 import type Configs from "@/lib/configs";
 import type DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import type Errors from "@/lib/errors";
+import type ExtensionsManager from "@/lib/extensions-manager";
 import type General from "@/lib/general";
 import type GlobalStateHelpers from "@/lib/global-state-helpers";
 import type Globals from "@/lib/globals";
@@ -32,6 +33,7 @@ import type {
 } from "@/types/application/instance-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
+import type { PermissionType } from "@/types/extensions/permission.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 import type { AtAGlanceType } from "@/types/ui/at-a-glance.type.ts";
 
@@ -74,13 +76,18 @@ declare global {
        */
       "__internals": {
         // Gets current application's global states (use 'libs.GlobalStateHelpers#get')
-        "getGlobalStates"      : () => GlobalStatesType;
+        "getGlobalStates"     : () => GlobalStatesType;
         // Changes application's global states (use 'libs.GlobalStateHelpers#change')
-        "changeGlobalStates"   : GlobalStatesChangerType;
+        "changeGlobalStates"  : GlobalStatesChangerType;
         // Gets current application's instance states (use 'libs.Instances#get')
-        "getInstanceStates"    : () => InstanceStatesType;
+        "getInstanceStates"   : () => InstanceStatesType;
         // Changes application's instance states (use 'libs.Instances#change')
-        "changeInstanceStates" : InstanceStatesChangerType;
+        "changeInstanceStates": InstanceStatesChangerType;
+        // Requests plugin permissions from user
+        "requestPermissions"  : (
+          permissions: Array<PermissionType>,
+          extension: string
+        ) => Promise<Array<boolean>>;
         // Application's config state before launcher initialization
         "initialConfig"        : ConfigType;
         // Application's portable state before launcher initialization
@@ -130,6 +137,11 @@ declare global {
          * Launcher's errors-related collection of utilities
          */
         "Errors": typeof Errors;
+
+        /**
+         * Launcher's extension system related collection of utilities
+         */
+        "ExtensionsManager": typeof ExtensionsManager;
 
         /**
          * Launcher's general-purpose collection of utilities

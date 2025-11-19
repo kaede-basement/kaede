@@ -217,7 +217,7 @@ useEventListener("keydown", (event: KeyboardEvent) => (
   <!-- Extensions-level error boundary -->
   <ErrorBoundary>
     <template #default>
-      <ExtensionLoader v-if="false" />
+      <ExtensionLoader v-if="true" />
 
       <!-- 'PageTeleports' are not used by the launcher itself -->
       <!-- so their only usage will be provided by extensions -->

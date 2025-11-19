@@ -1,5 +1,5 @@
 export type LogButtonType = {
-  "icon"  : string;
+  "icon" ?: string;
   "label"?: string;
   "ids"   : {
     "wrapper": string;

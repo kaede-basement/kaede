@@ -6,6 +6,7 @@ import { ApplicationNamespace } from "@/constants/application.ts";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import Errors from "@/lib/errors";
+import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Globals from "@/lib/globals";
@@ -39,6 +40,7 @@ export function declareWindow(): void {
       "changeGlobalStates"  : placeholderFunction,
       "getInstanceStates"   : placeholderFunction as () => InstanceStatesType,
       "changeInstanceStates": placeholderFunction,
+      "requestPermissions"  : placeholderFunction as () => Promise<Array<boolean>>,
       // This field will be overwritten too
       "initialConfig"       : {} as ConfigType,
     },
@@ -50,6 +52,7 @@ export function declareWindow(): void {
       Configs,
       DevelopmentModeHelpers,
       Errors,
+      ExtensionsManager,
       General,
       GlobalStateHelpers,
       Globals,

@@ -6,9 +6,12 @@ import type { KaedeNamespaceType } from "./src/declarations";
 vi.stubGlobal("window", {
   "__KAEDE__": {
     "__internals": {
-      "getGlobalStates"   : (): void => {},
-      "changeGlobalStates": (): void => {},
-      "initialConfig"     : {},
+      "getGlobalStates"     : (): void => {},
+      "changeGlobalStates"  : (): void => {},
+      "getInstanceStates"   : (): void => {},
+      "changeInstanceStates": (): void => {},
+      "requestPermissions"  : async (): Promise<Array<boolean>> => ([]),
+      "initialConfig"       : {},
     },
     "variables": {
       "rippleColor"     : "",
@@ -62,7 +65,7 @@ vi.stubGlobal("window", {
         "before": [],
         "after" : [],
       },
-      "onInstancesChange": {
+      "onInstanceChange": {
         "before": [],
         "after" : [],
       },

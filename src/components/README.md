@@ -30,6 +30,7 @@ frames per second counter has 65000 z-index
 
 (not development mode)
 context menu             has 50000 z-index
+permissions modal        has 49500 z-index
 sidebar hovering tooltip has 49000 z-index
 log menu                 has 40000 z-index
 sidebar                  has 10000 z-index

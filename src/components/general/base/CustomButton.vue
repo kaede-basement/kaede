@@ -27,7 +27,7 @@ const {
     ]"
     :data-tooltip="tooltip"
   >
-    <span :id="ids.icon" :class="[icon, 'block size-4']"></span>
+    <span v-if="icon" :id="ids.icon" :class="[icon, 'block size-4']"></span>
     <span
       v-if="ids?.label && label"
       :id="ids?.label"
