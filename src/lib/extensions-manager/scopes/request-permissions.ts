@@ -1,3 +1,5 @@
+import { IgnoredExtensionPermissions } from "@/constants/permissions.ts";
+import { handlePermission } from "@/lib/extensions-manager/scopes/handle-permission.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 export async function __requestPermissions(
@@ -12,11 +14,23 @@ export async function __requestPermissions(
   const states = [];
 
   for (const permission of permissions) {
+    const isIgnored: boolean | undefined = IgnoredExtensionPermissions?.[extension]?.[permission];
+
+    if (isIgnored !== undefined) {
+      if (isIgnored) {
+        handlePermission(permission, extension);
+      }
+
+      continue;
+    }
+
     const state = await new Promise((resolve: (value: boolean) => void) => {
       request(permission, extension, resolve);
     });
 
-    console.log(extension + ":", permission, "is:", state);
+    if (state) {
+      handlePermission(permission, extension);
+    }
 
     states.push(state);
   }

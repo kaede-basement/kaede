@@ -1,3 +1,8 @@
-import type { Permissions } from "@/constants/application.ts";
+import type { Permissions } from "@/constants/permissions.ts";
 
-export type PermissionType = (typeof Permissions)[keyof typeof Permissions];
+type PermissionsObjectType = typeof Permissions;
+type PermissionsKeyType = keyof PermissionsObjectType;
+
+export type PermissionType = {
+  [Key in PermissionsKeyType]: PermissionsObjectType[Key][keyof PermissionsObjectType[Key]];
+}[PermissionsKeyType];

@@ -13,14 +13,6 @@ export const GlobalStatesContextKey = Symbol();
 export const TranslationsContextKey = Symbol();
 export const InstanceStatesContextKey = Symbol();
 
-export const Permissions = {
-  "Internet"            : "internet",
-  "ReadInternalStorage" : "read-internal-storage",
-  "ReadExternalStorage" : "read-external-storage",
-  "WriteInternalStorage": "write-internal-storage",
-  "WriteExternalStorage": "write-external-storage",
-} as const;
-
 export const ContextMenuItems = [
   {
     "name"  : "Restart UI",

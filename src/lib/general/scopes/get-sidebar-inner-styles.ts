@@ -3,20 +3,20 @@ export function getSidebarInnerStyles(
   textColor: string | null | undefined,
   blur: number | null | undefined,
 ): {
-  "backgroundColor": string;
+  "background"     : string;
   "color"          : string;
   "backdropFilter"?: string;
 } {
-  const backgroundColor = background ?? "rgb(10, 10, 10)";
+  const backgroundOutput = background ?? "rgb(10, 10, 10)";
   const color = textColor ?? "rgb(255, 255, 255)";
 
   if (!blur) {
-    return { backgroundColor, color };
+    return { "background": backgroundOutput, color };
   }
 
   return {
-    backgroundColor,
     color,
+    "background"    : backgroundOutput,
     "backdropFilter": `blur(${blur}px)`,
   };
 }
