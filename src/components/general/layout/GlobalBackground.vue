@@ -31,6 +31,14 @@ const image = computed((): DeepNonNullable<GlobalStatesType["layout"]["backgroun
       backgroundColor: image.color,
     }"
   >
+    <div
+      v-if="image.blur !== 0"
+      id="__router__background-blur"
+      class="absolute bottom-0 left-0 right-0 top-0"
+      :style="{
+        backdropFilter : `blur(${image.blur}px)`,
+      }"
+    ></div>
     <Transition v-if="image.url !== ''" name="global-background">
       <Image
         :key="image.key"

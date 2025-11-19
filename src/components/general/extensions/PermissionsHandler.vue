@@ -139,7 +139,7 @@ window[ApplicationNamespace].__internals.requestPermissions = requestPermissions
           <button
             id="__extensions-loader__permission-request-allow-wrapper"
             @click="() => handleUserRequest(true)"
-            class="relative rounded-md px-2 py-1"
+            class="relative rounded-md bg-neutral-800 px-3 py-1"
           >
             <span
               id="__extensions-loader__permission-request-allow-label"
@@ -152,7 +152,7 @@ window[ApplicationNamespace].__internals.requestPermissions = requestPermissions
           <button
             id="__extensions-loader__permission-request-deny-wrapper"
             @click="() => handleUserRequest(false)"
-            class="relative rounded-md px-2 py-1"
+            class="relative rounded-md bg-neutral-800 px-3 py-1"
           >
             <span
               id="__extensions-loader__permission-request-deny-label"

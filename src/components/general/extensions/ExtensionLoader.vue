@@ -43,6 +43,12 @@ onMounted(async () => {
       (async () => {
         GrantedScopes.console.log(GrantedScopes);
 
+        await requestPermissions([
+          "internet",
+          "read-internal-storage",
+        ]);
+
+       /*
         while (
           (
             await requestPermissions([
@@ -53,6 +59,7 @@ onMounted(async () => {
           GrantedScopes.console.log("listen, i really need that access!!!");
           GrantedScopes.console.log(GrantedScopes);
         }
+        */
 
         GrantedScopes.console.log(GrantedScopes);
       })();
