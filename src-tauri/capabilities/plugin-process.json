@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "plugin-process",
+  "description": "enables the process:* permissions",
+  "windows": [
+    "*"
+  ],
+  "permissions": [
+    "process:allow-exit",
+    "process:allow-restart"
+  ]
+}

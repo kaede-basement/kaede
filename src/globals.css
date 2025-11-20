@@ -1,12 +1,155 @@
-/* styling */
+/**
+ * Styling
+ */
+html {
+  /* Remove the overscroll bounce effect */
+  height: 100%;
+  overflow: hidden;
+
+  /* Default theme is dark */
+  color-scheme: dark;
+}
+
 #app {
-  /* make all sub-elements' text not selectable */
+  /* Text selections are going to be whitelisted */
   user-select: none;
 }
 
-/* data attributes */
+.text-justify-last {
+  /* Justify the last line of text */
+  text-align-last: justify;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 12px }
+::-webkit-scrollbar-corner { background: transparent }
+::-webkit-scrollbar-track { background: transparent }
+::-webkit-scrollbar-thumb { background: #393939; cursor: pointer }
+::-webkit-scrollbar-thumb:hover { background: #494949 }
+
+.thin-scrollbar::-webkit-scrollbar { width: 8px }
+
+.scroll-gutter-stable-both {
+  /* Leave a fixed space for scrollbar on both edges */
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Remove the '<input />' arrows */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Show a custom tooltip on button hover */
+button[data-tooltip] {
+  position: relative;
+
+  &:after {
+    content: attr(data-tooltip);
+    font-size: 14px;
+    line-height: 1;
+    white-space: wrap;
+
+    position: absolute;
+    left: 0;
+    top: calc(100% + 8px);
+    z-index: 10;
+
+    width: 256px;
+    max-width: max-content;
+    padding: 8px;
+    border-radius: 6px;
+
+    background: #262626;
+    visibility: hidden;
+    opacity: 0;
+
+    transition: opacity 150ms ease;
+  }
+  &:hover:after {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+/* Allow log viewer to have a horizontal scroll */
+#__non-virtualized-list-logs {
+  .__log-entry__text-wrapper {
+    white-space: nowrap;
+  }
+}
+#__virtualized-list-logs > div {
+  width: fit-content;
+
+  /*
+   * A library that implements the virtual list overwrites
+   * this field to 'hidden', so we use the '!important' directive
+   */
+  overflow: visible !important;
+}
+#__virtualized-list-logs {
+  .__log-entry__text-wrapper {
+    white-space: nowrap;
+  }
+}
+
+/**
+ * Data Attributes
+ */
 [data-transitions-disabled] {
   * {
     transition: none;
   }
+}
+
+/**
+ * Vue Transitions
+ */
+
+/* 'page' transition */
+.page-enter-active {
+  transition: opacity 150ms ease, transform 400ms ease;
+}
+.page-leave-active {}
+
+.page-enter-from {
+  transform: translateY(32px);
+  opacity: 0;
+}
+.page-leave-to {}
+
+/* 'global-background' transition */
+.global-background-enter-active {
+  transition: opacity 150ms ease;
+}
+.global-background-leave-active {
+  transition: opacity 150ms ease;
+  opacity: 0;
+}
+
+.global-background-enter-from {
+  opacity: 1;
+}
+.global-background-leave-to {}
+
+/* 'pop' transition */
+.pop-enter-active {
+  transition: opacity 150ms ease-in-out, transform 150ms ease-in-out;
+}
+
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: scale(90%);
+}
+
+/* 'fade' transition */
+.fade-enter-active {
+  transition: opacity 150ms ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }

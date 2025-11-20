@@ -1,0 +1,70 @@
+import { expect, test } from "vitest";
+
+import type { DeepRequired } from "@/types/utils/deep-required.type.ts";
+
+import { extract } from "./extract";
+
+const defaultError = {
+  "name"   : "Unknown Error",
+  "message": "unknown",
+  "stack"  : "Unknown Error: unknown",
+};
+const testData: Array<[unknown, DeepRequired<Error>]> = [
+  [
+    { "days": 8 },
+    defaultError,
+  ],
+  [
+    "",
+    defaultError,
+  ],
+  [
+    1,
+    defaultError,
+  ],
+  [
+    undefined,
+    defaultError,
+  ],
+  [
+    { "name": 3, "message": "lol" },
+    { "name": defaultError.name, "message": "lol", "stack": defaultError.stack },
+  ],
+  [
+    { "name": "moondrop space travel", "message": 0 },
+    {
+      "name"   : "moondrop space travel",
+      "message": defaultError.message,
+      "stack"  : defaultError.stack,
+    },
+  ],
+  [
+    { "name": { "name": "tf is this" }, "message": "" },
+    { "name": defaultError.name, "message": "", "stack": defaultError.stack },
+  ],
+  [
+    {
+      "name"   : "DECO*27",
+      "message": "Cherry Pop",
+      "stack"  : "bruh i am listening to a different song",
+      "trace"  : "whar",
+    },
+    {
+      "name"   : "DECO*27",
+      "message": "Cherry Pop",
+      "stack"  : "bruh i am listening to a different song",
+    },
+  ],
+];
+
+for (const [input, output] of testData) {
+  const testName = `Extract Error: ${JSON.stringify(input)}`;
+
+  test(testName, () => {
+    expect(
+      JSON.stringify(extract(input)),
+    ).toBe(
+      JSON.stringify(output),
+    );
+  });
+}

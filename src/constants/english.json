@@ -1,0 +1,13 @@
+{
+  "Info": {
+    "Code": "en",
+    "Name": "English",
+    "Flag": "\uD83C\uDDEC\uD83C\uDDE7",
+    "RTL": false
+  },
+  "Messages": {
+    "general.errors.global-error.emoji": ":c",
+    "general.errors.global-error.message": "Kaede ran into a problem and needs to restart.\nYou can do it by closing this window and then opening Kaede again.",
+    "general.errors.page-error.message": "Something went wrong."
+  }
+}

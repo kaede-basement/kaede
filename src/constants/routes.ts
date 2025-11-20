@@ -1,20 +1,22 @@
-import { createRoute } from "@kitbag/router";
-import { defineAsyncComponent } from "vue";
-
 export const Routes = {
-  "Home": {
-    "Key" : "Home",
-    "Path": "/",
-  },
-  "About": {
-    "Key" : "About",
-    "Path": "/about",
-  },
+  "Home"       : "home",
+  "Library"    : "library",
+  "Settings"   : "settings",
+  "AddInstance": "add-instance",
+  "Profile"    : "profile",
+  "None"       : "none",
 } as const;
-export const RoutesConfiguration = Object
-  .values(Routes)
-  .map(({ Key, Path }) => createRoute({
-    "name"     : Key,
-    "path"     : Path,
-    "component": defineAsyncComponent(() => import(`@/pages/${Key}.vue`)),
-  }));
+export const RouteItems = [
+  {
+    "Path": Routes.Home,
+    "Icon": "i-lucide-home",
+  },
+  {
+    "Path": Routes.Library,
+    "Icon": "i-lucide-boxes",
+  },
+  {
+    "Path": Routes.Settings,
+    "Icon": "i-lucide-settings",
+  },
+] as const;

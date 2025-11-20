@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "plugin-drpc",
+  "description": "enables the drpc:* permissions",
+  "windows": [
+    "*"
+  ],
+  "permissions": [
+    "drpc:allow-spawn-thread",
+    "drpc:allow-destroy-thread",
+    "drpc:allow-set-activity",
+    "drpc:allow-clear-activity",
+    "drpc:allow-is-running"
+  ]
+}

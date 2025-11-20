@@ -1,0 +1,182 @@
+<script setup lang="ts">
+import { computed, inject, ref, shallowRef } from "vue";
+
+import Image from "@/components/general/base/Image.vue";
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import SidebarProfile from "@/components/general/layout/SidebarProfile.vue";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
+import General from "@/lib/general";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+import type {
+  ContextGlobalStatesType,
+} from "@/types/application/global-states.type.ts";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+
+const innerStyles = computed(
+  (): ReturnType<typeof General.getSidebarInnerStyles> => (
+    General.getSidebarInnerStyles(
+      globalStates?.layout?.sidebar?.background,
+      globalStates?.layout?.sidebar?.color,
+      globalStates?.layout?.sidebar?.blur,
+    )
+  ),
+);
+
+const delayed = ref<NodeJS.Timeout | undefined>(undefined);
+const tooltip = shallowRef<{
+  "top" : number;
+  "text": string | undefined;
+  "show": boolean;
+}>({
+  "top" : 16,
+  "text": globalStates?.sidebarItems?.[0] === "divider"
+    ? "None"
+    : globalStates?.sidebarItems?.[0]?.name,
+  "show": false,
+});
+
+function removeTimeout(): void {
+  clearTimeout(delayed.value);
+
+  delayed.value = undefined;
+}
+function closeTooltip(): void {
+  tooltip.value = {
+    ...tooltip.value,
+    "show": false,
+  };
+
+  removeTimeout();
+}
+function handleMouseOver(event: MouseEvent): void {
+  if (delayed.value) {
+    return;
+  }
+
+  const overlayTarget = event?.target as HTMLButtonElement;
+
+  if (!overlayTarget || !overlayTarget?.id?.startsWith?.("__sidebar__entry")) {
+    return;
+  }
+
+  const boundingRectangle = overlayTarget?.getBoundingClientRect?.();
+  const offsetTop = boundingRectangle?.top;
+  const textContent = overlayTarget?.ariaLabel;
+
+  if (!offsetTop || !textContent) {
+    closeTooltip();
+
+    return;
+  }
+
+  const newTooltipInfo = {
+    "top" : offsetTop,
+    "text": textContent,
+    "show": true,
+  };
+
+  if (!tooltip.value.show) {
+    tooltip.value = {
+      ...newTooltipInfo,
+      "show": false,
+    };
+
+    delayed.value = setTimeout(() => {
+      tooltip.value = newTooltipInfo;
+
+      removeTimeout();
+    }, 200);
+
+    return;
+  }
+
+  tooltip.value = newTooltipInfo;
+}
+function handleButtonAction(action: () => void): void {
+  action();
+  closeTooltip();
+  // Close the log viewer
+  GlobalStateHelpers.Logs.toggle("show", false);
+}
+</script>
+
+<template>
+  <div
+    id="__sidebar__hovering-tooltip"
+    class="pointer-events-none absolute left-20 top-2 z-49000 w-fit rounded-md p-2 leading-none transition-[transform,opacity]"
+    :style="{
+      ...innerStyles,
+      transform: `translateY(${tooltip.top}px)`,
+      opacity  : tooltip.show ? 1 : 0,
+    }"
+  >
+    {{ tooltip.text }}
+  </div>
+  <div
+    @mouseleave="closeTooltip"
+    id="__sidebar__wrapper"
+    class="absolute bottom-0 left-0 top-0 z-10000 w-20 flex flex-col gap-2 p-2"
+  >
+    <SidebarProfile
+      :inner-styles="innerStyles"
+      :handle-mouse-over="handleMouseOver"
+      :handle-button-action="handleButtonAction"
+    />
+    <!-- Using 'py-2' instead of 'p-2' seems more logical, -->
+    <!-- but somehow buttons are clipped on container overflow when I remove horizontal padding -->
+    <TransitionGroup
+      @mouseover="handleMouseOver"
+      name="fade"
+      tag="div"
+      id="__sidebar__inner"
+      class="thin-scrollbar scroll-gutter-stable-both h-fit w-full flex flex-col items-center gap-2 overflow-y-auto rounded-md p-2"
+      :style="innerStyles"
+    >
+      <template
+        v-for="(item, index) in globalStates?.sidebarItems"
+        :key="item === 'divider' ? `divider-${index}` : item.name"
+      >
+        <button
+          v-if="item !== 'divider'"
+          :id="`__sidebar__entry-${item.name}-button`"
+          :disabled="item.path === globalStates?.pages?.current"
+          @mousedown="() => handleButtonAction(item.action)"
+          @touchstart="() => handleButtonAction(item.action)"
+          @click="() => handleButtonAction(item.action)"
+          class="relative grid size-12 shrink-0 place-items-center rounded-md transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
+          :aria-label="item.name"
+        >
+          <span
+            v-if="item.icon"
+            :id="`__sidebar__entry-${item.name}-icon`"
+            :class="[
+              item.icon,
+              'block size-6 shrink-0',
+            ]"
+          ></span>
+          <Image
+            v-else-if="item.image"
+            :id="`__sidebar__entry-${item.name}-image`"
+            :src="item.image"
+            :alt="`An image for the ${item.name} sidebar item`"
+            class-names="rounded-md size-8"
+          />
+          <MaterialRipple
+            :id="`__sidebar__entry-${item.name}-overlay`"
+            :label="item.name"
+            :colors="{
+              ripple  : globalStates?.layout?.sidebar?.ripple,
+              sparkles: globalStates?.layout?.sidebar?.sparkles,
+            }"
+          />
+        </button>
+        <div
+          v-else
+          :id="`__sidebar__entry-divider-${index}`"
+          class="h-[1px] w-[calc(100%-8px)] bg-[theme(colors.neutral.100/.1)]"
+        ></div>
+      </template>
+    </TransitionGroup>
+  </div>
+</template>

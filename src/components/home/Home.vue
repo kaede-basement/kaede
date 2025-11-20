@@ -1,0 +1,32 @@
+<script setup lang="ts">
+import PageWrapper from "@/components/general/layout/PageWrapper.vue";
+import AtAGlance from "@/components/home/glance/AtAGlance.vue";
+import CurrentInstance from "@/components/home/instance/CurrentInstance.vue";
+import CurrentPlaytime from "@/components/home/instance/CurrentPlaytime.vue";
+import Launch from "@/components/home/instance/Launch.vue";
+import LaunchOptions from "@/components/home/instance/LaunchOptions.vue";
+</script>
+
+<template>
+  <PageWrapper>
+    <div id="__home-page__wrapper" class="h-full flex flex-col justify-between gap-2">
+      <AtAGlance />
+      <div
+        id="__home-page__content"
+        class="flex flex-nowrap items-end justify-between gap-2 pb-2 pr-2"
+      >
+        <div
+          id="__home-page__instance-section-wrapper"
+          class="flex flex-col items-stretch gap-0"
+        >
+          <CurrentInstance />
+          <CurrentPlaytime />
+        </div>
+        <div id="__home-page__launch-section-wrapper" class="flex flex-nowrap gap-1 p-2">
+          <Launch />
+          <LaunchOptions />
+        </div>
+      </div>
+    </div>
+  </PageWrapper>
+</template>
