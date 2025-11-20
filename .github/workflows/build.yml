@@ -48,6 +48,11 @@ jobs:
             platform: "windows-latest"
             args: ""
             type: "non-portable"
+          - name: "Windows (Offline Setup)"
+            identifier: "windows"
+            platform: "windows-latest"
+            args: ""
+            type: "offline"
           - name: "macOS ARM (Portable)"
             identifier: "macos-arm"
             platform: "macos-latest" # For Arm based macs (M1 and above).
@@ -122,6 +127,13 @@ jobs:
         with:
           file: "./src-tauri/tauri.conf.json"
           fields: "{\"app.windows[0].title\": \"Kaede Portable\"}"
+
+      - name: Make the installer offline
+        if: matrix.type == 'offline'
+        uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
+        with:
+          file: "./src-tauri/tauri.conf.json"
+          fields: "{\"bundle.windows.webviewInstallMode.type\": \"offlineInstaller\"}"
 
       - name: Bump tauri.conf.json version
         uses: restackio/update-json-file-action@6f50afee9a03a456a30cd574123db793319f7544
