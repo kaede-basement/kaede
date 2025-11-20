@@ -72,8 +72,7 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
     return getDefaultConfig();
   }
 
-  log.info("Config file exists");
-  log.debug("Reading a config file");
+  log.debug("Config file exists. Reading a config file");
   const configFile = await readTextFile(configFileDirectory);
 
   log.debug("Parsing a config file");
