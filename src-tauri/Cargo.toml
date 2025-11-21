@@ -25,6 +25,8 @@ tauri = { version = "2.8.4", features = ["protocol-asset", "macos-private-api"] 
 tauri-plugin-log = "2"
 chrono = "0.4.41"
 sysinfo = "0.36.1"
+zip = "3.0"
+zip-extensions = "0.8.3"
 
 # Non-default installed plugins
 tauri-plugin-fs = "2"

@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 
 mod launcher;
 mod system;
+mod zip;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -133,6 +134,7 @@ pub fn run() {
             launcher::get_executable_directory,
             system::get_system_memory,
             system::get_process_memory,
+            zip::unzip_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
