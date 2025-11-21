@@ -26,7 +26,7 @@ const startTime = performance.now();
 // 'window[ApplicationNamespace]' is accessed not only by extensions, but by the application itself
 Globals.declareWindow();
 
-// Concurrent promise resolving saves us around 10 ms
+// Concurrent promise resolving saves us around 15 ms
 const [launchCount, portable]: [number, boolean, void] = await Promise.all([
   // Get application UI reloads count
   Globals.getLaunchCount(),
@@ -53,9 +53,10 @@ const config: ConfigType = await Configs.getSafe(baseDirectory);
 
 /*
  * Define launcher's initial values at globals to make them accessible from 'App.vue':
- * - portable
- * - baseDirectory
- * - config
+ *
+ * - 'portable';
+ * - 'baseDirectory';
+ * - 'config'.
  *
  * This way we can save at least 30 ms of time
  */

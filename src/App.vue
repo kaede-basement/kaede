@@ -7,7 +7,6 @@ import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
 import GlobalError from "@/components/general/errors/GlobalError.vue";
 import CustomLayout from "@/components/general/layout/CustomLayout.vue";
 import Layout from "@/components/general/layout/Layout.vue";
-import PageTeleports from "@/components/general/layout/PageTeleports.vue";
 import Router from "@/components/general/layout/Router.vue";
 import ConfigSyncer from "@/components/general/misc/ConfigSyncer.vue";
 import NonBundledClasses from "@/components/general/misc/NonBundledClasses.vue";
@@ -39,6 +38,9 @@ const LogViewer = defineAsyncComponent(
 );
 const ExtensionLoader = defineAsyncComponent(
   () => import("@/components/general/extensions/ExtensionLoader.vue"),
+);
+const PageTeleports = defineAsyncComponent(
+  () => import("@/components/general/layout/PageTeleports.vue"),
 );
 const DevelopmentMode = defineAsyncComponent(
   () => import("@/components/general/development-mode/DevelopmentMode.vue"),
@@ -206,7 +208,7 @@ useEventListener("keydown", (event: KeyboardEvent) => (
 
       <!-- 'PageTeleports' are not used by the launcher itself -->
       <!-- so their only usage will be provided by extensions -->
-      <PageTeleports />
+      <PageTeleports v-if="false" />
     </template>
 
     <!-- In case of an error, show this template -->

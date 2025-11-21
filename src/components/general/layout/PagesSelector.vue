@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from "vue";
 
+import Home from "@/components/home/Home.vue";
 import type { RouteType } from "@/types/application/route.type.ts";
 
 const { page } = defineProps<{
   "page": RouteType;
 }>();
 
-const Home = defineAsyncComponent(() => import("@/components/home/Home.vue"));
 const Library = defineAsyncComponent(() => import("@/components/library/Library.vue"));
 const Settings = defineAsyncComponent(() => import("@/components/settings/Settings.vue"));
 const AddInstance = defineAsyncComponent(() => import("@/components/add-instance/AddInstance.vue"));
