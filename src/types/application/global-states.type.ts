@@ -92,6 +92,7 @@ export type GlobalStatesMinecraftType = {
   "windowHeight": number;
   "windowWidth" : number;
   "jvmArgs"     : string;
+  "icon"        : string;
 };
 
 export type GlobalStatesType = {

@@ -8,6 +8,9 @@ export const FileStructure = {
   "Instances": {
     "Path": "instances",
   },
+  "InstancesData": {
+    "Name": "instances.json",
+  },
   "Logs": {
     "Path": "logs",
     "Name": "latest.log",

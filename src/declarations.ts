@@ -30,6 +30,7 @@ import type {
 import type {
   InstanceStatesChangerType,
   InstanceStatesType,
+  InstanceStateType,
 } from "@/types/application/instance-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
@@ -619,20 +620,20 @@ declare global {
            * Executes 'sync'-only functions before the provided field
            * in the instance states will change.
            *
-           * '{ key: string, value: GlobalStatesType["minecraft"] }' typed object
+           * '{ key: string, value: InstanceStateType }' typed object
            * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
            * it should also return
-           * a '{ key: string, value: GlobalStatesType["minecraft"] }' typed object
+           * a '{ key: string, value: InstanceStateType }' typed object
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
            * code execution will continue as if that hook did not exist.
            */
           "before": HookReturnType<
-            { "key": string; "value": GlobalStatesType["minecraft"] },
-            { "key": string; "value": GlobalStatesType["minecraft"] },
+            { "key": string; "value": InstanceStateType },
+            { "key": string; "value": InstanceStateType },
             "non-promise"
           >;
 
@@ -640,13 +641,13 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the provided field in the instance states has changed.
            *
-           * '{ key: string, value: GlobalStatesType["minecraft"] }' typed object
+           * '{ key: string, value: InstanceStateType }' typed object
            * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
           "after": HookReturnType<
-            { "key": string; "value": GlobalStatesType["minecraft"] },
+            { "key": string; "value": InstanceStateType },
             "nothing"
           >;
         };
