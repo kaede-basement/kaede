@@ -78,6 +78,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       "windowHeight": 480,
       "windowWidth" : 854,
       "jvmArgs"     : "",
+      "icon"        : "",
     },
   };
 }

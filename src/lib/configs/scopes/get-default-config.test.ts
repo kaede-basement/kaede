@@ -40,6 +40,7 @@ test(testName, async () => {
       "windowHeight": 480,
       "windowWidth" : 854,
       "jvmArgs"     : "",
+      "icon"        : "",
     },
     "misc": {
       "enableDiscordRPC"                 : false,
