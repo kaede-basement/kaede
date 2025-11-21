@@ -38,8 +38,9 @@ const defaultConfig: ConfigType = {
     "icon"        : "",
   },
   "misc": {
-    "enableDiscordRPC"                 : false,
     "showAfterExtensionsInitialization": false,
+    "enableDiscordRPC"                 : false,
+    "autoConfigSync"                   : false,
   },
 };
 
@@ -169,6 +170,7 @@ beforeEach(() => {
       "default": {
         "checkIsPortable" : async (): Promise<boolean> => false,
         "getBaseDirectory": async (): Promise<string> => "",
+        "cachedJoin"      : (): string => "",
       },
     };
   });

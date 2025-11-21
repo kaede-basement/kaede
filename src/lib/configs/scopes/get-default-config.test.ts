@@ -43,8 +43,9 @@ test(testName, async () => {
       "icon"        : "",
     },
     "misc": {
-      "enableDiscordRPC"                 : false,
       "showAfterExtensionsInitialization": false,
+      "enableDiscordRPC"                 : false,
+      "autoConfigSync"                   : false,
     },
   };
 

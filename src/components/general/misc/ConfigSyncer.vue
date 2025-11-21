@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { useIntervalFn } from "@vueuse/core";
-import { ref } from "vue";
+import { inject, ref, watchEffect } from "vue";
 
+import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const syncing = ref<boolean>(false);
 
@@ -71,7 +75,21 @@ async function handleConfigSync(): Promise<void> {
 }
 
 // Trigger config sync every 30 seconds
-useIntervalFn(handleConfigSync, 30_000);
+const { pause, resume } = useIntervalFn(handleConfigSync, 30_000);
+
+// Make the config sync function accessible to everyone
+window[ApplicationNamespace].__internals.syncConfig = handleConfigSync;
+
+// Use auto config sync only if user has enabled it
+watchEffect(() => {
+  if (globalStates?.misc?.autoConfigSync) {
+    pause();
+
+    return;
+  }
+
+  resume();
+});
 </script>
 
 <template>

@@ -89,6 +89,8 @@ declare global {
           permissions: Array<PermissionType>,
           extension: string
         ) => Promise<Array<boolean>>;
+        // Syncs the config file using global states
+        "syncConfig"          : () => Promise<void>;
         // Platform-specific delimiter obtained by a single invoke of Tauri 'join'
         "joinDelimiter"       : string;
         // Application's config state before launcher initialization

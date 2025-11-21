@@ -41,6 +41,7 @@ export function declareWindow(): void {
       "getInstanceStates"   : placeholderFunction as () => InstanceStatesType,
       "changeInstanceStates": placeholderFunction,
       "requestPermissions"  : placeholderFunction as () => Promise<Array<boolean>>,
+      "syncConfig"          : placeholderFunction as () => Promise<void>,
       "joinDelimiter"       : "",
       "initialConfig"       : {} as ConfigType,
       "initialPortable"     : false,

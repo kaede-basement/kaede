@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { onClickOutside, useDebounceFn } from "@vueuse/core";
+import { computed, inject, nextTick, ref, useTemplateRef } from "vue";
 
 import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
+import Configs from "@/lib/configs";
 import General from "@/lib/general";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { AtAGlanceType } from "@/types/ui/at-a-glance.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+
+const target = useTemplateRef<HTMLDivElement>("target");
+
+const editing = ref<keyof AtAGlanceType | undefined>(undefined);
 
 const currentGlance = computed((): AtAGlanceType => {
   const configGlance: {
@@ -39,24 +46,73 @@ const currentGlance = computed((): AtAGlanceType => {
     "subtitle": configGlance.subtitle,
   };
 });
+
+const handleEdit = useDebounceFn(async (event: Event): Promise<void> => {
+  const target = event?.target as HTMLInputElement;
+  const value = target?.value;
+  const key: keyof AtAGlanceType | undefined = editing.value;
+
+  if (!key || !value || !globalStates) {
+    return;
+  }
+
+  log.debug(`Setting the global 'At a Glance - ${key}' value to: ${value}`);
+  GlobalStateHelpers.change("layout", {
+    ...globalStates.layout,
+    "atAGlance": {
+      ...currentGlance.value,
+      [key]: value,
+    },
+  });
+
+  // Global states didn't change yet - Vue batches them
+  await nextTick();
+  // Global states have changed, now we can sync the config file
+  await Configs.sync();
+}, 300);
+
+onClickOutside(target, () => {
+  editing.value = undefined;
+});
 </script>
 
 <template>
   <div
     id="__home-page__header-wrapper"
+    ref="target"
     class="flex flex-col gap-1 pt-4"
   >
     <div
       id="__home-page__header-title"
-      class="w-fit cursor-pointer border border-transparent rounded-md p-2 text-3xl leading-none transition-[background-color,border-color] hover:border-[theme(colors.white/.3)] hover:bg-[theme(colors.white/.1)]"
+      @click="() => editing = 'title'"
+      class="relative w-fit cursor-pointer break-all border border-transparent rounded-md p-2 text-3xl leading-none transition-[background-color,border-color] hover:border-[theme(colors.white/.3)] hover:bg-[theme(colors.white/.1)]"
     >
-      {{ currentGlance.title }}
+      <p id="__home-page__header-title-text">
+        {{ currentGlance.title }}
+      </p>
+      <input
+        v-if="editing === 'title'"
+        id="__home-page__header-title-editor-wrapper"
+        class="absolute left-0 top-14"
+        :value="currentGlance.title"
+        @input="handleEdit"
+      />
     </div>
     <div
       id="__home-page__header-subtitle"
-      class="w-fit cursor-pointer border border-transparent rounded-md p-2 text-lg text-neutral-300 leading-none transition-[background-color,border-color] hover:border-[theme(colors.white/.3)] hover:bg-[theme(colors.white/.1)]"
+      @click="() => editing = 'subtitle'"
+      class="relative w-fit cursor-pointer break-all border border-transparent rounded-md p-2 text-lg text-neutral-300 leading-none transition-[background-color,border-color] hover:border-[theme(colors.white/.3)] hover:bg-[theme(colors.white/.1)]"
     >
-      {{ currentGlance.subtitle }}
+      <p id="__home-page__header-subtitle-text">
+        {{ currentGlance.subtitle }}
+      </p>
+      <input
+        v-if="editing === 'subtitle'"
+        id="__home-page__header-title-editor-wrapper"
+        class="absolute left-0 top-10"
+        :value="currentGlance.subtitle"
+        @input="handleEdit"
+      />
     </div>
   </div>
 </template>

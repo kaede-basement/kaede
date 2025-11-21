@@ -1,3 +1,4 @@
+import { ApplicationNamespace } from "@/constants/application.ts";
 import { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { getSafeConfigFile } from "@/lib/configs/scopes/get-safe-config-file.ts";
@@ -8,4 +9,7 @@ export default {
   "getDefault": getDefaultConfig,
   "getSafe"   : getSafeConfigFile,
   "initialize": initializeConfigFile,
+  "sync"      : async (): Promise<void> => {
+    return window[ApplicationNamespace].__internals.syncConfig();
+  },
 } as const;

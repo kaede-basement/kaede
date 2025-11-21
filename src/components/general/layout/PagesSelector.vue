@@ -8,6 +8,7 @@ const { page } = defineProps<{
   "page": RouteType;
 }>();
 
+// Do not import other page codes unless they are selected
 const Library = defineAsyncComponent(() => import("@/components/library/Library.vue"));
 const Settings = defineAsyncComponent(() => import("@/components/settings/Settings.vue"));
 const AddInstance = defineAsyncComponent(() => import("@/components/add-instance/AddInstance.vue"));

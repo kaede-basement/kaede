@@ -73,6 +73,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     "misc": {
       "showAfterExtensionsInitialization": false,
       "enableDiscordRPC"                 : false,
+      "autoConfigSync"                   : false,
     },
     "minecraft": {
       "windowHeight": 480,

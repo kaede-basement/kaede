@@ -54,8 +54,9 @@ export async function getDefaultConfig(): Promise<ConfigType> {
       "icon"        : "",
     },
     "misc": {
-      "enableDiscordRPC"                 : false,
       "showAfterExtensionsInitialization": false,
+      "enableDiscordRPC"                 : false,
+      "autoConfigSync"                   : false,
     },
   };
 }
