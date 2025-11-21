@@ -1,5 +1,6 @@
 use tauri::Manager;
 use chrono::{DateTime, Utc};
+use std::time::Instant;
 
 mod launcher;
 mod system;
@@ -28,6 +29,8 @@ pub fn run() {
         .plugin(tauri_plugin_oauth::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            let logging_now = Instant::now();
+
             // Since I am a complete newbie in Rust and Tauri,
             // I couldn't think up of anything better than detecting
             // whether the launcher is in the portable mode or not
@@ -55,79 +58,49 @@ pub fn run() {
             path.push("logs");
 
             let _ = std::fs::create_dir_all(&path)?;
-
-            // Handle logging strategies differently based on build mode
-            if cfg!(debug_assertions) {
+            // Handle logging targets differently based on build mode
+            let logging_builder = if cfg!(debug_assertions) {
                 // Debug mode
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Debug)
-                        // Make a new output target that will save logs in a log file
-                        .target(tauri_plugin_log::Target::new(
-                            tauri_plugin_log::TargetKind::Folder {
-                                path: path,
-                                file_name: Some(format!("latest")),
-                            },
-                        ))
-                        // Make a custom logs format
-                        .format(|out, message, record| {
-                            let now_utc: DateTime<Utc> = Utc::now();
-                            let formatted_date = now_utc.format("%d-%m-%Y").to_string();
-                            // Default tauri logging format doesn't include milliseconds
-                            let formatted_time = now_utc.format("%H:%M:%S%.3f").to_string();
-
-                            out.finish(format_args!(
-                                "[{}][{}][{}][{}] {}",
-                                formatted_date,
-                                formatted_time,
-                                record.target(),
-                                record.level(),
-                                message,
-                            ))
-                        })
-                        // Keep the log file size at 8 MB
-                        .max_file_size(8_388_608)
-                        // Use log rotation
-                        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
-                        .build(),
-                )?;
+                tauri_plugin_log::Builder::default()
             } else {
-                // Basically the same, but I don't know Rust to refactor these duplicates
                 // Release mode
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::new()
-                        // Clear any default output targets, such as 'stdout', etc.
-                        .clear_targets()
-                        // Make a new output target that will save logs in a log file
-                        .target(tauri_plugin_log::Target::new(
-                            tauri_plugin_log::TargetKind::Folder {
-                                path: path,
-                                file_name: Some(format!("latest")),
-                            },
-                        ))
-                        // Make a custom logs format
-                        .format(|out, message, record| {
-                            let now_utc: DateTime<Utc> = Utc::now();
-                            let formatted_date = now_utc.format("%d-%m-%Y").to_string();
-                            // Default tauri logging format doesn't include milliseconds
-                            let formatted_time = now_utc.format("%H:%M:%S%.3f").to_string();
+                // Clear any default output targets, such as 'stdout', etc.
+                tauri_plugin_log::Builder::new().clear_targets()
+            };
 
-                            out.finish(format_args!(
-                                "[{}][{}][{}][{}] {}",
-                                formatted_date,
-                                formatted_time,
-                                record.target(),
-                                record.level(),
-                                message,
-                            ))
-                        })
-                        // Keep the log file size at 8 MB
-                        .max_file_size(8_388_608)
-                        // Use log rotation
-                        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
-                        .build(),
-                )?;
-            }
+            app.handle().plugin(
+                logging_builder
+                    // Make a new output target that will save logs in a log file
+                    .target(tauri_plugin_log::Target::new(
+                        tauri_plugin_log::TargetKind::Folder {
+                            path: path,
+                            file_name: Some(format!("latest")),
+                        },
+                    ))
+                    // Make a custom logs format
+                    .format(|out, message, record| {
+                        let now_utc: DateTime<Utc> = Utc::now();
+                        let formatted_date = now_utc.format("%d-%m-%Y").to_string();
+                        // Default tauri logging format doesn't include milliseconds
+                        let formatted_time = now_utc.format("%H:%M:%S%.3f").to_string();
+
+                        out.finish(format_args!(
+                            "[{}][{}][{}][{}] {}",
+                            formatted_date,
+                            formatted_time,
+                            record.target(),
+                            record.level(),
+                            message,
+                        ))
+                    })
+                    // Keep the log file size at 8 MB
+                    .max_file_size(8_388_608)
+                    // Use log rotation
+                    .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+                    .build(),
+            )?;
+
+            println!("Logging initialization done in: {}", format!("{:#?}", logging_now.elapsed()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
