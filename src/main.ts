@@ -7,7 +7,6 @@ import "@/globals.css";
 // Import styles that are necessary for Material You ripple effect
 import "m3ripple-vue/style.css";
 
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { createApp } from "vue";
 
 import App from "@/App.vue";
@@ -18,7 +17,6 @@ import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import Globals from "@/lib/globals";
-import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/application/config.type.ts";
 
@@ -32,16 +30,7 @@ const portable: boolean = await General.checkIsPortable();
 // Get the launcher's base directory to share the directory between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
-// No need to log yet since all logs will go into the previous launch log file
-await Logging.prepareLogFile(baseDirectory, launchCount).catch((error: unknown) => {
-  log.error("Failed to prepare a log file:", Errors.prettify(error));
-});
-
-/*
- * Now the log file preparation is done (unless something threw an error).
- *
- * Show a pretty ASCII art with the launcher name :3
- */
+// Show a pretty ASCII art with the launcher name :3
 log.info(getASCIIArt(portable, launchCount));
 
 /*
@@ -71,19 +60,6 @@ if (config.development?.enableDebugMode) {
   DevelopmentModeHelpers.enableDebugMode(
     DevelopmentModeHelpers.getDefault(),
   );
-}
-
-/*
- * Launcher's window is not visible by default
- * to prevent white screen flashing while webview has not loaded
- */
-if (config.misc.showBeforeInitialization) {
-  try {
-    log.debug("Showing webview window before initialization according to user's config");
-    await getCurrentWebviewWindow().show();
-  } catch (error: unknown) {
-    log.error("Failed to show the webview window before initialization:", Errors.prettify(error));
-  }
 }
 
 // Log user's launcher configuration

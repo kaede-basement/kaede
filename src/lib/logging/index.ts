@@ -6,7 +6,6 @@ import {
 } from "@/lib/logging/scopes/handle-virtual-list-text-selection.ts";
 import { handleVirtualTextCopy } from "@/lib/logging/scopes/handle-virtual-text-copy.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import { prepareLogFile } from "@/lib/logging/scopes/prepare-log-file.ts";
 
 export default {
   getLogEntryInformation,
@@ -14,7 +13,6 @@ export default {
   getLogLevelColor,
   handleVirtualListTextSelection,
   handleVirtualTextCopy,
-  prepareLogFile,
 
   /* 'log' is used separately */
   log,

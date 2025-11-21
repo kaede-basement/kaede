@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { computed, type Ref } from "vue";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { computed, inject, onMounted, type Ref } from "vue";
 
+import { GlobalStatesContextKey } from "@/constants/application.ts";
+import Errors from "@/lib/errors";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { NativeErrorType } from "@/types/application/error-handling.type.ts";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const { error } = defineProps<{
   "error": Ref<
@@ -15,6 +22,27 @@ const information = computed((): NativeErrorType => {
     "message": error?.value?.message || "no message provided",
     "stack"  : error?.value?.stack || "No stacktrace?",
   };
+});
+
+onMounted(async () => {
+  /*
+   * Launcher's window is not visible by default
+   * to prevent white screen flashing while webview has not loaded
+   */
+  if (globalStates?.misc?.showAfterExtensionsInitialization) {
+    try {
+      log.debug(
+        "User has enabled 'show-after-extensions-initialization';",
+        "extensions loading has failed. Showing the webview now",
+      );
+      await getCurrentWebviewWindow().show();
+    } catch (error: unknown) {
+      log.error(
+        "Failed to show the webview window after extensions initialization:",
+        Errors.prettify(error),
+      );
+    }
+  }
 });
 </script>
 

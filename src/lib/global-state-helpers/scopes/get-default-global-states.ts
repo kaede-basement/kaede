@@ -71,8 +71,8 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       "enableNativeReloadKeyBinds": false,
     },
     "misc": {
-      "showBeforeInitialization": false,
-      "enableDiscordRPC"        : false,
+      "showAfterExtensionsInitialization": false,
+      "enableDiscordRPC"                 : false,
     },
     "minecraft": {
       "windowHeight": 480,

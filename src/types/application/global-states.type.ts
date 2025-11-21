@@ -84,8 +84,8 @@ export type GlobalStatesDevelopmentType = {
   "enableNativeReloadKeyBinds": boolean;
 };
 export type GlobalStatesMiscType = {
-  "showBeforeInitialization": boolean;
-  "enableDiscordRPC"        : boolean;
+  "showAfterExtensionsInitialization": boolean;
+  "enableDiscordRPC"                 : boolean;
 };
 // Global minecraft settings
 export type GlobalStatesMinecraftType = {

@@ -53,8 +53,8 @@ export async function getDefaultConfig(): Promise<ConfigType> {
       "jvmArgs"     : "",
     },
     "misc": {
-      "enableDiscordRPC"        : false,
-      "showBeforeInitialization": false,
+      "enableDiscordRPC"                 : false,
+      "showAfterExtensionsInitialization": false,
     },
   };
 }

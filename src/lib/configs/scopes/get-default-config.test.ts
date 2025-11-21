@@ -42,8 +42,8 @@ test(testName, async () => {
       "jvmArgs"     : "",
     },
     "misc": {
-      "enableDiscordRPC"        : false,
-      "showBeforeInitialization": false,
+      "enableDiscordRPC"                 : false,
+      "showAfterExtensionsInitialization": false,
     },
   };
 
