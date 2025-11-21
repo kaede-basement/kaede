@@ -15,6 +15,7 @@ Tauri API permissions are located in `./capabilities/`. I made a separate file f
 
 The `./src` directory contains custom Tauri commands to:
 
+- Prepare the log file (so that the launcher will not write to the same file on every launch);
 - Get executable file directory;
 - Extract the `.zip` archive contents;
 - Keep a track of how many times launcher was reloaded;
@@ -22,8 +23,7 @@ The `./src` directory contains custom Tauri commands to:
 
 ## Want to help?
 
-- I have a duplicated logic in my logging setup at [lib.rs](./src/lib.rs#L60-L130);
 - Current `Portable` mode checks suck;
-- Application doesn't make a new log file on every launch. I don't know Rust, so I wrote a JS code to handle the log file preparation. That JS code takes up to 90 ms, even though it is optimized to do as few Tauri API calls as possible;
+- Counting the launcher UI reloads is done with `unsafe` keyword;
 - The process memory values returned by `get_process_memory` in [system.rs](./src/system.rs) are not accurate on Windows (maybe on other platforms too, didn't check);
 - Feel free to do something else.

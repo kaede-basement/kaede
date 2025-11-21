@@ -1,10 +1,13 @@
 use tauri::Manager;
 use chrono::{DateTime, Utc};
-use std::time::Instant;
+use log::error;
 
 mod launcher;
 mod system;
 mod zip;
+
+// Launcher name
+const APP_NAME: &str = "kaede";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,15 +32,13 @@ pub fn run() {
         .plugin(tauri_plugin_oauth::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
-            let logging_now = Instant::now();
-
             // Since I am a complete newbie in Rust and Tauri,
             // I couldn't think up of anything better than detecting
             // whether the launcher is in the portable mode or not
             // by checking if a window title contains a "Portable" string
             //
             // Reading window label took '225.60µs' on my laptop,
-            // so no worries about performance I guess
+            // so no worries about the performance I guess
             let window_title = app
                 .get_webview_window("main")
                 .expect("no main window found - tauri setup")
@@ -57,7 +58,37 @@ pub fn run() {
 
             path.push("logs");
 
+            // Create the 'logs' directory if it doesn't exist
             let _ = std::fs::create_dir_all(&path)?;
+
+            // Prepare the log file.
+            //
+            // Rewriting this from TypeScript to Rust lead to way faster code execution:
+            // (906 files in the directory)
+            // - TypeScript took 80 ms on average;
+            // - Rust       took  3 ms on average.
+            //
+            // Crazy results, huh?
+            //
+            // Do not blame JavaScript though, because time-wise,
+            // Tauri API is really expensive to invoke from JavaScript.
+            // That is why 80% of the time JavaScript was just being blocked by Tauri command invokes.
+            //
+            // Also:
+            // Seems like the logging plugin locks the log file once it initializes,
+            // so deleting that file while application is working will lead to errors.
+            //
+            // And at this exact point of code, Tauri logging plugin has NOT been loaded yet.
+            // This means we can do whatever we want with the current log file.
+            //
+            // But in JavaScript, the logging plugin has already been loaded,
+            // so instead of just renaming the file, we need to copy the contents from it,
+            // and then clear the current file content. Of course,
+            // this approach takes more time.
+            if let Err(error) = launcher::prepare_log_file(&path, APP_NAME) {
+                error!("Failed to prepare the log file: {}", error);
+            }
+
             // Handle logging targets differently based on build mode
             let logging_builder = if cfg!(debug_assertions) {
                 // Debug mode
@@ -100,7 +131,6 @@ pub fn run() {
                     .build(),
             )?;
 
-            println!("Logging initialization done in: {}", format!("{:#?}", logging_now.elapsed()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
