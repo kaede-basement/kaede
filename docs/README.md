@@ -23,7 +23,7 @@ An extensible Tauri-based Minecraft launcher written in Typescript with Vue
 
 ## Plans
 
-Kaede is in really early stages of development. Check the [plan](./PLAN.md) to see more about this launcher
+Kaede is in really early stages of development. Check the [plan](./PLAN.md) to see more about this launcher.
 
 ## Contributing
 

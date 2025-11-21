@@ -131,6 +131,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            launcher::get_launched_state,
             launcher::get_executable_directory,
             system::get_system_memory,
             system::get_process_memory,

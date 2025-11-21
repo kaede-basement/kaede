@@ -10,6 +10,7 @@ import {
 } from "@tauri-apps/plugin-fs";
 
 import { ApplicationName } from "@/constants/application.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 
 function getNumberFromLogFilename(filename: string): number {
   // 'kaede-0.log' -> 'kaede-0'
@@ -34,7 +35,15 @@ function getNumberFromLogFilename(filename: string): number {
  *
  * else just write into 'latest.log' without other manipulations
  */
-export async function prepareLogFile(baseDirectory: string): Promise<void> {
+export async function prepareLogFile(baseDirectory: string, launchCount: number): Promise<void> {
+  const isUIReload = launchCount > 0;
+
+  if (isUIReload) {
+    log.info("Successfully reloaded the UI. Reloads count:", launchCount.toString());
+
+    return;
+  }
+
   const logsDirectory = await join(baseDirectory, "logs");
 
   // We are assuming that 'latest.log' doesn't exist

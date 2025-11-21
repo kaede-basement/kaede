@@ -2,7 +2,7 @@ import { arch, platform, version } from "@tauri-apps/plugin-os";
 
 import { ApplicationName } from "@/constants/application.ts";
 
-export function getASCIIArt(portable: boolean): string {
+export function getASCIIArt(portable: boolean, launchCount: number): string {
   return (
     "\n" +
     "\n    __                  __   " +
@@ -14,8 +14,8 @@ export function getASCIIArt(portable: boolean): string {
     "\n / ,< / /_/ /  __/ /_/ /  __/" +
     "  mode   " + (portable ? "portable" : "non-portable") +
     "\n/_/|_|\\__,_/\\___/\\__,_/\\___/ " +
-    "  online " + (
-      navigator?.onLine ? "yes" : "no"
+    "  launch " + (
+      launchCount === 0 ? "clean" : `reloaded ${launchCount} times`
     ) +
     "\n                             "
   );

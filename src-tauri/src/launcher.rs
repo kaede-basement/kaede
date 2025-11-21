@@ -1,3 +1,14 @@
+static mut LAUNCHES_COUNT: i32 = -1;
+
+#[tauri::command]
+pub fn get_launched_state() -> i32 {
+    unsafe {
+        LAUNCHES_COUNT = LAUNCHES_COUNT + 1;
+
+        return LAUNCHES_COUNT;
+    }
+}
+
 #[tauri::command]
 pub fn get_executable_directory() -> Result<String, String> {
     match std::env::current_exe() {

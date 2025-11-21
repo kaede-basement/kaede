@@ -25,13 +25,15 @@ import type { ConfigType } from "@/types/application/config.type.ts";
 // Measure high resolution timestamp before launcher initialization
 const startTime = performance.now();
 
+// Get application UI reloads count
+const launchCount = await Globals.getLaunchCount();
 // Check if launcher is in a portable mode to share the status between multiple functions
 const portable: boolean = await General.checkIsPortable();
 // Get the launcher's base directory to share the directory between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
 // No need to log yet since all logs will go into the previous launch log file
-await Logging.prepareLogFile(baseDirectory).catch((error: unknown) => {
+await Logging.prepareLogFile(baseDirectory, launchCount).catch((error: unknown) => {
   log.error("Failed to prepare a log file:", Errors.prettify(error));
 });
 
@@ -40,7 +42,7 @@ await Logging.prepareLogFile(baseDirectory).catch((error: unknown) => {
  *
  * Show a pretty ASCII art with the launcher name :3
  */
-log.info(getASCIIArt(portable));
+log.info(getASCIIArt(portable, launchCount));
 
 /*
  * Previous code doesn't access the 'window[ApplicationNamespace]' object,
