@@ -1,7 +1,8 @@
 use tauri::Manager;
-use std::process;
 use chrono::{DateTime, Utc};
-use sysinfo::{System, Pid};
+
+mod launcher;
+mod system;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -129,54 +130,10 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            get_executable_directory,
-            get_system_memory,
-            get_process_memory,
+            launcher::get_executable_directory,
+            system::get_system_memory,
+            system::get_process_memory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-#[tauri::command]
-fn get_executable_directory() -> Result<String, String> {
-    match std::env::current_exe() {
-        Ok(path) => {
-            if let Some(parent) = path.parent() {
-                Ok(parent.to_string_lossy().to_string())
-            } else {
-                Err("Failed to get parent directory".to_string())
-            }
-        }
-        Err(error) => Err(format!("Error getting executable path: {}", error)),
-    }
-}
-
-#[tauri::command]
-fn get_system_memory() -> (u64, u64) {
-    let mut sys = System::new_all();
-
-    sys.refresh_memory();
-
-    let used_memory = sys.used_memory();
-    let total_memory = sys.total_memory();
-
-    return (used_memory, total_memory);
-}
-
-#[tauri::command]
-fn get_process_memory() -> (u64, u64) {
-    let mut sys = System::new_all();
-
-    sys.refresh_memory();
-
-    let pid = process::id();
-
-    if let Some(process) = sys.process(Pid::from_u32(pid)) {
-        let process_memory = process.memory();
-        let process_virtual_memory = process.virtual_memory();
-
-        return (process_memory, process_virtual_memory);
-    } else {
-        return (0, 0);
-    }
 }
