@@ -35,14 +35,16 @@ export function declareWindow(): void {
   window[ApplicationNamespace] = {
     "__internals": {
 
-      /* Fields that contain a 'placeholderFunction' will be overwritten */
+      /* All these fields will be overwritten */
       "getGlobalStates"     : placeholderFunction as () => GlobalStatesType,
       "changeGlobalStates"  : placeholderFunction,
       "getInstanceStates"   : placeholderFunction as () => InstanceStatesType,
       "changeInstanceStates": placeholderFunction,
       "requestPermissions"  : placeholderFunction as () => Promise<Array<boolean>>,
-      // This field will be overwritten too
+      "joinDelimiter"       : "",
       "initialConfig"       : {} as ConfigType,
+      "initialPortable"     : false,
+      "initialBaseDirectory": "",
     },
     "variables": {
       "rippleColor"     : "#ffffff15",

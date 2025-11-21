@@ -40,6 +40,12 @@ log.info(getASCIIArt(portable, launchCount));
 Globals.declareWindow();
 log.info("Extended the global window object with the app namespace");
 
+/*
+ * 'join' invokes from Tauri API are expensive (around 5 ms on my laptop);
+ * Instead, run it once, find out the delimiter and use only the cached version after that
+ */
+await Globals.handlePathJoin();
+
 // Get user's launcher configuration
 const config: ConfigType = await Configs.getSafe(baseDirectory);
 

@@ -1,4 +1,3 @@
-import { join } from "@tauri-apps/api/path";
 import { exists, readTextFile, rename } from "@tauri-apps/plugin-fs";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
@@ -24,7 +23,7 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
     baseDirectory = await General.getBaseDirectory(portable);
   }
 
-  const configFileDirectory = await join(baseDirectory, FileStructure.Config.Name);
+  const configFileDirectory = General.cachedJoin(baseDirectory, FileStructure.Config.Name);
 
   log.debug(log.templates.hooks.iterate.start(
     "getConfigFile",
@@ -100,7 +99,7 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
 
     await rename(
       configFileDirectory,
-      await join(
+      General.cachedJoin(
         baseDirectory,
         "config_invalid_" + currentTimestamp + ".json",
       ),

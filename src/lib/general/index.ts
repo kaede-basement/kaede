@@ -1,3 +1,4 @@
+import { cachedJoin } from "@/lib/general/scopes/cached-join.ts";
 import { capitalize } from "@/lib/general/scopes/capitalize.ts";
 import { checkIsPortable } from "@/lib/general/scopes/check-is-portable.ts";
 import { getAtAGlance } from "@/lib/general/scopes/get-at-a-glance.ts";
@@ -8,6 +9,7 @@ import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-st
 import { initializeLauncher } from "@/lib/general/scopes/initialize-launcher.ts";
 
 export default {
+  cachedJoin,
   capitalize,
   checkIsPortable,
   getAtAGlance,

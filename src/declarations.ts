@@ -89,14 +89,16 @@ declare global {
           permissions: Array<PermissionType>,
           extension: string
         ) => Promise<Array<boolean>>;
+        // Platform-specific delimiter obtained by a single invoke of Tauri 'join'
+        "joinDelimiter"       : string;
         // Application's config state before launcher initialization
-        "initialConfig"        : ConfigType;
+        "initialConfig"       : ConfigType;
         // Application's portable state before launcher initialization
-        "initialPortable"     ?: boolean;
+        "initialPortable"     : boolean;
         // Application's base directory state before launcher initialization
-        "initialBaseDirectory"?: string;
+        "initialBaseDirectory": string;
         // A temporary storage for the 'At a Glance' widget
-        "atAGlance"           ?: AtAGlanceType;
+        "atAGlance"          ?: AtAGlanceType;
       };
 
       /**

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { defineAsyncComponent, onBeforeMount, provide, shallowReactive } from "vue";
+import { defineAsyncComponent, provide, shallowReactive } from "vue";
 
 import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
 import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
@@ -21,7 +21,6 @@ import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
 import { __changeInstanceState } from "@/lib/instances/scopes/change-instance-state.ts";
-import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
@@ -57,7 +56,7 @@ const DevelopmentMode = defineAsyncComponent(
  * - not lose state values across application;
  * - simplify bidirectional state access between the application and extensions;
  */
-const globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getDefault());
+const globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getFromConfig());
 
 /**
  * Contains all Minecraft instance states.
@@ -158,20 +157,6 @@ window[ApplicationNamespace].__internals.getInstanceStates = getInstanceStates;
  * Provides a reference to the function that changes the value of an instance states field.
  */
 window[ApplicationNamespace].__internals.changeInstanceStates = scopedChangeInstanceStates;
-
-/**
- * Applies user config values to the global states.
- */
-onBeforeMount(async <Key extends keyof GlobalStatesType>() => {
-  // We can't use top-level await, so we apply config here
-  log.debug("Getting global states from a config");
-  const userConfig = await GlobalStateHelpers.getFromConfig();
-
-  log.debug("Applying global states from a config to the 'globalStates' reactive state");
-  for (const [key, value] of Object.entries(userConfig)) {
-    globalStates[key as Key] = value as GlobalStatesType[Key];
-  }
-});
 
 /**
  * Handles 'F5', 'Ctrl+R', and 'Command+R' key binds that reload the launcher
