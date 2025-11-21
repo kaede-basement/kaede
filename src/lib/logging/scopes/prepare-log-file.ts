@@ -36,11 +36,17 @@ function getNumberFromLogFilename(filename: string): number {
  * else just write into 'latest.log' without other manipulations
  */
 export async function prepareLogFile(baseDirectory: string, launchCount: number): Promise<void> {
+  // 'launchCount' is a global variable in the Rust code
   const isUIReload = launchCount > 0;
 
+  // We do not need to re-create the log file if launcher just reloaded the UI
   if (isUIReload) {
     log.info("Successfully reloaded the UI. Reloads count:", launchCount.toString());
 
+    return;
+  }
+
+  if (!isUIReload) {
     return;
   }
 

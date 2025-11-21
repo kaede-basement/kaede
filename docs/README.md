@@ -8,7 +8,7 @@
 <a style="color:#a1fee4" href="https://github.com/kaede-basement/kaede">Kaede</a>
 </h1>
 
-An extensible Tauri-based Minecraft launcher written in Typescript with Vue
+A Tauri-based Minecraft launcher written in TypeScript with a permission-based plugin system
 
 <p align="center">
 <strong>English</strong> | <a style="color:#a1fee4" href="./README.ru.md">Русский</a>
@@ -27,15 +27,16 @@ Kaede is in really early stages of development. Check the [plan](./PLAN.md) to s
 
 ## Contributing
 
-You don't need a Rust knowledge to contribute to this project. Almost everything was written in TypeScript using Tauri API. These files will help you:
+You don't need any Rust knowledge to contribute to this project. Almost everything was written in TypeScript using Tauri API. These files will help you:
 
 - [README for JavaScript-related code](../src/README.md) (the most important one)
 - [README for Rust-related code](../src-tauri/README.md)
 - [Contributing Guidelines](./CONTRIBUTING.md)
+- [Building from Source](#building-from-source)
 
 I also leave a lot of comments in the code.
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome. AI code is not welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 ## Demonstration
 
