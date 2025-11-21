@@ -23,28 +23,30 @@ import type { ConfigType } from "@/types/application/config.type.ts";
 // Measure high resolution timestamp before launcher initialization
 const startTime = performance.now();
 
-// Get application UI reloads count
-const launchCount = await Globals.getLaunchCount();
-// Check if launcher is in a portable mode to share the status between multiple functions
-const portable: boolean = await General.checkIsPortable();
-// Get the launcher's base directory to share the directory between multiple functions
-const baseDirectory: string = await General.getBaseDirectory(portable);
+// 'window[ApplicationNamespace]' is accessed not only by extensions, but by the application itself
+Globals.declareWindow();
+
+// Concurrent promise resolving saves us around 10 ms
+const [launchCount, portable]: [number, boolean, void] = await Promise.all([
+  // Get application UI reloads count
+  Globals.getLaunchCount(),
+  // Check if launcher is in a portable mode to share the status between multiple functions
+  General.checkIsPortable(),
+
+  /*
+   * 'join' invokes from Tauri API are expensive (around 5 ms on my laptop);
+   * Instead, run it once, find out the delimiter and use only the cached version after that.
+   *
+   * Does not return anything
+   */
+  Globals.handlePathJoin(),
+]);
 
 // Show a pretty ASCII art with the launcher name :3
 log.info(getASCIIArt(portable, launchCount));
 
-/*
- * Previous code doesn't access the 'window[ApplicationNamespace]' object,
- * but config reading does. That's why we extend the globals only now
- */
-Globals.declareWindow();
-log.info("Extended the global window object with the app namespace");
-
-/*
- * 'join' invokes from Tauri API are expensive (around 5 ms on my laptop);
- * Instead, run it once, find out the delimiter and use only the cached version after that
- */
-await Globals.handlePathJoin();
+// Get the launcher's base directory to share the directory between multiple functions
+const baseDirectory: string = await General.getBaseDirectory(portable);
 
 // Get user's launcher configuration
 const config: ConfigType = await Configs.getSafe(baseDirectory);
