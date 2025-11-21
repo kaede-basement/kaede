@@ -62,6 +62,7 @@ nothing here yet
 
 - Plugin system
 - Cross-platform
+- Fast startup
 - Available as Non-Portable/Portable
 - Open Source, GPL-3.0
 - Written in TypeScript
@@ -81,6 +82,9 @@ Not implemented yet:
   - [ ] Offline accounts if user has a Microsoft account with the game
   - [ ] Profile systems (?) (basically different launcher settings for different users)
 - [ ] Instance management
+  - [ ] Different types of instance management (?)
+    - [ ] MultiMC-like
+    - [ ] `.minecraft` swapping
   - [ ] All Minecraft versions launch
   - [ ] Instance import (from Prism Launcher, Modrinth, etc.)
   - [ ] Instance export
