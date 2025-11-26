@@ -1,4 +1,4 @@
-[README for JavaScript-related code](../src/README.md) | README for Rust-related code | [Contributing Guidelines](../docs/CONTRIBUTING.md)
+[README for TypeScript-related code](../src/README.md) | README for Rust-related code | [Contributing Guidelines](../docs/CONTRIBUTING.md)
 
 # Rust code
 

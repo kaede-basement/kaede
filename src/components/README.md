@@ -1,15 +1,13 @@
-[README for JavaScript-related code](../README.md)
+[README for TypeScript-related code](../README.md)
 
 # `components` folder
 
 This folder contains only Vue components. All components use [Composition API](https://vuejs.org/guide/extras/composition-api-faq.html) with TypeScript.
 
-Let me explain the file structure.
-
 ## Top-level folders
 
-- `general` contains all **reusable** components that do not correspond to a specific page.
-- `logging` contains all components that are used only in the log viewer screen.
+- `general` contains all **reusable** components that do not correspond to any specific page.
+- `logging` contains all components that are used only on the `Log Viewer` screen.
 - `add-instance` contains all components that are used only on the `Add Instance` page.
 - `home` contains all components that are used only on the `Home` page.
 - `library` contains all components that are used only on the `Library` page.
@@ -18,22 +16,24 @@ Let me explain the file structure.
 
 ### `general` folder
 
-- `base` contains all basic UI blocks with pre-defined styles and logic, such as buttons, inputs, sliders.
+- `base` contains basic UI blocks with pre-defined styles and logic, i.e. buttons, inputs, or sliders.
+- `development-mode` contains components for the enabled development mode.
+- `errors` contain error boundaries.
+- `extensions` contain components for the extension system, i.e. a viewer for the plugin repository, a modal element for the permission ask by a plugin at runtime, or a viewer for the installed plugins.
+- `layout` contains components that define the application UI structure, i.e. a sidebar or a context menu.
+- `misc` contains all other components.
 
 ## Styles
 
-### `z-index`
+### `z-index` table
 
-```
-(development mode)
-frames per second counter has 65000 z-index
-
-(not development mode)
-context menu             has 50000 z-index
-permissions modal        has 49500 z-index
-sidebar hovering tooltip has 49000 z-index
-log menu                 has 40000 z-index
-sidebar                  has 10000 z-index
-config sync loader icon  has 5000 z-index
-global background        has -10 z-index
-```
+| Elements          | Value   |
+|-------------------|---------|
+| [dev] FPS counter | `65000` |
+| Context Menu      | `50000` |
+| Permissions Modal | `49500` |
+| Sidebar Tooltip   | `49000` |
+| Log Viewer        | `40000` |
+| Sidebar           | `10000` |
+| Config Sync Icon  | `5000`  |
+| Global Background | `-10`   |

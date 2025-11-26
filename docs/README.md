@@ -33,7 +33,7 @@ Kaede is in really early stages of development. Check the [plan](./PLAN.md) to s
 
 You don't need any Rust knowledge to contribute to this project. Almost everything was written in TypeScript using Tauri API. These files will help you:
 
-- [README for JavaScript-related code](../src/README.md) (the most important one)
+- [README for TypeScript-related code](../src/README.md) (the most important one)
 - [README for Rust-related code](../src-tauri/README.md)
 - [Contributing Guidelines](./CONTRIBUTING.md)
 - [Building from Source](#building-from-source)

@@ -1,6 +1,6 @@
-`[README for JavaScript-related code](../README.md)
+[README for TypeScript-related code](../README.md)
 
-`# Vitest mocks
+# Vitest mocks
 
 This folder contains a code to imitate some libraries behaviour (for example, Tauri) in the `Vitest` testing environment.
 

@@ -1,2 +1,2 @@
-[README for JavaScript-related code](../README.md)
+[README for TypeScript-related code](../README.md)
 

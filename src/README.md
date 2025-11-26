@@ -1,4 +1,4 @@
-README for JavaScript-related code | [README for Rust-related code](../src-tauri/README.md) | [Contributing Guidelines](../docs/CONTRIBUTING.md)
+README for TypeScript-related code | [README for Rust-related code](../src-tauri/README.md) | [Contributing Guidelines](../docs/CONTRIBUTING.md)
 
 # Frontend & backend code
 
