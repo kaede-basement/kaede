@@ -2,28 +2,28 @@
 
 # Rust code
 
-This folder contains Tauri-specific code. You won't find much here, because I use Tauri API in JS instead of writing logic directly in Rust.
+This directory includes Tauri-specific code. Functionality was mainly written with the TypeScript, so this folder does not contain much Rust code.
 
-Let me explain some properties in `tauri.conf.json`:
+Some notable fields in `tauri.conf.json`:
 
-- `macOSPrivateApi` allows to make webview window transparent on macOS;
-- `withGlobalTauri` adds Tauri internals to global `window` object. This is needed for extensions;
-- `app.windows[0].visible` makes webview window hidden by default so that user will not see blank screen while webview and frontend are loading. I manually make it visible in the code (check `/src/main.ts`) once Vue finishes mounting;
-- `app.windows[0].title` is just a visible title for the window title bar, but it serves an important purpose in Kaede. If launcher build will be portable, then that `title` property must contain a `Portable` string. This is required, because in the logging file initialization (`lib.rs`) I determine whether launcher is portable or not by checking if window title contains a `Portable` string.
+- `macOSPrivateApi` allows to make the WebView window transparent on macOS.
+- `withGlobalTauri` exposes Tauri APIs to the global `window` object. This feature is needed for extensions.
+- `app.windows[0].visible` makes the WebView window hidden by default to eliminate blank screen for the WebView loading state. Once the Vue instance finishes mounting (`../src/main.ts`), the application window becomes visible.
+- `app.windows[0].title` manages the window title bar. However, due to my skill issues with Rust, this field is used to determine whether the launcher is portable or not. The present launcher initialization code (`./src/lib.rs`) checks if the window title contains a `Portable` string, where yes equals to application being in the portable version.
 
-Tauri API permissions are located in `./capabilities/`. I made a separate file for every permission scope.
+Tauri API permissions are located in `./capabilities/`. Each permission scope has its own separate file.
 
-The `./src` directory contains custom Tauri commands to:
+The `./src` directory includes (but is not limited to) custom Tauri commands to:
 
-- Prepare the log file (so that the launcher will not write to the same file on every launch);
-- Get executable file directory;
-- Extract the `.zip` archive contents;
-- Keep a track of how many times launcher was reloaded;
-- Get system and process memory.
+- Re-create the `latest.log` file.
+- Get the executable file directory.
+- Extract the `.zip` archive contents.
+- Keep the track of how many times the application was reloaded.
+- Get the system and process memory bytes.
 
 ## Want to help?
 
-- Current `Portable` mode checks suck;
-- Counting the launcher UI reloads is done with `unsafe` keyword;
-- The process memory values returned by `get_process_memory` in [system.rs](./src/system.rs) are not accurate on Windows (maybe on other platforms too, didn't check);
-- Feel free to do something else.
+- Current `Portable` mode checks suck.
+- Counting the launcher UI reloads is done with `unsafe` keyword.
+- The process memory values returned by `get_process_memory` in [system.rs](./src/system.rs) are incorrect on Windows (might be true for other platforms as well).
+- Feel free to do something else :3
