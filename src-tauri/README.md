@@ -18,7 +18,7 @@ The `./src` directory includes (but is not limited to) custom Tauri commands to:
 - Re-create the `latest.log` file.
 - Get the executable file directory.
 - Extract the `.zip` archive contents.
-- Keep the track of how many times the application was reloaded.
+- Keep track of how many times the application was reloaded.
 - Get the system and process memory bytes.
 
 ## Want to help?

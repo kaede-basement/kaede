@@ -16,7 +16,7 @@ pub fn run() {
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // If user tries to open the launcher when it is already opened,
-            // then focus the already opened window
+            // then focus the already opened window.
             let _ = app
                 .get_webview_window("main")
                 .expect("no main window found - tauri single instance plugin")
@@ -32,13 +32,12 @@ pub fn run() {
         .plugin(tauri_plugin_oauth::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
-            // Since I am a complete newbie in Rust and Tauri,
-            // I couldn't think up of anything better than detecting
-            // whether the launcher is in the portable mode or not
-            // by checking if a window title contains a "Portable" string
+            // Checking whether the application is in a portable mode or not
+            // by reading the window label to find a 'Portable' string
+            // is beyond fucking insanity.
             //
-            // Reading window label took '225.60µs' on my laptop,
-            // so no worries about the performance I guess
+            // These chained calls took only '225.60µs' on my laptop though,
+            // not as slow as I initially thought.
             let window_title = app
                 .get_webview_window("main")
                 .expect("no main window found - tauri setup")
@@ -58,33 +57,31 @@ pub fn run() {
 
             path.push("logs");
 
-            // Create the 'logs' directory if it doesn't exist
+            // Creates the 'logs' directory if it doesn't exist
             let _ = std::fs::create_dir_all(&path)?;
 
             // Prepare the log file.
             //
             // Rewriting this from TypeScript to Rust lead to way faster code execution:
-            // (906 files in the directory)
-            // - TypeScript took 80 ms on average;
-            // - Rust       took  3 ms on average.
+            // (Note: 906 files in the 'logs' directory)
+            // - TypeScript took 80 ms on average.
+            // - Rust       took  3 ms on average (holy fuck).
             //
-            // Crazy results, huh?
-            //
-            // Do not blame JavaScript though, because time-wise,
-            // Tauri API is really expensive to invoke from JavaScript.
-            // That is why 80% of the time JavaScript was just being blocked by Tauri command invokes.
+            // Do not blame JavaScript though, because Tauri API
+            // is time-wise expensive to invoke from JavaScript.
+            // 90% of the time JavaScript seemed to just wait for Tauri commands resolving.
             //
             // Also:
-            // Seems like the logging plugin locks the log file once it initializes,
-            // so deleting that file while application is working will lead to errors.
+            // The logging plugin locks the 'latest.log' file once it initializes,
+            // so deleting that file while application is still working will lead to errors.
             //
-            // And at this exact point of code, Tauri logging plugin has NOT been loaded yet.
-            // This means we can do whatever we want with the current log file.
+            // Clearly, at this point of code Tauri logging plugin has NOT been loaded yet.
+            // This information means that the log file can be manipulated in any way.
             //
-            // But in JavaScript, the logging plugin has already been loaded,
-            // so instead of just renaming the file, we need to copy the contents from it,
-            // and then clear the current file content. Of course,
-            // this approach takes more time.
+            // But in JavaScript, the logging plugin has already been loaded.
+            // Thus, the logging preparation strategy provided below will fail,
+            // requiring the JavaScript code to copy the contents from the log file into another
+            // instead of just renaming that file. Of course, copying takes more time.
             if let Err(error) = launcher::prepare_log_file(&path, APP_NAME) {
                 error!("Failed to prepare the log file: {}", error);
             }
@@ -112,7 +109,7 @@ pub fn run() {
                     .format(|out, message, record| {
                         let now_utc: DateTime<Utc> = Utc::now();
                         let formatted_date = now_utc.format("%d-%m-%Y").to_string();
-                        // Default tauri logging format doesn't include milliseconds
+                        // Default tauri logging format does not include milliseconds
                         let formatted_time = now_utc.format("%H:%M:%S%.3f").to_string();
 
                         out.finish(format_args!(
@@ -126,13 +123,14 @@ pub fn run() {
                     })
                     // Keep the log file size at 8 MB
                     .max_file_size(8_388_608)
-                    // Use log rotation
+                    // Keep the recent log lines if the file size exceeds 8 MBs
                     .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                     .build(),
             )?;
 
             Ok(())
         })
+        // Register custom Tauri commands
         .invoke_handler(tauri::generate_handler![
             launcher::get_launched_state,
             launcher::get_executable_directory,

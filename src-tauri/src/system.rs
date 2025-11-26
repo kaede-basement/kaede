@@ -19,6 +19,7 @@ pub fn get_process_memory() -> (u64, u64) {
 
     sys.refresh_memory();
 
+    // Get the current application process idg
     let pid = process::id();
 
     if let Some(process) = sys.process(Pid::from_u32(pid)) {
