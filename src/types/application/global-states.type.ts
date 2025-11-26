@@ -17,7 +17,7 @@ export type GlobalStatesFileSystemType = {
   };
 };
 export type GlobalStatesLayoutType = {
-  "custom"    : boolean;
+  "custom"    : boolean | Array<"sidebar" | "contextMenu">;
   "background": {
     "url"  : string | null;
     "key"  : string | number | null;

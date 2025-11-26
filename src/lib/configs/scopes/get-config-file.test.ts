@@ -98,7 +98,11 @@ const tests: Array<{
       "fetchedConfig": JSON.stringify({
         ...defaultConfig,
         "layout": {
-          // 'custom' field can only be a boolean
+
+          /*
+           * 'custom' field can only be a boolean
+           * or an array of literals, such as "sidebar" or "contextMenu"
+           */
           "custom": "blue",
         },
       }),

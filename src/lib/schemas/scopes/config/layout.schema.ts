@@ -1,7 +1,15 @@
 import { Type } from "typebox";
 
 export const LayoutSchema = Type.Object({
-  "custom"    : Type.Boolean(),
+  "custom": Type.Union([
+    Type.Boolean(),
+    Type.Array(
+      Type.Union([
+        Type.Literal("sidebar"),
+        Type.Literal("contextMenu"),
+      ]),
+    ),
+  ]),
   "background": Type.Object({
     "url": Type.Union([
       Type.String(),

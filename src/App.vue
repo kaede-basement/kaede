@@ -175,7 +175,18 @@ useEventListener("keydown", (event: KeyboardEvent) => (
   <!-- Global error boundary -->
   <ErrorBoundary>
     <template #default>
-      <Layout v-if="!globalStates.layout.custom" :page="globalStates.pages.current">
+      <Layout
+        v-if="globalStates.layout.custom !== true"
+        :page="globalStates.pages.current"
+        :to-show-sidebar="
+          !Array.isArray(globalStates.layout.custom) ||
+          !globalStates.layout.custom.includes('sidebar')
+        "
+        :to-show-context-menu="
+          !Array.isArray(globalStates.layout.custom) ||
+          !globalStates.layout.custom.includes('contextMenu')
+        "
+      >
         <Router
           v-if="globalStates.pages.current !== 'none'"
           :page="globalStates.pages.current"
@@ -208,7 +219,7 @@ useEventListener("keydown", (event: KeyboardEvent) => (
 
       <!-- 'PageTeleports' are not used by the launcher itself -->
       <!-- so their only usage will be provided by extensions -->
-      <PageTeleports v-if="false" />
+      <PageTeleports v-if="true" />
     </template>
 
     <!-- In case of an error, show this template -->

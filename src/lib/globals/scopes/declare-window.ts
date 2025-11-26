@@ -76,6 +76,9 @@ export function declareWindow(): void {
       },
     },
     "hooks": {
+      "pageTeleportsMount": {
+        "after": [],
+      },
       "getConfigFile": {
         "before": [],
         "after" : [],

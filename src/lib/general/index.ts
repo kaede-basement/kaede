@@ -1,3 +1,5 @@
+import { nextTick } from "vue";
+
 import { cachedJoin } from "@/lib/general/scopes/cached-join.ts";
 import { capitalize } from "@/lib/general/scopes/capitalize.ts";
 import { checkIsPortable } from "@/lib/general/scopes/check-is-portable.ts";
@@ -9,6 +11,9 @@ import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-st
 import { initializeLauncher } from "@/lib/general/scopes/initialize-launcher.ts";
 
 export default {
+  "nextTick": async (): Promise<void> => {
+    return await nextTick();
+  },
   cachedJoin,
   capitalize,
   checkIsPortable,

@@ -1,4 +1,46 @@
 <details>
+eval(`
+  function handleNavigation(path) {
+    const webviewId = path === "home" ? "main" : \`navigation_window_\$\{path\}\`;
+    const sidebarButton = document.getElementById(\`__sidebar__entry-\$\{path\}-button\`);
+
+    sidebarButton.setAttribute("disabled", "");
+
+    new window.__TAURI__.webviewWindow.WebviewWindow(webviewId, {
+      "url": \`/?route=\$\{path\}\`,
+      "visible": false,
+      "title": "Kaede - " + General.capitalize(path),
+    });
+}
+
+async function temporaryShit() {
+window.__KAEDE__.libs.GlobalStateHelpers.Pages.navigate = handleNavigation;
+
+    const currentWebviewWindow = window.__TAURI__.webviewWindow.getCurrentWebviewWindow();
+    const obj = {
+      "main": "C:\\\\Users\\\\windstone\\\\AppData\\\\Roaming\\\\Kaede\\\\1226538.jpg",
+      "navigation_window_library": "C:\\\\Users\\\\windstone\\\\AppData\\\\Roaming\\\\Kaede\\\\thumb-1920-1198959.png",
+      "navigation_window_profile": "C:\\\\Users\\\\windstone\\\\AppData\\\\Roaming\\\\Kaede\\\\thumb-1920-1096686.png",
+      "navigation_window_add-instance": "C:\\\\Users\\\\windstone\\\\AppData\\\\Roaming\\\\Kaede\\\\blue-archive-anime-girls-hd-wallpaper-preview.jpg",
+      "navigation_window_settings": "C:\\\\Users\\\\windstone\\\\AppData\\\\Roaming\\\\Kaede\\\\sorasaki-hina-blue-archive-blue-archive-anime-girls-hd-wallpaper-preview.jpg",
+    };
+
+    window.__KAEDE__.libs.GlobalStateHelpers.Layout.overrideBackground({
+      "url": window.__TAURI__.core.convertFileSrc(obj[currentWebviewWindow.label]),
+    });
+
+    if (currentWebviewWindow.label === "main") {
+      return;
+    }
+
+    window.__KAEDE__.libs.GlobalStateHelpers.Layout.toggle(["sidebar"]);
+}
+
+temporaryShit();
+`);
+</details>
+
+<details>
 
 ```ts
 function handleNavigation(path: RouteType): void {

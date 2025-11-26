@@ -9,8 +9,10 @@ import Sidebar from "@/components/general/layout/Sidebar.vue";
 import { ApplicationNamespace } from "@/constants/application.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 
-const { page } = defineProps<{
-  "page": RouteType;
+const { toShowSidebar, toShowContextMenu, page } = defineProps<{
+  "toShowSidebar"    : boolean;
+  "toShowContextMenu": boolean;
+  "page"             : RouteType;
 }>();
 
 const contextMenu = ref<{
@@ -71,11 +73,12 @@ useEventListener(window, "mousedown", (event: MouseEvent) => {
     class="relative h-vh w-full flex flex-nowrap gap-0 overflow-hidden text-white"
   >
     <ContextMenu
+      v-if="toShowContextMenu"
       :opened="contextMenu.opened"
       :x="contextMenu.x"
       :y="contextMenu.y"
     />
-    <Sidebar />
+    <Sidebar v-if="toShowSidebar" />
     <!-- Pages error boundary -->
     <ErrorBoundary :reset-key="page">
       <template #default>

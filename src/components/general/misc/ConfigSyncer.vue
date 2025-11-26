@@ -83,12 +83,12 @@ window[ApplicationNamespace].__internals.syncConfig = handleConfigSync;
 // Use auto config sync only if user has enabled it
 watchEffect(() => {
   if (globalStates?.misc?.autoConfigSync) {
-    pause();
+    resume();
 
     return;
   }
 
-  resume();
+  pause();
 });
 </script>
 

@@ -18,7 +18,7 @@ const image = computed((): DeepNonNullable<GlobalStatesType["layout"]["backgroun
     "key"  : background?.key ?? Math.random(),
     "url"  : background?.url ?? "",
     "blur" : background?.blur ?? 0,
-    "color": background?.color ?? "rgb(17, 17, 17)",
+    "color": background?.color ?? "rgba(28, 28, 28, 0.6)",
   };
 });
 </script>
