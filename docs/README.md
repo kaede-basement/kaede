@@ -1,3 +1,6 @@
+- plugin/extension packs
+- a development option to enable native context menu alongside the default one
+
 <div align="center">
 
 <a target="_blank" href="https://bluearchive.wiki/wiki/Arisu">

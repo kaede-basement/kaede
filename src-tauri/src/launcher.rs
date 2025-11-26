@@ -45,8 +45,16 @@ pub fn prepare_log_file(logs_dir: &Path, app_name: &str) -> std::io::Result<()> 
             Some(name) => name,
             None => continue,
         };
+        // Count the file name length without its extension
+        let cleaned_filename_length = filename.len() - log_extension_length;
+
+        // Prefix length should be smaller than the cleaned file name length
+        if prefix_length >= cleaned_filename_length {
+          continue;
+        }
+
         // Extract the number from the current log file
-        let extracted_number = &filename[prefix_length..filename.len() - log_extension_length];
+        let extracted_number = &filename[prefix_length..cleaned_filename_length];
         // Parse the extracted number
         let num = match extracted_number.parse::<usize>() {
             Ok(n) => n,
