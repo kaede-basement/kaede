@@ -48,7 +48,7 @@ Pull requests are welcome. AI code is not welcome. For major changes, please ope
 <div align="center" style="display: grid;grid-template-columns: repeat(2, 1fr); gap: 10px">
 
 <img src="./demos/home-page__blue-archive-bg.png" alt="Home page with the Morizuki Suzumi L2D background image">
-<img src="./demos/multi-window__blue-archive-different-bgs.png" alt="Multi-Window navigation with different Blue Archive background images">
+<img src="./demos/multi-window__blue-archive-different-bgs.jpg" alt="Multi-Window navigation with different Blue Archive background images">
 <img src="./demos/log-viewer__logs.png" alt="Log Viewer">
 <img src="./demos/home-page__blank-with-fps-counter.png" alt="Home page with FPS counter">
 
