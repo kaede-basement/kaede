@@ -2,7 +2,7 @@ import { vi } from "vitest";
 
 import type { KaedeNamespaceType } from "./src/declarations";
 
-// Overwrite 'window' object for tests only
+// Overwrite the 'window' object for tests only
 vi.stubGlobal("window", {
   "__KAEDE__": {
     "__internals": {
@@ -11,6 +11,10 @@ vi.stubGlobal("window", {
       "getInstanceStates"   : (): void => {},
       "changeInstanceStates": (): void => {},
       "requestPermissions"  : async (): Promise<Array<boolean>> => ([]),
+      "syncConfig"          : async (): Promise<void> => {},
+      "joinDelimiter"       : "",
+      "initialPortable"     : false,
+      "initialBaseDirectory": "",
       "initialConfig"       : {},
     },
     "variables": {
@@ -74,8 +78,8 @@ vi.stubGlobal("window", {
 } satisfies {
 
   /*
-   * Kaede itself uses only "__internals", "variables", and "hooks" properties.
-   * The rest is for the extensions
+   * Kaede itself uses only the "__internals", "variables", and "hooks" properties.
+   * The remaining fields provide access to the Kaede utilities for plugin developers.
    */
   "__KAEDE__": Pick<
     KaedeNamespaceType,
@@ -83,7 +87,7 @@ vi.stubGlobal("window", {
   >;
 });
 
-// Mock the logging utility
+// Mock the logging utilities
 vi.mock("@/lib/logging/scopes/log.ts", async () => {
   return await vi.importActual("@/__mocks__/log.cjs");
 });
