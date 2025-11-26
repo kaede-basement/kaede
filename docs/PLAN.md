@@ -1,3 +1,59 @@
+// temporary
+- [ ] Plugin system
+    - [ ] Custom CSS themes
+    - [ ] Permission-system
+    - [ ] Dependencies handling (?)
+    - [x] Application hooks
+    - [ ] Sandboxed environment using Secure ECMAScript
+    - [ ] Unrestricted environment for microfrontends with shared dependencies
+    - [ ] Unrestricted environment with `new Function`
+- [ ] Authentication
+    - [ ] Microsoft authentication
+    - [ ] Offline accounts if user has a Microsoft account with the game
+    - [ ] Profile systems (?) (basically different launcher settings for different users)
+- [ ] Instance management
+    - [ ] Different types of instance management (?)
+        - [ ] MultiMC-like
+        - [ ] `.minecraft` swapping
+    - [ ] All Minecraft versions launch
+    - [ ] Instance import (from Prism Launcher, Modrinth, etc.)
+    - [ ] Instance export
+    - [ ] Sandboxed minecraft instances (?)
+- [ ] Modpack providers support
+    - [ ] CurseForge
+    - [ ] Modrinth
+    - [ ] ATLauncher
+    - [ ] FTB
+    - [ ] Legacy FTB
+    - [ ] Technic
+- [ ] Mod loaders
+    - [ ] Fabric
+    - [ ] Forge
+    - [ ] NeoForge
+    - [ ] Quilt
+    - [ ] Legacy Fabric
+    - [ ] LiteLoader
+    - [ ] Kaolin
+- [ ] Resource management
+    - [ ] Mods
+        - [ ] CurseForge blocked download handling via spawning a webview window (?)
+        - [ ] Symlinks for identical mods (?)
+    - [ ] Resourcepacks
+    - [ ] Shaderpacks
+    - [ ] Worlds
+    - [ ] Datapacks
+- [ ] Java management
+    - [ ] Already installed JDKs detection
+    - [ ] Different version selection for supported Minecraft versions
+    - [ ] Bundled GraalVM Community Edition JDK (?)
+- [ ] Server management (via plugin)
+    - [ ] Various server cores (Bukkit-based, Sponge-based, Forge, Fabric, Minestom, etc.)
+    - [ ] Plugins management
+    - [ ] Mods management
+
+tbd (https://mc-launcher.tayou.org/)
+// temporary
+
 # Design
 
 A public figma file

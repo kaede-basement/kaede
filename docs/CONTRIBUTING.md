@@ -8,71 +8,71 @@ Thanks for your interest in contributing to Kaede!
 
 ## Translations
 
-Translations are done externally via a [Kaede Translations repository](https://github.com/freesmteam/kaede-translations)
+Translations are done externally via a [Kaede Translations repository](https://github.com/kaede-basement/translations)
 
 ## Extensions
 
-You need this section only if you want to develop an extension.
+Information about extensions can be found [here](./EXTENSIONS.md).
 
-### Repositories
+## Code of Conduct
 
-Kaede has two built-in plugin repositories.
-
-The first one is a [Kaede Add-ons User Repository (KAUR)](https://github.com/kaede-basement/kaur), similar to [AUR](https://aur.archlinux.org/) and [nixpkgs](https://github.com/NixOS/nixpkgs). This repository contains user published extensions.
-
-The second one is a [trusted-extensions repository](https://github.com/kaede-basement/trusted-extensions). I publish my extensions there. Others may publish there too, but only by contacting me. A plugin publisher must provide me the plugin source code and build manuals. I will manually review the provided code and provide the feedback if something is not good. The reviewing procedure will happen each time a plugin publisher wants to update their extension in the repository.
-
-### Safety
-
-Extensions can be loaded in two environments.
-
-The first one is a restricted environment (sandbox) that uses a permission-based system. When enabling the plugin for the first time, users are prompted with the permissions window. That window has permission toggles that the plugin requested. KAUR extensions are executed in this environment.
-
-Restricted environment is achieved by using a [Secure ECMAScript](https://github.com/endojs/endo) framework. Each permission has its own list of globals that are passed to the plugin. Unfortunately, almost every DOM operation is prohibited since it leads to the sandbox escape.
-
-The second one is an unrestricted environment that allows plugins to do everything that the Kaede can do itself. Trusted extensions are executed in this environment. Settings also have an option to enable the execution of KAUR extensions that require an unrestricted environment.
+See [Code of Conduct](./CODE_OF_CONDUCT.md)
 
 ## Code Formatting
 
-All files are formatted with [ESLint](https://eslint.org/) using the configuration in `eslint.config.js`. Ensure it is run on changed files before committing!
+All TypeScript files are formatted with [ESLint](https://eslint.org/) using the configuration in `eslint.config.js`. Ensure linting is run on changed files before committing them!
 
-Please also follow the project's conventions for frontend:
+Please also follow the project's conventions for the frontend:
 
-- No AI slops in the launcher code (plugins don't count).
-- TypeScript is highly recommended.
+- No AI slops in the launcher code (plugins do not count as the part of the launcher).
+- TypeScript is highly recommended. If type checking drives you insane, ask me for the help :d
 - `.vue` file names should be formatted as `PascalCase`. All other files should use `kebab-case`.
 - Exported constants should be formatted as `PascalCase`.
 - Functions, variables, non-exported constants should be formatted as `camelCase`.
-- Element styling is preferred by using `Tailwind v3` classes. If there is no utility class for some cases, then make your own with CSS.
-- [BEM](https://en.bem.info/methodology/) methodology is the preferred way to name element IDs and classes to simplify styling by extensions. All elements should have unique IDs.
+- Element styling is preferred by using `Tailwind v3` classes. In case UnoCSS preset misses some utility classes, make a custom CSS class.
+- [BEM](https://en.bem.info/methodology/) methodology is the preferred way to name element IDs and classes (alongside the Atomic CSS names) to simplify styling for extensions. All elements should have unique IDs.
+- Desirably, HTML structure should be semantically correct.
 
 ## Commit Messages
 
+TL;DR follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+
 ### Format
 
-`{type}({scope})!: {subject}`
+- `type: subject`
+- `type!: subject`
+- `type(scope): subject`
+- `type(scope)!: subject`
 
 ### Elements
 
 - **Type**: Choose from the following list. If none of the types match, use `chore`.
-  - `feat`: A new feature.
-  - `fix`: A bug fix.
-  - `docs`: Documentation only changes.
-  - `style`: Changes that do not affect the meaning of the code.
-  - `refactor`: Improving code structure.
-  - `perf`: A code change that improves performance.
-  - `test`: Adding missing tests or correcting existing tests.
-  - `build`: Changes that affect the build system or external dependencies.
-  - `chore`: Other changes that don't modify src or test files.
-  - `revert`: Reverts a previous commit.
-  - `release`: Releasing a new version.
-  - `ci`: Changes to our CI configuration.
-- **Scope**: As described in Conventional Commits.
-- **Breaking Change**: If you're introducing a breaking change, append `!` to the type or scope, e.g., `feat(ui)!: Breaking change`.
-
-- **Subject**: Brief description of the change.
+  - `feat`: a new feature.
+  - `fix`: a bug fix.
+  - `docs`: documentation only changes.
+  - `style`: changes that do not affect the meaning of the code.
+  - `refactor`: improving code structure.
+  - `perf`: a code change that improves performance.
+  - `test`: adding missing tests or correcting existing tests.
+  - `build`: changes that affect the build system or external dependencies.
+  - `chore`: other changes that do not modify src or test files.
+  - `revert`: reverts a previous commit.
+  - `release`: releasing a new version.
+  - `ci`: changes to our CI configuration.
+- **Scope**: provides a short context to the commit.
+- **Breaking Change**: used when introducing a (possibly) breaking change.
 
 ### Guidelines
 
 - Use imperative mood, e.g. "add feature" instead of "adding feature" or "added feature".
 - Avoid ending with a period.
+
+### Examples
+
+- `feat: add a support for fabric`
+- `refactor!: re-write the config synchronization`
+- `perf(startup): concurrently resolve independent Tauri API invokes`
+- `chore(deps): add svelte`
+- `build(linux)!: migrate to the mold linker`
+
+Or just look at others' commit messages lol

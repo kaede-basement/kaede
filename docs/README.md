@@ -1,7 +1,3 @@
-- plugin/extension packs
-- a development option to enable native context menu alongside the default one
-- `${plugin-id}/${key}` for custom global states from plugins are quite cool (`GlobalStateHelpers.change("shitPlugin/cache", { ... });`)
-
 <div align="center">
 
 <a target="_blank" href="https://bluearchive.wiki/wiki/Arisu">
@@ -27,18 +23,23 @@ A Tauri-based Minecraft launcher written in TypeScript with a permission-based p
 
 ## Plans
 
-Kaede is in really early stages of development. Check the [plan](./PLAN.md) to see more about this launcher.
+Kaede is in really early stages of development. Look at the [plan](./PLAN.md) to see more about this launcher >.<
 
 ## Contributing
 
-You don't need any Rust knowledge to contribute to this project. Almost everything was written in TypeScript using Tauri API. These files will help you:
+No prior Rust knowledge is needed to contribute to this project. Most of the code was written in TypeScript using the Tauri API. These files will help in contributing:
 
 - [README for TypeScript-related code](../src/README.md) (the most important one)
 - [README for Rust-related code](../src-tauri/README.md)
 - [Contributing Guidelines](./CONTRIBUTING.md)
 - [Building from Source](#building-from-source)
 
-I also leave a lot of comments in the code.
+I also leave comments in the code.
+
+For launcher plugins, themes, or translations:
+- [Making a Plugin](./EXTENSIONS.md#making-a-plugin)
+- [Making a Theme](./EXTENSIONS.md#making-a-theme)
+- [Translating the Launcher](https://github.com/kaede-basement/translations)
 
 Pull requests are welcome. AI code is not welcome. For major changes, please open an issue first to discuss what you would like to change.
 
@@ -68,65 +69,10 @@ nothing here yet
 - Plugin system
 - Cross-platform
 - Fast startup
+- MultiMC-like instance management
 - Available as Non-Portable/Portable
 - Open Source, GPL-3.0
 - Written in TypeScript
-
-Not implemented yet:
-
-- [ ] Plugin system
-  - [ ] Custom CSS themes
-  - [ ] Permission-system
-  - [ ] Dependencies handling (?)
-  - [x] Application hooks
-  - [ ] Sandboxed environment using Secure ECMAScript
-  - [ ] Unrestricted environment for microfrontends with shared dependencies
-  - [ ] Unrestricted environment with `new Function`
-- [ ] Authentication
-  - [ ] Microsoft authentication
-  - [ ] Offline accounts if user has a Microsoft account with the game
-  - [ ] Profile systems (?) (basically different launcher settings for different users)
-- [ ] Instance management
-  - [ ] Different types of instance management (?)
-    - [ ] MultiMC-like
-    - [ ] `.minecraft` swapping
-  - [ ] All Minecraft versions launch
-  - [ ] Instance import (from Prism Launcher, Modrinth, etc.)
-  - [ ] Instance export
-  - [ ] Sandboxed minecraft instances (?)
-- [ ] Modpack providers support
-  - [ ] CurseForge
-  - [ ] Modrinth
-  - [ ] ATLauncher
-  - [ ] FTB
-  - [ ] Legacy FTB
-  - [ ] Technic
-- [ ] Mod loaders
-  - [ ] Fabric
-  - [ ] Forge
-  - [ ] NeoForge
-  - [ ] Quilt
-  - [ ] Legacy Fabric
-  - [ ] LiteLoader
-  - [ ] Kaolin
-- [ ] Resource management
-  - [ ] Mods
-    - [ ] CurseForge blocked download handling via spawning a webview window (?)
-    - [ ] Symlinks for identical mods (?)
-  - [ ] Resourcepacks
-  - [ ] Shaderpacks
-  - [ ] Worlds
-  - [ ] Datapacks
-- [ ] Java management
-  - [ ] Already installed JDKs detection
-  - [ ] Different version selection for supported Minecraft versions
-  - [ ] Bundled GraalVM Community Edition JDK (?)
-- [ ] Server management (via plugin)
-  - [ ] Various server cores (Bukkit-based, Sponge-based, Forge, Fabric, Minestom, etc.)
-  - [ ] Plugins management
-  - [ ] Mods management
-
-tbd (https://mc-launcher.tayou.org/)
 
 ## Installation
 
@@ -136,18 +82,18 @@ Download Kaede from the [GitHub Releases](https://github.com/kaede-basement/kaed
 
 ### Development builds
 
-Please understand that these builds are not intended for most users. There may be bugs and other instabilities. You have been warned.
+Please understand that these builds are not intended for most users. There may be bugs and other instabilities.
 
-There are development builds available through:
+The development builds are available through:
 
 - [GitHub Actions](https://github.com/kaede-basement/kaede/actions) (includes builds from pull requests opened by contributors).
-- [nightly.link](https://nightly.link/kaede-basement/kaede/workflows/build/nightly) (this will always point only to the latest version of the `nightly` branch).
+- [nightly.link](https://nightly.link/kaede-basement/kaede/workflows/build/nightly) (this link will always point only to the latest version of the `nightly` branch).
 
 Prebuilt Development builds are provided for Linux, Windows, and macOS.
 
 ## Community & Support
 
-If you found a bug or want to suggest a feature, please open an issue in [GitHub Issues](https://github.com/kaede-basement/kaede/issues). Pull requests and contributions (code, docs, translations) are welcome!
+If you want to report a bug or suggest a feature, please open an issue in [GitHub Issues](https://github.com/kaede-basement/kaede/issues).
 
 ### Discord
 
