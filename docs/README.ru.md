@@ -1,7 +1,3 @@
-- plugin/extension packs
-- a development option to enable native context menu alongside the default one
-- `${plugin-id}/${key}` for custom global states from plugins are quite cool (`GlobalStateHelpers.change("shitPlugin/cache", { ... });`)
-
 <details>
 
 ```ts

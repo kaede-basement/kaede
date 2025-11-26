@@ -1,3 +1,8 @@
+- IMPORTANT!!! use Promise#all to execute async extension hooks
+- plugin/extension packs
+- a development option to enable native context menu alongside the default one
+- `${plugin-id}/${key}` for custom global states from plugins are quite cool (`GlobalStateHelpers.change("shitPlugin/cache", { ... });`)
+
 // temporary
 - [ ] Plugin system
     - [ ] Custom CSS themes
