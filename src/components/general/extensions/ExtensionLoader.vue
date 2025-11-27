@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { inject, onMounted, ref } from "vue";
 
 import PermissionsHandler from "@/components/general/extensions/PermissionsHandler.vue";
 import PageTeleports from "@/components/general/layout/PageTeleports.vue";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { ExtensionInfoType } from "@/types/extensions/extension-info.type.ts";
 import type { ExtensionMetadataType } from "@/types/extensions/extension-metadata.type.ts";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const knownExtensions = ref<Array<ExtensionMetadataType>>([]);
 const unknownExtensions = ref<Array<ExtensionInfoType>>([]);
@@ -24,13 +29,19 @@ onMounted(async () => {
   knownExtensions.value = metadataList;
 
   log.debug("Mapping valid and known extensions metadata");
-  const metadataMap = new Map<string, boolean | undefined>;
+  const metadataMap = new Map<string, {
+    "type"   : ExtensionMetadataType["type"];
+    "enabled": ExtensionMetadataType["enabled"];
+  } | undefined>;
 
-  for (const { id, enabled } of metadataList) {
-    metadataMap.set(id, enabled);
+  for (const { id, type, enabled } of metadataList) {
+    metadataMap.set(id, { type, enabled });
   }
 
-  const toExecute: Array<ExtensionInfoType> = [];
+  const toExecute: Record<
+    ExtensionMetadataType["type"],
+    Array<ExtensionInfoType>
+  > = { "sandbox": [], "unrestricted": [] };
 
   log.debug("Validating stored extensions against known extensions map");
   for (const extension of extensions) {
@@ -42,22 +53,28 @@ onMounted(async () => {
       continue;
     }
 
-    if (mappedMetadata === true) {
-      toExecute.push(extension);
+    if (mappedMetadata.enabled === true) {
+      toExecute[mappedMetadata.type].push(extension);
     }
   }
 
-  log.debug("Initializing all enabled extensions");
-  for (const { id, code } of toExecute) {
+  log.debug("Initializing all enabled unrestricted extensions");
+  for (const { id, code } of toExecute.unrestricted) {
     ExtensionsManager.runInUnrestricted(id, code);
   }
 
-  const hasSandboxedPlugins = metadataList.find(({ type, enabled }) => (
-    type === "sandbox" && enabled === true
-  ));
+  const hasSandboxedPlugins = toExecute.sandbox.length > 0;
 
   if (!hasSandboxedPlugins) {
     log.debug("User does not have sandboxed plugins. Environment lockdown is not needed");
+
+    if (globalStates?.misc?.showAfterExtensionsInitialization) {
+      log.debug(
+        "User has enabled 'show-after-extensions-initialization';",
+        "Showing the webview now",
+      );
+      await getCurrentWebviewWindow().show();
+    }
 
     return;
   }
@@ -65,6 +82,24 @@ onMounted(async () => {
   log.debug("Locking down the JavaScript environment");
   ExtensionsManager.lockdownEnvironment();
   log.info("The JavaScript environment was locked down");
+
+  log.debug("Initializing all enabled sandboxed extensions");
+  for (const { id, code } of toExecute.sandbox) {
+    ExtensionsManager.runInSandbox({
+      id,
+      code,
+      // TODO handle permissions
+      "globals": {},
+    });
+  }
+
+  if (globalStates?.misc?.showAfterExtensionsInitialization) {
+    log.debug(
+      "User has enabled 'show-after-extensions-initialization';",
+      "Showing the webview now",
+    );
+    await getCurrentWebviewWindow().show();
+  }
 });
 
 /*
