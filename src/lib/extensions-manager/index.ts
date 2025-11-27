@@ -6,6 +6,7 @@ import { lockdownEnvironment } from "@/lib/extensions-manager/scopes/lockdown-en
 import { readAllExtensions } from "@/lib/extensions-manager/scopes/read-all-extensions.ts";
 import { readAllMetadata } from "@/lib/extensions-manager/scopes/read-all-metadata.ts";
 import { runInSandbox } from "@/lib/extensions-manager/scopes/run-in-sandbox.ts";
+import { runInUnrestricted } from "@/lib/extensions-manager/scopes/run-in-unrestricted.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 export default {
@@ -23,4 +24,5 @@ export default {
   readAllExtensions,
   readAllMetadata,
   runInSandbox,
+  runInUnrestricted,
 } as const;

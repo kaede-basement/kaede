@@ -1,8 +1,11 @@
+import type { PermissionType } from "@/types/extensions/permission.type.ts";
+
 export type ExtensionMetadataType = {
   // Should be unique
   "id"        : string;
   "logo"      : string;
   "name"      : string;
+  "type"      : "sandbox" | "unrestricted";
   "source"    : string;
   "version"   : string;
   "authors"   : Array<string>;
@@ -11,5 +14,6 @@ export type ExtensionMetadataType = {
   "categories": Array<string>;
 } & Partial<{
   "description": string;
+  "permissions": Array<PermissionType>;
   "enabled"    : boolean;
 }>;

@@ -19,3 +19,6 @@ export const Permissions = {
     "Write": "write-internal-storage",
   },
 } as const;
+export const PermissionsList: Array<PermissionType> = Object
+  .values(Permissions)
+  .flatMap(scope => Object.values(scope));

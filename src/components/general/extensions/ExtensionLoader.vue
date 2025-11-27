@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 
 import PermissionsHandler from "@/components/general/extensions/PermissionsHandler.vue";
 import PageTeleports from "@/components/general/layout/PageTeleports.vue";
@@ -7,6 +7,9 @@ import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ExtensionInfoType } from "@/types/extensions/extension-info.type.ts";
 import type { ExtensionMetadataType } from "@/types/extensions/extension-metadata.type.ts";
+
+const knownExtensions = ref<Array<ExtensionMetadataType>>([]);
+const unknownExtensions = ref<Array<ExtensionInfoType>>([]);
 
 onMounted(async () => {
   log.debug("Initializing extensions loader");
@@ -16,13 +19,52 @@ onMounted(async () => {
   const extensions: Array<ExtensionInfoType> = await ExtensionsManager.readAllExtensions();
 
   log.debug("Getting extensions metadata file");
-  const metadata: Array<ExtensionMetadataType> = await ExtensionsManager.readAllMetadata();
+  const metadataList: Array<ExtensionMetadataType> = await ExtensionsManager.readAllMetadata();
+
+  knownExtensions.value = metadataList;
+
+  log.debug("Mapping valid and known extensions metadata");
+  const metadataMap = new Map<string, boolean | undefined>;
+
+  for (const { id, enabled } of metadataList) {
+    metadataMap.set(id, enabled);
+  }
+
+  const toExecute: Array<ExtensionInfoType> = [];
+
+  log.debug("Validating stored extensions against known extensions map");
+  for (const extension of extensions) {
+    const mappedMetadata = metadataMap.get(extension.id);
+
+    if (mappedMetadata === undefined) {
+      unknownExtensions.value.push(extension);
+
+      continue;
+    }
+
+    if (mappedMetadata === true) {
+      toExecute.push(extension);
+    }
+  }
+
+  log.debug("Initializing all enabled extensions");
+  for (const { id, code } of toExecute) {
+    ExtensionsManager.runInUnrestricted(id, code);
+  }
+
+  const hasSandboxedPlugins = metadataList.find(({ type, enabled }) => (
+    type === "sandbox" && enabled === true
+  ));
+
+  if (!hasSandboxedPlugins) {
+    log.debug("User does not have sandboxed plugins. Environment lockdown is not needed");
+
+    return;
+  }
 
   log.debug("Locking down the JavaScript environment");
   ExtensionsManager.lockdownEnvironment();
   log.info("The JavaScript environment was locked down");
-
-  console.log(extensions);
 });
 
 /*

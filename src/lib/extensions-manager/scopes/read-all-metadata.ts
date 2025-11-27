@@ -60,7 +60,14 @@ export async function readAllMetadata(): Promise<Array<ExtensionMetadataType>> {
     const validated: boolean = Schemas.ExtensionMetadataValidator.Check(unknownEntry);
 
     if (!validated) {
-      log.warn(`The provided extension metadata entry ${_info} is not valid`);
+      log.warn(
+        `The provided extension metadata entry ${_info} is not valid:`,
+        "\n" + JSON.stringify(
+          Schemas.ExtensionMetadataValidator.Errors(unknownEntry),
+          null,
+          2,
+        ),
+      );
 
       continue;
     }
