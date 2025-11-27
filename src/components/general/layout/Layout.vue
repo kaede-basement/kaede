@@ -28,7 +28,7 @@ function showContextMenu(event: MouseEvent): void {
   const target = event.target as HTMLElement;
 
   if (
-    target?.className?.includes("__context_menu__wrapper") ||
+    target?.className?.includes?.("__context_menu__wrapper") ||
     target?.parentElement?.className?.includes?.("__context_menu__entry")
   ) {
     return;
@@ -55,7 +55,7 @@ useEventListener(window, "mousedown", (event: MouseEvent) => {
   const target = event.target as HTMLElement;
 
   if (
-    target?.className?.includes("__context_menu__wrapper") ||
+    target?.className?.includes?.("__context_menu__wrapper") ||
     target?.parentElement?.className?.includes?.("__context_menu__entry")
   ) {
     return;
