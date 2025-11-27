@@ -88,7 +88,7 @@ onMounted(async () => {
     ExtensionsManager.runInSandbox({
       id,
       code,
-      // TODO handle permissions
+      // TODO: handle pre-defined permissions
       "globals": {},
     });
   }

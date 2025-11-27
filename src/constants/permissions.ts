@@ -15,8 +15,9 @@ export const Permissions = {
     "Write": "write-external-storage",
   },
   "InternalStorage": {
-    "Read" : "read-internal-storage",
-    "Write": "write-internal-storage",
+    "Read"   : "read-internal-storage",
+    "Write"  : "write-internal-storage",
+    "Logging": "write-to-log-file",
   },
 } as const;
 export const PermissionsList: Array<PermissionType> = Object
