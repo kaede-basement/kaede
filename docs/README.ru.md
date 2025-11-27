@@ -1,4 +1,93 @@
 <details>
+
+let numberIcon = 1;
+
+console.log(numberIcon--);
+
+function temporary(): void {
+eval(`
+async function handlePlugin() {
+const icon = "E:\\\\Downloads\\\\tauri-app-icon-";
+const number = ((numberIcon++) % 4);
+const getCurrentWebviewWindow = window.__TAURI__.webviewWindow.getCurrentWebviewWindow;
+const defaultWindowIcon = window.__TAURI__.app.defaultWindowIcon;
+
+await getCurrentWebviewWindow().setIcon(
+number === 0 ? (await defaultWindowIcon()) : (icon + number + ".png")
+);
+await getCurrentWebviewWindow().setTitle(
+number !== 1 ? (
+"Kaede 0." +
+Math.floor(Math.random() * 10) +
+"." +
+Math.floor(Math.random() * 10)
+) : (
+"💠🥀 Mari :3"
+)
+);
+}
+
+handlePlugin();
+`);
+}
+</details>
+
+<details>
+eval(`async function huh() {
+  const getCurrentWebviewWindow = window.__TAURI__.webviewWindow.getCurrentWebviewWindow;
+  const isDecorated = await getCurrentWebviewWindow().isDecorated();
+
+await getCurrentWebviewWindow().setDecorations(!isDecorated);
+
+const tray = await window.__TAURI__.tray.TrayIcon.new({
+tooltip: "Kaede Plugin",
+icon: await window.__TAURI__.app.defaultWindowIcon(),
+menu: await window.__TAURI__.menu.Menu.new({
+items: [
+await window.__TAURI__.menu.IconMenuItem.new({
+text: "Kaede :3",
+icon: window.__TAURI__.menu.NativeIcon.Bluetooth,
+}),
+await window.__TAURI__.menu.PredefinedMenuItem.new({ item: "Separator" }),
+await window.__TAURI__.menu.Submenu.new({
+text: "Submenus",
+items: [
+await window.__TAURI__.menu.Submenu.new({
+text: "Another submenu lol",
+items: [
+await window.__TAURI__.menu.MenuItem.new({
+text: "Blur the background",
+action: () => {
+window.__KAEDE__.libs.GlobalStateHelpers.Layout.overrideBackground({ blur: 8 });
+}
+}),
+await window.__TAURI__.menu.MenuItem.new({
+text: "Remove the blur from the background",
+action: () => {
+window.__KAEDE__.libs.GlobalStateHelpers.Layout.overrideBackground({ blur: null });
+}
+}),
+],
+}),
+],
+}),
+await window.__TAURI__.menu.MenuItem.new({
+text: "Remove the tray",
+action: async () => {
+await tray.close();
+},
+}),
+],
+}),
+})
+
+await tray.setVisible(true);
+}
+
+huh();`);
+</details>
+
+<details>
 eval(`
   function handleNavigation(path) {
     const webviewId = path === "home" ? "main" : \`navigation_window_\$\{path\}\`;
