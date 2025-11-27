@@ -65,7 +65,7 @@ const handleEdit = useDebounceFn(async (event: Event): Promise<void> => {
     },
   });
 
-  // Global states didn't change yet - Vue batches them
+  // Vue batches state changes
   await nextTick();
   // Global states have changed, now we can sync the config file
   await Configs.sync();
@@ -90,13 +90,15 @@ onClickOutside(target, () => {
       <p id="__home-page__header-title-text">
         {{ currentGlance.title }}
       </p>
-      <input
-        v-if="editing === 'title'"
-        id="__home-page__header-title-editor-wrapper"
-        class="absolute left-0 top-14"
-        :value="currentGlance.title"
-        @input="handleEdit"
+      <Transition name="pop">
+        <input
+          v-if="editing === 'title'"
+          id="__home-page__header-title-editor-wrapper"
+          class="absolute left-0 top-13 z-10 rounded-md bg-neutral-950 p-1 text-lg leading-none outline-none focus:outline-none"
+          :value="currentGlance.title"
+          @input="handleEdit"
       />
+      </Transition>
     </div>
     <div
       id="__home-page__header-subtitle"
@@ -106,13 +108,15 @@ onClickOutside(target, () => {
       <p id="__home-page__header-subtitle-text">
         {{ currentGlance.subtitle }}
       </p>
-      <input
-        v-if="editing === 'subtitle'"
-        id="__home-page__header-title-editor-wrapper"
-        class="absolute left-0 top-10"
-        :value="currentGlance.subtitle"
-        @input="handleEdit"
-      />
+      <Transition name="pop">
+        <input
+          v-if="editing === 'subtitle'"
+          id="__home-page__header-title-editor-wrapper"
+          class="absolute left-0 top-10 z-10 rounded-md bg-neutral-950 p-1 text-lg leading-none outline-none focus:outline-none"
+          :value="currentGlance.subtitle"
+          @input="handleEdit"
+        />
+      </Transition>
     </div>
   </div>
 </template>
