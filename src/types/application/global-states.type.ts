@@ -7,9 +7,10 @@ export type GlobalStatesFileSystemType = {
   "portable": boolean;
   "base"    : string;
   "folders" : {
-    "logs"     : string;
-    "instances": string;
-    "resources": string;
+    "logs"      : string;
+    "instances" : string;
+    "resources" : string;
+    "extensions": string;
   };
   "files": {
     "config": string;

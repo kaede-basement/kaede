@@ -2,6 +2,10 @@ export const FileStructure = {
   "Config": {
     "Name": "config.json",
   },
+  "Extensions": {
+    "Path": "extensions",
+    "Name": "metadata.json",
+  },
   "Resources": {
     "Path": "resources",
   },

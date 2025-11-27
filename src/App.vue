@@ -39,30 +39,17 @@ const LogViewer = defineAsyncComponent(
 const ExtensionLoader = defineAsyncComponent(
   () => import("@/components/general/extensions/ExtensionLoader.vue"),
 );
-const PageTeleports = defineAsyncComponent(
-  () => import("@/components/general/layout/PageTeleports.vue"),
-);
 const DevelopmentMode = defineAsyncComponent(
   () => import("@/components/general/development-mode/DevelopmentMode.vue"),
 );
 
 /**
  * Contains all global application states.
- * Initially takes default values, then the user config is applied.
- *
- * Gathering everything in one big 'shallowReactive' state
- * is considered to be a bad practice.
- *
- * But I believe that in extensible applications this is the best approach to:
- * - make extension hooks have a well-defined behaviour;
- * - not lose state values across application;
- * - simplify bidirectional state access between the application and extensions;
  */
 const globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getFromConfig());
 
 /**
  * Contains all Minecraft instance states.
- * Initially takes an empty object, then the stored instances are applied.
  */
 const instanceStates = shallowReactive<InstanceStatesType>({});
 
@@ -200,10 +187,11 @@ useEventListener("keydown", (event: KeyboardEvent) => (
           v-if="globalStates.development"
           :development="globalStates.development"
         />
-        <ConfigSyncer />
         <NonBundledClasses />
       </Layout>
       <CustomLayout v-else />
+
+      <ConfigSyncer />
     </template>
 
     <!-- In case of an error, show this template -->
@@ -215,11 +203,7 @@ useEventListener("keydown", (event: KeyboardEvent) => (
   <!-- Extensions-level error boundary -->
   <ErrorBoundary>
     <template #default>
-      <ExtensionLoader v-if="false" />
-
-      <!-- 'PageTeleports' are not used by the launcher itself -->
-      <!-- so their only usage will be provided by extensions -->
-      <PageTeleports v-if="true" />
+      <ExtensionLoader v-if="true" />
     </template>
 
     <!-- In case of an error, show this template -->
