@@ -10,6 +10,7 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { ExtensionInfoType } from "@/types/extensions/extension-info.type.ts";
 import type { ExtensionMetadataType } from "@/types/extensions/extension-metadata.type.ts";
+import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
@@ -30,17 +31,20 @@ onMounted(async () => {
 
   log.debug("Mapping valid and known extensions metadata");
   const metadataMap = new Map<string, {
-    "type"   : ExtensionMetadataType["type"];
-    "enabled": ExtensionMetadataType["enabled"];
+    "type"       : ExtensionMetadataType["type"];
+    "permissions": ExtensionMetadataType["permissions"];
+    "enabled"    : ExtensionMetadataType["enabled"];
   } | undefined>;
 
-  for (const { id, type, enabled } of metadataList) {
-    metadataMap.set(id, { type, enabled });
+  for (const { id, type, permissions, enabled } of metadataList) {
+    metadataMap.set(id, { type, permissions, enabled });
   }
 
   const toExecute: Record<
     ExtensionMetadataType["type"],
-    Array<ExtensionInfoType>
+    Array<ExtensionInfoType & {
+      "permissions"?: Array<PermissionType>;
+    }>
   > = { "sandbox": [], "unrestricted": [] };
 
   log.debug("Validating stored extensions against known extensions map");
@@ -54,7 +58,10 @@ onMounted(async () => {
     }
 
     if (mappedMetadata.enabled === true) {
-      toExecute[mappedMetadata.type].push(extension);
+      toExecute[mappedMetadata.type].push({
+        ...extension,
+        "permissions": mappedMetadata?.permissions,
+      });
     }
   }
 
@@ -84,12 +91,11 @@ onMounted(async () => {
   log.info("The JavaScript environment was locked down");
 
   log.debug("Initializing all enabled sandboxed extensions");
-  for (const { id, code } of toExecute.sandbox) {
+  for (const { id, code, permissions } of toExecute.sandbox) {
     ExtensionsManager.runInSandbox({
       id,
       code,
-      // TODO: handle pre-defined permissions
-      "globals": {},
+      "globals": ExtensionsManager.grantStaticPermissions({ id, permissions }),
     });
   }
 

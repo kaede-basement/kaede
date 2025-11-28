@@ -1,4 +1,7 @@
 import { ApplicationNamespace } from "@/constants/application.ts";
+import {
+  grantStaticPermissions,
+} from "@/lib/extensions-manager/scopes/grant-static-permissions.ts";
 import { handleCssTheme } from "@/lib/extensions-manager/scopes/handle-css-theme.ts";
 import { handlePermission } from "@/lib/extensions-manager/scopes/handle-permission.ts";
 import { initializeDirectory } from "@/lib/extensions-manager/scopes/initialize-directory.ts";
@@ -17,6 +20,7 @@ export default {
     permissions,
     extension,
   ),
+  grantStaticPermissions,
   handleCssTheme,
   handlePermission,
   initializeDirectory,
