@@ -6,12 +6,15 @@
     "*"
   ],
   "permissions": [
-    "opener:allow-open-url",
-    "opener:allow-default-urls",
-    "opener:allow-reveal-item-in-dir",
     {
       "identifier": "opener:allow-open-path",
-      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**/*" }]
-    }
+      "allow": [
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**/*" }
+      ]
+    },
+    "opener:allow-open-url",
+    "opener:allow-default-urls",
+    "opener:allow-reveal-item-in-dir"
   ]
 }
