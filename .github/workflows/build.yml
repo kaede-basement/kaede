@@ -113,7 +113,7 @@ jobs:
         with:
           file: "./src-tauri/tauri.conf.json"
           fields: "{
-            \"app.security.assetProtocol.scope.allow\": [{\"path\":\"**/*\"}]
+            \"app.security.assetProtocol.scope.allow\": [\"**/*\"]
           }"
 
       - name: Remove File System restrictions (Portable-only, plugin-fs)
