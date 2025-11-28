@@ -97,7 +97,7 @@ watchEffect(() => {
     id="__config-syncer__wrapper"
     :class="[
       syncing ? 'opacity-20' : 'opacity-0 transition-[opacity]',
-      'fixed bottom-6 left-6 pointer-events-none z-5000',
+      'fixed bottom-6 left-6 pointer-events-none z-1500',
     ]"
   >
     <div

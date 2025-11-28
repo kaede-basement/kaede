@@ -104,7 +104,7 @@ function handleButtonAction(action: () => void): void {
 <template>
   <div
     id="__sidebar__hovering-tooltip"
-    class="pointer-events-none absolute left-20 top-2 z-49000 w-fit rounded-md p-2 leading-none transition-[transform,opacity]"
+    class="pointer-events-none absolute left-20 top-2 z-7000 w-fit rounded-md p-2 leading-none transition-[transform,opacity]"
     :style="{
       ...innerStyles,
       transform: `translateY(${tooltip.top}px)`,
@@ -116,7 +116,7 @@ function handleButtonAction(action: () => void): void {
   <div
     @mouseleave="closeTooltip"
     id="__sidebar__wrapper"
-    class="absolute bottom-0 left-0 top-0 z-10000 w-20 flex flex-col gap-2 p-2"
+    class="absolute bottom-0 left-0 top-0 z-5000 w-20 flex flex-col gap-2 p-2"
   >
     <SidebarProfile
       :inner-styles="innerStyles"

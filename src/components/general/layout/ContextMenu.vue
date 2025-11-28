@@ -19,7 +19,7 @@ const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
     <div
       v-show="opened"
       id="__context_menu__wrapper"
-      class="__context_menu__wrapper __context-menu-disable absolute z-50000 flex flex-col gap-1 rounded-md bg-neutral-800 py-1 text-white drop-shadow-lg"
+      class="__context_menu__wrapper __context-menu-disable absolute z-9000 flex flex-col gap-1 rounded-md bg-neutral-800 py-1 text-white drop-shadow-lg"
       :style="{ left: `${x + 4}px`, top: `${y + 4}px` }"
     >
       <button

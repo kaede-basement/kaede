@@ -72,7 +72,7 @@ window[ApplicationNamespace].__internals.requestPermissions = requestPermissions
       id="__extensions-loader__permission-request-wrapper"
       @contextmenu.prevent
       @contextmenu="showContextMenu"
-      class="absolute bottom-0 left-0 right-0 top-0 z-49500 grid place-items-center bg-[theme(colors.black/.5)]"
+      class="absolute bottom-0 left-0 right-0 top-0 z-8000 grid place-items-center bg-[theme(colors.black/.5)]"
     >
       <div
         @contextmenu.prevent
