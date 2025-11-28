@@ -9,7 +9,11 @@ const testName = "Default Config: No arguments";
 test(testName, async () => {
   const defaultConfig: ConfigType = {
     "development": null,
-    "layout"     : {
+    "extensions" : {
+      "enabled"                   : true,
+      "allowUnrestrictedUntrusted": true,
+    },
+    "layout": {
       "custom"    : false,
       "background": {
         "url"  : null,

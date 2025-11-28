@@ -38,6 +38,7 @@ async function handleConfigSync(): Promise<void> {
   const configOnlyGlobalStates: ConfigType = {
     // Arrange these properties in a way that the config itself arranges them
     "development": currentGlobalStates.development,
+    "extensions" : currentGlobalStates.extensions,
     "layout"     : currentGlobalStates.layout,
     "logs"       : {
       ...currentGlobalStates.logs,

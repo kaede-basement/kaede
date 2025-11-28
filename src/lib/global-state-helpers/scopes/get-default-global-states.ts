@@ -70,6 +70,10 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       "enableDebugMode"           : false,
       "enableNativeReloadKeyBinds": false,
     },
+    "extensions": {
+      "enabled"                   : true,
+      "allowUnrestrictedUntrusted": true,
+    },
     "misc": {
       "showAfterExtensionsInitialization": false,
       "enableDiscordRPC"                 : false,

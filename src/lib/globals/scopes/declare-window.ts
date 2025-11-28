@@ -126,6 +126,10 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onExtensionsChange": {
+        "before": [],
+        "after" : [],
+      },
       "onInstanceChange": {
         "before": [],
         "after" : [],

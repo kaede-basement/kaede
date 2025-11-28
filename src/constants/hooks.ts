@@ -9,6 +9,7 @@ export const HookMappings = {
   "development"     : "onDevelopmentChange",
   "misc"            : "onMiscChange",
   "minecraft"       : "onMinecraftChange",
+  "extensions"      : "onExtensionsChange",
 } as const;
 
 export const HookResponseStatus = {

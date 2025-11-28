@@ -4,7 +4,11 @@ import type { ConfigType } from "@/types/application/config.type.ts";
 
 const defaultConfig: ConfigType = {
   "development": null,
-  "layout"     : {
+  "extensions" : {
+    "enabled"                   : true,
+    "allowUnrestrictedUntrusted": true,
+  },
+  "layout": {
     "custom"    : false,
     "background": {
       "url"  : null,

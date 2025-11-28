@@ -96,6 +96,10 @@ export type GlobalStatesMinecraftType = {
   "jvmArgs"     : string;
   "icon"        : string;
 };
+export type GlobalStatesExtensionsType = {
+  "enabled"                   : boolean;
+  "allowUnrestrictedUntrusted": boolean;
+};
 
 export type GlobalStatesType = {
 
@@ -105,6 +109,7 @@ export type GlobalStatesType = {
    * JSON doesn't have 'undefined' value, so we use 'null' instead of it
    */
   "development": GlobalStatesDevelopmentType | null;
+  "extensions" : GlobalStatesExtensionsType;
   "layout"     : GlobalStatesLayoutType;
   "logs"       : GlobalStatesLogsType;
   "misc"       : GlobalStatesMiscType;

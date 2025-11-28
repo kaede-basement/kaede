@@ -631,6 +631,41 @@ declare global {
         };
 
         /**
+         * Executed on the 'extensions' field replacement in global states
+         */
+        "onExtensionsChange": {
+
+          /**
+           * Executes 'sync'-only functions before the 'extensions' property
+           * in the global states will change.
+           *
+           * 'GlobalStatesType["extensions"]' typed object is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return a 'GlobalStatesType["extensions"]' typed object
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            GlobalStatesType["extensions"],
+            GlobalStatesType["extensions"],
+            "non-promise"
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions on the next Vue tick,
+           * after the 'extensions' property in the global states has changed.
+           *
+           * 'GlobalStatesType["extensions"]' typed object is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
+          "after": HookReturnType<GlobalStatesType["extensions"], "nothing">;
+        };
+
+        /**
          * Executed on the field addition/overwrite/deletion in instance states
          */
         "onInstanceChange": {

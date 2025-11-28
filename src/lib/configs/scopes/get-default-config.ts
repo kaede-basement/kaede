@@ -20,7 +20,11 @@ export async function getDefaultConfig(): Promise<ConfigType> {
 
   return {
     "development": null,
-    "layout"     : {
+    "extensions" : {
+      "enabled"                   : true,
+      "allowUnrestrictedUntrusted": true,
+    },
+    "layout": {
       "custom"    : false,
       "background": {
         "url"  : null,

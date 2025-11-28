@@ -203,7 +203,7 @@ useEventListener("keydown", (event: KeyboardEvent) => (
   <!-- Extensions-level error boundary -->
   <ErrorBoundary>
     <template #default>
-      <ExtensionLoader v-if="true" />
+      <ExtensionLoader v-if="globalStates.extensions.enabled" />
     </template>
 
     <!-- In case of an error, show this template -->
