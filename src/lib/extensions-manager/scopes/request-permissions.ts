@@ -14,7 +14,7 @@ export async function __requestPermissions(
   const states = [];
 
   for (const permission of permissions) {
-    const isIgnored: boolean | undefined = IgnoredExtensionPermissions?.[extension]?.[permission];
+    const isIgnored: boolean | undefined = IgnoredExtensionPermissions[extension][permission];
 
     if (isIgnored !== undefined) {
       if (isIgnored) {

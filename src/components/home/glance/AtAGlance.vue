@@ -35,7 +35,7 @@ const currentGlance = computed((): AtAGlanceType => {
     return newAtAGlance;
   }
 
-  log.debug("Showing a custom 'At a Glance' text:", JSON.stringify(
+  log.debug("Showing a custom 'At a Glance' text:" + "\n" + JSON.stringify(
     configGlance,
     null,
     2,
@@ -87,7 +87,7 @@ onClickOutside(target, () => {
       @click="() => editing = 'title'"
       class="relative w-fit cursor-pointer break-all border border-transparent rounded-md p-2 text-3xl leading-none transition-[background-color,border-color] hover:border-[theme(colors.white/.3)] hover:bg-[theme(colors.white/.1)]"
     >
-      <p id="__home-page__header-title-text">
+      <p id="__home-page__header-title-text" class="whitespace-pre-wrap">
         {{ currentGlance.title }}
       </p>
       <Transition name="pop">
@@ -105,7 +105,7 @@ onClickOutside(target, () => {
       @click="() => editing = 'subtitle'"
       class="relative w-fit cursor-pointer break-all border border-transparent rounded-md p-2 text-lg text-neutral-300 leading-none transition-[background-color,border-color] hover:border-[theme(colors.white/.3)] hover:bg-[theme(colors.white/.1)]"
     >
-      <p id="__home-page__header-subtitle-text">
+      <p id="__home-page__header-subtitle-text" class="whitespace-pre-wrap">
         {{ currentGlance.subtitle }}
       </p>
       <Transition name="pop">

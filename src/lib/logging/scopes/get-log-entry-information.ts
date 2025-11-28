@@ -1,9 +1,6 @@
 import type { LogEntryInformationType } from "@/types/application/log-entry-information.type.ts";
 
 export function getLogEntryInformation(line: string | [number, string]): LogEntryInformationType {
-  const actualLine = typeof line === "string" ? line : line[1];
-
-  const parts = actualLine.split("]");
   const current: {
     "date"   : string;
     "time"   : string;
@@ -17,6 +14,22 @@ export function getLogEntryInformation(line: string | [number, string]): LogEntr
     "level"  : "",
     "message": "",
   };
+  const actualLine = typeof line === "string" ? line : line[1];
+
+  /*
+   * Log entries start with the square bracket symbol and the date.
+   * If the character after the '[' symbol is not a number,
+   * then the provided line is not a log entry
+   */
+  if (actualLine?.[0] !== "[" || Number.isNaN(
+    Number(actualLine?.[1]),
+  )) {
+    current.time = actualLine;
+
+    return current;
+  }
+
+  const parts = actualLine.split("]");
 
   if (actualLine.startsWith("__kaede-trigger-initial")) {
     current.target = "All logs will be displayed here ᓀ‸ᓂ";

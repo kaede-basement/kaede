@@ -1,4 +1,4 @@
-import { GrantedScopes } from "@/constants/permissions.ts";
+import { GrantedScopes, IgnoredExtensionPermissions } from "@/constants/permissions.ts";
 import { handlePermission } from "@/lib/extensions-manager/scopes/handle-permission.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
@@ -10,6 +10,7 @@ export function grantStaticPermissions({
   "permissions"?: Array<PermissionType>;
 }): object {
   GrantedScopes[id] = {};
+  IgnoredExtensionPermissions[id] = {};
 
   if (!permissions) {
     return {};
@@ -17,6 +18,7 @@ export function grantStaticPermissions({
 
   for (const permission of permissions) {
     handlePermission(permission, id);
+    IgnoredExtensionPermissions[id][permission] = true;
   }
 
   return GrantedScopes[id];
