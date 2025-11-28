@@ -22,7 +22,6 @@ import type Globals from "@/lib/globals";
 import type Instances from "@/lib/instances";
 import type Logging from "@/lib/logging";
 import type Schemas from "@/lib/schemas";
-import type { ConfigType } from "@/types/application/config.type.ts";
 import type {
   GlobalStatesChangerType,
   GlobalStatesType,
@@ -33,10 +32,11 @@ import type {
   InstanceStateType,
 } from "@/types/application/instance-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
+import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
-import type { AtAGlanceType } from "@/types/ui/at-a-glance.type.ts";
 
 /* Expand the globals with Kaede and Tauri namespaces */
 declare global {

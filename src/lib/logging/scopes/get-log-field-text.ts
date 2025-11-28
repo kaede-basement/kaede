@@ -1,6 +1,6 @@
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { FieldTextType } from "@/types/application/log-field-text.type.ts";
+import type { FieldTextType } from "@/types/logging/log-field-text.type.ts";
 
 export function getLogFieldText(input: string, toSearch: string): string | FieldTextType {
   const lowerCasedInput = input.toLowerCase();

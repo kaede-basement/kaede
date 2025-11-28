@@ -18,7 +18,7 @@ import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import Globals from "@/lib/globals";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ConfigType } from "@/types/application/config.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 
 // Measure high resolution timestamp before launcher initialization
 const startTime = performance.now();

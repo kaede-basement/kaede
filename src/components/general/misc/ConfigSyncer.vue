@@ -8,8 +8,8 @@ import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ConfigType } from "@/types/application/config.type.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 

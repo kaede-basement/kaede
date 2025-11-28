@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
-import type { LogButtonType } from "@/types/ui/log-button.type.ts";
+import type { LogButtonType } from "@/types/logging/log-button.type.ts";
 
 const {
   icon,

@@ -2,7 +2,7 @@
 import { computed, onErrorCaptured, ref, watchEffect } from "vue";
 
 import Errors from "@/lib/errors";
-import type { NativeErrorType } from "@/types/application/error-handling.type.ts";
+import type { NativeErrorType } from "@/types/errors/error-handling.type.ts";
 
 const { resetKey } = defineProps<{
   "resetKey"?: string;

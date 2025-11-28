@@ -1,6 +1,6 @@
 import GlobalStateHelpers from "@/lib/global-state-helpers";
-import type { ConfigType } from "@/types/application/config.type.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 
 function toggle(state?: ConfigType["layout"]["custom"]): void {
   const layout = GlobalStateHelpers.get().layout;

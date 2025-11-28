@@ -1,7 +1,7 @@
 import { debug, error, info, warn } from "@tauri-apps/plugin-log";
 
 import { capitalize } from "@/lib/general/scopes/capitalize.ts";
-import type { LogMethodType } from "@/types/application/log-method.type.ts";
+import type { LogMethodType } from "@/types/logging/log-method.type.ts";
 
 /*
  * We do not care about promises here

@@ -5,8 +5,8 @@ import LogHighlighter from "@/components/logging/lines/LogHighlighter.vue";
 import Errors from "@/lib/errors";
 import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { LogEntryInformationType } from "@/types/application/log-entry-information.type.ts";
-import type { FieldTextType } from "@/types/application/log-field-text.type.ts";
+import type { LogEntryInformationType } from "@/types/logging/log-entry-information.type.ts";
+import type { FieldTextType } from "@/types/logging/log-field-text.type.ts";
 
 /**
  * 'line' format: [date][time][target?][level] message

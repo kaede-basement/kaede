@@ -8,7 +8,7 @@ import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
-import type { ConfigType } from "@/types/application/config.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 
 export async function getConfigFile(passedBaseDirectory?: string): Promise<ConfigType> {
   const hooksArray = window[ApplicationNamespace].hooks.getConfigFile.before;

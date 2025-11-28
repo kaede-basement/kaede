@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 
-import type { ConfigType } from "@/types/application/config.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 
 const defaultConfig: ConfigType = {
   "development": null,

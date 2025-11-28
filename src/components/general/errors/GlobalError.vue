@@ -2,7 +2,7 @@
 import { computed, inject, type Ref } from "vue";
 
 import { TranslationsContextKey } from "@/constants/application.ts";
-import type { NativeErrorType } from "@/types/application/error-handling.type.ts";
+import type { NativeErrorType } from "@/types/errors/error-handling.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 const Translations = inject<TranslationsType>(TranslationsContextKey);

@@ -1,4 +1,4 @@
-import type { NativeErrorType } from "@/types/application/error-handling.type.ts";
+import type { NativeErrorType } from "@/types/errors/error-handling.type.ts";
 
 export function extract(error: unknown): NativeErrorType {
   const safeError = {

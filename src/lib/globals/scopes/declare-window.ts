@@ -13,9 +13,9 @@ import Globals from "@/lib/globals";
 import Instances from "@/lib/instances";
 import Logging from "@/lib/logging";
 import Schemas from "@/lib/schemas";
-import type { ConfigType } from "@/types/application/config.type.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 
 function placeholderFunction(): void {}
 

@@ -5,8 +5,8 @@ import { RouteItems, Routes } from "@/constants/routes.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ConfigType } from "@/types/application/config.type.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 
 export function getConfigGlobalStates(): GlobalStatesType {
   const searchParameters = new URLSearchParams(location.search);

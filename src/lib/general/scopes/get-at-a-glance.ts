@@ -1,4 +1,4 @@
-import type { AtAGlanceType } from "@/types/ui/at-a-glance.type.ts";
+import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
 
 const atAGlanceMessages = [
   {

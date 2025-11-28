@@ -1,4 +1,4 @@
-import type { LogEntryInformationType } from "@/types/application/log-entry-information.type.ts";
+import type { LogEntryInformationType } from "@/types/logging/log-entry-information.type.ts";
 
 export function getLogEntryInformation(line: string | [number, string]): LogEntryInformationType {
   const current: {

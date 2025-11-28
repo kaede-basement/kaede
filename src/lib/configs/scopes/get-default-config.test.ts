@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import type { ConfigType } from "@/types/application/config.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 
 import { getDefaultConfig } from "./get-default-config.ts";
 

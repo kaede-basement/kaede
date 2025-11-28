@@ -8,8 +8,8 @@ import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
-import type { LogButtonType } from "@/types/ui/log-button.type.ts";
-import type { LogControlsType } from "@/types/ui/log-controls.type.ts";
+import type { LogButtonType } from "@/types/logging/log-button.type.ts";
+import type { LogControlsType } from "@/types/logging/log-controls.type.ts";
 
 const {
   logDatesShown,

@@ -8,7 +8,7 @@ import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
-import type { AtAGlanceType } from "@/types/ui/at-a-glance.type.ts";
+import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 

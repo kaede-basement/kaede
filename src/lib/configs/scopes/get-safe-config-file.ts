@@ -1,7 +1,7 @@
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ConfigType } from "@/types/application/config.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
 
 export async function getSafeConfigFile(baseDirectory?: string): Promise<ConfigType> {
   try {
