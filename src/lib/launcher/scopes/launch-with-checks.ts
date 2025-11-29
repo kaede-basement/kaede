@@ -11,6 +11,7 @@ import { getManifestV2 } from "@/lib/launcher/scopes/get-manifest-v2.ts";
 import { getVersionMetadata } from "@/lib/launcher/scopes/get-version-metadata.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
 import type { ManifestV2Type } from "@/types/launcher/manifest-v2.type.ts";
+import type { VersionMetadataType } from "@/types/launcher/version-metadata.type.ts";
 
 export async function launchWithChecks({
   instanceId,
@@ -39,13 +40,15 @@ export async function launchWithChecks({
     return changeStatus(LaunchStatus.Errors.VersionNotFoundInManifestV2);
   }
 
-  const [versionMetadata]: [object, void] = await Promise.all([
+  const [versionMetadata]: [VersionMetadataType, void] = await Promise.all([
     getVersionMetadata({
       changeStatus,
       "url": manifestVersion.url,
     }),
     cacheManifestV2({ updateCache, manifest, cachedManifestV2Path }),
   ]);
+
+  const assetIndex = versionMetadata.assetIndex;
 
   return;
 }
