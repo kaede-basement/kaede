@@ -8,6 +8,7 @@ export type GlobalStatesFileSystemType = {
   "base"    : string;
   "folders" : {
     "logs"      : string;
+    "cache"     : string;
     "instances" : string;
     "resources" : string;
     "extensions": string;

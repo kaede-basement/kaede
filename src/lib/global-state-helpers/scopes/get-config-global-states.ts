@@ -38,6 +38,7 @@ export function getConfigGlobalStates(): GlobalStatesType {
       "base"    : baseDirectory,
       "folders" : {
         "logs"      : General.cachedJoin(baseDirectory, FileStructure.Logs.Path),
+        "cache"     : General.cachedJoin(baseDirectory, FileStructure.Cache.Path),
         "instances" : General.cachedJoin(baseDirectory, FileStructure.Instances.Path),
         "resources" : General.cachedJoin(baseDirectory, FileStructure.Resources.Path),
         "extensions": General.cachedJoin(baseDirectory, FileStructure.Extensions.Path),

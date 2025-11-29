@@ -1,4 +1,10 @@
 export const FileStructure = {
+  "Cache": {
+    "Path" : "cache",
+    "Files": {
+      "ManifestV2": "manifest_v2.json",
+    },
+  },
   "Config": {
     "Name": "config.json",
   },

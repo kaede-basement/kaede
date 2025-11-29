@@ -1,3 +1,8 @@
-import { LaunchStatus } from "@/constants/launcher.ts";
+import type { LaunchStatus } from "@/constants/launcher.ts";
 
-export type LaunchStatusType = (typeof LaunchStatus)[keyof typeof LaunchStatus];
+type LaunchStatusObjectType = typeof LaunchStatus;
+type LaunchKeyType = keyof LaunchStatusObjectType;
+
+export type LaunchStatusType = {
+  [Key in LaunchKeyType]: LaunchStatusObjectType[Key][keyof LaunchStatusObjectType[Key]];
+}[LaunchKeyType];
