@@ -8,8 +8,11 @@ export const LaunchStatus = {
     "ReadingResponse" : "reading-uncached-manifest-v2",
     "Validating"      : "validating-manifest-v2",
   },
-  "VersionManifest": {
-    "ReadingCache": "reading-cached-version-manifest",
+  "VersionMetadata": {
+    "ReadingCache"    : "reading-cached-version-metadata",
+    "FetchingResponse": "fetching-uncached-version-metadata",
+    "ReadingResponse" : "reading-uncached-version-metadata",
+    "Validating"      : "validating-version-metadata",
   },
   "End": {
     "Success": "success",

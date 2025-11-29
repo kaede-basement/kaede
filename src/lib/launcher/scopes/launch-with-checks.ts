@@ -40,7 +40,7 @@ export async function launchWithChecks({
     return changeStatus(LaunchStatus.Errors.VersionNotFoundInManifestV2);
   }
 
-  const [versionMetadata]: [VersionMetadataType, void] = await Promise.all([
+  const []: [VersionMetadataType, void] = await Promise.all([
     getVersionMetadata({
       changeStatus,
       "url": manifestVersion.url,
@@ -48,7 +48,7 @@ export async function launchWithChecks({
     cacheManifestV2({ updateCache, manifest, cachedManifestV2Path }),
   ]);
 
-  const assetIndex = versionMetadata.assetIndex;
+  // const assetIndex = versionMetadata.assetIndex;
 
   return;
 }

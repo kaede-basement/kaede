@@ -18,20 +18,37 @@ export type VersionDownloadsType = {
   "client": {
     "sha1": string;
   };
-  "client_mappings": {};
-  "server"         : {};
-  "server_mappings": {};
+  "client_mappings": {
+    "sha1": string;
+  };
+  "server": {
+    "sha1": string;
+  };
+  "server_mappings": {
+    "sha1": string;
+  };
+};
+export type VersionJavaVersionType = {
+  "component": string;
+};
+export type VersionLibraryType = {
+  "name": string;
+};
+export type VersionLoggingType = {
+  "client": {
+    "argument": string;
+  };
 };
 export type VersionMetadataType = {
   "arguments"             : VersionArgumentsType;
   "assetIndex"            : VersionAssetIndexType;
   "assets"                : VersionAssetIndexType["id"];
   "complianceLevel"       : ManifestV2ComplianceLevel;
-  "downloads"             : {};
+  "downloads"             : VersionDownloadsType;
   "id"                    : string;
-  "javaVersion"           : {};
-  "libraries"             : Array<{}>;
-  "logging"               : {};
+  "javaVersion"           : VersionJavaVersionType;
+  "libraries"             : Array<VersionLibraryType>;
+  "logging"               : VersionLoggingType;
   "mainClass"             : string;
   "minimumLauncherVersion": number;
   "releaseTime"           : string;
