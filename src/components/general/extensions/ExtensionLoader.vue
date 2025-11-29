@@ -31,18 +31,20 @@ onMounted(async () => {
 
   log.debug("Mapping valid and known extensions metadata");
   const metadataMap = new Map<string, {
+    "index"      : number;
     "type"       : ExtensionMetadataType["type"];
     "permissions": ExtensionMetadataType["permissions"];
     "enabled"    : ExtensionMetadataType["enabled"];
   } | undefined>;
 
-  for (const { id, type, permissions, enabled } of metadataList) {
-    metadataMap.set(id, { type, permissions, enabled });
+  for (const [index, { id, type, permissions, enabled }] of metadataList.entries()) {
+    metadataMap.set(id, { index, type, permissions, enabled });
   }
 
   const toExecute: Record<
     ExtensionMetadataType["type"],
     Array<ExtensionInfoType & {
+      "index"       : number;
       "permissions"?: Array<PermissionType>;
     }>
   > = { "sandbox": [], "unrestricted": [] };
@@ -60,10 +62,18 @@ onMounted(async () => {
     if (mappedMetadata.enabled === true) {
       toExecute[mappedMetadata.type].push({
         ...extension,
+        "index"      : mappedMetadata.index,
         "permissions": mappedMetadata?.permissions,
       });
     }
   }
+
+  log.debug("Sorting extensions to execute based on their config list index");
+  toExecute.unrestricted.sort(
+    ({ "index": indexBefore }, { "index": indexAfter }) => {
+      return indexBefore - indexAfter;
+    },
+  );
 
   log.debug("Initializing all enabled unrestricted extensions");
   for (const { id, code } of toExecute.unrestricted) {
