@@ -8,13 +8,17 @@ export const LaunchStatus = {
     "ReadingResponse" : "reading-uncached-manifest-v2",
     "Validating"      : "validating-manifest-v2",
   },
+  "VersionManifest": {
+    "ReadingCache": "reading-cached-version-manifest",
+  },
   "End": {
     "Success": "success",
   },
   "Errors": {
-    "InvalidManifestV2"   : "invalid-manifest-v2",
-    "MissingJava"         : "missing-java",
-    "IncorrectJavaVersion": "incorrect-java-version",
+    "InvalidManifestV2"          : "invalid-manifest-v2",
+    "VersionNotFoundInManifestV2": "version-not-found-in-manifest-v2",
+    "MissingJava"                : "missing-java",
+    "IncorrectJavaVersion"       : "incorrect-java-version",
   },
 } as const;
 export const APIEndpoints = {

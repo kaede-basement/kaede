@@ -2,6 +2,7 @@ import { nextTick } from "vue";
 
 import { cachedJoin } from "@/lib/general/scopes/cached-join.ts";
 import { capitalize } from "@/lib/general/scopes/capitalize.ts";
+import { checkDaysDifference } from "@/lib/general/scopes/check-days-difference.ts";
 import { checkIsPortable } from "@/lib/general/scopes/check-is-portable.ts";
 import { getAtAGlance } from "@/lib/general/scopes/get-at-a-glance.ts";
 import { getBaseDirectory } from "@/lib/general/scopes/get-base-directory.ts";
@@ -16,6 +17,7 @@ export default {
   },
   cachedJoin,
   capitalize,
+  checkDaysDifference,
   checkIsPortable,
   getAtAGlance,
   getBaseDirectory,

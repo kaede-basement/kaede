@@ -19,6 +19,7 @@ import {
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
+import Instances from "@/lib/instances";
 import { __changeInstanceState } from "@/lib/instances/scopes/change-instance-state.ts";
 import type {
   ContextGlobalStatesType,
@@ -29,7 +30,6 @@ import type {
   InstanceStatesType,
 } from "@/types/application/instance-states.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
-import Instances from "@/lib/instances";
 
 /**
  * These components will load only when needed.

@@ -17,7 +17,9 @@ import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import Globals from "@/lib/globals";
+import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
+import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
 // Measure high resolution timestamp before launcher initialization
@@ -48,19 +50,25 @@ log.info(getASCIIArt(portable, launchCount));
 // Get the launcher's base directory to share the directory between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
-// Get user's launcher configuration
-const config: ConfigType = await Configs.getSafe(baseDirectory);
+const [config, instances]: [ConfigType, InstanceStatesType] = await Promise.all([
+  // Get user's launcher configuration
+  Configs.getSafe(baseDirectory),
+  // Get user's launcher configuration
+  Instances.readStored(baseDirectory),
+]);
 
 /*
  * Define launcher's initial values at globals to make them accessible from 'App.vue':
  *
  * - 'portable';
  * - 'baseDirectory';
- * - 'config'.
+ * - 'config';
+ * - 'instances'.
  *
  * This way we can save at least 30 ms of time
  */
 window[ApplicationNamespace].__internals.initialConfig = config;
+window[ApplicationNamespace].__internals.initialInstances = instances;
 window[ApplicationNamespace].__internals.initialPortable = portable;
 window[ApplicationNamespace].__internals.initialBaseDirectory = baseDirectory;
 
@@ -85,6 +93,6 @@ log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})`);
 AppInstance.mount(ApplicationRootID);
 
 log.debug("Initializing launcher");
-await General.initializeLauncher(config, startTime).catch((error: unknown) => {
+await General.initializeLauncher({ config, baseDirectory, startTime }).catch((error: unknown) => {
   log.error("Failed to initialize launcher:", Errors.prettify(error));
 });

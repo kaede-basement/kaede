@@ -12,6 +12,9 @@ export const FileStructure = {
     "Path": "extensions",
     "Name": "metadata.json",
   },
+  "Themes": {
+    "Path": "themes",
+  },
   "Resources": {
     "Path": "resources",
   },

@@ -61,7 +61,7 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
   const configExists = await exists(configFileDirectory);
 
   if (!configExists) {
-    log.info("Config file doesn't exist");
+    log.info("Config file does not exist");
     log.debug("Initializing a config file");
     await initializeConfigFile(configFileDirectory);
 

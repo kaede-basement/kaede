@@ -11,7 +11,7 @@ const status = ref<LaunchStatusType>(LaunchStatus.GettingStarted);
 const _temporary = "vanilla-1.16.5";
 
 function changeStatus(newStatus: LaunchStatusType): void {
-  log.debug(`New status for the '${_temporary}' instance launching:`, newStatus);
+  log.debug(`New status for the '${_temporary}' instance launching: '${newStatus}'`);
 
   status.value = newStatus;
 }

@@ -7,6 +7,13 @@ export function extract(error: unknown): NativeErrorType {
     "stack"  : "Unknown Error: unknown",
   };
 
+  // Some errors are string typed
+  if (typeof error === "string") {
+    safeError.stack = error;
+
+    return safeError;
+  }
+
   if (typeof error !== "object" || error === null) {
     return safeError;
   }

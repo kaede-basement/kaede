@@ -11,6 +11,7 @@ import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Globals from "@/lib/globals";
 import Instances from "@/lib/instances";
+import Launcher from "@/lib/launcher";
 import Logging from "@/lib/logging";
 import Schemas from "@/lib/schemas";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
@@ -44,6 +45,7 @@ export function declareWindow(): void {
       "syncConfig"          : placeholderFunction as () => Promise<void>,
       "joinDelimiter"       : "",
       "initialConfig"       : {} as ConfigType,
+      "initialInstances"    : {} as InstanceStatesType,
       "initialPortable"     : false,
       "initialBaseDirectory": "",
     },
@@ -60,6 +62,7 @@ export function declareWindow(): void {
       GlobalStateHelpers,
       Globals,
       Instances,
+      Launcher,
       Logging,
       Schemas,
       "ContextMenu": {

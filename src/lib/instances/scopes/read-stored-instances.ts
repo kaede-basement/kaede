@@ -1,5 +1,56 @@
+import { exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+
+import { FileStructure } from "@/constants/file-structure.ts";
+import Errors from "@/lib/errors";
+import General from "@/lib/general";
+import { log } from "@/lib/logging/scopes/log.ts";
+import Schemas from "@/lib/schemas";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 
-export async function readStoredInstances(): Promise<InstanceStatesType> {
-  return {};
+export async function readStoredInstances(baseDirectory: string): Promise<InstanceStatesType> {
+  const instancesMetadataPath = General.cachedJoin(baseDirectory, FileStructure.InstancesData.Name);
+
+  log.debug("Checking if instances metadata file exists");
+  const metadataExists = await exists(instancesMetadataPath);
+
+  if (!metadataExists) {
+    log.info("Instances metadata file does not exist");
+    log.debug("Initializing an instances metadata file");
+    await writeTextFile(instancesMetadataPath, "{}");
+
+    return {};
+  }
+
+  const storedInstancesMetadata: string = await readTextFile(instancesMetadataPath);
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(storedInstancesMetadata);
+  } catch (error: unknown) {
+    log.error("Could not parse the stored instances metadata:", Errors.prettify(error));
+
+    return {};
+  }
+
+  log.debug("Validating the instances metadata");
+
+  if (typeof parsed !== "object" || parsed === null) {
+    log.debug("Instances metadata are completely invalid");
+
+    return {};
+  }
+
+  const validInstances: InstanceStatesType = {};
+
+  for (const [currentId, currentMetadata] of Object.entries(parsed)) {
+    const isValid: boolean = Schemas.InstanceMetadataValidator.Check(currentMetadata);
+
+    if (!isValid) {
+      continue;
+    }
+
+    validInstances[currentId] = currentMetadata;
+  }
+
+  return validInstances;
 }

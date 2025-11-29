@@ -96,6 +96,8 @@ declare global {
         "joinDelimiter"       : string;
         // Application's config state before launcher initialization
         "initialConfig"       : ConfigType;
+        // Application's instances metadata state before launcher initialization
+        "initialInstances"    : InstanceStatesType;
         // Application's portable state before launcher initialization
         "initialPortable"     : boolean;
         // Application's base directory state before launcher initialization
