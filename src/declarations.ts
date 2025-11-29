@@ -20,6 +20,7 @@ import type General from "@/lib/general";
 import type GlobalStateHelpers from "@/lib/global-state-helpers";
 import type Globals from "@/lib/globals";
 import type Instances from "@/lib/instances";
+import type Launcher from "@/lib/launcher";
 import type Logging from "@/lib/logging";
 import type Schemas from "@/lib/schemas";
 import type {
@@ -167,6 +168,11 @@ declare global {
          * Launcher's Minecraft instances related collection of utilities
          */
         "Instances": typeof Instances;
+
+        /**
+         * Launcher's Minecraft-related collection of utilities
+         */
+        "Launcher": typeof Launcher;
 
         /**
          * Launcher's logging-related collection of utilities

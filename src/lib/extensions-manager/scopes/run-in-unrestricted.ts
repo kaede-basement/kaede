@@ -4,6 +4,11 @@ export function runInUnrestricted(id: string, code: string): void {
   const startTime = performance.now();
 
   log.debug(`Initializing the '${id}' extension code`);
+
+  /*
+   * JavaScript also allows 'AsyncFunction' constructors.
+   * see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncFunction
+   */
   const compiled = new Function(code);
 
   log.debug(`Executing the '${id}' extension code in the unrestricted environment`);
