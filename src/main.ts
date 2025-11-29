@@ -84,6 +84,11 @@ log.debug(
   "Config contents:",
   "\n" + JSON.stringify(config, null, 2),
 );
+// Log user's instances metadata
+log.debug(
+  "Instances metadata contents:",
+  "\n" + JSON.stringify(instances, null, 2),
+);
 
 // Create a Vue instance with the 'App.vue' entry
 const AppInstance = createApp(App);
