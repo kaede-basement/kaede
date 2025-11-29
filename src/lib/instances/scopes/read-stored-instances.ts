@@ -45,6 +45,7 @@ export async function readStoredInstances(baseDirectory: string): Promise<Instan
 
   for (const [currentId, currentMetadata] of Object.entries(parsed)) {
     const isValid: boolean = Schemas.InstanceMetadataValidator.Check(currentMetadata);
+    console.log(isValid);
 
     if (!isValid) {
       log.info(`The '${currentId}' instances is not valid`);
