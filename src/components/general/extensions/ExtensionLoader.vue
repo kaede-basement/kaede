@@ -74,6 +74,11 @@ onMounted(async () => {
       return indexBefore - indexAfter;
     },
   );
+  toExecute.sandbox.sort(
+    ({ "index": indexBefore }, { "index": indexAfter }) => {
+      return indexBefore - indexAfter;
+    },
+  );
 
   log.debug("Initializing all enabled unrestricted extensions");
   for (const { id, code } of toExecute.unrestricted) {
