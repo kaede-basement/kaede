@@ -29,6 +29,7 @@ import type {
   InstanceStatesType,
 } from "@/types/application/instance-states.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
+import Instances from "@/lib/instances";
 
 /**
  * These components will load only when needed.
@@ -51,7 +52,7 @@ const globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getFro
 /**
  * Contains all Minecraft instance states.
  */
-const instanceStates = shallowReactive<InstanceStatesType>({});
+const instanceStates = shallowReactive<InstanceStatesType>(Instances.getFromConfig());
 
 /**
  * Returns a reference to the proxied object of global states.
