@@ -2,15 +2,21 @@ import type {
   InstanceStatesType,
   InstanceStateType,
 } from "@/types/application/instance-states.type.ts";
+import type { CurrentInstanceType } from "@/types/launcher/current-instance.type.ts";
 
 export function findCurrent(
+  id: string | null | undefined,
   instances: InstanceStatesType | undefined,
-): InstanceStateType | undefined {
-  const keys = Object.keys(instances ?? {});
+): CurrentInstanceType {
+  if (!id) {
+    return;
+  }
 
-  if (keys.length === 0) {
+  const instance: InstanceStateType | undefined = instances?.[id];
+
+  if (!instance) {
     return undefined;
   }
 
-  return instances?.[keys?.[0]];
+  return { instance, id };
 }

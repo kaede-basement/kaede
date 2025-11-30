@@ -9,6 +9,7 @@ const defaultConfig: ConfigType = {
     "allowUnrestrictedUntrusted": true,
   },
   "layout": {
+    "currentInstance"        : null,
     "enableMaterialYouRipple": true,
     "custom"                 : false,
     "background"             : {

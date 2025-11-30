@@ -3,7 +3,5 @@ export async function launch({
 }: {
   "instanceId": string;
 }): Promise<boolean> {
-  console.log(instanceId);
-
-  return true;
+  return instanceId === "";
 }

@@ -1,8 +1,8 @@
 import { fetch } from "@tauri-apps/plugin-http";
 
+import { LaunchStatus } from "@/constants/launcher.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
 import type { VersionMetadataType } from "@/types/launcher/version-metadata.type.ts";
-import { LaunchStatus } from "@/constants/launcher.ts";
 
 export async function getVersionMetadata({
   changeStatus,

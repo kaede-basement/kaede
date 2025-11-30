@@ -25,6 +25,7 @@ export async function getDefaultConfig(): Promise<ConfigType> {
       "allowUnrestrictedUntrusted": true,
     },
     "layout": {
+      "currentInstance"        : null,
       "enableMaterialYouRipple": true,
       "custom"                 : false,
       "background"             : {

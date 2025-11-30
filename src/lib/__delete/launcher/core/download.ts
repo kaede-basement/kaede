@@ -24,7 +24,7 @@ import type {
   LoggingConfigType,
   VersionManifestType,
   VersionMetaModernType,
-} from "@/types/minecraft/minecraft.type.ts";
+} from "@/types/__delete-minecraft/minecraft.type.ts";
 
 export async function fetchVersionManifest(): Promise<VersionManifestType> {
   const raw = await fetch("https://piston-meta.mojang.com/mc/game/version_manifest.json");

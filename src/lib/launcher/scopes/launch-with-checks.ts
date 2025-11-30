@@ -50,7 +50,7 @@ export async function launchWithChecks({
     cacheManifestV2({ updateCache, manifest, cachedManifestV2Path }),
   ]);
 
-  // const assetIndex = versionMetadata.assetIndex;
+  // | const assetIndex = versionMetadata.assetIndex;
 
   return;
 }
