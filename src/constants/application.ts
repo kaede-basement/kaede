@@ -15,6 +15,11 @@ export const GlobalStatesContextKey = Symbol();
 export const TranslationsContextKey = Symbol();
 export const InstanceStatesContextKey = Symbol();
 
+export const CSSThemeExtensions = {
+  "Enabled" : ".css",
+  "Disabled": ".css.disabled",
+} as const;
+
 export const ContextMenuItems = [
   {
     "name"  : "Restart UI",

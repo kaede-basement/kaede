@@ -5,6 +5,7 @@ import { defineAsyncComponent, provide, shallowReactive } from "vue";
 import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
 import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
 import GlobalError from "@/components/general/errors/GlobalError.vue";
+import CssThemeLoader from "@/components/general/extensions/CssThemeLoader.vue";
 import CustomLayout from "@/components/general/layout/CustomLayout.vue";
 import Layout from "@/components/general/layout/Layout.vue";
 import Router from "@/components/general/layout/Router.vue";
@@ -204,6 +205,7 @@ useEventListener("keydown", (event: KeyboardEvent) => (
   <!-- Extensions-level error boundary -->
   <ErrorBoundary>
     <template #default>
+      <CssThemeLoader />
       <ExtensionLoader v-if="globalStates.extensions.enabled" />
     </template>
 
