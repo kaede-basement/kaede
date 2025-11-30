@@ -5,7 +5,7 @@
 
 // temporary
 - [ ] Plugin system
-    - [ ] Custom CSS themes
+    - [x] Custom CSS themes
     - [x] Permission-system (need to add more permissions)
     - [ ] Dependencies handling (?)
     - [x] Application hooks
