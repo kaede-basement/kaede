@@ -6,6 +6,8 @@ import { computed, ref, shallowRef, watchEffect } from "vue";
 import CustomButton from "@/components/general/base/CustomButton.vue";
 import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
+import { FileStructure } from "@/constants/file-structure.ts";
+import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
 import type { LogButtonType } from "@/types/logging/log-button.type.ts";
@@ -72,11 +74,11 @@ async function copyTextSelection(): Promise<void> {
   );
 }
 async function viewInExplorer(): Promise<void> {
-  const latestLogAbsolutePath = GlobalStateHelpers.get().fileSystem?.files?.log;
-
-  if (!latestLogAbsolutePath) {
-    return;
-  }
+  const latestLogAbsolutePath = General.cachedJoin(
+    General.getCachedBaseDirectory(),
+    FileStructure.Folders.Logs.Path,
+    FileStructure.Folders.Logs.Files.LatestLog,
+  );
 
   await revealItemInDir(latestLogAbsolutePath);
 }

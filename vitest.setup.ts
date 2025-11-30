@@ -53,10 +53,6 @@ vi.stubGlobal("window", {
         "before": [],
         "after" : [],
       },
-      "onFileSystemChange": {
-        "before": [],
-        "after" : [],
-      },
       "onDevelopmentChange": {
         "before": [],
         "after" : [],

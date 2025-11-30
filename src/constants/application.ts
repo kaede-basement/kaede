@@ -1,7 +1,9 @@
 import { BaseDirectory } from "@tauri-apps/plugin-fs";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
+import { FileStructure } from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
+import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
 
@@ -33,7 +35,10 @@ export const ContextMenuItems = [
     "action": (): void => {
       window[ApplicationNamespace].libs.ContextMenu.close();
       revealItemInDir(
-        GlobalStateHelpers.get().fileSystem?.files?.config ?? "",
+        General.cachedJoin(
+          General.getCachedBaseDirectory(),
+          FileStructure.Files.Config,
+        ),
       ).catch((error: unknown) => {
         log.error("Failed to reveal the config file in the explorer:", Errors.prettify(error));
       });

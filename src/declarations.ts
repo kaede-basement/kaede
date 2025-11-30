@@ -330,41 +330,6 @@ declare global {
         };
 
         /**
-         * Executed on the 'fileSystem' field replacement in global states
-         */
-        "onFileSystemChange": {
-
-          /**
-           * Executes 'sync'-only functions before the 'fileSystem' property
-           * in the global states will change.
-           *
-           * 'GlobalStatesType["fileSystem"]' typed object is passed as the argument.
-           *
-           * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["fileSystem"]' typed object
-           * in the 'response' field.
-           *
-           * If the hook returns a 'continue' status,
-           * code execution will continue as if that hook did not exist.
-           */
-          "before": HookReturnType<
-            GlobalStatesType["fileSystem"],
-            GlobalStatesType["fileSystem"],
-            "non-promise"
-          >;
-
-          /**
-           * Executes 'async' or 'sync' functions on the next Vue tick,
-           * after the 'fileSystem' property in the global states has changed.
-           *
-           * 'GlobalStatesType["fileSystem"]' typed object is passed as the argument.
-           *
-           * Hook should not return anything since the response will not be read.
-           */
-          "after": HookReturnType<GlobalStatesType["fileSystem"], "nothing">;
-        };
-
-        /**
          * Executed on the 'layout' field replacement in global states
          */
         "onLayoutChange": {

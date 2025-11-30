@@ -4,11 +4,16 @@ import { useIntervalFn } from "@vueuse/core";
 import { inject, ref, watchEffect } from "vue";
 
 import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
+import { FileStructure } from "@/constants/file-structure.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
+import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import type {
+  ContextGlobalStatesType,
+  GlobalStatesType,
+} from "@/types/application/global-states.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
@@ -21,31 +26,38 @@ async function handleConfigSync(): Promise<void> {
   syncing.value = true;
 
   log.debug("Getting current global states");
-  const currentGlobalStates = GlobalStateHelpers.get();
-  const configPath = currentGlobalStates.fileSystem?.files?.config;
-
-  if (!configPath)  {
-    log.warn("No config path was found in global states. Aborting config sync");
-    syncing.value = false;
-
-    return;
-  }
+  const currentGlobalStatesDetached: ConfigType & Partial<GlobalStatesType> = {
+    // Spread the global states to re-create one-level deep properties
+    ...GlobalStateHelpers.get(),
+  };
+  const configPath = General.cachedJoin(
+    General.getCachedBaseDirectory(),
+    FileStructure.Files.Config,
+  );
 
   log.debug("Getting current user config");
   const config = await Configs.getSafe();
 
+  // Remove all non-config properties
+  delete currentGlobalStatesDetached.translations;
+  delete currentGlobalStatesDetached.sidebarItems;
+  delete currentGlobalStatesDetached.contextMenuItems;
+  delete currentGlobalStatesDetached.pages;
+
   log.debug("Creating a 'ConfigType' typed object with the global states contents");
   const configOnlyGlobalStates: ConfigType = {
+    // Spread the global states since there might be additional properties by extensions
+    ...globalStates,
     // Arrange these properties in a way that the config itself arranges them
-    "development": currentGlobalStates.development,
-    "extensions" : currentGlobalStates.extensions,
-    "layout"     : currentGlobalStates.layout,
+    "development": currentGlobalStatesDetached.development,
+    "extensions" : currentGlobalStatesDetached.extensions,
+    "layout"     : currentGlobalStatesDetached.layout,
     "logs"       : {
-      ...currentGlobalStates.logs,
+      ...currentGlobalStatesDetached.logs,
       "show": false,
     },
-    "minecraft": currentGlobalStates.minecraft,
-    "misc"     : currentGlobalStates.misc,
+    "minecraft": currentGlobalStatesDetached.minecraft,
+    "misc"     : currentGlobalStatesDetached.misc,
   };
   const stringyConfig = JSON.stringify(config);
   const stringyGlobalStates = JSON.stringify(configOnlyGlobalStates);

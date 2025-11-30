@@ -91,10 +91,6 @@ export function declareWindow(): void {
       "getDefaultConfig": {
         "before": [],
       },
-      "onFileSystemChange": {
-        "before": [],
-        "after" : [],
-      },
       "onPagesChange": {
         "before": [],
         "after" : [],

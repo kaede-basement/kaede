@@ -1,12 +1,10 @@
+import { FileStructure } from "@/constants/file-structure.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
-import GlobalStateHelpers from "@/lib/global-state-helpers";
+import General from "@/lib/general";
 import { cacheManifestV2 } from "@/lib/launcher/scopes/cache-manifest-v2.ts";
 import {
   findInstanceInManifest,
 } from "@/lib/launcher/scopes/find-instance-in-manifest.ts";
-import {
-  getCachedManifestV2Path,
-} from "@/lib/launcher/scopes/get-cached-manifest-v2-path.ts";
 import { getManifestV2 } from "@/lib/launcher/scopes/get-manifest-v2.ts";
 import { getVersionMetadata } from "@/lib/launcher/scopes/get-version-metadata.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
@@ -20,8 +18,12 @@ export async function launchWithChecks({
   "instanceId"  : string;
   "changeStatus": (newStatus: LaunchStatusType) => void;
 }): Promise<void> {
-  const fileSystemStates = GlobalStateHelpers.get()?.fileSystem;
-  const cachedManifestV2Path: string = getCachedManifestV2Path(fileSystemStates);
+  const cachedManifestV2Path = General.cachedJoin(
+    General.getCachedBaseDirectory(),
+    FileStructure.Folders.Cache.Path,
+    FileStructure.Folders.Cache.Files.ManifestV2,
+  );
+
   const { updateCache, manifest }: {
     "updateCache": boolean;
     "manifest"   : ManifestV2Type | false;

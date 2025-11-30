@@ -37,11 +37,11 @@ export async function initializeLauncher({
   log.debug("Checking if all directories present");
   const directoriesStartTime = performance.now();
 
-  const cachePath = General.cachedJoin(baseDirectory, FileStructure.Cache.Path);
-  const instancesPath = General.cachedJoin(baseDirectory, FileStructure.Instances.Path);
-  const extensionsPath = General.cachedJoin(baseDirectory, FileStructure.Extensions.Path);
-  const resourcesPath = General.cachedJoin(baseDirectory, FileStructure.Extensions.Path);
-  const themesPath = General.cachedJoin(baseDirectory, FileStructure.Themes.Path);
+  const cachePath = General.cachedJoin(baseDirectory, FileStructure.Folders.Cache.Path);
+  const instancesPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Instances.Path);
+  const extensionsPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Extensions.Path);
+  const resourcesPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Resources.Path);
+  const themesPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Themes.Path);
 
   const directories: Array<string> = [
     cachePath,

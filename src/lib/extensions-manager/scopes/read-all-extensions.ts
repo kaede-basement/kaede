@@ -1,8 +1,8 @@
 import { type DirEntry, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 
+import { FileStructure } from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
-import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ExtensionInfoType } from "@/types/extensions/extension-info.type.ts";
 
@@ -18,7 +18,10 @@ async function transformToPromise(path: string, filename: string): Promise<Exten
 
 export async function readAllExtensions(): Promise<Array<ExtensionInfoType>> {
   const startTime = performance.now();
-  const path = GlobalStateHelpers.get().fileSystem?.folders?.extensions;
+  const path = General.cachedJoin(
+    General.getCachedBaseDirectory(),
+    FileStructure.Folders.Extensions.Path,
+  );
 
   if (!path) {
     log.error("The extensions folder path in global states is undefined");

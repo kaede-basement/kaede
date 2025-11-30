@@ -18,9 +18,6 @@ const knownExtensions = ref<Array<ExtensionMetadataType>>([]);
 const unknownExtensions = ref<Array<ExtensionInfoType>>([]);
 
 onMounted(async () => {
-  log.debug("Initializing extensions loader");
-  await ExtensionsManager.initializeDirectory();
-
   log.debug("Getting all stored extensions");
   const extensions: Array<ExtensionInfoType> = await ExtensionsManager.readAllExtensions();
 

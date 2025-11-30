@@ -8,13 +8,13 @@ import Schemas from "@/lib/schemas";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 
 export async function readStoredInstances(baseDirectory: string): Promise<InstanceStatesType> {
-  const instancesMetadataPath = General.cachedJoin(baseDirectory, FileStructure.InstancesData.Name);
+  const instancesMetadataPath = General.cachedJoin(baseDirectory, FileStructure.Files.Metadata);
 
   log.debug("Checking if instances metadata file exists");
   const metadataExists = await exists(instancesMetadataPath);
 
   if (!metadataExists) {
-    log.info("Instances metadata file does not exist");
+    log.warn("Instances metadata file does not exist");
     log.debug("Initializing an instances metadata file");
     await writeTextFile(instancesMetadataPath, "{}");
 

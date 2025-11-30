@@ -23,7 +23,7 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
     baseDirectory = await General.getBaseDirectory(portable);
   }
 
-  const configFileDirectory = General.cachedJoin(baseDirectory, FileStructure.Config.Name);
+  const configFileDirectory = General.cachedJoin(baseDirectory, FileStructure.Files.Config);
 
   log.debug(log.templates.hooks.iterate.start(
     "getConfigFile",
@@ -61,7 +61,7 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
   const configExists = await exists(configFileDirectory);
 
   if (!configExists) {
-    log.info("Config file does not exist");
+    log.warn("Config file does not exist");
     log.debug("Initializing a config file");
     await initializeConfigFile(configFileDirectory);
 

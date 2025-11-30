@@ -9,6 +9,8 @@ import LogControls from "@/components/logging/controls/LogControls.vue";
 import LogEntry from "@/components/logging/lines/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
 import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
+import { FileStructure } from "@/constants/file-structure.ts";
+import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
@@ -157,17 +159,14 @@ onMounted(async () => {
   mountedKey.value = Math.random();
 
   log.debug("LogViewer.vue mounted");
-  log.debug("Getting 'latest.log' file path");
-  const latestLogPath: string | undefined = globalStates?.fileSystem?.files?.log;
-
-  if (!latestLogPath) {
-    log.warn("'latest.log' file path is missing");
-
-    return;
-  }
+  const latestLogAbsolutePath = General.cachedJoin(
+    General.getCachedBaseDirectory(),
+    FileStructure.Folders.Logs.Path,
+    FileStructure.Folders.Logs.Files.LatestLog,
+  );
 
   log.debug("Reading 'latest.log' file");
-  const existingLogs: string = await readTextFile(latestLogPath);
+  const existingLogs: string = await readTextFile(latestLogAbsolutePath);
 
   if (existingLogs === "") {
     log.warn("Log file is empty");
