@@ -6,21 +6,26 @@
 // temporary
 - [ ] Plugin system
     - [ ] Custom CSS themes
-    - [ ] Permission-system
+    - [x] Permission-system (need to add more permissions)
     - [ ] Dependencies handling (?)
     - [x] Application hooks
-    - [ ] Sandboxed environment using Secure ECMAScript
+    - [x] Sandboxed environment using Secure ECMAScript
     - [ ] Unrestricted environment for microfrontends with shared dependencies
-    - [ ] Unrestricted environment with `new Function`
+    - [x] Unrestricted environment with `new Function`
+    - [ ] Repository fetching
+    - [ ] Downloading from the repository
+    - [ ] UI to manage plugins
+- [ ] Minecraft launching
+  - [x] Version manifest parsing & caching
+  - [ ] Version metadata parsing & caching
+  - [ ] Launch command builder
+  - [ ] All versions support
 - [ ] Authentication
     - [ ] Microsoft authentication
     - [ ] Offline accounts if user has a Microsoft account with the game
     - [ ] Profile systems (?) (basically different launcher settings for different users)
 - [ ] Instance management
-    - [ ] Different types of instance management (?)
-        - [ ] MultiMC-like
-        - [ ] `.minecraft` swapping
-    - [ ] All Minecraft versions launch
+    - [ ] Isolated instances
     - [ ] Instance import (from Prism Launcher, Modrinth, etc.)
     - [ ] Instance export
     - [ ] Sandboxed minecraft instances (?)
@@ -61,7 +66,7 @@ tbd (https://mc-launcher.tayou.org/)
 
 # Design
 
-A public figma file
+Whatever my mind thinks is good
 
 # Plan
 

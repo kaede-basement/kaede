@@ -5,7 +5,7 @@ import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 <template>
   <button
     id="__home-page__current-playtime-button"
-    class="relative flex flex-nowrap items-center gap-2 rounded-md p-2"
+    class="relative flex flex-nowrap items-center gap-2 rounded-md p-2 transition-[background-color] hover:bg-[theme(colors.neutral.100/.05)]"
   >
     <span
       id="__home-page__current-playtime-icon-wrapper"

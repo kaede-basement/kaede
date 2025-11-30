@@ -64,7 +64,7 @@ export const log = {
         ): string => (
           [
             `'${key}.${position}' iterate: '${index}' index.`,
-            `Hook execution ended in ${time} ms.`,
+            `Hook execution ended in ${time.toFixed(1)} ms.`,
             `Hook response: \n${JSON.stringify(value, null, 2)}`,
           ].join(" ")
         ),
@@ -77,11 +77,11 @@ export const log = {
         ): string => (
           [
             `'${key}.${position}' iterate: '${index}' index.`,
-            `${capitalize(type)} hook executed in ${time} ms`,
+            `${capitalize(type)} hook executed in ${time.toFixed(1)} ms`,
           ].join(" ")
         ),
         "end": (key: string, position: "before" | "after", time: number): string => (
-          `All '${key}.${position}' hooks were executed in ${time} ms`
+          `All '${key}.${position}' hooks were executed in ${time.toFixed(1)} ms`
         ),
       },
     },

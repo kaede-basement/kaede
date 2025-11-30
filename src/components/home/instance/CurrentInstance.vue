@@ -55,7 +55,7 @@ async function __changeName(): Promise<void> {
     @click="__changeName"
     :disabled="disabled"
     id="__home-page__current-instance-button"
-    class="relative flex flex-nowrap items-center gap-2 rounded-md p-2 transition-[opacity] disabled:cursor-default disabled:opacity-50"
+    class="relative flex flex-nowrap items-center gap-2 rounded-md p-2 transition-[background-color,opacity] disabled:cursor-default disabled:opacity-50 hover:bg-[theme(colors.neutral.100/.05)]"
   >
     <Image
       id="__home-page__current-instance-logo"
