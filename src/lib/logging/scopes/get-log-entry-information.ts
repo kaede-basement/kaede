@@ -16,38 +16,40 @@ export function getLogEntryInformation(line: string | [number, string]): LogEntr
   };
   const actualLine = typeof line === "string" ? line : line[1];
 
+  switch (actualLine) {
+    case "__kaede-trigger-initial": {
+      current.target = "All logs will be displayed here ᓀ‸ᓂ";
+
+      return current;
+    }
+    case "__kaede-trigger-virtualized": {
+      current.target = "Virtualized mode. All logs will be displayed here ᓀ‸ᓂ";
+
+      return current;
+    }
+    case "__kaede-trigger-loading": {
+      current.target = "Loading your logs...";
+
+      return current;
+    }
+  }
+
   /*
    * Log entries start with the square bracket symbol and the date.
    * If the character after the '[' symbol is not a number,
    * then the provided line is not a log entry
    */
-  if (actualLine?.[0] !== "[" || Number.isNaN(
-    Number(actualLine?.[1]),
-  )) {
+  const isLogEntry =
+    actualLine?.[0] === "[" &&
+    !Number.isNaN(Number(actualLine?.[1]));
+
+  if (!isLogEntry) {
     current.time = actualLine;
 
     return current;
   }
 
   const parts = actualLine.split("]");
-
-  if (actualLine.startsWith("__kaede-trigger-initial")) {
-    current.target = "All logs will be displayed here ᓀ‸ᓂ";
-
-    return current;
-  }
-
-  if (actualLine.startsWith("__kaede-trigger-virtualized")) {
-    current.target = "Virtualized mode. All logs will be displayed here ᓀ‸ᓂ";
-
-    return current;
-  }
-
-  if (actualLine.startsWith("__kaede-trigger-loading")) {
-    current.target = "Loading your logs...";
-
-    return current;
-  }
 
   for (const [partIndex, part] of parts.entries()) {
     switch (partIndex) {
