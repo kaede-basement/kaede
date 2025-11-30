@@ -1,7 +1,8 @@
 import { Type } from "typebox";
 
 export const LayoutSchema = Type.Object({
-  "custom": Type.Union([
+  "enableMaterialYouRipple": Type.Boolean(),
+  "custom"                 : Type.Union([
     Type.Boolean(),
     Type.Array(
       Type.Union([

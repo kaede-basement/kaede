@@ -15,8 +15,8 @@ const testData: Array<[unknown, DeepRequired<Error>]> = [
     defaultError,
   ],
   [
-    "",
-    defaultError,
+    "Some errors can be a string",
+    { ...defaultError, "stack": "Some errors can be a string" },
   ],
   [
     1,

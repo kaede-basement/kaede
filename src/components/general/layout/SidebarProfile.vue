@@ -12,7 +12,7 @@ import type { ContextGlobalStatesType } from "@/types/application/global-states.
 const { innerStyles, handleMouseOver, handleButtonAction } = defineProps<{
   "innerStyles"       : ReturnType<typeof General["getSidebarInnerStyles"]>;
   "handleMouseOver"   : (event: MouseEvent) => void;
-  "handleButtonAction": (action: () => void) => void;
+  "handleButtonAction": (event: PointerEvent, action: () => void) => void;
 }>();
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
@@ -32,9 +32,7 @@ function handleProfileNavigation(): void {
     <button
       id="__sidebar__entry-profile-button"
       :disabled="Routes.Profile === globalStates?.pages?.current"
-      @mousedown="() => handleButtonAction(handleProfileNavigation)"
-      @touchstart="() => handleButtonAction(handleProfileNavigation)"
-      @click="() => handleButtonAction(handleProfileNavigation)"
+      @pointerdown="(event: PointerEvent) => handleButtonAction(event, handleProfileNavigation)"
       class="relative grid size-12 shrink-0 place-items-center rounded-md text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
       aria-label="profile"
     >

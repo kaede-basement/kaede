@@ -19,8 +19,9 @@ export type GlobalStatesFileSystemType = {
   };
 };
 export type GlobalStatesLayoutType = {
-  "custom"    : boolean | Array<"sidebar" | "contextMenu">;
-  "background": {
+  "enableMaterialYouRipple": boolean;
+  "custom"                 : boolean | Array<"sidebar" | "contextMenu">;
+  "background"             : {
     "url"  : string | null;
     "key"  : string | number | null;
     "blur" : number | null;

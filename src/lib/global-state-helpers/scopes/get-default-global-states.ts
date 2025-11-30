@@ -11,8 +11,9 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     "translations": EnglishTranslations,
     "fileSystem"  : undefined,
     "layout"      : {
-      "custom"    : false,
-      "background": {
+      "enableMaterialYouRipple": true,
+      "custom"                 : false,
+      "background"             : {
         "url"  : null,
         "key"  : null,
         "blur" : null,

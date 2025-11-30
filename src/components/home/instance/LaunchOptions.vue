@@ -5,7 +5,12 @@ import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 
 const opened = ref<boolean>(false);
 
-function toggleOptions(): void {
+function toggleOptions(event: PointerEvent): void {
+  // '0' means a left click
+  if (event.button !== 0) {
+    return;
+  }
+
   opened.value = !opened.value;
 }
 </script>
@@ -13,7 +18,7 @@ function toggleOptions(): void {
 <template>
   <button
     id="__home-page__launch-options-button"
-    @click="toggleOptions"
+    @pointerdown="toggleOptions"
     :class="[
       opened ? 'cursor-default bg-neutral-300' : 'bg-white',
       'relative w-fit rounded-l-sm rounded-r-md px-1 py-2 text-black',

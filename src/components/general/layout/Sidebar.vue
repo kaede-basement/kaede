@@ -93,7 +93,12 @@ function handleMouseOver(event: MouseEvent): void {
 
   tooltip.value = newTooltipInfo;
 }
-function handleButtonAction(action: () => void): void {
+function handleButtonAction(event: PointerEvent, action: () => void): void {
+  // '0' means a left click
+  if (event.button !== 0) {
+    return;
+  }
+
   action();
   closeTooltip();
   // Close the log viewer
@@ -141,9 +146,7 @@ function handleButtonAction(action: () => void): void {
           v-if="item !== 'divider'"
           :id="`__sidebar__entry-${item.name}-button`"
           :disabled="item.path === globalStates?.pages?.current"
-          @mousedown="() => handleButtonAction(item.action)"
-          @touchstart="() => handleButtonAction(item.action)"
-          @click="() => handleButtonAction(item.action)"
+          @pointerdown="(event: PointerEvent) => handleButtonAction(event, item.action)"
           class="relative grid size-12 shrink-0 place-items-center rounded-md transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
           :aria-label="item.name"
         >
