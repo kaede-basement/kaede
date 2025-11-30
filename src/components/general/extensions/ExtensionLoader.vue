@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { inject, onMounted, ref } from "vue";
 
 import PermissionsHandler from "@/components/general/extensions/PermissionsHandler.vue";
@@ -87,13 +86,9 @@ onMounted(async () => {
   if (!hasSandboxedPlugins) {
     log.debug("User does not have sandboxed plugins. Environment lockdown is not needed");
 
-    if (globalStates?.misc?.showAfterExtensionsInitialization) {
-      log.debug(
-        "User has enabled 'show-after-extensions-initialization';",
-        "Showing the webview now",
-      );
-      await getCurrentWebviewWindow().show();
-    }
+    await ExtensionsManager.showWebviewWindow(
+      globalStates?.misc?.showAfterExtensionsInitialization,
+    );
 
     return;
   }
@@ -111,13 +106,9 @@ onMounted(async () => {
     });
   }
 
-  if (globalStates?.misc?.showAfterExtensionsInitialization) {
-    log.debug(
-      "User has enabled 'show-after-extensions-initialization';",
-      "Showing the webview now",
-    );
-    await getCurrentWebviewWindow().show();
-  }
+  await ExtensionsManager.showWebviewWindow(
+    globalStates?.misc?.showAfterExtensionsInitialization,
+  );
 });
 
 /*

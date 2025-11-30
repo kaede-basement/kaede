@@ -9,6 +9,7 @@ import { readAllExtensions } from "@/lib/extensions-manager/scopes/read-all-exte
 import { readAllMetadata } from "@/lib/extensions-manager/scopes/read-all-metadata.ts";
 import { runInSandbox } from "@/lib/extensions-manager/scopes/run-in-sandbox.ts";
 import { runInUnrestricted } from "@/lib/extensions-manager/scopes/run-in-unrestricted.ts";
+import { showWebviewWindow } from "@/lib/extensions-manager/scopes/show-webview-window.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 export default {
@@ -27,4 +28,5 @@ export default {
   readAllMetadata,
   runInSandbox,
   runInUnrestricted,
+  showWebviewWindow,
 } as const;

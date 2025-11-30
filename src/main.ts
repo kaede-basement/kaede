@@ -76,18 +76,19 @@ if (config.development?.enableDebugMode) {
   DevelopmentModeHelpers.enableDebugMode(
     DevelopmentModeHelpers.getDefault(),
   );
-}
 
-// Log user's launcher configuration
-log.debug(
-  "Config contents:",
-  "\n" + JSON.stringify(config, null, 2),
-);
-// Log user's instances metadata
-log.debug(
-  "Instances metadata contents:",
-  "\n" + JSON.stringify(instances, null, 2),
-);
+  // Log user's launcher configuration
+  log.debug(
+    "Config contents:",
+    // 'JSON#stringify' is not so fast
+    "\n" + JSON.stringify(config, null, 2),
+  );
+  // Log user's instances metadata
+  log.debug(
+    "Instances metadata contents:",
+    "\n" + JSON.stringify(instances, null, 2),
+  );
+}
 
 log.debug("Creating a Vue instance");
 // 'App' is the 'App.vue' entry

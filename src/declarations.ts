@@ -105,6 +105,8 @@ declare global {
         "initialBaseDirectory": string;
         // A temporary storage for the 'At a Glance' widget
         "atAGlance"          ?: AtAGlanceType;
+        // A timestamp for the application's JavaScript code initialization
+        "startTime"          ?: number;
       };
 
       /**
