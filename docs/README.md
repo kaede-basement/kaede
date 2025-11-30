@@ -1,3 +1,5 @@
+The development of the app was put on hold for a while due to exams
+
 <div align="center">
 
 <a target="_blank" href="https://bluearchive.wiki/wiki/Arisu">
@@ -69,6 +71,7 @@ nothing here yet
 - Plugin system
 - Cross-platform
 - Fast startup
+- Uses just 140 MBs of RAM (without plugins)
 - MultiMC-like instance management
 - Available as Non-Portable/Portable
 - Open Source, GPL-3.0
