@@ -1,7 +1,7 @@
-import { ApplicationNamespace, ContextMenuItems } from "@/constants/application.ts";
+import { ContextMenuItems } from "@/constants/application.ts";
 import EnglishTranslations from "@/constants/english.json";
-import { FileStructure } from "@/constants/file-structure.ts";
 import { RouteItems, Routes } from "@/constants/routes.ts";
+import Configs from "@/lib/configs";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -11,20 +11,9 @@ import type { ConfigType } from "@/types/configs/config.type.ts";
 export function getConfigGlobalStates(): GlobalStatesType {
   const searchParameters = new URLSearchParams(location.search);
 
-  /*
-   * We are saving at least 30 ms by re-using already fetched config, portable and base directory.
-   *
-   * Initial config was provided by the 'main.ts' code
-   */
-  const configFile: ConfigType = window[ApplicationNamespace].__internals.initialConfig;
+  const configFile: ConfigType = Configs.getCachedInitial();
+  const portable: boolean = General.getCachedPortable();
 
-  log.debug("Checking if launcher is in portable version");
-  // Portable status was provided by the 'main.ts' code
-  const portable: boolean = window[ApplicationNamespace].__internals.initialPortable;
-
-  log.debug("Getting base directory");
-  // Base directory was provided by the 'main.ts' code
-  const baseDirectory: string = window[ApplicationNamespace].__internals.initialBaseDirectory;
   const portableVersion = portable ? "Portable" : "Non-portable";
 
   log.info(`Running in the '${portableVersion}' version`);
@@ -33,26 +22,7 @@ export function getConfigGlobalStates(): GlobalStatesType {
   return {
     ...configFile,
     "translations": EnglishTranslations,
-    "fileSystem"  : {
-      "portable": portable,
-      "base"    : baseDirectory,
-      "folders" : {
-        "logs"      : General.cachedJoin(baseDirectory, FileStructure.Logs.Path),
-        "cache"     : General.cachedJoin(baseDirectory, FileStructure.Cache.Path),
-        "instances" : General.cachedJoin(baseDirectory, FileStructure.Instances.Path),
-        "resources" : General.cachedJoin(baseDirectory, FileStructure.Resources.Path),
-        "extensions": General.cachedJoin(baseDirectory, FileStructure.Extensions.Path),
-      },
-      "files": {
-        "config": General.cachedJoin(baseDirectory, FileStructure.Config.Name),
-        "log"   : General.cachedJoin(
-          baseDirectory,
-          FileStructure.Logs.Path,
-          FileStructure.Logs.Name,
-        ),
-      },
-    },
-    "pages": {
+    "pages"       : {
       "current": GlobalStateHelpers.Pages.getRouteFromSearchParameters(searchParameters),
       "states" : {
         "home"        : {},

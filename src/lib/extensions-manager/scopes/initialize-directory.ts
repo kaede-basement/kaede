@@ -1,14 +1,12 @@
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
-import GlobalStateHelpers from "@/lib/global-state-helpers";
+import { FileStructure } from "@/constants/file-structure.ts";
+import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 
 export async function initializeDirectory(): Promise<void> {
-  const path = GlobalStateHelpers.get().fileSystem?.folders?.extensions;
-
-  if (!path) {
-    return log.error("The extensions folder path in global states is undefined");
-  }
+  const baseDirectory = General.getCachedBaseDirectory();
+  const path = General.cachedJoin(baseDirectory, FileStructure.Folders.Extensions.Path);
 
   const directoryExists = await exists(path);
 

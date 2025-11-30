@@ -1,9 +1,9 @@
+import { cachePathJoin } from "@/lib/globals/scopes/cache-path-join.ts";
 import { declareWindow } from "@/lib/globals/scopes/declare-window.ts";
 import { getLaunchCount } from "@/lib/globals/scopes/get-launch-count.ts";
-import { handlePathJoin } from "@/lib/globals/scopes/handle-path-join.ts";
 
 export default {
+  cachePathJoin,
   declareWindow,
   getLaunchCount,
-  handlePathJoin,
 } as const;

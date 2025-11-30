@@ -12,6 +12,7 @@ import * as TauriUpload from "@tauri-apps/plugin-upload";
 import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 
+import type { FileStructure } from "@/constants/file-structure.ts";
 import type Configs from "@/lib/configs";
 import type DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import type Errors from "@/lib/errors";
@@ -140,6 +141,11 @@ declare global {
          * Launcher's development mode related collection of utilities
          */
         "DevelopmentModeHelpers": typeof DevelopmentModeHelpers;
+
+        /**
+         * Launcher's file structure
+         */
+        "FileStructure": typeof FileStructure;
 
         /**
          * Launcher's errors-related collection of utilities

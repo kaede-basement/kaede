@@ -36,12 +36,12 @@ const [launchCount, portable]: [number, boolean, void] = await Promise.all([
   General.checkIsPortable(),
 
   /*
-   * 'join' invokes from Tauri API are expensive (around 5 ms on my laptop);
-   * Instead, run it once, find out the delimiter and use only the cached version after that.
+   * Even the simplest invokes from Tauri API are expensive (around 5 ms on my laptop);
+   * To optimize 'join' calls, find out the delimiter and cache it.
    *
    * Does not return anything
    */
-  Globals.handlePathJoin(),
+  Globals.cachePathJoin(),
 ]);
 
 // Show a pretty ASCII art with the launcher name :3
@@ -50,22 +50,21 @@ log.info(getASCIIArt(portable, launchCount));
 // Get the launcher's base directory to share the directory between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
+// Concurrent promise resolving saves us around 35 ms
 const [config, instances]: [ConfigType, InstanceStatesType] = await Promise.all([
   // Get user's launcher configuration
   Configs.getSafe(baseDirectory),
-  // Get user's launcher configuration
+  // Get user's instances metadata
   Instances.readStored(baseDirectory),
 ]);
 
 /*
- * Define launcher's initial values at globals to make them accessible from 'App.vue':
+ * Define launcher's initial values at globals to make them accessible from anywhere:
  *
  * - 'portable';
  * - 'baseDirectory';
  * - 'config';
  * - 'instances'.
- *
- * This way we can save at least 30 ms of time
  */
 window[ApplicationNamespace].__internals.initialConfig = config;
 window[ApplicationNamespace].__internals.initialInstances = instances;
@@ -90,10 +89,11 @@ log.debug(
   "\n" + JSON.stringify(instances, null, 2),
 );
 
-// Create a Vue instance with the 'App.vue' entry
+log.debug("Creating a Vue instance");
+// 'App' is the 'App.vue' entry
 const AppInstance = createApp(App);
 
-log.debug(`Mounting app instance to the DOM element (${ApplicationRootID})`);
+log.debug(`Mounting an app instance to the DOM element (${ApplicationRootID})`);
 // Attach the app to a DOM element with the '#app' id
 AppInstance.mount(ApplicationRootID);
 

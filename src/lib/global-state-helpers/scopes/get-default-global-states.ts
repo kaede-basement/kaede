@@ -9,7 +9,6 @@ export function getDefaultGlobalStates(): GlobalStatesType {
 
   return {
     "translations": EnglishTranslations,
-    "fileSystem"  : undefined,
     "layout"      : {
       "enableMaterialYouRipple": true,
       "custom"                 : false,

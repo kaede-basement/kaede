@@ -3,21 +3,15 @@ import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { FileStructure } from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
-import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { ExtensionMetadataType } from "@/types/extensions/extension-metadata.type.ts";
 
 export async function readAllMetadata(): Promise<Array<ExtensionMetadataType>> {
-  const extensionsPath = GlobalStateHelpers.get().fileSystem?.folders?.extensions;
-
-  if (!extensionsPath) {
-    log.error("The extensions folder path in global states is undefined");
-
-    return [];
-  }
-
-  const metadataPath = General.cachedJoin(extensionsPath, FileStructure.Extensions.Name);
+  const metadataPath = General.cachedJoin(
+    General.getCachedBaseDirectory(),
+    FileStructure.Files.Extensions,
+  );
 
   log.debug("Reading the extensions metadata file");
   let metadata: string;
@@ -54,14 +48,14 @@ export async function readAllMetadata(): Promise<Array<ExtensionMetadataType>> {
   const validatedMetadataEntries: Array<ExtensionMetadataType> = [];
 
   for (const [index, unknownEntry] of parsedMetadata.entries()) {
-    const _info = `(id: ${unknownEntry?.id}, index ${index})`;
+    const info = `(id: ${unknownEntry?.id}, index ${index})`;
 
-    log.debug(`Checking if the provided extension metadata entry ${_info} is valid`);
+    log.debug(`Checking if the provided extension metadata entry ${info} is valid`);
     const validated: boolean = Schemas.ExtensionMetadataValidator.Check(unknownEntry);
 
     if (!validated) {
       log.warn(
-        `The provided extension metadata entry ${_info} is not valid:`,
+        `The provided extension metadata entry ${info} is not valid:`,
         "\n" + JSON.stringify(
           Schemas.ExtensionMetadataValidator.Errors(unknownEntry),
           null,
@@ -72,7 +66,7 @@ export async function readAllMetadata(): Promise<Array<ExtensionMetadataType>> {
       continue;
     }
 
-    log.debug(`The provided extension metadata entry ${_info} is valid`);
+    log.debug(`The provided extension metadata entry ${info} is valid`);
     validatedMetadataEntries.push(unknownEntry);
   }
 

@@ -3,6 +3,7 @@ import * as DiscordRPC from "tauri-plugin-drpc";
 import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
+import { FileStructure } from "@/constants/file-structure.ts";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import Errors from "@/lib/errors";
@@ -56,6 +57,7 @@ export function declareWindow(): void {
     "libs": {
       Configs,
       DevelopmentModeHelpers,
+      FileStructure,
       Errors,
       ExtensionsManager,
       General,

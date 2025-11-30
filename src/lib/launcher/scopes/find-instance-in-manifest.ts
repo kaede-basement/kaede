@@ -8,8 +8,8 @@ export function findInstanceInManifest({
   "instanceId": string;
   "manifest"  : ManifestV2Type;
 }): ManifestV2Type["versions"][number] | false {
-  const instancesStates = Instances.get();
-  const currentInstanceStates = instancesStates[instanceId];
+  const instanceStates = Instances.get();
+  const currentInstanceStates = instanceStates[instanceId];
   const currentInstanceVersion = currentInstanceStates?.version;
 
   if (!currentInstanceStates) {

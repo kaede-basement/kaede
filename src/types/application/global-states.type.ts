@@ -3,21 +3,6 @@ import type { ShallowReactive } from "vue";
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
-export type GlobalStatesFileSystemType = {
-  "portable": boolean;
-  "base"    : string;
-  "folders" : {
-    "logs"      : string;
-    "cache"     : string;
-    "instances" : string;
-    "resources" : string;
-    "extensions": string;
-  };
-  "files": {
-    "config": string;
-    "log"   : string;
-  };
-};
 export type GlobalStatesLayoutType = {
   "enableMaterialYouRipple": boolean;
   "custom"                 : boolean | Array<"sidebar" | "contextMenu">;
@@ -122,7 +107,6 @@ export type GlobalStatesType = {
   "sidebarItems"    : GlobalStatesSidebarItemsType;
   "contextMenuItems": GlobalStatesContextMenuItemsType;
   "pages"           : GlobalStatesPagesType;
-  "fileSystem"      : GlobalStatesFileSystemType | undefined;
 };
 export type GlobalStatesChangerType = <Key extends keyof GlobalStatesType>(
   key  : Key,

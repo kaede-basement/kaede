@@ -1,4 +1,5 @@
 import { ApplicationNamespace } from "@/constants/application.ts";
+import { getCachedInitial } from "@/lib/configs/scopes/get-cached-initial.ts";
 import { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { getSafeConfigFile } from "@/lib/configs/scopes/get-safe-config-file.ts";
@@ -12,4 +13,5 @@ export default {
   "sync"      : async (): Promise<void> => {
     return window[ApplicationNamespace].__internals.syncConfig();
   },
+  getCachedInitial,
 } as const;

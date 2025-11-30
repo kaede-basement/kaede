@@ -5,7 +5,7 @@ import { log } from "@/lib/logging/scopes/log.ts";
 
 const Placeholder = "buh";
 
-export async function handlePathJoin(): Promise<void> {
+export async function cachePathJoin(): Promise<void> {
   // We don't care about promise rejection here, since we can't do much about error
   const joined = await join(Placeholder, Placeholder);
   // Extract the delimiter by removing 3 characters from both ends

@@ -1,31 +1,33 @@
 export const FileStructure = {
-  "Cache": {
-    "Path" : "cache",
-    "Files": {
-      "ManifestV2": "manifest_v2.json",
+  "Folders": {
+    "Resources": {
+      "Path": "resources",
+    },
+    "Themes": {
+      "Path": "themes",
+    },
+    "Extensions": {
+      "Path": "extensions",
+    },
+    "Instances": {
+      "Path": "instances",
+    },
+    "Logs": {
+      "Path" : "logs",
+      "Files": {
+        "LatestLog": "latest.log",
+      },
+    },
+    "Cache": {
+      "Path" : "cache",
+      "Files": {
+        "ManifestV2": "manifest_v2.json",
+      },
     },
   },
-  "Config": {
-    "Name": "config.json",
-  },
-  "Extensions": {
-    "Path": "extensions",
-    "Name": "metadata.json",
-  },
-  "Themes": {
-    "Path": "themes",
-  },
-  "Resources": {
-    "Path": "resources",
-  },
-  "Instances": {
-    "Path": "instances",
-  },
-  "InstancesData": {
-    "Name": "instances.json",
-  },
-  "Logs": {
-    "Path": "logs",
-    "Name": "latest.log",
+  "Files": {
+    "Metadata"  : "instances.json",
+    "Config"    : "config.json",
+    "Extensions": "extensions.json",
   },
 } as const;

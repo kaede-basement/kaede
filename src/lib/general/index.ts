@@ -6,6 +6,8 @@ import { checkDaysDifference } from "@/lib/general/scopes/check-days-difference.
 import { checkIsPortable } from "@/lib/general/scopes/check-is-portable.ts";
 import { getAtAGlance } from "@/lib/general/scopes/get-at-a-glance.ts";
 import { getBaseDirectory } from "@/lib/general/scopes/get-base-directory.ts";
+import { getCachedBaseDirectory } from "@/lib/general/scopes/get-cached-base-directory.ts";
+import { getCachedPortable } from "@/lib/general/scopes/get-cached-portable.ts";
 import { getExecutableDirectory } from "@/lib/general/scopes/get-executable-directory.ts";
 import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
 import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-styles.ts";
@@ -21,6 +23,8 @@ export default {
   checkIsPortable,
   getAtAGlance,
   getBaseDirectory,
+  getCachedBaseDirectory,
+  getCachedPortable,
   getExecutableDirectory,
   getRelativeDate,
   getSidebarInnerStyles,

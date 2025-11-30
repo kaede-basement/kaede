@@ -1,6 +1,6 @@
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { findCurrent } from "@/lib/instances/scopes/find-current.ts";
-import { getConfigInstancesStates } from "@/lib/instances/scopes/get-config-instances-states.ts";
+import { getConfigInstanceStates } from "@/lib/instances/scopes/get-config-instance-states.ts";
 import { readStoredInstances } from "@/lib/instances/scopes/read-stored-instances.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 
@@ -10,7 +10,7 @@ export default {
     key: Key,
     value: InstanceStatesType[Key],
   ): void => window[ApplicationNamespace].__internals.changeInstanceStates(key, value),
-  "getFromConfig": getConfigInstancesStates,
+  "getFromConfig": getConfigInstanceStates,
   "readStored"   : readStoredInstances,
   findCurrent,
 } as const;
