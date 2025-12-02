@@ -1,5 +1,10 @@
 The development of the app was put on hold for a while due to exams
 
+// temporary: declarative approach to launcher configurations, extensions and instances,
+// i.e. each instance will specify its libraries, mods, resource packs, shader packs, and other things
+// in the `.json` file, and the launcher will build symlinks to these files (multimc meta can be used)
+// on instance launch (either ahead-of-time or on the fly)
+
 <div align="center">
 
 <a target="_blank" href="https://bluearchive.wiki/wiki/Arisu">
