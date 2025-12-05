@@ -7,6 +7,7 @@ import { defineConfigWithVueTs, vueTsConfigs } from "@vue/eslint-config-typescri
 import vueRequireID from "@vue-require-id/eslint-plugin";
 import { globalIgnores } from "eslint/config";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tsDoc from "eslint-plugin-tsdoc";
 import eslintPluginUnicorn from "eslint-plugin-unicorn";
 import pluginVue from "eslint-plugin-vue";
 import globals from "globals";
@@ -46,6 +47,7 @@ export default defineConfigWithVueTs(
       "@stylistic"        : stylistic,
       "@vue-require-id"   : vueRequireID,
       "simple-import-sort": simpleImportSort,
+      "tsdoc"             : tsDoc,
     },
     "rules": {
 
@@ -90,6 +92,9 @@ export default defineConfigWithVueTs(
       /* ESLint */
       "capitalized-comments": ["warn", "always"],
       "no-console"          : "warn",
+
+      /* TSDoc */
+      "tsdoc/syntax": "warn",
 
       /* Simple Import Sort */
       "simple-import-sort/imports": "warn",
