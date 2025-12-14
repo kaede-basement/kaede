@@ -28,7 +28,7 @@ This folder contains frontend-specific and backend-specific code. The frontend u
 
 Every folder has its own `README` file for more detailed explanations.
 
-- `__mocks__` contain library mocks that are purely for the testing environment. [More](./__mocks__/README.md)
+- `__mocks__` contain library mocks that exist purely for the testing environment. [More](./__mocks__/README.md)
 - `components` contain only Vue components. Those components are used in the application UI. [More](./components/README.md)
 - `constants` contain reusable global constants. [More](./constants/README.md)
 - `lib` contains the backend part. [More](./lib/README.md)
