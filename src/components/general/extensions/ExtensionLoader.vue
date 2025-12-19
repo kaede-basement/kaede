@@ -102,7 +102,6 @@ onMounted(async () => {
   for (const { id, code, permissions } of toExecute.sandbox) {
     try {
       ExtensionsManager.grantStaticPermissions({ id, permissions });
-      ExtensionsManager.grantEventListeners({ id });
       ExtensionsManager.runInSandbox({ id, code });
     } catch (error: unknown) {
       log.error(

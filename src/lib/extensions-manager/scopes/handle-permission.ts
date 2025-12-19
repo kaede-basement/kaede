@@ -1,4 +1,5 @@
 import { GrantedScopes } from "@/constants/permissions.ts";
+import { grantEventListeners } from "@/lib/extensions-manager/scopes/grant-event-listeners.ts";
 import { handleInternetPermission } from "@/lib/extensions-manager/scopes/permissions/internet.ts";
 import { handleLoggingPermission } from "@/lib/extensions-manager/scopes/permissions/logging.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
@@ -15,6 +16,9 @@ export function handlePermission(permission: PermissionType, id: string): void {
   GrantedScopes[id]["__allowed"].push(permission);
 
   switch (permission) {
+    case "all-events": {
+      return grantEventListeners({ id });
+    }
     case "internet": {
       return handleInternetPermission(id);
     }

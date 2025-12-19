@@ -7,6 +7,9 @@ export const IgnoredExtensionPermissions: Record<string, Partial<{
   [Key in PermissionType]: boolean;
 }>> = {};
 export const Permissions = {
+  "Events": {
+    "All": "all-events",
+  },
   "Internet": {
     "General": "internet",
   },

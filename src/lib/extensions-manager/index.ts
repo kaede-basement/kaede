@@ -1,8 +1,13 @@
 import { ApplicationNamespace } from "@/constants/application.ts";
 import {
+  onGlobalStateChange,
+} from "@/lib/extensions-manager/scopes/events/on-global-state-change.ts";
+import { grantEventListeners } from "@/lib/extensions-manager/scopes/grant-event-listeners.ts";
+import {
   grantStaticPermissions,
 } from "@/lib/extensions-manager/scopes/grant-static-permissions.ts";
 import { handleCssTheme } from "@/lib/extensions-manager/scopes/handle-css-theme.ts";
+import { handleEvent } from "@/lib/extensions-manager/scopes/handle-event.ts";
 import { handlePermission } from "@/lib/extensions-manager/scopes/handle-permission.ts";
 import { lockdownEnvironment } from "@/lib/extensions-manager/scopes/lockdown-environment.ts";
 import { readAllExtensions } from "@/lib/extensions-manager/scopes/read-all-extensions.ts";
@@ -20,8 +25,11 @@ export default {
     permissions,
     extension,
   ),
+  onGlobalStateChange,
+  grantEventListeners,
   grantStaticPermissions,
   handleCssTheme,
+  handleEvent,
   handlePermission,
   lockdownEnvironment,
   readAllExtensions,
