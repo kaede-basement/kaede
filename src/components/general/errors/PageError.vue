@@ -26,6 +26,7 @@ const information = computed((): NativeErrorType => {
   <div id="__layout__error-wrapper" class="h-full w-full flex flex-col select-text gap-4 bg-black py-8 pl-28 pr-8 text-white">
     <p id="__layout__error-message" class="text-xl font-light">
       <span id="__layout__error-message-intro">{{ Translations?.Messages?.["general.errors.page-error.message"] }}</span>
+      {{ " " }}
       <span id="__layout__error-message-error">{{ information.name }}: {{ information.message }}</span>
     </p>
     <p id="__layout__error-stack" class="break-words text-sm text-neutral-300 font-light">
