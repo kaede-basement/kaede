@@ -92,6 +92,9 @@ function __setInstanceState<Key extends keyof InstanceStatesType>(
 /**
  * Changes a specified field in the global states with the provided value
  * while handling all attached hooks.
+ *
+ * @param key   - the array of input numbers
+ * @param value - the array of input numbers
  */
 function scopedChangeGlobalStates<Key extends keyof GlobalStatesType>(
   key: Key,

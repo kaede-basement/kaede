@@ -8,12 +8,12 @@ export function grantStaticPermissions({
 }: {
   "id"          : string;
   "permissions"?: Array<PermissionType>;
-}): object {
+}): void {
   GrantedScopes[id] = {};
   IgnoredExtensionPermissions[id] = {};
 
   if (!permissions) {
-    return {};
+    return;
   }
 
   for (const permission of permissions) {
@@ -21,5 +21,5 @@ export function grantStaticPermissions({
     IgnoredExtensionPermissions[id][permission] = true;
   }
 
-  return GrantedScopes[id];
+  return;
 }

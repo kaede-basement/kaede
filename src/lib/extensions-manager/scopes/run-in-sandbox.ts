@@ -1,15 +1,14 @@
+import { EventListeners } from "@/constants/event-listeners.ts";
 import { GrantedScopes } from "@/constants/permissions.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 export function runInSandbox({
   id,
-  globals,
   code,
 }: {
-  "id"     : string;
-  "globals": object;
-  "code"   : string;
+  "id"  : string;
+  "code": string;
 }): void {
   /*
    * Create a plugin-scoped handler for requesting permissions
@@ -26,16 +25,16 @@ export function runInSandbox({
       "requestPermissions": wrappedPermissionsRequest,
 
       /*
-       * Provide a reference to the plugin-scoped GrantedScopes object to make it
+       * Provide a reference to the plugin-scoped 'GrantedScopes' object to make it
        * modifiable from other JavaScript scopes, i.e. from 'ExtensionsManager#handlePermission'
        */
       "GrantedScopes": GrantedScopes[id],
 
       /*
-       * Spread the globals object to re-create one-level deep properties.
-       * Nested properties should be generally safe to modify
+       * Provide a reference to the plugin-scoped 'EventListeners' object to make it
+       * modifiable from other JavaScript scopes, i.e. from 'ExtensionsManager#handleEvent'
        */
-      ...globals,
+      "EventListeners": EventListeners[id],
     },
 
     /*

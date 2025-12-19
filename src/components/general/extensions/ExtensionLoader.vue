@@ -4,6 +4,7 @@ import { inject, onMounted, ref } from "vue";
 import PermissionsHandler from "@/components/general/extensions/PermissionsHandler.vue";
 import PageTeleports from "@/components/general/layout/PageTeleports.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
+import Errors from "@/lib/errors";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
@@ -99,11 +100,16 @@ onMounted(async () => {
 
   log.debug("Initializing all enabled sandboxed extensions");
   for (const { id, code, permissions } of toExecute.sandbox) {
-    ExtensionsManager.runInSandbox({
-      id,
-      code,
-      "globals": ExtensionsManager.grantStaticPermissions({ id, permissions }),
-    });
+    try {
+      ExtensionsManager.grantStaticPermissions({ id, permissions });
+      ExtensionsManager.grantEventListeners({ id });
+      ExtensionsManager.runInSandbox({ id, code });
+    } catch (error: unknown) {
+      log.error(
+        `An error occurred while running the '${id}' extension:`,
+        Errors.prettify(error),
+      );
+    }
   }
 
   await ExtensionsManager.showWebviewWindow(
