@@ -2,6 +2,7 @@ import { FileStructure } from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
+import Schemas from "@/lib/schemas";
 
 export async function getAccounts(baseDirectory: string): Promise<Array<AccountType>> {
   const parsedAccounts: unknown = await General.handleJsonFile({
@@ -19,5 +20,19 @@ export async function getAccounts(baseDirectory: string): Promise<Array<AccountT
     return [];
   }
 
-  return;
+  const validAccounts: Array<AccountType> = [];
+
+  for (const entry of parsedAccounts) {
+    const valid: boolean = Schemas.AccountValidator.Check(entry);
+
+    if (!valid) {
+      log.warn("The provided");
+
+      continue;
+    }
+
+    validAccounts.push(entry);
+  }
+
+  return validAccounts;
 }
