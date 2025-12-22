@@ -45,22 +45,11 @@ export async function initializeLauncher({
 
   log.debug("Checking if all directories present");
   const directoriesStartTime = performance.now();
+  const foldersArray = Object.values(FileStructure.Folders);
 
-  const assetsPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Assets.Path);
-  const librariesPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Libraries.Path);
-  const cachePath = General.cachedJoin(baseDirectory, FileStructure.Folders.Cache.Path);
-  const instancesPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Instances.Path);
-  const extensionsPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Extensions.Path);
-  const resourcesPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Resources.Path);
-  const themesPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Themes.Path);
-
-  const directories: Array<string> = [
-    cachePath,
-    instancesPath,
-    extensionsPath,
-    resourcesPath,
-    themesPath,
-  ];
+  const directories: Array<string> = foldersArray.map(({ Path }) => {
+    return General.cachedJoin(baseDirectory, Path);
+  });
   const toCreate: Array<string> = [];
 
   const statuses: Array<boolean> = await Promise.all(
@@ -69,6 +58,7 @@ export async function initializeLauncher({
 
   for (const [index, status] of statuses.entries()) {
     if (!status) {
+      log.debug(`The '${directories[index]}' path is missing`);
       toCreate.push(directories[index]);
     }
   }

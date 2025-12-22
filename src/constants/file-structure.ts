@@ -1,5 +1,17 @@
 export const FileStructure = {
   "Folders": {
+    "Assets": {
+      "Path": "assets",
+    },
+    "Libraries": {
+      "Path": "libraries",
+    },
+    "Cache": {
+      "Path" : "cache",
+      "Files": {
+        "ManifestV2": "manifest_v2.json",
+      },
+    },
     "Resources": {
       "Path": "resources",
     },
@@ -16,12 +28,6 @@ export const FileStructure = {
       "Path" : "logs",
       "Files": {
         "LatestLog": "latest.log",
-      },
-    },
-    "Cache": {
-      "Path" : "cache",
-      "Files": {
-        "ManifestV2": "manifest_v2.json",
       },
     },
   },
