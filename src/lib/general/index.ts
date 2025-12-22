@@ -11,6 +11,7 @@ import { getCachedPortable } from "@/lib/general/scopes/get-cached-portable.ts";
 import { getExecutableDirectory } from "@/lib/general/scopes/get-executable-directory.ts";
 import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
 import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-styles.ts";
+import { handleJsonFile } from "@/lib/general/scopes/handle-json-file.ts";
 import { initializeLauncher } from "@/lib/general/scopes/initialize-launcher.ts";
 
 export default {
@@ -28,5 +29,6 @@ export default {
   getExecutableDirectory,
   getRelativeDate,
   getSidebarInnerStyles,
+  handleJsonFile,
   initializeLauncher,
 } as const;

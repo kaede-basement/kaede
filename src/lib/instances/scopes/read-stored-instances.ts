@@ -1,40 +1,20 @@
-import { exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
-
 import { FileStructure } from "@/constants/file-structure.ts";
-import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 
 export async function readStoredInstances(baseDirectory: string): Promise<InstanceStatesType> {
-  const instancesMetadataPath = General.cachedJoin(baseDirectory, FileStructure.Files.Metadata);
-
-  log.debug("Checking if instances metadata file exists");
-  const metadataExists = await exists(instancesMetadataPath);
-
-  if (!metadataExists) {
-    log.warn("Instances metadata file does not exist");
-    log.debug("Initializing an instances metadata file");
-    await writeTextFile(instancesMetadataPath, "{}");
-
-    return {};
-  }
-
-  const storedInstancesMetadata: string = await readTextFile(instancesMetadataPath);
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(storedInstancesMetadata);
-  } catch (error: unknown) {
-    log.error("Could not parse the stored instances metadata:", Errors.prettify(error));
-
-    return {};
-  }
+  const parsedMetadata: unknown = await General.handleJsonFile({
+    baseDirectory,
+    "path"        : [FileStructure.Files.Metadata],
+    "label"       : "instances metadata",
+    "defaultValue": {},
+  });
 
   log.debug("Validating the instances metadata");
 
-  if (typeof parsed !== "object" || parsed === null) {
+  if (typeof parsedMetadata !== "object" || parsedMetadata === null) {
     log.debug("Instances metadata are completely invalid");
 
     return {};
@@ -43,7 +23,7 @@ export async function readStoredInstances(baseDirectory: string): Promise<Instan
   const validInstances: InstanceStatesType = {};
   let allValid: boolean = true;
 
-  for (const [currentId, currentMetadata] of Object.entries(parsed)) {
+  for (const [currentId, currentMetadata] of Object.entries(parsedMetadata)) {
     const isValid: boolean = Schemas.InstanceMetadataValidator.Check(currentMetadata);
 
     if (!isValid) {
