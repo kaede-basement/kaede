@@ -1,8 +1,8 @@
 import { FileStructure } from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { AccountType } from "@/types/configs/account.type.ts";
 import Schemas from "@/lib/schemas";
+import type { AccountType } from "@/types/configs/account.type.ts";
 
 export async function getAccounts(baseDirectory: string): Promise<Array<AccountType>> {
   const parsedAccounts: unknown = await General.handleJsonFile({

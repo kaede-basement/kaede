@@ -20,6 +20,7 @@ import Globals from "@/lib/globals";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
@@ -59,7 +60,7 @@ const [
   instances,
 ]: [
   ConfigType,
-  any,
+  Array<AccountType>,
   TranslationsType,
   InstanceStatesType,
 ] = await Promise.all([
