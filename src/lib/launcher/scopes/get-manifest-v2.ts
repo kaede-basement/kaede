@@ -6,20 +6,21 @@ import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import { shallowValidateManifestV2 } from "@/lib/launcher/scopes/shallow-validate-manifest-v2.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
+import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type { ManifestV2Type } from "@/types/launcher/manifest-v2.type.ts";
 
 export async function getManifestV2({
-  changeStatus,
+  currentStatuses,
   cachedManifestV2Path,
 }: {
-  "changeStatus"        : (newStatus: LaunchStatusType) => void;
+  "currentStatuses"     : LauncherStatusesType;
   "cachedManifestV2Path": string;
 }): Promise<{
   "updateCache": boolean;
   "manifest"   : ManifestV2Type | false;
 }> {
-  changeStatus(LaunchStatus.ManifestV2.ReadingCache);
+  currentStatuses.value.add(LaunchStatus.ManifestV2.ReadingCache);
+
   let cachedManifestV2: ManifestV2Type | undefined;
   let isOutdatedCache: boolean = true;
 
@@ -46,7 +47,8 @@ export async function getManifestV2({
   }
 
   if (!isOutdatedCache && cachedManifestV2 !== undefined) {
-    changeStatus(LaunchStatus.ManifestV2.Validating);
+    currentStatuses.value.add(LaunchStatus.ManifestV2.Validating);
+
     const validated = shallowValidateManifestV2(cachedManifestV2);
 
     return {
@@ -56,13 +58,13 @@ export async function getManifestV2({
     };
   }
 
-  changeStatus(LaunchStatus.ManifestV2.FetchingResponse);
+  currentStatuses.value.add(LaunchStatus.ManifestV2.FetchingResponse);
   const response = await fetch(APIEndpoints.ManifestV2);
 
-  changeStatus(LaunchStatus.ManifestV2.ReadingResponse);
+  currentStatuses.value.add(LaunchStatus.ManifestV2.ReadingResponse);
   const manifest: unknown = await response.json();
 
-  changeStatus(LaunchStatus.ManifestV2.Validating);
+  currentStatuses.value.add(LaunchStatus.ManifestV2.Validating);
   const validated = shallowValidateManifestV2(manifest);
 
   return {

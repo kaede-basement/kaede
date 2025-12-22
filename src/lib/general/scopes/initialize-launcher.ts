@@ -46,6 +46,8 @@ export async function initializeLauncher({
   log.debug("Checking if all directories present");
   const directoriesStartTime = performance.now();
 
+  const assetsPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Assets.Path);
+  const librariesPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Libraries.Path);
   const cachePath = General.cachedJoin(baseDirectory, FileStructure.Folders.Cache.Path);
   const instancesPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Instances.Path);
   const extensionsPath = General.cachedJoin(baseDirectory, FileStructure.Folders.Extensions.Path);

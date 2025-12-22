@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, inject, ref, watchEffect } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey, InstanceStatesContextKey } from "@/constants/application.ts";
@@ -19,17 +19,9 @@ const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
 ));
 
-const status = ref<LaunchStatusType>(LaunchStatus.General.Starting);
-
-function changeStatus(newStatus: LaunchStatusType): void {
-  if (currentInstance?.value === undefined) {
-    return;
-  }
-
-  log.debug(`New status for the '${currentInstance.value.id}' instance launching: '${newStatus}'`);
-
-  status.value = newStatus;
-}
+const statuses = ref<Set<LaunchStatusType>>(
+  new Set,
+);
 
 async function handleLaunch(): Promise<void> {
   if (currentInstance?.value === undefined) {
@@ -37,14 +29,28 @@ async function handleLaunch(): Promise<void> {
   }
 
   await Launcher.launchWithChecks({
-    "instanceId"  : currentInstance.value.id,
-    "changeStatus": changeStatus,
+    "instanceId"     : currentInstance.value.id,
+    "currentStatuses": statuses,
   });
 }
+
+watchEffect(() => {
+  if (currentInstance.value === undefined) {
+    return;
+  }
+
+  let lastStatus: LaunchStatusType = LaunchStatus.General.Starting;
+
+  for (const status of statuses.value) {
+    lastStatus = status;
+  }
+
+  log.debug(`New status for the '${currentInstance.value.id}' instance launching: '${lastStatus}'`);
+});
 </script>
 
 <template>
-  {{ status }}
+  {{ statuses }}
   <button
     @click="handleLaunch"
     id="__home-page__launch-button"

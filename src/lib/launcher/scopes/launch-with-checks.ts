@@ -7,16 +7,16 @@ import {
 } from "@/lib/launcher/scopes/find-instance-in-manifest.ts";
 import { getManifestV2 } from "@/lib/launcher/scopes/get-manifest-v2.ts";
 import { getVersionMetadata } from "@/lib/launcher/scopes/get-version-metadata.ts";
-import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
+import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type { ManifestV2Type } from "@/types/launcher/manifest-v2.type.ts";
 import type { VersionMetadataType } from "@/types/launcher/version-metadata.type.ts";
 
 export async function launchWithChecks({
   instanceId,
-  changeStatus,
+  currentStatuses,
 }: {
-  "instanceId"  : string;
-  "changeStatus": (newStatus: LaunchStatusType) => void;
+  "instanceId"     : string;
+  "currentStatuses": LauncherStatusesType;
 }): Promise<void> {
   const cachedManifestV2Path = General.cachedJoin(
     General.getCachedBaseDirectory(),
@@ -28,23 +28,27 @@ export async function launchWithChecks({
     "updateCache": boolean;
     "manifest"   : ManifestV2Type | false;
   } = await getManifestV2({
-    changeStatus,
+    currentStatuses,
     cachedManifestV2Path,
   });
 
   if (!manifest) {
-    return changeStatus(LaunchStatus.Errors.InvalidManifestV2);
+    currentStatuses.value.add(LaunchStatus.Errors.InvalidManifestV2);
+
+    return;
   }
 
   const manifestVersion = findInstanceInManifest({ instanceId, manifest });
 
   if (!manifestVersion) {
-    return changeStatus(LaunchStatus.Errors.VersionNotFoundInManifestV2);
+    currentStatuses.value.add(LaunchStatus.Errors.VersionNotFoundInManifestV2);
+
+    return;
   }
 
   const []: [VersionMetadataType, void] = await Promise.all([
     getVersionMetadata({
-      changeStatus,
+      currentStatuses,
       "url": manifestVersion.url,
     }),
     cacheManifestV2({ updateCache, manifest, cachedManifestV2Path }),
