@@ -95,13 +95,17 @@ declare global {
         "syncConfig"          : () => Promise<void>;
         // Platform-specific delimiter obtained by a single invoke of Tauri 'join'
         "joinDelimiter"       : string;
-        // Application's config state before launcher initialization
+        // Config state before launcher initialization
         "initialConfig"       : ConfigType;
-        // Application's instances metadata state before launcher initialization
+        // Accounts state before launcher initialization
+        "initialAccounts"     : any;
+        // Translations state before launcher initialization
+        "initialTranslations" : TranslationsType;
+        // Instances metadata state before launcher initialization
         "initialInstances"    : InstanceStatesType;
-        // Application's portable state before launcher initialization
+        // Portable state before launcher initialization
         "initialPortable"     : boolean;
-        // Application's base directory state before launcher initialization
+        // Base directory state before launcher initialization
         "initialBaseDirectory": string;
         // A temporary storage for the 'At a Glance' widget
         "atAGlance"          ?: AtAGlanceType;

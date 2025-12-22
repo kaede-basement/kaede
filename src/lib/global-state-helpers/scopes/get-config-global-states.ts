@@ -1,5 +1,4 @@
-import { ContextMenuItems } from "@/constants/application.ts";
-import EnglishTranslations from "@/constants/english.json";
+import { ApplicationNamespace, ContextMenuItems } from "@/constants/application.ts";
 import { RouteItems, Routes } from "@/constants/routes.ts";
 import Configs from "@/lib/configs";
 import General from "@/lib/general";
@@ -21,7 +20,7 @@ export function getConfigGlobalStates(): GlobalStatesType {
 
   return {
     ...configFile,
-    "translations": EnglishTranslations,
+    "translations": window[ApplicationNamespace].__internals.initialTranslations,
     "pages"       : {
       "current": GlobalStateHelpers.Pages.getRouteFromSearchParameters(searchParameters),
       "states" : {

@@ -21,6 +21,7 @@ import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
+import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 // Measure high resolution timestamp before launcher initialization
 const startTime = performance.now();
@@ -50,23 +51,32 @@ log.info(getASCIIArt(portable, launchCount));
 // Get the launcher's base directory to share the directory between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
-// Concurrent promise resolving saves us around 35 ms
-const [config, instances]: [ConfigType, InstanceStatesType] = await Promise.all([
-  // Get user's launcher configuration
+// Concurrent promise resolving saves us around 60 ms
+const [
+  config,
+  accounts,
+  translations,
+  instances,
+]: [
+  ConfigType,
+  any,
+  TranslationsType,
+  InstanceStatesType,
+] = await Promise.all([
+  // Get launcher configuration
   Configs.getSafe(baseDirectory),
-  // Get user's instances metadata
+  // Get stored accounts and tokens
+  Configs.getAccounts(baseDirectory),
+  // Get launcher translations
+  Configs.getTranslations(baseDirectory),
+  // Get instances metadata
   Instances.readStored(baseDirectory),
 ]);
 
-/*
- * Define launcher's initial values at globals to make them accessible from anywhere:
- *
- * - 'portable';
- * - 'baseDirectory';
- * - 'config';
- * - 'instances'.
- */
+// Define launcher's initial values at globals to make them accessible from anywhere
 window[ApplicationNamespace].__internals.initialConfig = config;
+window[ApplicationNamespace].__internals.initialAccounts = accounts;
+window[ApplicationNamespace].__internals.initialTranslations = translations;
 window[ApplicationNamespace].__internals.initialInstances = instances;
 window[ApplicationNamespace].__internals.initialPortable = portable;
 window[ApplicationNamespace].__internals.initialBaseDirectory = baseDirectory;

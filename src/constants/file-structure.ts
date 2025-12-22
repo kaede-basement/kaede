@@ -32,8 +32,10 @@ export const FileStructure = {
     },
   },
   "Files": {
-    "Metadata"  : "instances.json",
-    "Config"    : "config.json",
-    "Extensions": "extensions.json",
+    "Accounts"    : "accounts.json",
+    "Translations": "translations",
+    "Metadata"    : "instances.json",
+    "Config"      : "config.json",
+    "Extensions"  : "extensions.json",
   },
 } as const;

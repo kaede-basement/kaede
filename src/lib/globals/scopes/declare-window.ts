@@ -18,6 +18,7 @@ import Schemas from "@/lib/schemas";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
+import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 function placeholderFunction(): void {}
 
@@ -46,6 +47,8 @@ export function declareWindow(): void {
       "syncConfig"          : placeholderFunction as () => Promise<void>,
       "joinDelimiter"       : "",
       "initialConfig"       : {} as ConfigType,
+      "initialAccounts"     : {} as any,
+      "initialTranslations" : {} as TranslationsType,
       "initialInstances"    : {} as InstanceStatesType,
       "initialPortable"     : false,
       "initialBaseDirectory": "",
