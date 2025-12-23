@@ -1,5 +1,21 @@
 export const LaunchStatus = {
   "General": {
+    "Starting": "starting",
+    "Success" : "success",
+  },
+  "Errors": {
+    "UndefinedInstanceVersion"          : "undefined-instance-version",
+    "MetaVersionFetchFailed"            : "meta-version-fetch-failed",
+    "MetaVersionParseFailed"            : "meta-version-parse-failed",
+    "MetaVersionShallowValidationFailed": "meta-version-shallow-validation-failed",
+    "MetaVersionFullValidationFailed"   : "meta-version-full-validation-failed",
+    "VersionNotFoundInMeta"             : "version-not-found-in-meta",
+    "MissingJava"                       : "missing-java",
+    "IncorrectJavaVersion"              : "incorrect-java-version",
+  },
+} as const;
+export const LaunchStatusOld = {
+  "General": {
     "Starting": "getting-started",
   },
   "ManifestV2": {
@@ -25,6 +41,18 @@ export const LaunchStatus = {
   },
 } as const;
 export const APIEndpoints = {
-  // BMCLAPI: https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json
-  "ManifestV2": "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+  "Meta": {
+    "Base" : "https://meta.prismlauncher.org/v1/",
+    "Paths": {
+      "Minecraft": {
+        "id"  : "net.minecraft",
+        "Base": "net.minecraft/",
+      },
+    },
+  },
+
+  /*
+   * BMCLAPI: https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json
+   * "ManifestV2": "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+   */
 } as const;

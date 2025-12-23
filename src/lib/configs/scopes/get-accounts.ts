@@ -7,9 +7,9 @@ import type { AccountType } from "@/types/configs/account.type.ts";
 export async function getAccounts(baseDirectory: string): Promise<Array<AccountType>> {
   const parsedAccounts: unknown = await General.handleJsonFile({
     baseDirectory,
-    "path"        : [FileStructure.Files.Accounts],
-    "label"       : "accounts",
-    "defaultValue": [],
+    "path"           : [FileStructure.Files.Accounts],
+    "label"          : "accounts",
+    "getDefaultValue": async () => ([]),
   });
 
   log.debug("Validating the parsed accounts file");

@@ -7,9 +7,9 @@ import type { TranslationsType } from "@/types/translations/translations.type.ts
 export async function getTranslations(baseDirectory: string): Promise<TranslationsType> {
   const parsedTranslations: unknown = await General.handleJsonFile({
     baseDirectory,
-    "path"        : [FileStructure.Files.Translations],
-    "label"       : "translations",
-    "defaultValue": EnglishTranslations,
+    "path"           : [FileStructure.Files.Translations],
+    "label"          : "translations",
+    "getDefaultValue": async () => (EnglishTranslations),
   });
 
   log.debug("Shallowly validating the parsed translations file");

@@ -8,12 +8,12 @@ export async function handleJsonFile({
   baseDirectory,
   path,
   label,
-  defaultValue,
+  getDefaultValue,
 }: {
-  "baseDirectory": string;
-  "path"         : Array<string>;
-  "label"        : string;
-  "defaultValue" : unknown;
+  "baseDirectory"  : string;
+  "path"           : Array<string>;
+  "label"          : string;
+  "getDefaultValue": () => Promise<unknown>;
 }): Promise<unknown> {
   const filePath: string = cachedJoin(baseDirectory, ...path);
 
@@ -21,11 +21,17 @@ export async function handleJsonFile({
   const fileExists = await exists(filePath);
 
   if (!fileExists) {
+    const defaultValue = await getDefaultValue();
+
     log.warn(`The '${label}' file does not exist`);
     log.debug(`Initializing the '${label}' file`);
     await writeTextFile(
       filePath,
-      JSON.stringify(defaultValue, null, 2),
+      JSON.stringify(
+        defaultValue,
+        null,
+        2,
+      ),
     );
 
     return defaultValue;
@@ -39,7 +45,7 @@ export async function handleJsonFile({
   } catch (error: unknown) {
     log.error(`Could not parse the '${label}' file data:`, Errors.prettify(error));
 
-    return defaultValue;
+    return await getDefaultValue();
   }
 
   return parsed;

@@ -7,9 +7,9 @@ import type { InstanceStatesType } from "@/types/application/instance-states.typ
 export async function readStoredInstances(baseDirectory: string): Promise<InstanceStatesType> {
   const parsedMetadata: unknown = await General.handleJsonFile({
     baseDirectory,
-    "path"        : [FileStructure.Files.Metadata],
-    "label"       : "instances metadata",
-    "defaultValue": {},
+    "path"           : [FileStructure.Files.Metadata],
+    "label"          : "instances metadata",
+    "getDefaultValue": async () => ({}),
   });
 
   log.debug("Validating the instances metadata");

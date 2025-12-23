@@ -1,15 +1,9 @@
-import { FileStructure } from "@/constants/file-structure.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
-import { cacheManifestV2 } from "@/lib/launcher/scopes/cache-manifest-v2.ts";
-import {
-  findInstanceInManifest,
-} from "@/lib/launcher/scopes/find-instance-in-manifest.ts";
-import { getManifestV2 } from "@/lib/launcher/scopes/get-manifest-v2.ts";
-import { getVersionMetadata } from "@/lib/launcher/scopes/get-version-metadata.ts";
+import { extractInstanceVersion } from "@/lib/launcher/scopes/extract-instance-version.ts";
+import { getVersionMeta } from "@/lib/launcher/scopes/get-version-meta.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
-import type { ManifestV2Type } from "@/types/launcher/manifest-v2.type.ts";
-import type { VersionMetadataType } from "@/types/launcher/version-metadata.type.ts";
+import type { MetaMinecraftVersionType } from "@/types/launcher/meta-manifest.type.ts";
 
 export async function launchWithChecks({
   instanceId,
@@ -18,6 +12,27 @@ export async function launchWithChecks({
   "instanceId"     : string;
   "currentStatuses": LauncherStatusesType;
 }): Promise<void> {
+  const baseDirectory = General.getCachedBaseDirectory();
+  const version = extractInstanceVersion({ instanceId });
+
+  if (!version) {
+    currentStatuses.value.add(LaunchStatus.Errors.UndefinedInstanceVersion);
+
+    return;
+  }
+
+  const versionMeta: MetaMinecraftVersionType | undefined = await getVersionMeta({
+    currentStatuses,
+    baseDirectory,
+    version,
+  });
+
+  if (versionMeta === undefined) {
+    return;
+  }
+
+  /*
+
   const cachedManifestV2Path = General.cachedJoin(
     General.getCachedBaseDirectory(),
     FileStructure.Folders.Cache.Path,
@@ -57,4 +72,5 @@ export async function launchWithChecks({
   // | const assetIndex = versionMetadata.assetIndex;
 
   return;
+   */
 }
