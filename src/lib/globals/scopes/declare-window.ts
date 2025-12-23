@@ -17,6 +17,7 @@ import Logging from "@/lib/logging";
 import Schemas from "@/lib/schemas";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
@@ -47,7 +48,7 @@ export function declareWindow(): void {
       "syncConfig"          : placeholderFunction as () => Promise<void>,
       "joinDelimiter"       : "",
       "initialConfig"       : {} as ConfigType,
-      "initialAccounts"     : {} as any,
+      "temporaryAccounts"   : [] as Array<AccountType>,
       "initialTranslations" : {} as TranslationsType,
       "initialInstances"    : {} as InstanceStatesType,
       "initialPortable"     : false,

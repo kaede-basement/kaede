@@ -39,6 +39,15 @@ export const log = {
    * Some log messages have the same structure
    */
   "templates": {
+    "json": {
+      "contents": (label: string, data: unknown): string => (
+        label + " contents:" + "\n" + JSON.stringify(
+          data,
+          null,
+          2,
+        )
+      ),
+    },
     "hooks": {
       "iterate": {
         "start": (key: string, position: "before" | "after", length: number): string => (

@@ -27,7 +27,7 @@ import type { TranslationsType } from "@/types/translations/translations.type.ts
 // Measure high resolution timestamp before launcher initialization
 const startTime = performance.now();
 
-// 'window[ApplicationNamespace]' is accessed not only by extensions, but by the application itself
+// 'window[ApplicationNamespace]' is accessed not only by extensions but by the application itself
 Globals.declareWindow();
 
 // Concurrent promise resolving saves us around 15 ms
@@ -47,9 +47,11 @@ const [launchCount, portable]: [number, boolean, void] = await Promise.all([
 ]);
 
 // Show a pretty ASCII art with the launcher name :3
-log.info(getASCIIArt(portable, launchCount));
+log.info(
+  getASCIIArt(portable, launchCount),
+);
 
-// Get the launcher's base directory to share the directory between multiple functions
+// Get the launcher base directory to share it between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
 // Concurrent promise resolving saves us around 60 ms
@@ -64,41 +66,40 @@ const [
   TranslationsType,
   InstanceStatesType,
 ] = await Promise.all([
-  // Get launcher configuration
   Configs.getSafe(baseDirectory),
-  // Get stored accounts and tokens
   Configs.getAccounts(baseDirectory),
-  // Get launcher translations
   Configs.getTranslations(baseDirectory),
-  // Get instances metadata
   Instances.readStored(baseDirectory),
 ]);
 
 // Define launcher's initial values at globals to make them accessible from anywhere
 window[ApplicationNamespace].__internals.initialConfig = config;
-window[ApplicationNamespace].__internals.initialAccounts = accounts;
 window[ApplicationNamespace].__internals.initialTranslations = translations;
 window[ApplicationNamespace].__internals.initialInstances = instances;
 window[ApplicationNamespace].__internals.initialPortable = portable;
 window[ApplicationNamespace].__internals.initialBaseDirectory = baseDirectory;
 
+/*
+ * Exposing account details to the global object
+ * makes retrieving account tokens in extensions a bit easier,
+ * so we will delete this field as soon as the app-scoped reactive state will be created
+ */
+window[ApplicationNamespace].__internals.temporaryAccounts = accounts;
+
 // Enabling debug mode means that debug-level messages will be logged
 if (config.development?.enableDebugMode) {
   DevelopmentModeHelpers.enableDebugMode(
-    DevelopmentModeHelpers.getDefault(),
+    config.development,
   );
 
-  // Log user's launcher configuration
-  log.debug(
-    "Config contents:",
-    // 'JSON#stringify' is not so fast
-    "\n" + JSON.stringify(config, null, 2),
-  );
-  // Log user's instances metadata
-  log.debug(
-    "Instances metadata contents:",
-    "\n" + JSON.stringify(instances, null, 2),
-  );
+  log.debug(log.templates.json.contents(
+    "Config",
+    config,
+  ));
+  log.debug(log.templates.json.contents(
+    "Instances metadata",
+    instances,
+  ));
 }
 
 log.debug("Creating a Vue instance");
@@ -110,6 +111,8 @@ log.debug(`Mounting an app instance to the DOM element (${ApplicationRootID})`);
 AppInstance.mount(ApplicationRootID);
 
 log.debug("Initializing launcher");
-await General.initializeLauncher({ config, baseDirectory, startTime }).catch((error: unknown) => {
-  log.error("Failed to initialize launcher:", Errors.prettify(error));
-});
+await General
+  .initializeLauncher({ config, baseDirectory, startTime })
+  .catch((error: unknown) => {
+    log.error("Failed to initialize launcher:", Errors.prettify(error));
+  });

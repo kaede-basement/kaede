@@ -34,6 +34,7 @@ import type {
   InstanceStateType,
 } from "@/types/application/instance-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
+import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
@@ -98,7 +99,7 @@ declare global {
         // Config state before launcher initialization
         "initialConfig"       : ConfigType;
         // Accounts state before launcher initialization
-        "initialAccounts"     : any;
+        "temporaryAccounts"   : Array<AccountType>;
         // Translations state before launcher initialization
         "initialTranslations" : TranslationsType;
         // Instances metadata state before launcher initialization
