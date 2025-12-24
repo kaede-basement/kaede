@@ -98,6 +98,8 @@ pub fn run() {
 
             app.handle().plugin(
                 logging_builder
+                    // Do not log 'trace' level messages
+                    .level(log::LevelFilter::Debug)
                     // Make a new output target that will save logs in a log file
                     .target(tauri_plugin_log::Target::new(
                         tauri_plugin_log::TargetKind::Folder {

@@ -11,6 +11,7 @@ export const LaunchStatus = {
   "Assets": {
     "ReadingCachedMeta": "assets-reading-cached-meta",
     "FetchingMeta"     : "assets-fetching-meta",
+    "DownloadingAsset" : "assets-downloading-asset",
     "Done"             : "assets-done",
   },
   "Errors": {

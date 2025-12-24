@@ -9,6 +9,9 @@ import {
   initializeAssetsDirectories,
 } from "@/lib/launcher/scopes/version-meta/assets/initialize-assets-directories.ts";
 import {
+  initializeShortHashDirectories,
+} from "@/lib/launcher/scopes/version-meta/assets/initialize-short-hash-directories.ts";
+import {
   shallowlyValidateMeta,
 } from "@/lib/launcher/scopes/version-meta/assets/shallowly-validate-meta.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -48,6 +51,10 @@ export async function getAssets({
   };
 
   await initializeAssetsDirectories({ assetsFolders });
+  const t1 = performance.now();
+  await initializeShortHashDirectories({ assetsFolders });
+  const t2 = performance.now();
+  console.log(t2 - t1, "ms");
 
   let parsedMeta: unknown;
 
@@ -63,7 +70,7 @@ export async function getAssets({
           "url": assetIndex.url,
         });
 
-        if (typeof fetched === "string") {
+        if (typeof fetched !== "object") {
           currentStatuses.value.add(fetched);
 
           /*
@@ -129,8 +136,7 @@ export async function getAssets({
     return missingHashes.has(filePath);
   });
 
-  // Assets to download
-  const toDownload: Array<Array<{
+  const assetObjectsToDownload: Array<Array<{
     "shortHashPath": string;
     "url"          : string;
     "filePath"     : string;
@@ -139,17 +145,21 @@ export async function getAssets({
   for (const [index, value] of filteredAssetObjects.entries()) {
     const downloadGroupIndex = Math.floor(index / ConcurrentDownloads.Assets);
 
-    if (!toDownload[downloadGroupIndex]) {
-      toDownload[downloadGroupIndex] = [];
+    if (!assetObjectsToDownload[downloadGroupIndex]) {
+      assetObjectsToDownload[downloadGroupIndex] = [];
     }
 
-    toDownload[downloadGroupIndex].push(value);
+    assetObjectsToDownload[downloadGroupIndex].push(value);
   }
 
   log.debug("Starting to download asset objects");
-  for (const downloadGroup of toDownload) {
+  for (const downloadGroup of assetObjectsToDownload) {
     await Promise.all(
-      downloadGroup.map(downloadInfo => downloadAssetObject(downloadInfo)),
+      downloadGroup.map(({ url, filePath }) => downloadAssetObject({
+        url,
+        filePath,
+        currentStatuses,
+      })),
     );
   }
 
