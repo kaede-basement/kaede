@@ -3,6 +3,11 @@ export const LaunchStatus = {
     "Starting": "starting",
     "Success" : "success",
   },
+  "Metadata": {
+    "ReadingCachedVersionMeta": "reading-cached-version-meta",
+    "FetchingVersionMeta"     : "fetching-version-meta",
+    "ValidatingVersionMeta"   : "validating-version-meta",
+  },
   "Errors": {
     "UndefinedInstanceVersion"          : "undefined-instance-version",
     "MetaVersionFetchFailed"            : "meta-version-fetch-failed",

@@ -21,11 +21,13 @@ export async function getVersionMeta({
   let parsed: unknown;
 
   try {
+    currentStatuses.value.add(LaunchStatus.Metadata.ReadingCachedVersionMeta);
     parsed = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Cache.Path, `${version}.json`],
       "label"          : `${version}.json`,
       "getDefaultValue": async () => {
+        currentStatuses.value.add(LaunchStatus.Metadata.FetchingVersionMeta);
         const fetched: object | LaunchStatusType = await fetchVersionMeta({ version });
 
         if (typeof fetched === "string") {
@@ -46,6 +48,7 @@ export async function getVersionMeta({
     return undefined;
   }
 
+  currentStatuses.value.add(LaunchStatus.Metadata.ValidatingVersionMeta);
   const valid: boolean = Schemas.MinecraftVersionValidator.Check(parsed);
 
   if (!valid) {

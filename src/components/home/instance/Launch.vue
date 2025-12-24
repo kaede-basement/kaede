@@ -28,6 +28,7 @@ async function handleLaunch(): Promise<void> {
     return;
   }
 
+  statuses.value.clear();
   await Launcher.launchWithChecks({
     "instanceId"     : currentInstance.value.id,
     "currentStatuses": statuses,

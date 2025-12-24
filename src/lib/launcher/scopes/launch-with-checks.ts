@@ -12,12 +12,12 @@ export async function launchWithChecks({
   "instanceId"     : string;
   "currentStatuses": LauncherStatusesType;
 }): Promise<void> {
+  currentStatuses.value.add(LaunchStatus.General.Starting);
+
   const baseDirectory = General.getCachedBaseDirectory();
-  const version = extractInstanceVersion({ instanceId });
+  const version = extractInstanceVersion({ currentStatuses, instanceId });
 
   if (!version) {
-    currentStatuses.value.add(LaunchStatus.Errors.UndefinedInstanceVersion);
-
     return;
   }
 
@@ -30,6 +30,8 @@ export async function launchWithChecks({
   if (versionMeta === undefined) {
     return;
   }
+
+  console.log(versionMeta);
 
   /*
 

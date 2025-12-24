@@ -1,6 +1,8 @@
-import type { Static } from "typebox";
-
-import { MinecraftVersionSchema } from "@/lib/schemas/scopes/meta/minecraft-version.schema.ts";
+export type {
+  MetaMinecraftType,
+  MetaMinecraftEntryType,
+  MetaMinecraftVersionType,
+} from "@/types/launcher/meta/net-minecraft.type.ts";
 
 export type MetaManifestType = {
   "formatVersion": number;
@@ -10,12 +12,3 @@ export type MetaManifestType = {
     "sha256": string;
   }>;
 };
-
-export type MetaMinecraftType = {
-  "formatVersion": number;
-  "uid"          : string;
-  "name"         : string;
-  "versions"     : Array<MetaMinecraftVersionType>;
-};
-
-export type MetaMinecraftVersionType = Static<typeof MinecraftVersionSchema>;

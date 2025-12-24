@@ -21,6 +21,7 @@ export async function handleJsonFile({
   const fileExists = await exists(filePath);
 
   if (!fileExists) {
+    log.debug(`The '${label}' file does not exist; getting the default value`);
     const defaultValue = await getDefaultValue();
 
     log.warn(`The '${label}' file does not exist`);
@@ -37,16 +38,21 @@ export async function handleJsonFile({
     return defaultValue;
   }
 
+  log.debug(`Reading the '${label}' file`);
   const storedFileData: string = await readTextFile(filePath);
   let parsed: unknown;
 
   try {
+    log.debug(`Parsing the '${label}' file`);
     parsed = JSON.parse(storedFileData);
   } catch (error: unknown) {
     log.error(`Could not parse the '${label}' file data:`, Errors.prettify(error));
+    log.debug(`Returning the default value for '${label}'`);
 
     return await getDefaultValue();
   }
+
+  log.debug(`Returning the parsed '${label}' file`);
 
   return parsed;
 }

@@ -1,9 +1,13 @@
 import { extractInstanceVersion } from "@/lib/launcher/scopes/extract-instance-version.ts";
+import { fetchVersionMeta } from "@/lib/launcher/scopes/fetch-version-meta.ts";
+import { getVersionMeta } from "@/lib/launcher/scopes/get-version-meta.ts";
 import { launch } from "@/lib/launcher/scopes/launch.ts";
 import { launchWithChecks } from "@/lib/launcher/scopes/launch-with-checks.ts";
 
 export default {
   extractInstanceVersion,
+  fetchVersionMeta,
+  getVersionMeta,
   launch,
   launchWithChecks,
 } as const;
