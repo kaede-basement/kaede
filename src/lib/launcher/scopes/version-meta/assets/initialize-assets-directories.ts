@@ -16,12 +16,26 @@ export async function initializeAssetsDirectories({
     exists(assetsFolders.objects),
   ]);
 
-  if (!indexesExists || !objectsExists) {
+  if (!indexesExists && !objectsExists) {
     log.debug("Initializing the '/assets/indexes/' and '/assets/objects/' directories");
     await Promise.all([
       mkdir(assetsFolders.indexes),
       mkdir(assetsFolders.objects),
     ]);
+
+    return;
+  }
+
+  if (!indexesExists) {
+    log.debug("Initializing the '/assets/indexes/' directory");
+    await mkdir(assetsFolders.indexes);
+
+    return;
+  }
+
+  if (!objectsExists) {
+    log.debug("Initializing the '/assets/objects/' directory");
+    await mkdir(assetsFolders.objects);
 
     return;
   }

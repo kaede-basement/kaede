@@ -1,8 +1,9 @@
-import { download } from "@tauri-apps/plugin-upload";
-
 import { FileStructure } from "@/constants/file-structure.ts";
-import { LaunchStatus } from "@/constants/launcher.ts";
+import { APIEndpoints, ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
+import {
+  downloadAssetObject,
+} from "@/lib/launcher/scopes/version-meta/assets/download-asset-object.ts";
 import { fetchAssetsMeta } from "@/lib/launcher/scopes/version-meta/assets/fetch-assets-meta.ts";
 import {
   initializeAssetsDirectories,
@@ -10,6 +11,8 @@ import {
 import {
   shallowlyValidateMeta,
 } from "@/lib/launcher/scopes/version-meta/assets/shallowly-validate-meta.ts";
+import { validateAssets } from "@/lib/launcher/scopes/version-meta/assets/validate-assets.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { AssetObjectsType } from "@/types/launcher/assets/asset-objects.type.ts";
 import type {
   LauncherStatusesType,
@@ -47,6 +50,14 @@ export async function getAssets({
 
   await initializeAssetsDirectories({ assetsFolders });
 
+  const hasAssets = await validateAssets({ metaFilename, assetsFolders });
+
+  if (hasAssets) {
+    log.info("The instance assets seems to be valid");
+
+    return assetsDirectory;
+  }
+
   let parsedMeta: unknown;
 
   try {
@@ -57,10 +68,8 @@ export async function getAssets({
       "label"          : `/assets/indexes/${metaFilename}`,
       "getDefaultValue": async () => {
         currentStatuses.value.add(LaunchStatus.Assets.FetchingMeta);
-        const fetched: AssetObjectsType | LaunchStatusType = await fetchAssetsMeta({
-          "assetIndex": assetIndex.id,
-          "url"       : assetIndex.url,
-          "filePath"  : General.cachedJoin(assetsFolders.indexes, metaFilename),
+        const fetched: object | LaunchStatusType = await fetchAssetsMeta({
+          "url": assetIndex.url,
         });
 
         if (typeof fetched === "string") {
@@ -71,33 +80,68 @@ export async function getAssets({
            * into the file specified earlier, but in case of an error we do not
            * want to write anything. Therefore, we break out of that function
            */
-          throw new Error("An error occurred while fetching the version meta");
+          throw new Error("An error occurred while fetching the assets meta");
         }
 
         return fetched;
       },
     });
-  } catch {
+  } catch (error) {
+    console.error(error);
+
     return undefined;
   }
 
-  const shallowlyValid: AssetObjectsType | false = shallowlyValidateMeta({ "meta": parsedMeta });
+  const shallowlyValidMeta: AssetObjectsType | false = shallowlyValidateMeta({
+    "meta": parsedMeta,
+  });
 
-  if (shallowlyValid === false) {
+  if (shallowlyValidMeta === false) {
     currentStatuses.value.add(LaunchStatus.Errors.MetaAssetsShallowValidationFailed);
 
     return undefined;
   }
 
-  console.log(shallowlyValid);
+  console.log(shallowlyValidMeta);
 
-  /**
-   * await download(
-   *     assetIndex.url,
-   *     assetsFilePath,
-   *     ({ progressTotal, total }) => {
-   *       console.log(Math.floor(progressTotal / total * 100));
-   *     },
-   *   );
-   */
+  const assetEntryValues: Array<AssetObjectsType["objects"][string]> = Object.values(
+    shallowlyValidMeta.objects,
+  );
+  // Assets to download
+  const toDownload: Array<Array<{
+    "shortHashPath": string;
+    "url"          : string;
+    "filePath"     : string;
+  }>> = [];
+
+  for (const [index, { hash }] of assetEntryValues.entries()) {
+    const downloadGroupIndex = Math.floor(index / ConcurrentDownloads.Assets);
+
+    if (!toDownload[downloadGroupIndex]) {
+      toDownload[downloadGroupIndex] = [];
+    }
+
+    const shortHash = hash.slice(0, 2);
+    const url = APIEndpoints.Resources.Base + shortHash + "/" + hash;
+    const shortHashPath = General.cachedJoin(
+      assetsFolders.objects,
+      shortHash,
+    );
+    const filePath = General.cachedJoin(
+      shortHashPath,
+      hash,
+    );
+
+    toDownload[downloadGroupIndex].push({ shortHashPath, url, filePath });
+  }
+
+  console.log("uh");
+  log.debug("Starting to download asset objects");
+  for (const downloadGroup of toDownload) {
+    console.log("Next group.", downloadGroup);
+
+    await Promise.all(
+      downloadGroup.map(downloadInfo => downloadAssetObject(downloadInfo)),
+    );
+  }
 }
