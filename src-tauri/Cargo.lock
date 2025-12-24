@@ -2296,6 +2296,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tauri-plugin-single-instance",
  "tauri-plugin-upload",
+ "tokio",
  "zip",
  "zip-extensions",
 ]
@@ -5249,6 +5250,7 @@ dependencies = [
  "io-uring",
  "libc",
  "mio",
+ "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "slab",

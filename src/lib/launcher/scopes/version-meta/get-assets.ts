@@ -2,9 +2,6 @@ import { FileStructure } from "@/constants/file-structure.ts";
 import { APIEndpoints, ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import {
-  checkObjectDirectories,
-} from "@/lib/launcher/scopes/version-meta/assets/check-object-directories.ts";
-import {
   downloadAssetObject,
 } from "@/lib/launcher/scopes/version-meta/assets/download-asset-object.ts";
 import { fetchAssetsMeta } from "@/lib/launcher/scopes/version-meta/assets/fetch-assets-meta.ts";
@@ -30,7 +27,7 @@ export async function getAssets({
   "baseDirectory"  : string;
   "assetIndex"     : MetaMinecraftVersionType["assetIndex"];
   "currentStatuses": LauncherStatusesType;
-}): Promise<string | undefined> {
+}): Promise<string | false> {
   const metaFilename = assetIndex.id + ".json";
   const assetsDirectory = General.cachedJoin(
     baseDirectory,
@@ -80,10 +77,8 @@ export async function getAssets({
         return fetched;
       },
     });
-  } catch (error) {
-    console.error(error);
-
-    return undefined;
+  } catch {
+    return false;
   }
 
   const shallowlyValidMeta: AssetObjectsType | false = shallowlyValidateMeta({
@@ -93,28 +88,19 @@ export async function getAssets({
   if (shallowlyValidMeta === false) {
     currentStatuses.value.add(LaunchStatus.Errors.MetaAssetsShallowValidationFailed);
 
-    return undefined;
+    return false;
   }
 
   const assetEntryValues: Array<AssetObjectsType["objects"][string]> = Object.values(
     shallowlyValidMeta.objects,
   );
-  // Short hashes to check against
-  const shortHashes: Array<string> = [];
-  // Assets to download
-  const toDownload: Array<Array<{
+  const mappedAssetObjects: Array<{
     "shortHashPath": string;
     "url"          : string;
     "filePath"     : string;
-  }>> = [];
+  }> = [];
 
-  for (const [index, { hash }] of assetEntryValues.entries()) {
-    const downloadGroupIndex = Math.floor(index / ConcurrentDownloads.Assets);
-
-    if (!toDownload[downloadGroupIndex]) {
-      toDownload[downloadGroupIndex] = [];
-    }
-
+  for (const { hash } of assetEntryValues.values()) {
     const shortHash = hash.slice(0, 2);
     const url = APIEndpoints.Resources.Base + shortHash + "/" + hash;
     const shortHashPath = General.cachedJoin(
@@ -126,27 +112,48 @@ export async function getAssets({
       hash,
     );
 
-    shortHashes.push(shortHash);
-    toDownload[downloadGroupIndex].push({ shortHashPath, url, filePath });
+    mappedAssetObjects.push({
+      shortHashPath,
+      url,
+      filePath,
+    });
   }
 
-  console.log("uheee");
-  const alreadyDownloaded: boolean = await checkObjectDirectories({
-    assetsFolders,
-    shortHashes,
+  const t1 = performance.now();
+  const missingHashes: Set<string> = new Set(
+    await General.getMissingPaths({
+      "paths": mappedAssetObjects.map(({ filePath }) => filePath),
+    }),
+  );
+  const t2 = performance.now();
+  console.log(t2 - t1, "ms");
+  console.log(missingHashes);
+
+  const filteredAssetObjects = mappedAssetObjects.filter(({ filePath }) => {
+    return missingHashes.has(filePath);
   });
+  console.log("mm");
+  // Assets to download
+  const toDownload: Array<Array<{
+    "shortHashPath": string;
+    "url"          : string;
+    "filePath"     : string;
+  }>> = [];
 
-  if (alreadyDownloaded) {
-    currentStatuses.value.add(LaunchStatus.Assets.Done);
+  console.log(toDownload.length);
+  for (const [index, value] of filteredAssetObjects.entries()) {
+    const downloadGroupIndex = Math.floor(index / ConcurrentDownloads.Assets);
 
-    return;
+    if (!toDownload[downloadGroupIndex]) {
+      toDownload[downloadGroupIndex] = [];
+    }
+
+    toDownload[downloadGroupIndex].push(value);
   }
 
-  console.log("uh");
+  console.log(toDownload.flat().length);
   log.debug("Starting to download asset objects");
   for (const downloadGroup of toDownload) {
-    console.log("Next group.");
-
     await Promise.all(
       downloadGroup.map(downloadInfo => downloadAssetObject(downloadInfo)),
     );

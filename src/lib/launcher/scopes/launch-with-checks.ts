@@ -36,7 +36,6 @@ export async function launchWithChecks({
   }
 
   const { assetIndex, libraries, logging, requires } = versionMeta;
-  console.log(versionMeta);
 
   // Concurrently resolve instance assets, libraries, logging configs, and patches
   const [
@@ -45,10 +44,10 @@ export async function launchWithChecks({
     loggingDirectory,
     patchesDirectory,
   ]: [
-    string | undefined,
-    string | undefined,
-    string | undefined,
-    string | undefined,
+    string | false,
+    string | false,
+    string | false,
+    string | false,
   ] = await Promise.all([
     getAssets({ baseDirectory, assetIndex, currentStatuses }),
     getLibraries({ baseDirectory, libraries, currentStatuses }),

@@ -9,6 +9,7 @@ import { getBaseDirectory } from "@/lib/general/scopes/get-base-directory.ts";
 import { getCachedBaseDirectory } from "@/lib/general/scopes/get-cached-base-directory.ts";
 import { getCachedPortable } from "@/lib/general/scopes/get-cached-portable.ts";
 import { getExecutableDirectory } from "@/lib/general/scopes/get-executable-directory.ts";
+import { getMissingPaths } from "@/lib/general/scopes/get-missing-paths.ts";
 import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
 import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-styles.ts";
 import { handleJsonFile } from "@/lib/general/scopes/handle-json-file.ts";
@@ -27,6 +28,7 @@ export default {
   getCachedBaseDirectory,
   getCachedPortable,
   getExecutableDirectory,
+  getMissingPaths,
   getRelativeDate,
   getSidebarInnerStyles,
   handleJsonFile,

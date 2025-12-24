@@ -1,3 +1,4 @@
+use tokio;
 use std::fs;
 use std::path::{Path};
 
@@ -96,4 +97,16 @@ pub fn get_executable_directory() -> Result<String, String> {
         }
         Err(error) => Err(format!("Error getting the executable path: {}", error)),
     }
+}
+
+#[tauri::command]
+pub async fn get_missing_files(paths: Vec<String>) -> Result<Vec<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        paths
+            .into_iter()
+            .filter(|path| !Path::new(path).exists())
+            .collect()
+    })
+    .await
+    .map_err(|e| e.to_string())
 }

@@ -28,6 +28,7 @@ chrono = "0.4.41"
 sysinfo = "0.36.1"
 zip = "3.0"
 zip-extensions = "0.8.3"
+tokio = { version = "1", features = ["full"] }
 
 # Non-default installed plugins
 tauri-plugin-fs = "2"
