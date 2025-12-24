@@ -10,12 +10,16 @@ export async function downloadAssetObject({
   "url"          : string;
   "filePath"     : string;
 }): Promise<void> {
-  await mkdir(shortHashPath);
-  await download(
+  try {
+    // 'mkdir' throws an error if the directory already exists
+    await mkdir(shortHashPath);
+  } catch {}
+
+  return download(
     url,
     filePath,
-    ({ progressTotal, total }) => {
-      console.log(Math.floor(progressTotal / total * 100));
+    (/* { progressTotal, total } */) => {
+      // console.log(Math.floor(progressTotal / total * 100));
     },
   );
 }

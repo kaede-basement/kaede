@@ -11,6 +11,7 @@ export const LaunchStatus = {
   "Assets": {
     "ReadingCachedMeta": "assets-reading-cached-meta",
     "FetchingMeta"     : "assets-fetching-meta",
+    "Done"             : "assets-done",
   },
   "Errors": {
     "UndefinedInstanceVersion"          : "error-undefined-instance-version",
@@ -46,5 +47,5 @@ export const APIEndpoints = {
    */
 } as const;
 export const ConcurrentDownloads = {
-  "Assets": 32,
+  "Assets": 64,
 } as const;

@@ -2,6 +2,9 @@ import { FileStructure } from "@/constants/file-structure.ts";
 import { APIEndpoints, ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import {
+  checkObjectDirectories,
+} from "@/lib/launcher/scopes/version-meta/assets/check-object-directories.ts";
+import {
   downloadAssetObject,
 } from "@/lib/launcher/scopes/version-meta/assets/download-asset-object.ts";
 import { fetchAssetsMeta } from "@/lib/launcher/scopes/version-meta/assets/fetch-assets-meta.ts";
@@ -11,7 +14,6 @@ import {
 import {
   shallowlyValidateMeta,
 } from "@/lib/launcher/scopes/version-meta/assets/shallowly-validate-meta.ts";
-import { validateAssets } from "@/lib/launcher/scopes/version-meta/assets/validate-assets.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { AssetObjectsType } from "@/types/launcher/assets/asset-objects.type.ts";
 import type {
@@ -49,14 +51,6 @@ export async function getAssets({
   };
 
   await initializeAssetsDirectories({ assetsFolders });
-
-  const hasAssets = await validateAssets({ metaFilename, assetsFolders });
-
-  if (hasAssets) {
-    log.info("The instance assets seems to be valid");
-
-    return assetsDirectory;
-  }
 
   let parsedMeta: unknown;
 
@@ -102,11 +96,11 @@ export async function getAssets({
     return undefined;
   }
 
-  console.log(shallowlyValidMeta);
-
   const assetEntryValues: Array<AssetObjectsType["objects"][string]> = Object.values(
     shallowlyValidMeta.objects,
   );
+  // Short hashes to check against
+  const shortHashes: Array<string> = [];
   // Assets to download
   const toDownload: Array<Array<{
     "shortHashPath": string;
@@ -132,16 +126,33 @@ export async function getAssets({
       hash,
     );
 
+    shortHashes.push(shortHash);
     toDownload[downloadGroupIndex].push({ shortHashPath, url, filePath });
+  }
+
+  console.log("uheee");
+  const alreadyDownloaded: boolean = await checkObjectDirectories({
+    assetsFolders,
+    shortHashes,
+  });
+
+  if (alreadyDownloaded) {
+    currentStatuses.value.add(LaunchStatus.Assets.Done);
+
+    return;
   }
 
   console.log("uh");
   log.debug("Starting to download asset objects");
   for (const downloadGroup of toDownload) {
-    console.log("Next group.", downloadGroup);
+    console.log("Next group.");
 
     await Promise.all(
       downloadGroup.map(downloadInfo => downloadAssetObject(downloadInfo)),
     );
   }
+
+  currentStatuses.value.add(LaunchStatus.Assets.Done);
+
+  return assetsDirectory;
 }
