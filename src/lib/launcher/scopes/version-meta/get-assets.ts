@@ -119,20 +119,16 @@ export async function getAssets({
     });
   }
 
-  const t1 = performance.now();
   const missingHashes: Set<string> = new Set(
     await General.getMissingPaths({
       "paths": mappedAssetObjects.map(({ filePath }) => filePath),
     }),
   );
-  const t2 = performance.now();
-  console.log(t2 - t1, "ms");
-  console.log(missingHashes);
 
   const filteredAssetObjects = mappedAssetObjects.filter(({ filePath }) => {
     return missingHashes.has(filePath);
   });
-  console.log("mm");
+
   // Assets to download
   const toDownload: Array<Array<{
     "shortHashPath": string;
@@ -140,7 +136,6 @@ export async function getAssets({
     "filePath"     : string;
   }>> = [];
 
-  console.log(toDownload.length);
   for (const [index, value] of filteredAssetObjects.entries()) {
     const downloadGroupIndex = Math.floor(index / ConcurrentDownloads.Assets);
 
@@ -151,7 +146,6 @@ export async function getAssets({
     toDownload[downloadGroupIndex].push(value);
   }
 
-  console.log(toDownload.flat().length);
   log.debug("Starting to download asset objects");
   for (const downloadGroup of toDownload) {
     await Promise.all(
