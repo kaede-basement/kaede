@@ -4,45 +4,24 @@ export const LaunchStatus = {
     "Success" : "success",
   },
   "Metadata": {
-    "ReadingCachedVersionMeta": "reading-cached-version-meta",
-    "FetchingVersionMeta"     : "fetching-version-meta",
-    "ValidatingVersionMeta"   : "validating-version-meta",
+    "ReadingCachedVersionMeta": "meta-reading-cached-version-meta",
+    "FetchingVersionMeta"     : "meta-fetching-version-meta",
+    "ValidatingVersionMeta"   : "meta-validating-version-meta",
+  },
+  "Assets": {
+    "ReadingCachedMeta": "assets-reading-cached-meta",
+    "FetchingMeta"     : "assets-fetching-meta",
   },
   "Errors": {
-    "UndefinedInstanceVersion"          : "undefined-instance-version",
-    "MetaVersionFetchFailed"            : "meta-version-fetch-failed",
-    "MetaVersionParseFailed"            : "meta-version-parse-failed",
-    "MetaVersionShallowValidationFailed": "meta-version-shallow-validation-failed",
-    "MetaVersionFullValidationFailed"   : "meta-version-full-validation-failed",
-    "VersionNotFoundInMeta"             : "version-not-found-in-meta",
-    "MissingJava"                       : "missing-java",
-    "IncorrectJavaVersion"              : "incorrect-java-version",
-  },
-} as const;
-export const LaunchStatusOld = {
-  "General": {
-    "Starting": "getting-started",
-  },
-  "ManifestV2": {
-    "ReadingCache"    : "reading-cached-manifest-v2",
-    "FetchingResponse": "fetching-uncached-manifest-v2",
-    "ReadingResponse" : "reading-uncached-manifest-v2",
-    "Validating"      : "validating-manifest-v2",
-  },
-  "VersionMetadata": {
-    "ReadingCache"    : "reading-cached-version-metadata",
-    "FetchingResponse": "fetching-uncached-version-metadata",
-    "ReadingResponse" : "reading-uncached-version-metadata",
-    "Validating"      : "validating-version-metadata",
-  },
-  "End": {
-    "Success": "success",
-  },
-  "Errors": {
-    "InvalidManifestV2"          : "invalid-manifest-v2",
-    "VersionNotFoundInManifestV2": "version-not-found-in-manifest-v2",
-    "MissingJava"                : "missing-java",
-    "IncorrectJavaVersion"       : "incorrect-java-version",
+    "UndefinedInstanceVersion"          : "error-undefined-instance-version",
+    "MetaVersionFetchFailed"            : "error-meta-version-fetch-failed",
+    "MetaVersionParseFailed"            : "error-meta-version-parse-failed",
+    "MetaVersionShallowValidationFailed": "error-meta-version-shallow-validation-failed",
+    "MetaVersionFullValidationFailed"   : "error-meta-version-full-validation-failed",
+    "MetaAssetsShallowValidationFailed" : "error-meta-assets-shallow-validation-failed",
+    "VersionNotFoundInMeta"             : "error-version-not-found-in-meta",
+    "MissingJava"                       : "error-missing-java",
+    "IncorrectJavaVersion"              : "error-incorrect-java-version",
   },
 } as const;
 export const APIEndpoints = {

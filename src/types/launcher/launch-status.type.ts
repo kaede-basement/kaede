@@ -8,4 +8,6 @@ type LaunchKeyType = keyof LaunchStatusObjectType;
 export type LaunchStatusType = {
   [Key in LaunchKeyType]: LaunchStatusObjectType[Key][keyof LaunchStatusObjectType[Key]];
 }[LaunchKeyType];
-export type LauncherStatusesType = Ref<Set<LaunchStatusType>>;
+
+export type UnwrappedLauncherStatusesType = Set<LaunchStatusType>;
+export type LauncherStatusesType = Ref<UnwrappedLauncherStatusesType>;

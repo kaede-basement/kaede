@@ -10,7 +10,10 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/current-instance.type.ts";
-import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
+import type {
+  LaunchStatusType,
+  UnwrappedLauncherStatusesType,
+} from "@/types/launcher/launch-status.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
@@ -19,7 +22,7 @@ const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
 ));
 
-const statuses = ref<Set<LaunchStatusType>>(
+const statuses = ref<UnwrappedLauncherStatusesType>(
   new Set,
 );
 
