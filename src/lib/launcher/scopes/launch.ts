@@ -35,12 +35,12 @@ export async function launch({
   const mainClass = versionMeta.mainClass;
   const [
     javaBinary,
-    classPaths,
+    { "argument": classPathsArgument, classPaths },
     jvmArguments,
     gameArguments,
   ]: [
     "java" | "cmd",
-    string,
+    { "argument": string; "classPaths": string },
     string,
     string,
   ] = await Promise.all([
@@ -64,15 +64,18 @@ export async function launch({
   ]);
 
   const additionalArguments: string = getAdditionalStartArguments({ javaBinary });
-  const builtLaunchArguments: string = [
+  const toReplace: string = [
     additionalArguments,
-    classPaths,
+    classPathsArgument,
     jvmArguments,
     mainClass,
     gameArguments,
   ].join(" ");
   const launchArguments: string = replaceLaunchArguments({
-    builtLaunchArguments,
+    "builtLaunchArguments": {
+      toReplace,
+      classPaths,
+    },
     instance,
     versionMeta,
     directories,

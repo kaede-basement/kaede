@@ -1,3 +1,4 @@
+import { FileStructure } from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 import Instances from "@/lib/instances";
 import { extractInstance } from "@/lib/launcher/scopes/extract-instance.ts";
@@ -11,7 +12,6 @@ import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type { MetaMinecraftVersionType } from "@/types/launcher/meta-manifest.type.ts";
-import { FileStructure } from "@/constants/file-structure.ts";
 
 export async function launchWithChecks({
   instanceId,
@@ -81,7 +81,7 @@ export async function launchWithChecks({
     !libraryPaths ||
     !patchPaths
   ) {
-    // return false;
+    return false;
   }
 
   const nativesDirectory: string = General.cachedJoin(
