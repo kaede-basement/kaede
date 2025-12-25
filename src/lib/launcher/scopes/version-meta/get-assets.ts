@@ -1,9 +1,7 @@
 import { FileStructure } from "@/constants/file-structure.ts";
 import { APIEndpoints, ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
-import {
-  downloadAssetObject,
-} from "@/lib/launcher/scopes/version-meta/assets/download-asset-object.ts";
+import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
 import { fetchAssetsMeta } from "@/lib/launcher/scopes/version-meta/assets/fetch-assets-meta.ts";
 import {
   initializeAssetsDirectories,
@@ -152,7 +150,8 @@ export async function getAssets({
   log.debug("Starting to download asset objects");
   for (const downloadGroup of assetObjectsToDownload) {
     await Promise.all(
-      downloadGroup.map(({ url, filePath }) => downloadAssetObject({
+      downloadGroup.map(({ url, filePath }) => downloadWithProgress({
+        "statusScope": LaunchStatus.Assets.DownloadingAsset,
         url,
         filePath,
         statuses,

@@ -14,6 +14,11 @@ export const LaunchStatus = {
     "DownloadingAsset" : "assets-downloading-asset",
     "Done"             : "assets-done",
   },
+  "Client": {
+    "CheckingIfPresent": "client-checking-if-present",
+    "DownloadingJar"   : "client-downloading-jar",
+    "Done"             : "client-done",
+  },
   "Errors": {
     "UndefinedInstanceVersion"          : "error-undefined-instance-version",
     "MetaVersionFetchFailed"            : "error-meta-version-fetch-failed",

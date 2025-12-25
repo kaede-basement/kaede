@@ -1,21 +1,22 @@
 import { download } from "@tauri-apps/plugin-upload";
 
-import { LaunchStatus } from "@/constants/launcher.ts";
 import type {
   LauncherStatusesType,
   LaunchStatusType,
 } from "@/types/launcher/launch-status.type.ts";
 
-export function downloadAssetObject({
+export function downloadWithProgress({
   url,
   filePath,
+  statusScope,
   statuses,
 }: {
-  "url"     : string;
-  "filePath": string;
-  "statuses": LauncherStatusesType;
+  "url"        : string;
+  "filePath"   : string;
+  "statusScope": string;
+  "statuses"   : LauncherStatusesType;
 }): Promise<void> {
-  const status: string = LaunchStatus.Assets.DownloadingAsset + "-" + url;
+  const status: string = statusScope + "-" + url;
   let previousStatus: string = status;
 
   return download(

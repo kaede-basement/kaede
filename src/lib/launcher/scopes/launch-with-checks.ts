@@ -3,6 +3,7 @@ import General from "@/lib/general";
 import { extractInstanceVersion } from "@/lib/launcher/scopes/extract-instance-version.ts";
 import { getVersionMeta } from "@/lib/launcher/scopes/get-version-meta.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
+import { getClient } from "@/lib/launcher/scopes/version-meta/get-client.ts";
 import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
 import { getLogging } from "@/lib/launcher/scopes/version-meta/get-logging.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
@@ -38,11 +39,18 @@ export async function launchWithChecks({
     return;
   }
 
-  const { assetIndex, libraries, logging, requires } = versionMeta;
+  const {
+    assetIndex,
+    mainJar,
+    libraries,
+    logging,
+    requires,
+  } = versionMeta;
 
-  // Concurrently resolve instance assets, libraries, logging configs, and patches
+  // Concurrently resolve instance assets, client jar, libraries, logging configs, and patches
   const [
     assetsDirectory,
+    clientDirectory,
     librariesDirectory,
     loggingDirectory,
     patchesDirectory,
@@ -51,15 +59,26 @@ export async function launchWithChecks({
     string | false,
     string | false,
     string | false,
+    string | false,
   ] = await Promise.all([
     getAssets({ baseDirectory, assetIndex, statuses }),
+    getClient({ baseDirectory, mainJar, statuses }),
     getLibraries({ baseDirectory, libraries, statuses }),
     getLogging({ baseDirectory, logging, statuses }),
     getPatches({ baseDirectory, requires, statuses }),
   ]);
 
+  console.log(
+    assetsDirectory,
+    clientDirectory,
+    librariesDirectory,
+    loggingDirectory,
+    patchesDirectory,
+  );
+
   if (
     !assetsDirectory ||
+    !clientDirectory ||
     !librariesDirectory ||
     !loggingDirectory ||
     !patchesDirectory

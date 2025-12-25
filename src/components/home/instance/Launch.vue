@@ -31,10 +31,15 @@ async function handleLaunch(): Promise<void> {
     "instanceId": currentInstance.value.id,
     statuses,
   });
+
+  console.log(statuses);
 }
 </script>
 
 <template>
+  <div id="__temp" class="size-64 overflow-auto bg-neutral-800 text-xs">
+    {{ statuses }}
+  </div>
   <button
     @click="handleLaunch"
     id="__home-page__launch-button"
