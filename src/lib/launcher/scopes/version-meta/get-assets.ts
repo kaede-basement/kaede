@@ -93,33 +93,30 @@ export async function getAssets({
     return false;
   }
 
-  const assetEntryValues: Array<AssetObjectsType["objects"][string]> = Object.values(
-    shallowlyValidMeta.objects,
-  );
   const mappedAssetObjects: Array<{
     "shortHashPath": string;
     "url"          : string;
     "filePath"     : string;
-  }> = [];
+  }> = Object
+    .values(shallowlyValidMeta.objects)
+    .map(({ hash }) => {
+      const shortHash = hash.slice(0, 2);
+      const url = APIEndpoints.Resources.Base + shortHash + "/" + hash;
+      const shortHashPath = General.cachedJoin(
+        assetsFolders.objects,
+        shortHash,
+      );
+      const filePath = General.cachedJoin(
+        shortHashPath,
+        hash,
+      );
 
-  for (const { hash } of assetEntryValues.values()) {
-    const shortHash = hash.slice(0, 2);
-    const url = APIEndpoints.Resources.Base + shortHash + "/" + hash;
-    const shortHashPath = General.cachedJoin(
-      assetsFolders.objects,
-      shortHash,
-    );
-    const filePath = General.cachedJoin(
-      shortHashPath,
-      hash,
-    );
-
-    mappedAssetObjects.push({
-      shortHashPath,
-      url,
-      filePath,
+      return {
+        shortHashPath,
+        url,
+        filePath,
+      };
     });
-  }
 
   const missingHashes: Set<string> = new Set(
     await General.getMissingPaths({
@@ -127,37 +124,43 @@ export async function getAssets({
     }),
   );
 
-  const filteredAssetObjects = mappedAssetObjects.filter(({ filePath }) => {
-    return missingHashes.has(filePath);
-  });
-
-  const assetObjectsToDownload: Array<Array<{
+  const missingAssetObjects: Array<{
     "shortHashPath": string;
     "url"          : string;
     "filePath"     : string;
-  }>> = [];
-
-  for (const [index, value] of filteredAssetObjects.entries()) {
-    const downloadGroupIndex = Math.floor(index / ConcurrentDownloads.Assets);
-
-    if (!assetObjectsToDownload[downloadGroupIndex]) {
-      assetObjectsToDownload[downloadGroupIndex] = [];
-    }
-
-    assetObjectsToDownload[downloadGroupIndex].push(value);
-  }
+  }> = mappedAssetObjects.filter(({ filePath }) => {
+    return missingHashes.has(filePath);
+  });
+  const indexReference: { "value": number } = {
+    "value": 0,
+  };
 
   log.debug("Starting to download asset objects");
-  for (const downloadGroup of assetObjectsToDownload) {
-    await Promise.all(
-      downloadGroup.map(({ url, filePath }) => downloadWithProgress({
-        "statusScope": LaunchStatus.Assets.DownloadingAsset,
-        url,
-        filePath,
-        statuses,
-      })),
-    );
-  }
+  await Promise.all(
+    Array
+      .from({ "length": ConcurrentDownloads.Assets })
+      .map(async (_, groupIndex) => {
+        while (true) {
+          if (indexReference.value >= missingAssetObjects.length) {
+            break;
+          }
+
+          const entryOutOfTotal = `${indexReference.value + 1}/${missingAssetObjects.length}`;
+          const index = indexReference.value++;
+          const { url, filePath } = missingAssetObjects[index];
+
+          log.debug(
+            `Concurrency group ${groupIndex}: downloading (${entryOutOfTotal}) '${url}'`,
+          );
+          await downloadWithProgress({
+            "statusScope": LaunchStatus.Assets.DownloadingAsset,
+            url,
+            filePath,
+            statuses,
+          });
+        }
+      }),
+  );
 
   statuses.add(LaunchStatus.Assets.Done);
 

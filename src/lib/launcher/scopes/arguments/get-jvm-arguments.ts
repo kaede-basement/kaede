@@ -1,7 +1,5 @@
 import type { Platform } from "@tauri-apps/plugin-os";
 
-import { ApplicationName } from "@/constants/application.ts";
-import General from "@/lib/general";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
 import type { MetaMinecraftVersionType } from "@/types/launcher/meta/net-minecraft.type.ts";
@@ -22,12 +20,12 @@ export function getJvmArguments({
 
   if (!isNew) {
     jvmArguments.push(
-      `-Djava.library.path=${directories.natives}`,
-      `-Djna.tmpdir=${directories.natives}`,
-      `-Dorg.lwjgl.system.SharedLibraryExtractPath=${directories.natives}`,
-      `-Dio.netty.native.workdir=${directories.natives}`,
-      `-Dminecraft.launcher.brand=${ApplicationName}`,
-      `-Dminecraft.launcher.version=${General.getLauncherVersion()}`,
+      "-Djava.library.path=${natives_directory}",
+      "-Djna.tmpdir=${natives_directory}",
+      "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
+      "-Dio.netty.native.workdir=${natives_directory}",
+      "-Dminecraft.launcher.brand=${launcher_name}",
+      "-Dminecraft.launcher.version=${launcher_version}",
     );
   }
 

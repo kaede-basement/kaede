@@ -9,6 +9,9 @@ import { getClassPaths } from "@/lib/launcher/scopes/arguments/get-class-paths.t
 import { getGameArguments } from "@/lib/launcher/scopes/arguments/get-game-arguments.ts";
 import { getJavaBinary } from "@/lib/launcher/scopes/arguments/get-java-binary.ts";
 import { getJvmArguments } from "@/lib/launcher/scopes/arguments/get-jvm-arguments.ts";
+import {
+  replaceLaunchArguments,
+} from "@/lib/launcher/scopes/arguments/replace-launch-arguments.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
@@ -61,13 +64,19 @@ export async function launch({
   ]);
 
   const additionalArguments: string = getAdditionalStartArguments({ javaBinary });
-  const launchArguments: string = [
+  const builtLaunchArguments: string = [
     additionalArguments,
     classPaths,
     jvmArguments,
     mainClass,
     gameArguments,
   ].join(" ");
+  const launchArguments: string = replaceLaunchArguments({
+    builtLaunchArguments,
+    instance,
+    versionMeta,
+    directories,
+  });
   const instanceCommand = Command.create(
     javaBinary,
     launchArguments,

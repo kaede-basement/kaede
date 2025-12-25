@@ -1,0 +1,26 @@
+export type ArgumentReplacementsType = {
+  "natives_directory"    : string;
+  "launcher_name"        : string;
+  "launcher_version"     : string;
+  "classpath"            : string;
+  "clientid"             : string;
+  "auth_xuid"            : string;
+  "auth_player_name"     : string;
+  "version_name"         : string;
+  "game_directory"       : string;
+  "assets_root"          : string;
+  "assets_index_name"    : string;
+  "auth_uuid"            : string;
+  "auth_access_token"    : string;
+  "user_type"            : string;
+  "version_type"         : string;
+  "resolution_width"     : string;
+  "resolution_height"    : string;
+  "auth_session"         : string;
+  "user_properties"      : string;
+  "game_assets"          : string;
+  "quickPlayPath"        : string;
+  "quickPlaySingleplayer": string;
+  "quickPlayMultiplayer" : string;
+  "quickPlayRealms"      : string;
+};
