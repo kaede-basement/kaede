@@ -98,6 +98,8 @@ pub fn run() {
 
             app.handle().plugin(
                 logging_builder
+                    // Do not log log messages from 'reqwest::connect'
+                    .filter(|metadata| metadata.target() != "reqwest::connect")
                     // Do not log 'trace' level messages
                     .level(log::LevelFilter::Debug)
                     // Make a new output target that will save logs in a log file
