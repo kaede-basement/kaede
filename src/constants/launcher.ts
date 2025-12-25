@@ -1,7 +1,7 @@
 export const LaunchStatus = {
   "General": {
-    "Starting": "starting",
-    "Success" : "success",
+    "Starting": "general-starting",
+    "Success" : "general-success",
   },
   "Metadata": {
     "ReadingCachedVersionMeta": "meta-reading-cached-version-meta",
@@ -20,11 +20,12 @@ export const LaunchStatus = {
     "Done"             : "client-done",
   },
   "Logging": {
-    "CheckingIfPresent": "checking-if-present",
+    "CheckingIfPresent": "logging-checking-if-present",
     "DownloadingConfig": "logging-downloading-config",
     "Done"             : "logging-done",
   },
   "Errors": {
+    "UnhandledError"                    : "error-unhandled-error",
     "UndefinedInstanceVersion"          : "error-undefined-instance-version",
     "MetaVersionFetchFailed"            : "error-meta-version-fetch-failed",
     "MetaVersionParseFailed"            : "error-meta-version-parse-failed",

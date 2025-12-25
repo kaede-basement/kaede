@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed, inject, ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey, InstanceStatesContextKey } from "@/constants/application.ts";
+import { LaunchStatus } from "@/constants/launcher.ts";
+import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/current-instance.type.ts";
@@ -14,6 +17,8 @@ import type {
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
+
+const loading = ref<boolean>(false);
 
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
@@ -26,11 +31,26 @@ async function handleLaunch(): Promise<void> {
     return;
   }
 
+  loading.value = true;
+
   statuses.clear();
-  await Launcher.launchWithChecks({
-    "instanceId": currentInstance.value.id,
-    statuses,
-  });
+  statuses.add(LaunchStatus.General.Starting);
+
+  try {
+    await Launcher.launchWithChecks({
+      "instanceId": currentInstance.value.id,
+      statuses,
+    });
+  } catch (error: unknown) {
+    statuses.add(LaunchStatus.Errors.UnhandledError);
+
+    log.error(
+      `Could not launch the '${currentInstance.value.id}' instance:`,
+      Errors.prettify(error),
+    );
+  }
+
+  loading.value = false;
 
   console.log(statuses);
 }
@@ -42,8 +62,9 @@ async function handleLaunch(): Promise<void> {
   </div>
   <button
     @click="handleLaunch"
+    :disabled="loading"
     id="__home-page__launch-button"
-    class="relative w-fit rounded-l-md rounded-r-sm bg-white px-4 py-2 text-black"
+    class="relative w-fit rounded-l-md rounded-r-sm bg-white px-4 py-2 text-black transition-[opacity] disabled:cursor-progress disabled:opacity-80"
   >
     <span
       id="__home-page__launch-label"

@@ -9,6 +9,7 @@ import { getBaseDirectory } from "@/lib/general/scopes/get-base-directory.ts";
 import { getCachedBaseDirectory } from "@/lib/general/scopes/get-cached-base-directory.ts";
 import { getCachedPortable } from "@/lib/general/scopes/get-cached-portable.ts";
 import { getExecutableDirectory } from "@/lib/general/scopes/get-executable-directory.ts";
+import { getLauncherVersion } from "@/lib/general/scopes/get-launcher-version.ts";
 import { getMissingPaths } from "@/lib/general/scopes/get-missing-paths.ts";
 import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
 import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-styles.ts";
@@ -28,6 +29,7 @@ export default {
   getCachedBaseDirectory,
   getCachedPortable,
   getExecutableDirectory,
+  getLauncherVersion,
   getMissingPaths,
   getRelativeDate,
   getSidebarInnerStyles,

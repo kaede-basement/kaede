@@ -31,7 +31,7 @@ const startTime = performance.now();
 Globals.declareWindow();
 
 // Concurrent promise resolving saves us around 15 ms
-const [launchCount, portable]: [number, boolean, void] = await Promise.all([
+const [launchCount, portable]: [number, boolean, void, void] = await Promise.all([
   // Get application UI reloads count
   Globals.getLaunchCount(),
   // Check if launcher is in a portable mode to share the status between multiple functions
@@ -44,6 +44,8 @@ const [launchCount, portable]: [number, boolean, void] = await Promise.all([
    * Does not return anything
    */
   Globals.cachePathJoin(),
+  // Cache the launcher version
+  Globals.cacheLauncherVersion(),
 ]);
 
 // Show a pretty ASCII art with the launcher name :3

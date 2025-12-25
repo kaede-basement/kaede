@@ -1,15 +1,15 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances";
+import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta-manifest.type.ts";
 
-export function extractInstanceVersion({
+export function extractInstance({
   statuses,
   instanceId,
 }: {
   "statuses"  : LauncherStatusesType;
   "instanceId": string;
-}): MetaMinecraftVersionType["version"] | undefined {
+}): InstanceStateType | undefined {
   const instanceStates = Instances.get();
   const currentInstanceStates = instanceStates[instanceId];
 
@@ -19,5 +19,5 @@ export function extractInstanceVersion({
     return undefined;
   }
 
-  return currentInstanceStates.version;
+  return currentInstanceStates;
 }

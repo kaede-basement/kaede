@@ -47,6 +47,7 @@ export function declareWindow(): void {
       "requestPermissions"  : placeholderFunction as () => Promise<Array<boolean>>,
       "syncConfig"          : placeholderFunction as () => Promise<void>,
       "joinDelimiter"       : "",
+      "launcherVersion"     : "",
       "initialConfig"       : {} as ConfigType,
       "temporaryAccounts"   : [] as Array<AccountType>,
       "initialTranslations" : {} as TranslationsType,

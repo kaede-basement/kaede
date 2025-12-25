@@ -96,6 +96,8 @@ declare global {
         "syncConfig"          : () => Promise<void>;
         // Platform-specific delimiter obtained by a single invoke of Tauri 'join'
         "joinDelimiter"       : string;
+        // Launcher version
+        "launcherVersion"     : string;
         // Config state before launcher initialization
         "initialConfig"       : ConfigType;
         // Accounts state before launcher initialization

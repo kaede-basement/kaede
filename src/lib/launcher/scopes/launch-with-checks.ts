@@ -1,14 +1,17 @@
-import { LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
-import { extractInstanceVersion } from "@/lib/launcher/scopes/extract-instance-version.ts";
+import Instances from "@/lib/instances";
+import { extractInstance } from "@/lib/launcher/scopes/extract-instance.ts";
 import { getVersionMeta } from "@/lib/launcher/scopes/get-version-meta.ts";
+import { launch } from "@/lib/launcher/scopes/launch.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getClient } from "@/lib/launcher/scopes/version-meta/get-client.ts";
 import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
 import { getLogging } from "@/lib/launcher/scopes/version-meta/get-logging.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
+import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type { MetaMinecraftVersionType } from "@/types/launcher/meta-manifest.type.ts";
+import { FileStructure } from "@/constants/file-structure.ts";
 
 export async function launchWithChecks({
   instanceId,
@@ -16,19 +19,22 @@ export async function launchWithChecks({
 }: {
   "instanceId": string;
   "statuses"  : LauncherStatusesType;
-}): Promise<void> {
-  statuses.add(LaunchStatus.General.Starting);
-
-  const baseDirectory = General.getCachedBaseDirectory();
-  const version = extractInstanceVersion({
+}): Promise<boolean> {
+  const baseDirectory: string = General.getCachedBaseDirectory();
+  const instanceDirectory: string = Instances.getMinecraftDirectory({
+    baseDirectory,
+    instanceId,
+  });
+  const instance: InstanceStateType | undefined = extractInstance({
     statuses,
     instanceId,
   });
 
-  if (!version) {
-    return;
+  if (!instance) {
+    return false;
   }
 
+  const { version } = instance;
   const versionMeta: MetaMinecraftVersionType | undefined = await getVersionMeta({
     statuses,
     baseDirectory,
@@ -36,7 +42,7 @@ export async function launchWithChecks({
   });
 
   if (versionMeta === undefined) {
-    return;
+    return false;
   }
 
   const {
@@ -51,9 +57,9 @@ export async function launchWithChecks({
   const [
     assetsDirectory,
     clientDirectory,
-    librariesDirectory,
     loggingDirectory,
-    patchesDirectory,
+    libraryPaths,
+    patchPaths,
   ]: [
     string | false,
     string | false,
@@ -63,28 +69,42 @@ export async function launchWithChecks({
   ] = await Promise.all([
     getAssets({ baseDirectory, assetIndex, statuses }),
     getClient({ baseDirectory, mainJar, statuses }),
-    getLibraries({ baseDirectory, libraries, statuses }),
     getLogging({ baseDirectory, logging, statuses }),
+    getLibraries({ baseDirectory, libraries, statuses }),
     getPatches({ baseDirectory, requires, statuses }),
   ]);
-
-  console.log(
-    assetsDirectory,
-    clientDirectory,
-    librariesDirectory,
-    loggingDirectory,
-    patchesDirectory,
-  );
 
   if (
     !assetsDirectory ||
     !clientDirectory ||
-    !librariesDirectory ||
     !loggingDirectory ||
-    !patchesDirectory
+    !libraryPaths ||
+    !patchPaths
   ) {
-    return;
+    // return false;
   }
 
-  statuses.add(LaunchStatus.General.Success);
+  const nativesDirectory: string = General.cachedJoin(
+    baseDirectory,
+    FileStructure.Folders.Instances.Path,
+    instanceId,
+    "natives",
+  );
+
+  return launch({
+    instanceId,
+    instance,
+    versionMeta,
+    statuses,
+    "directories": {
+      "base"     : baseDirectory,
+      "instance" : instanceDirectory,
+      "natives"  : nativesDirectory,
+      "assets"   : assetsDirectory,
+      "client"   : clientDirectory,
+      "logging"  : loggingDirectory,
+      "libraries": libraryPaths,
+      "patches"  : patchPaths,
+    },
+  });
 }
