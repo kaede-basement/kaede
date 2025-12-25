@@ -19,6 +19,11 @@ export const LaunchStatus = {
     "DownloadingJar"   : "client-downloading-jar",
     "Done"             : "client-done",
   },
+  "Logging": {
+    "CheckingIfPresent": "checking-if-present",
+    "DownloadingConfig": "logging-downloading-config",
+    "Done"             : "logging-done",
+  },
   "Errors": {
     "UndefinedInstanceVersion"          : "error-undefined-instance-version",
     "MetaVersionFetchFailed"            : "error-meta-version-fetch-failed",
