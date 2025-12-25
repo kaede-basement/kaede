@@ -4,9 +4,9 @@ import type { MetaMinecraftVersionType } from "@/types/launcher/meta/net-minecra
 export async function getLogging({
   baseDirectory,
   logging,
-  currentStatuses,
+  statuses,
 }: {
-  "baseDirectory"  : string;
-  "logging"        : MetaMinecraftVersionType["logging"];
-  "currentStatuses": LauncherStatusesType;
+  "baseDirectory": string;
+  "logging"      : MetaMinecraftVersionType["logging"];
+  "statuses"     : LauncherStatusesType;
 }): Promise<string> {}

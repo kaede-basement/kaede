@@ -4,9 +4,9 @@ import type { MetaMinecraftVersionType } from "@/types/launcher/meta/net-minecra
 export async function getLibraries({
   baseDirectory,
   libraries,
-  currentStatuses,
+  statuses,
 }: {
-  "baseDirectory"  : string;
-  "libraries"      : MetaMinecraftVersionType["libraries"];
-  "currentStatuses": LauncherStatusesType;
+  "baseDirectory": string;
+  "libraries"    : MetaMinecraftVersionType["libraries"];
+  "statuses"     : LauncherStatusesType;
 }): Promise<string> {}

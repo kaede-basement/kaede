@@ -11,22 +11,25 @@ import type { MetaMinecraftVersionType } from "@/types/launcher/meta-manifest.ty
 
 export async function launchWithChecks({
   instanceId,
-  currentStatuses,
+  statuses,
 }: {
-  "instanceId"     : string;
-  "currentStatuses": LauncherStatusesType;
+  "instanceId": string;
+  "statuses"  : LauncherStatusesType;
 }): Promise<void> {
-  currentStatuses.value.add(LaunchStatus.General.Starting);
+  statuses.add(LaunchStatus.General.Starting);
 
   const baseDirectory = General.getCachedBaseDirectory();
-  const version = extractInstanceVersion({ currentStatuses, instanceId });
+  const version = extractInstanceVersion({
+    statuses,
+    instanceId,
+  });
 
   if (!version) {
     return;
   }
 
   const versionMeta: MetaMinecraftVersionType | undefined = await getVersionMeta({
-    currentStatuses,
+    statuses,
     baseDirectory,
     version,
   });
@@ -49,11 +52,20 @@ export async function launchWithChecks({
     string | false,
     string | false,
   ] = await Promise.all([
-    getAssets({ baseDirectory, assetIndex, currentStatuses }),
-    getLibraries({ baseDirectory, libraries, currentStatuses }),
-    getLogging({ baseDirectory, logging, currentStatuses }),
-    getPatches({ baseDirectory, requires, currentStatuses }),
+    getAssets({ baseDirectory, assetIndex, statuses }),
+    getLibraries({ baseDirectory, libraries, statuses }),
+    getLogging({ baseDirectory, logging, statuses }),
+    getPatches({ baseDirectory, requires, statuses }),
   ]);
 
-  console.log(assetsDirectory, librariesDirectory, loggingDirectory, patchesDirectory);
+  if (
+    !assetsDirectory ||
+    !librariesDirectory ||
+    !loggingDirectory ||
+    !patchesDirectory
+  ) {
+    return;
+  }
+
+  statuses.add(LaunchStatus.General.Success);
 }

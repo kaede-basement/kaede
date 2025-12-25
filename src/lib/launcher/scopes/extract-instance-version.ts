@@ -4,17 +4,17 @@ import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.t
 import type { MetaMinecraftVersionType } from "@/types/launcher/meta-manifest.type.ts";
 
 export function extractInstanceVersion({
-  currentStatuses,
+  statuses,
   instanceId,
 }: {
-  "currentStatuses": LauncherStatusesType;
-  "instanceId"     : string;
+  "statuses"  : LauncherStatusesType;
+  "instanceId": string;
 }): MetaMinecraftVersionType["version"] | undefined {
   const instanceStates = Instances.get();
   const currentInstanceStates = instanceStates[instanceId];
 
   if (currentInstanceStates === undefined) {
-    currentStatuses.value.add(LaunchStatus.Errors.UndefinedInstanceVersion);
+    statuses.add(LaunchStatus.Errors.UndefinedInstanceVersion);
 
     return undefined;
   }

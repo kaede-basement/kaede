@@ -25,11 +25,11 @@ import type { MetaMinecraftVersionType } from "@/types/launcher/meta/net-minecra
 export async function getAssets({
   baseDirectory,
   assetIndex,
-  currentStatuses,
+  statuses,
 }: {
-  "baseDirectory"  : string;
-  "assetIndex"     : MetaMinecraftVersionType["assetIndex"];
-  "currentStatuses": LauncherStatusesType;
+  "baseDirectory": string;
+  "assetIndex"   : MetaMinecraftVersionType["assetIndex"];
+  "statuses"     : LauncherStatusesType;
 }): Promise<string | false> {
   const metaFilename = assetIndex.id + ".json";
   const assetsDirectory = General.cachedJoin(
@@ -51,27 +51,24 @@ export async function getAssets({
   };
 
   await initializeAssetsDirectories({ assetsFolders });
-  const t1 = performance.now();
   await initializeShortHashDirectories({ assetsFolders });
-  const t2 = performance.now();
-  console.log(t2 - t1, "ms");
 
   let parsedMeta: unknown;
 
   try {
-    currentStatuses.value.add(LaunchStatus.Assets.ReadingCachedMeta);
+    statuses.add(LaunchStatus.Assets.ReadingCachedMeta);
     parsedMeta = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Assets.Path, "indexes", metaFilename],
       "label"          : `/assets/indexes/${metaFilename}`,
       "getDefaultValue": async () => {
-        currentStatuses.value.add(LaunchStatus.Assets.FetchingMeta);
+        statuses.add(LaunchStatus.Assets.FetchingMeta);
         const fetched: object | LaunchStatusType = await fetchAssetsMeta({
           "url": assetIndex.url,
         });
 
         if (typeof fetched !== "object") {
-          currentStatuses.value.add(fetched);
+          statuses.add(fetched);
 
           /*
            * The 'General#handleJsonFile' function writes the returned value
@@ -93,7 +90,7 @@ export async function getAssets({
   });
 
   if (shallowlyValidMeta === false) {
-    currentStatuses.value.add(LaunchStatus.Errors.MetaAssetsShallowValidationFailed);
+    statuses.add(LaunchStatus.Errors.MetaAssetsShallowValidationFailed);
 
     return false;
   }
@@ -158,12 +155,12 @@ export async function getAssets({
       downloadGroup.map(({ url, filePath }) => downloadAssetObject({
         url,
         filePath,
-        currentStatuses,
+        statuses,
       })),
     );
   }
 
-  currentStatuses.value.add(LaunchStatus.Assets.Done);
+  statuses.add(LaunchStatus.Assets.Done);
 
   return assetsDirectory;
 }

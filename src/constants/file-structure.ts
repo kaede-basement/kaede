@@ -33,7 +33,7 @@ export const FileStructure = {
   },
   "Files": {
     "Accounts"    : "accounts.json",
-    "Translations": "translations",
+    "Translations": "translations.json",
     "Metadata"    : "instances.json",
     "Config"      : "config.json",
     "Extensions"  : "extensions.json",

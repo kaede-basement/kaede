@@ -9,11 +9,11 @@ import type {
 export function downloadAssetObject({
   url,
   filePath,
-  currentStatuses,
+  statuses,
 }: {
-  "url"            : string;
-  "filePath"       : string;
-  "currentStatuses": LauncherStatusesType;
+  "url"     : string;
+  "filePath": string;
+  "statuses": LauncherStatusesType;
 }): Promise<void> {
   const status: string = LaunchStatus.Assets.DownloadingAsset + "-" + url;
   let previousStatus: string = status;
@@ -25,8 +25,9 @@ export function downloadAssetObject({
       const percents: number = Math.floor(progressTotal / total * 100);
       const progressStatus: string = status + "-" + percents + "%";
 
-      currentStatuses.value.delete(previousStatus as LaunchStatusType);
-      currentStatuses.value.add(progressStatus as LaunchStatusType);
+      statuses.delete(previousStatus as LaunchStatusType);
+      statuses.add(progressStatus as LaunchStatusType);
+
       previousStatus = progressStatus;
     },
   );

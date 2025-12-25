@@ -10,28 +10,28 @@ import type {
 import type { MetaMinecraftVersionType } from "@/types/launcher/meta-manifest.type.ts";
 
 export async function getVersionMeta({
-  currentStatuses,
+  statuses,
   baseDirectory,
   version,
 }: {
-  "currentStatuses": LauncherStatusesType;
-  "baseDirectory"  : string;
-  "version"        : MetaMinecraftVersionType["version"];
+  "statuses"     : LauncherStatusesType;
+  "baseDirectory": string;
+  "version"      : MetaMinecraftVersionType["version"];
 }): Promise<MetaMinecraftVersionType | undefined> {
   let parsed: unknown;
 
   try {
-    currentStatuses.value.add(LaunchStatus.Metadata.ReadingCachedVersionMeta);
+    statuses.add(LaunchStatus.Metadata.ReadingCachedVersionMeta);
     parsed = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Cache.Path, `${version}.json`],
       "label"          : `${version}.json`,
       "getDefaultValue": async () => {
-        currentStatuses.value.add(LaunchStatus.Metadata.FetchingVersionMeta);
+        statuses.add(LaunchStatus.Metadata.FetchingVersionMeta);
         const fetched: object | LaunchStatusType = await fetchVersionMeta({ version });
 
         if (typeof fetched === "string") {
-          currentStatuses.value.add(fetched);
+          statuses.add(fetched);
 
           /*
            * The 'General#handleJsonFile' function writes the returned value
@@ -48,11 +48,11 @@ export async function getVersionMeta({
     return undefined;
   }
 
-  currentStatuses.value.add(LaunchStatus.Metadata.ValidatingVersionMeta);
+  statuses.add(LaunchStatus.Metadata.ValidatingVersionMeta);
   const valid: boolean = Schemas.MinecraftVersionValidator.Check(parsed);
 
   if (!valid) {
-    currentStatuses.value.add(LaunchStatus.Errors.MetaVersionFullValidationFailed);
+    statuses.add(LaunchStatus.Errors.MetaVersionFullValidationFailed);
 
     return undefined;
   }

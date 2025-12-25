@@ -4,9 +4,9 @@ import type { MetaMinecraftVersionType } from "@/types/launcher/meta/net-minecra
 export async function getPatches({
   baseDirectory,
   requires,
-  currentStatuses,
+  statuses,
 }: {
-  "baseDirectory"  : string;
-  "requires"       : MetaMinecraftVersionType["requires"];
-  "currentStatuses": LauncherStatusesType;
+  "baseDirectory": string;
+  "requires"     : MetaMinecraftVersionType["requires"];
+  "statuses"     : LauncherStatusesType;
 }): Promise<string> {}

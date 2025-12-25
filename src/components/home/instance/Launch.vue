@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, inject } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey, InstanceStatesContextKey } from "@/constants/application.ts";
@@ -9,7 +9,7 @@ import type { ContextGlobalStatesType } from "@/types/application/global-states.
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/current-instance.type.ts";
 import type {
-  UnwrappedLauncherStatusesType,
+  LauncherStatusesType,
 } from "@/types/launcher/launch-status.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
@@ -19,29 +19,22 @@ const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
 ));
 
-const statuses = ref<UnwrappedLauncherStatusesType>(
-  new Set,
-);
+const statuses: LauncherStatusesType = new Set;
 
 async function handleLaunch(): Promise<void> {
   if (currentInstance?.value === undefined) {
     return;
   }
 
-  statuses.value.clear();
+  statuses.clear();
   await Launcher.launchWithChecks({
-    "instanceId"     : currentInstance.value.id,
-    "currentStatuses": statuses,
+    "instanceId": currentInstance.value.id,
+    statuses,
   });
 }
 </script>
 
 <template>
-  <div id="__temp" class="w-64 h-vh bg-red text-xs flex flex-col">
-    <div v-for="status in statuses" :key="status" :style="{
-      width: `${status.split('-').pop()}`
-    }" class="h-[1px] bg-amber shrink-0"></div>
-  </div>
   <button
     @click="handleLaunch"
     id="__home-page__launch-button"
