@@ -7,6 +7,8 @@ export const LaunchStatus = {
     "ReadingCachedVersionMeta": "meta-reading-cached-version-meta",
     "FetchingVersionMeta"     : "meta-fetching-version-meta",
     "ValidatingVersionMeta"   : "meta-validating-version-meta",
+    "ReadingCachedPatchMeta"  : "meta-reading-cached-patch-meta",
+    "FetchingPatchMeta"       : "meta-fetching-patch-meta",
   },
   "Assets": {
     "ReadingCachedMeta": "assets-reading-cached-meta",

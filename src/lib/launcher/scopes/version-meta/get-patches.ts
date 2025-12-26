@@ -1,3 +1,4 @@
+import { getPatch } from "@/lib/launcher/scopes/patches/get-patch.ts";
 import type {
   LauncherStatusesType,
 } from "@/types/launcher/launch-status.type.ts";
@@ -12,7 +13,11 @@ export async function getPatches({
   "requires"     : MetaMinecraftVersionType["requires"];
   "statuses"     : LauncherStatusesType;
 }): Promise<string> {
-  const metaFilenames: Array<string> = requires.map(({ uid }) => uid);
-
-
+  const patches: Array<object> = await Promise.all(
+    requires.map(require => getPatch({
+      baseDirectory,
+      statuses,
+      require,
+    })),
+  );
 }

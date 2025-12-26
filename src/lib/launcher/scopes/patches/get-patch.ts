@@ -1,31 +1,36 @@
 import { FileStructure } from "@/constants/file-structure.ts";
-import { LaunchStatus } from "@/constants/launcher.ts";
+import { APIEndpoints, LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import { fetchAssetsMeta } from "@/lib/launcher/scopes/version-meta/assets/fetch-assets-meta.ts";
 import type {
   LauncherStatusesType,
   LaunchStatusType,
 } from "@/types/launcher/launch-status.type.ts";
+import type { MetaMinecraftVersionType } from "@/types/launcher/meta/net-minecraft.type.ts";
 
 export async function getPatch({
   baseDirectory,
   statuses,
+  require,
 }: {
   "baseDirectory": string;
   "statuses"     : LauncherStatusesType;
-}): Promise<unknown> {
+  "require"      : MetaMinecraftVersionType["requires"][number];
+}): Promise<object | false> {
+  const versionWithExtension: string = require.suggests + ".json";
+  const fileName: string = require.uid + "-" + versionWithExtension;
   let parsedMeta: unknown;
 
   try {
-    statuses.add(LaunchStatus.Assets.ReadingCachedMeta);
+    statuses.add(LaunchStatus.Metadata.ReadingCachedPatchMeta);
     parsedMeta = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Cache.Path, fileName],
-      "label"          : `/assets/indexes/${metaFilename}`,
+      "label"          : `/cache/${fileName}`,
       "getDefaultValue": async () => {
-        statuses.add(LaunchStatus.Assets.FetchingMeta);
+        statuses.add(LaunchStatus.Metadata.FetchingPatchMeta);
         const fetched: object | LaunchStatusType = await fetchAssetsMeta({
-          "url": assetIndex.url,
+          "url": APIEndpoints.Meta.Base + require.uid + "/" + versionWithExtension,
         });
 
         if (typeof fetched !== "object") {
@@ -45,4 +50,10 @@ export async function getPatch({
   } catch {
     return false;
   }
+
+  if (typeof parsedMeta !== "object" || parsedMeta === null) {
+    return false;
+  }
+
+  return parsedMeta;
 }
