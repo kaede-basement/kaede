@@ -9,6 +9,9 @@ import {
 import { handleCssTheme } from "@/lib/extensions-manager/scopes/handle-css-theme.ts";
 import { handleEvent } from "@/lib/extensions-manager/scopes/handle-event.ts";
 import { handlePermission } from "@/lib/extensions-manager/scopes/handle-permission.ts";
+import { catchAsyncBeforeHooks } from "@/lib/extensions-manager/scopes/hooks/catch-async-before-hooks.ts";
+import { catchBeforeHooks } from "@/lib/extensions-manager/scopes/hooks/catch-before-hooks.ts";
+import { handleHookResponse } from "@/lib/extensions-manager/scopes/hooks/handle-hook-response.ts";
 import { lockdownEnvironment } from "@/lib/extensions-manager/scopes/lockdown-environment.ts";
 import { readAllExtensions } from "@/lib/extensions-manager/scopes/read-all-extensions.ts";
 import { readAllMetadata } from "@/lib/extensions-manager/scopes/read-all-metadata.ts";
@@ -25,11 +28,14 @@ export default {
     permissions,
     extension,
   ),
+  catchAsyncBeforeHooks,
+  catchBeforeHooks,
   onGlobalStateChange,
   grantEventListeners,
   grantStaticPermissions,
   handleCssTheme,
   handleEvent,
+  handleHookResponse,
   handlePermission,
   lockdownEnvironment,
   readAllExtensions,

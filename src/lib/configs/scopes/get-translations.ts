@@ -8,8 +8,8 @@ export async function getTranslations(baseDirectory: string): Promise<Translatio
   const parsedTranslations: unknown = await General.handleJsonFile({
     baseDirectory,
     "path"           : [FileStructure.Files.Translations],
-    "label"          : "translations",
-    "getDefaultValue": async () => (EnglishTranslations),
+    "label"          : FileStructure.Files.Translations,
+    "getDefaultValue": async (): Promise<TranslationsType> => (EnglishTranslations),
   });
 
   log.debug("Shallowly validating the parsed translations file");

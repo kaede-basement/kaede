@@ -1,6 +1,6 @@
 import { ContextMenuItems } from "@/constants/application.ts";
 import EnglishTranslations from "@/constants/english.json";
-import { RouteItems, Routes } from "@/constants/routes.ts";
+import { Routes, SidebarRouteGroupItems } from "@/constants/routes.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
@@ -49,7 +49,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       "filtering"  : "",
     },
     "sidebarItems": [
-      ...RouteItems.map(item => {
+      ...SidebarRouteGroupItems.map(item => {
         return {
           "path"  : item.Path,
           "icon"  : item.Icon,

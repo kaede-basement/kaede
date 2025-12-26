@@ -1,1 +1,0 @@
-export function diagnose(): void {}

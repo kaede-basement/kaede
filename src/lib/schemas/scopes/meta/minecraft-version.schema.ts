@@ -7,8 +7,10 @@ import { MainJarSchema } from "@/lib/schemas/scopes/meta/main-jar.schema.ts";
 import { RequireSchema } from "@/lib/schemas/scopes/meta/require.schema.ts";
 
 export const MinecraftVersionSchema = Type.Object({
-  "+traits": Type.Array(
-    Type.String(),
+  "+traits": Type.Optional(
+    Type.Array(
+      Type.String(),
+    ),
   ),
   "assetIndex"          : AssetIndexSchema,
   "compatibleJavaMajors": Type.Array(

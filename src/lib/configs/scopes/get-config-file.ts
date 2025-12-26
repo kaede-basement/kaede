@@ -1,17 +1,13 @@
-import { exists, readTextFile, rename } from "@tauri-apps/plugin-fs";
-
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { FileStructure } from "@/constants/file-structure.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
-import { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
-import Errors from "@/lib/errors";
+import { regenerateConfigFile } from "@/lib/configs/scopes/regenerate-config-file.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
 export async function getConfigFile(passedBaseDirectory?: string): Promise<ConfigType> {
-  const hooksArray = window[ApplicationNamespace].hooks.getConfigFile.before;
   let baseDirectory: string | undefined = passedBaseDirectory;
 
   if (!baseDirectory) {
@@ -25,93 +21,36 @@ export async function getConfigFile(passedBaseDirectory?: string): Promise<Confi
 
   const configFileDirectory = General.cachedJoin(baseDirectory, FileStructure.Files.Config);
 
-  log.debug(log.templates.hooks.iterate.start(
-    "getConfigFile",
-    "before",
-    hooksArray.length,
-  ));
-  for (const [hookIndex, hookFunction] of hooksArray.entries()) {
-    const timeMeasurementStartHook = performance.now();
+  const hookResponse: "continue" | ConfigType | undefined =
+    await ExtensionsManager.catchAsyncBeforeHooks<ConfigType>({
+      "scope" : "getConfigFile",
+      "toPass": configFileDirectory,
+    });
 
-    log.debug(log.templates.hooks.iterate.execution(
-      "getConfigFile",
-      "before",
-      hookIndex,
-      "async",
-    ));
-    const hookResponse = await hookFunction(configFileDirectory);
-    const timeMeasurementEndHook = performance.now();
-    const currentBeforeHookTime = timeMeasurementEndHook - timeMeasurementStartHook;
-
-    if (hookResponse.status === "stop") {
-      log.debug(log.templates.hooks.iterate.response(
-        "getConfigFile",
-        hookResponse,
-        "before",
-        hookIndex,
-        currentBeforeHookTime,
-      ));
-
-      // Awaiting here will just be an unnecessary action
-      return hookResponse.response;
-    }
+  if (hookResponse !== "continue" && hookResponse !== undefined) {
+    return hookResponse;
   }
 
-  log.debug("Checking if config file exists");
-  const configExists = await exists(configFileDirectory);
-
-  if (!configExists) {
-    log.warn("Config file does not exist");
-    log.debug("Initializing a config file");
-    await initializeConfigFile(configFileDirectory);
-
-    log.debug("Returning a promise with default config");
-
-    // Awaiting here will just be an unnecessary action
-    return getDefaultConfig();
-  }
-
-  log.debug("Config file exists. Reading a config file");
-  const configFile = await readTextFile(configFileDirectory);
-
-  log.debug("Parsing a config file");
-  let parsedConfig: unknown;
-
-  try {
-    parsedConfig = JSON.parse(configFile);
-  } catch (error: unknown) {
-    log.error("Couldn't parse the config file:", Errors.prettify(error));
-    parsedConfig = {};
-  }
+  const parsedConfig: "continue" | unknown = await General.handleJsonFile({
+    baseDirectory,
+    "path"           : [FileStructure.Files.Config],
+    "label"          : FileStructure.Files.Config,
+    "getDefaultValue": getDefaultConfig,
+  });
 
   log.debug("Validating the config file");
 
   /*
-   * If there is additional unknown properties in object, validation will pass them
-   * which is actually good because extensions can use same config as the app
+   * If there is additional unknown properties in object, validation will still pass,
+   * which is actually good since extensions can use the same config file as the app
    */
   const validatedConfig = Schemas.ConfigValidator.Check(parsedConfig);
 
   if (!validatedConfig) {
-    log.warn("Config file is invalid");
-    log.debug("Renaming the invalid config file");
-    const currentTimestamp: string = Date.now().toString();
-
-    await rename(
+    return regenerateConfigFile({
+      baseDirectory,
       configFileDirectory,
-      General.cachedJoin(
-        baseDirectory,
-        "config_invalid_" + currentTimestamp + ".json",
-      ),
-    );
-
-    log.debug("Initializing a new config file with default values");
-    await initializeConfigFile(configFileDirectory);
-
-    log.debug("Returning a promise with default config");
-
-    // Awaiting here will just be an unnecessary action
-    return getDefaultConfig();
+    });
   }
 
   log.info("Config file is valid");

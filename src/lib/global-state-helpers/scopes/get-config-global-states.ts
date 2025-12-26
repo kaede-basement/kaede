@@ -1,5 +1,5 @@
 import { ApplicationNamespace, ContextMenuItems } from "@/constants/application.ts";
-import { RouteItems, Routes } from "@/constants/routes.ts";
+import { Routes, SidebarRouteGroupItems } from "@/constants/routes.ts";
 import Configs from "@/lib/configs";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -32,7 +32,7 @@ export function getConfigGlobalStates(): GlobalStatesType {
       },
     },
     "sidebarItems": [
-      ...RouteItems.map(item => {
+      ...SidebarRouteGroupItems.map(item => {
         return {
           "path"  : item.Path,
           "icon"  : item.Icon,

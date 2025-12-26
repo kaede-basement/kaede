@@ -6,7 +6,7 @@ export const Routes = {
   "Profile"    : "profile",
   "None"       : "none",
 } as const;
-export const RouteItems = [
+export const SidebarRouteGroupItems = [
   {
     "Path": Routes.Home,
     "Icon": "i-lucide-home",

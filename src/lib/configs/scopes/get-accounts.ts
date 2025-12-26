@@ -8,8 +8,8 @@ export async function getAccounts(baseDirectory: string): Promise<Array<AccountT
   const parsedAccounts: unknown = await General.handleJsonFile({
     baseDirectory,
     "path"           : [FileStructure.Files.Accounts],
-    "label"          : "accounts",
-    "getDefaultValue": async () => ([]),
+    "label"          : FileStructure.Files.Accounts,
+    "getDefaultValue": async (): Promise<Array<unknown>> => ([]),
   });
 
   log.debug("Validating the parsed accounts file");

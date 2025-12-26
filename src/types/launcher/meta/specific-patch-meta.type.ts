@@ -36,7 +36,6 @@ export type SpecificPatchLibraryOSNameType =
   "windows" |
   "windows-arm32" |
   "windows-arm64" |
-  "osx-arm32" |
   "osx-arm64" |
   "osx";
 export type SpecificPatchRuntimeVendorType = "azul" | "eclipse";
@@ -55,6 +54,7 @@ export type SpecificPatchArtifactType = {
   "sha1" : string;
   "size" : number;
   "url"  : string;
+  "id"  ?: string;
   "path"?: string;
 };
 export type SpecificPatchClassifiersType = {

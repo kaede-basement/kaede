@@ -21,10 +21,10 @@ export async function handleJsonFile({
   const fileExists = await exists(filePath);
 
   if (!fileExists) {
-    log.debug(`The '${label}' file does not exist; getting the default value`);
+    log.warn(`The '${label}' file does not exist`);
+    log.debug(`Getting the default value for '${label}'`);
     const defaultValue = await getDefaultValue();
 
-    log.warn(`The '${label}' file does not exist`);
     log.debug(`Initializing the '${label}' file`);
     await writeTextFile(
       filePath,
@@ -49,7 +49,8 @@ export async function handleJsonFile({
     log.error(`Could not parse the '${label}' file data:`, Errors.prettify(error));
     log.debug(`Returning the default value for '${label}'`);
 
-    return await getDefaultValue();
+    // No need to await here
+    return getDefaultValue();
   }
 
   log.debug(`Returning the parsed '${label}' file`);

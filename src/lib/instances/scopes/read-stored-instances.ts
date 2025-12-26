@@ -8,8 +8,8 @@ export async function readStoredInstances(baseDirectory: string): Promise<Instan
   const parsedMetadata: unknown = await General.handleJsonFile({
     baseDirectory,
     "path"           : [FileStructure.Files.Metadata],
-    "label"          : "instances metadata",
-    "getDefaultValue": async () => ({}),
+    "label"          : FileStructure.Files.Metadata,
+    "getDefaultValue": async (): Promise<object> => ({}),
   });
 
   log.debug("Validating the instances metadata");

@@ -1,0 +1,35 @@
+import { rename } from "@tauri-apps/plugin-fs";
+
+import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
+import { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
+import General from "@/lib/general";
+import { log } from "@/lib/logging/scopes/log.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
+
+export async function regenerateConfigFile({
+  baseDirectory,
+  configFileDirectory,
+}: {
+  "baseDirectory"      : string;
+  "configFileDirectory": string;
+}): Promise<ConfigType> {
+  log.warn("Config file is invalid");
+  log.debug("Renaming the invalid config file");
+  const currentTimestamp: string = Date.now().toString();
+
+  await rename(
+    configFileDirectory,
+    General.cachedJoin(
+      baseDirectory,
+      "config_invalid_" + currentTimestamp + ".json",
+    ),
+  );
+
+  log.debug("Initializing a new config file with default values");
+  await initializeConfigFile(configFileDirectory);
+
+  log.debug("Returning a promise with default config");
+
+  // Awaiting here will just be an unnecessary action
+  return getDefaultConfig();
+}
