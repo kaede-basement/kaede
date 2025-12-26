@@ -91,7 +91,12 @@ export default defineConfigWithVueTs(
 
       /* ESLint */
       "capitalized-comments": ["warn", "always"],
-      "no-console"          : "warn",
+      "max-lines"           : ["warn", {
+        "max"           : 250,
+        "skipBlankLines": true,
+        "skipComments"  : true,
+      }],
+      "no-console": "warn",
 
       /* TSDoc */
       "tsdoc/syntax": "warn",

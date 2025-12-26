@@ -22,7 +22,7 @@ export async function initializeLauncher({
 
   if (afterExtensions) {
     /*
-     * Making the webview window visible determines that the launcher successfully started.
+     * Making the webview window visible means that the launcher successfully started.
      *
      * Clearly, the 'startTime' variable is not accessible by the deeply nested
      * 'ExtensionLoader.vue' component without exposing that variable through the 'window' object.
