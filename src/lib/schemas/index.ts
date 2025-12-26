@@ -8,7 +8,6 @@ import { InstanceMetadataSchema } from "@/lib/schemas/scopes/instances/instance-
 import { MinecraftVersionSchema } from "@/lib/schemas/scopes/meta/minecraft-version.schema.ts";
 
 const AccountValidator = Compile(AccountSchema);
-const AssetsValidator = Compile(AssetsSchema);
 const ConfigValidator = Compile(ConfigSchema);
 const InstanceMetadataValidator = Compile(InstanceMetadataSchema);
 const ExtensionMetadataValidator = Compile(ExtensionMetadataSchema);
@@ -17,7 +16,6 @@ const MinecraftVersionValidator = Compile(MinecraftVersionSchema);
 
 export default {
   AccountValidator,
-  AssetsValidator,
   ConfigValidator,
   InstanceMetadataValidator,
   ExtensionMetadataValidator,

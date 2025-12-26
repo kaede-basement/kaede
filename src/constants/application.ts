@@ -4,6 +4,7 @@ import { FileStructure } from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
+import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
 
 export const ApplicationName = "Kaede";
@@ -43,6 +44,30 @@ export const ContextMenuItems = [
           General.getCachedBaseDirectory(),
           FileStructure.Files.Config,
         ),
+      ).catch((error: unknown) => {
+        log.error("Failed to reveal the config file in the explorer:", Errors.prettify(error));
+      });
+    },
+  },
+  {
+    "name"  : "Open Instance Folder",
+    "icon"  : "i-lucide-box",
+    "action": (): void => {
+      const currentInstanceId: string | null = GlobalStateHelpers.get().layout.currentInstance;
+
+      if (!currentInstanceId) {
+        return;
+      }
+
+      const baseDirectory: string = General.getCachedBaseDirectory();
+      const minecraftDirectory: string = Instances.getMinecraftDirectory({
+        "baseDirectory": baseDirectory,
+        "instanceId"   : currentInstanceId,
+      });
+
+      window[ApplicationNamespace].libs.ContextMenu.close();
+      revealItemInDir(
+        General.cachedJoin(minecraftDirectory),
       ).catch((error: unknown) => {
         log.error("Failed to reveal the config file in the explorer:", Errors.prettify(error));
       });

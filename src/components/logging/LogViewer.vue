@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ask } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import { computed, inject, onMounted, ref, shallowRef, useTemplateRef } from "vue";
+import { computed, inject, nextTick, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
@@ -195,6 +195,12 @@ onMounted(async () => {
 
   // Measuring time end
   fileData.value.time = `took ${time}s`;
+
+  await nextTick();
+  // Virtual list does not scroll to its end unless we wait two (???) Vue ticks
+  await nextTick();
+
+  virtualList.value?.scrollToEnd?.();
 });
 </script>
 

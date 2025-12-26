@@ -3,7 +3,7 @@ import { Type } from "typebox";
 import { PermissionsList } from "@/constants/permissions.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
-export const ExtensionMetadataSchema = Type.Union([
+export const ExtensionMetadataSchema = Type.Intersect([
   Type.Object({
     "id"  : Type.String(),
     "logo": Type.String(),
