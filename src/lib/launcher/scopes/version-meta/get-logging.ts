@@ -5,7 +5,7 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/net-minecraft.type.ts";
+import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getLogging({
   baseDirectory,

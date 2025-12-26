@@ -5,7 +5,7 @@ import type {
   ArgumentReplacementsType,
 } from "@/types/launcher/launch/argument-replacements.type.ts";
 import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/net-minecraft.type.ts";
+import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export function replaceLaunchArguments({
   auth,
