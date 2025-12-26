@@ -18,7 +18,7 @@ import type {
   LauncherStatusesType,
   LaunchStatusType,
 } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getAssets({
   baseDirectory,
@@ -26,9 +26,19 @@ export async function getAssets({
   statuses,
 }: {
   "baseDirectory": string;
-  "assetIndex"   : MetaMinecraftVersionType["assetIndex"];
+  "assetIndex"   : SpecificPatchMetaType["assetIndex"];
   "statuses"     : LauncherStatusesType;
 }): Promise<string | false> {
+  if (
+    assetIndex === undefined ||
+    assetIndex?.id === undefined ||
+    assetIndex?.url === undefined
+  ) {
+    statuses.add(LaunchStatus.Errors.MetaAssetsMissingMeta);
+
+    return false;
+  }
+
   const metaFilename = assetIndex.id + ".json";
   const assetsDirectory = General.cachedJoin(
     baseDirectory,

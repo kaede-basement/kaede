@@ -1,13 +1,8 @@
-import { type Static } from "typebox";
-
-import { MinecraftVersionSchema } from "@/lib/schemas/scopes/meta/minecraft-version.schema.ts";
 import type {
   PatchRequiresType,
   PatchUIDType,
   PatchVersionEntryVariantType,
 } from "@/types/launcher/meta/patch-meta.type.ts";
-
-export type MetaMinecraftVersionType = Static<typeof MinecraftVersionSchema>;
 
 export type SpecificPatchRuntimeChecksumType = {
   "hash": string;

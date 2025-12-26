@@ -44,27 +44,19 @@ export async function readAllMetadata(): Promise<Array<ExtensionMetadataType>> {
 
   const validatedMetadataEntries: Array<ExtensionMetadataType> = [];
 
-  for (const [index, unknownEntry] of parsedMetadata.entries()) {
-    const info = `(id: ${unknownEntry?.id}, index ${index})`;
+  for (const [index, entry] of parsedMetadata.entries()) {
+    const extension: ExtensionMetadataType | false = Schemas.validate.extension({
+      "value": entry,
+      "label": "extension metadata",
+      "info" : {
+        "id"   : entry?.id,
+        "index": index,
+      },
+    });
 
-    log.debug(`Checking if the provided extension metadata entry ${info} is valid`);
-    const validated: boolean = Schemas.ExtensionMetadataValidator.Check(unknownEntry);
-
-    if (!validated) {
-      log.warn(
-        `The provided extension metadata entry ${info} is not valid:`,
-        "\n" + JSON.stringify(
-          Schemas.ExtensionMetadataValidator.Errors(unknownEntry),
-          null,
-          2,
-        ),
-      );
-
-      continue;
+    if (extension !== false) {
+      validatedMetadataEntries.push(extension);
     }
-
-    log.debug(`The provided extension metadata entry ${info} is valid`);
-    validatedMetadataEntries.push(unknownEntry);
   }
 
   return validatedMetadataEntries;

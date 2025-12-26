@@ -16,7 +16,7 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function launch({
   instanceId,
@@ -27,7 +27,7 @@ export async function launch({
 }: {
   "instanceId" : string;
   "instance"   : InstanceStateType;
-  "versionMeta": MetaMinecraftVersionType;
+  "versionMeta": SpecificPatchMetaType;
   "statuses"   : LauncherStatusesType;
   "directories": DirectoriesType;
 }): Promise<boolean> {

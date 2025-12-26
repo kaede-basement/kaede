@@ -22,16 +22,19 @@ export async function getAccounts(baseDirectory: string): Promise<Array<AccountT
 
   const validAccounts: Array<AccountType> = [];
 
-  for (const entry of parsedAccounts) {
-    const valid: boolean = Schemas.AccountValidator.Check(entry);
+  for (const [index, entry] of parsedAccounts.entries()) {
+    const account: AccountType | false = Schemas.validate.account({
+      "value": entry,
+      "label": "account data",
+      "info" : {
+        "id"   : entry?.profile?.name,
+        "index": index,
+      },
+    });
 
-    if (!valid) {
-      log.warn("The provided");
-
-      continue;
+    if (account !== false) {
+      validAccounts.push(entry);
     }
-
-    validAccounts.push(entry);
   }
 
   return validAccounts;

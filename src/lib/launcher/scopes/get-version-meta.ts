@@ -7,7 +7,7 @@ import type {
   LauncherStatusesType,
   LaunchStatusType,
 } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta-manifest.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getVersionMeta({
   statuses,
@@ -16,8 +16,8 @@ export async function getVersionMeta({
 }: {
   "statuses"     : LauncherStatusesType;
   "baseDirectory": string;
-  "version"      : MetaMinecraftVersionType["version"];
-}): Promise<MetaMinecraftVersionType | undefined> {
+  "version"      : SpecificPatchMetaType["version"];
+}): Promise<SpecificPatchMetaType | undefined> {
   let parsed: unknown;
 
   try {
@@ -49,13 +49,21 @@ export async function getVersionMeta({
   }
 
   statuses.add(LaunchStatus.Metadata.ValidatingVersionMeta);
-  const valid: boolean = Schemas.MinecraftVersionValidator.Check(parsed);
+  const unsafeParsed = (parsed as { "uid"?: string });
+  const logId: string = unsafeParsed?.uid ?? "unknown";
+  const minecraftVersionMeta: SpecificPatchMetaType | false = Schemas.validate.patchMeta({
+    "value": parsed,
+    "label": "minecraft version meta",
+    "info" : {
+      "id": logId,
+    },
+  });
 
-  if (!valid) {
+  if (minecraftVersionMeta === false) {
     statuses.add(LaunchStatus.Errors.MetaVersionFullValidationFailed);
 
     return undefined;
   }
 
-  return parsed as MetaMinecraftVersionType;
+  return minecraftVersionMeta;
 }

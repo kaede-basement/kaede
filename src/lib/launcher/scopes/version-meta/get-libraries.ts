@@ -1,5 +1,5 @@
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getLibraries({
   baseDirectory,
@@ -7,6 +7,6 @@ export async function getLibraries({
   statuses,
 }: {
   "baseDirectory": string;
-  "libraries"    : MetaMinecraftVersionType["libraries"];
+  "libraries"    : SpecificPatchMetaType["libraries"];
   "statuses"     : LauncherStatusesType;
-}): Promise<string> {}
+}): Promise<string | false> {}

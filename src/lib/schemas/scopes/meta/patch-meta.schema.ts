@@ -6,7 +6,7 @@ import { LoggingSchema } from "@/lib/schemas/scopes/meta/logging.schema.ts";
 import { MainJarSchema } from "@/lib/schemas/scopes/meta/main-jar.schema.ts";
 import { RequireSchema } from "@/lib/schemas/scopes/meta/require.schema.ts";
 
-export const MinecraftVersionSchema = Type.Object({
+export const PatchMetaSchema = Type.Object({
   "+traits": Type.Optional(
     Type.Array(
       Type.String(),

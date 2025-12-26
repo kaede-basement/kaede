@@ -8,7 +8,7 @@ import { validateSha1 } from "@/lib/launcher/scopes/validate-sha1.ts";
 
 export default {
   downloadWithProgress,
-  extractInstanceVersion: extractInstance,
+  extractInstance,
   fetchVersionMeta,
   getVersionMeta,
   launch,

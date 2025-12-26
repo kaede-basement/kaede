@@ -11,7 +11,7 @@ import { getLogging } from "@/lib/launcher/scopes/version-meta/get-logging.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta-manifest.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function launchWithChecks({
   instanceId,
@@ -35,7 +35,7 @@ export async function launchWithChecks({
   }
 
   const { version } = instance;
-  const versionMeta: MetaMinecraftVersionType | undefined = await getVersionMeta({
+  const versionMeta: SpecificPatchMetaType | undefined = await getVersionMeta({
     statuses,
     baseDirectory,
     version,

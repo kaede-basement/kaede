@@ -5,7 +5,7 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getLogging({
   baseDirectory,
@@ -13,11 +13,30 @@ export async function getLogging({
   statuses,
 }: {
   "baseDirectory": string;
-  "logging"      : MetaMinecraftVersionType["logging"];
+  "logging"      : SpecificPatchMetaType["logging"];
   "statuses"     : LauncherStatusesType;
-}): Promise<string> {
+}): Promise<string | false> {
+  if (
+    logging === undefined ||
+    logging?.type === undefined ||
+    logging?.file === undefined ||
+    logging?.argument === undefined
+  ) {
+    statuses.add(LaunchStatus.Errors.LoggingMissingMeta);
+
+    return false;
+  }
+
   // Already contains an extension (.xml)
-  const name = logging.file.id;
+  const name: string | undefined = logging.file?.id;
+  const url: string | undefined = logging?.file?.url;
+
+  if (!name || !url) {
+    statuses.add(LaunchStatus.Errors.LoggingMissingMeta);
+
+    return false;
+  }
+
   const logConfigDirectory = General.cachedJoin(
     baseDirectory,
     FileStructure.Folders.Assets.Path,
@@ -46,8 +65,6 @@ export async function getLogging({
   }
 
   if (!fileExists) {
-    const url: string = logging.file.url;
-
     statuses.add(LaunchStatus.Logging.DownloadingConfig);
     await downloadWithProgress({
       "statusScope": LaunchStatus.Logging.DownloadingConfig,

@@ -8,7 +8,7 @@ import { normalizeArtifactPath } from "@/lib/launcher/scopes/normalize-artifact-
 import type {
   LauncherStatusesType,
 } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getClient({
   baseDirectory,
@@ -16,9 +16,19 @@ export async function getClient({
   statuses,
 }: {
   "baseDirectory": string;
-  "mainJar"      : MetaMinecraftVersionType["mainJar"];
+  "mainJar"      : SpecificPatchMetaType["mainJar"];
   "statuses"     : LauncherStatusesType;
-}): Promise<string> {
+}): Promise<string | false> {
+  if (
+    mainJar === undefined ||
+    mainJar?.name === undefined ||
+    mainJar?.downloads === undefined
+  ) {
+    statuses.add(LaunchStatus.Errors.ClientMainJarMissingMeta);
+
+    return false;
+  }
+
   const name: string = mainJar.name;
   const normalizedPaths = normalizeArtifactPath(name);
 
@@ -41,7 +51,13 @@ export async function getClient({
     return filePath;
   }
 
-  const url: string = mainJar.downloads.artifact.url;
+  const url: string | undefined = mainJar.downloads?.artifact?.url;
+
+  if (!url) {
+    statuses.add(LaunchStatus.Errors.ClientMainJarMissingMeta);
+
+    return false;
+  }
 
   await mkdir(directoryPath, { "recursive": true });
   await downloadWithProgress({
