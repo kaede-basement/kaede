@@ -2,6 +2,9 @@ import { ApplicationNamespace } from "@/constants/application.ts";
 import {
   onGlobalStateChange,
 } from "@/lib/extensions-manager/scopes/events/on-global-state-change.ts";
+import {
+  onInstanceStateChange,
+} from "@/lib/extensions-manager/scopes/events/on-instance-state-change.ts";
 import { grantEventListeners } from "@/lib/extensions-manager/scopes/grant-event-listeners.ts";
 import {
   grantStaticPermissions,
@@ -9,7 +12,12 @@ import {
 import { handleCssTheme } from "@/lib/extensions-manager/scopes/handle-css-theme.ts";
 import { handleEvent } from "@/lib/extensions-manager/scopes/handle-event.ts";
 import { handlePermission } from "@/lib/extensions-manager/scopes/handle-permission.ts";
-import { catchAsyncBeforeHooks } from "@/lib/extensions-manager/scopes/hooks/catch-async-before-hooks.ts";
+import {
+  catchAsyncAfterHooks,
+} from "@/lib/extensions-manager/scopes/hooks/catch-async-after-hooks.ts";
+import {
+  catchAsyncBeforeHooks,
+} from "@/lib/extensions-manager/scopes/hooks/catch-async-before-hooks.ts";
 import { catchBeforeHooks } from "@/lib/extensions-manager/scopes/hooks/catch-before-hooks.ts";
 import { handleHookResponse } from "@/lib/extensions-manager/scopes/hooks/handle-hook-response.ts";
 import { lockdownEnvironment } from "@/lib/extensions-manager/scopes/lockdown-environment.ts";
@@ -28,9 +36,11 @@ export default {
     permissions,
     extension,
   ),
+  catchAsyncAfterHooks,
   catchAsyncBeforeHooks,
   catchBeforeHooks,
   onGlobalStateChange,
+  onInstanceStateChange,
   grantEventListeners,
   grantStaticPermissions,
   handleCssTheme,

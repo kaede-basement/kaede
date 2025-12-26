@@ -1,11 +1,11 @@
 import { ApplicationNamespace } from "@/constants/application.ts";
-import { HookResponseStatus } from "@/constants/hooks.ts";
+import { ExtraHookResponseStatus, HookResponseStatus } from "@/constants/hooks.ts";
 import { handleHookResponse } from "@/lib/extensions-manager/scopes/hooks/handle-hook-response.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ExtensionStatusType, HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
 
-const timing: string = "before";
+const timing = "before";
 
 export async function catchAsyncBeforeHooks<T>({
   scope,
@@ -53,7 +53,7 @@ export async function catchAsyncBeforeHooks<T>({
       },
     });
 
-    if (handledResponse === "continue-hooks-loop") {
+    if (handledResponse === ExtraHookResponseStatus.ContinueLoop) {
       continue;
     }
 

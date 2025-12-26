@@ -7,28 +7,17 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
-export async function getConfigFile(passedBaseDirectory?: string): Promise<ConfigType> {
-  let baseDirectory: string | undefined = passedBaseDirectory;
-
-  if (!baseDirectory) {
-    log.debug("No base directory was passed");
-    log.debug("Checking if launcher is in portable version");
-    const portable = await General.checkIsPortable();
-
-    log.debug("Getting base directory");
-    baseDirectory = await General.getBaseDirectory(portable);
-  }
-
+export async function getConfigFile(baseDirectory: string): Promise<ConfigType> {
   const configFileDirectory = General.cachedJoin(baseDirectory, FileStructure.Files.Config);
 
-  const hookResponse: "continue" | ConfigType | undefined =
+  const hooksResult: "continue" | ConfigType | undefined =
     await ExtensionsManager.catchAsyncBeforeHooks<ConfigType>({
       "scope" : "getConfigFile",
       "toPass": configFileDirectory,
     });
 
-  if (hookResponse !== "continue" && hookResponse !== undefined) {
-    return hookResponse;
+  if (hooksResult !== "continue" && hooksResult !== undefined) {
+    return hooksResult;
   }
 
   const parsedConfig: "continue" | unknown = await General.handleJsonFile({

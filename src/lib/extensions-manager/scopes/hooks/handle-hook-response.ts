@@ -1,5 +1,5 @@
 import { ApplicationNamespace } from "@/constants/application.ts";
-import { HookResponseStatus } from "@/constants/hooks.ts";
+import { ExtraHookResponseStatus, HookResponseStatus } from "@/constants/hooks.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ExtensionStatusType } from "@/types/extensions/hook-return.type.ts";
 
@@ -33,7 +33,7 @@ export function handleHookResponse<T>({
   ));
 
   if (status !== HookResponseStatus.Stop) {
-    return "continue-hooks-loop";
+    return ExtraHookResponseStatus.ContinueLoop;
   }
 
   const timeMeasurementEnd = performance.now();

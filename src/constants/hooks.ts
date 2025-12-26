@@ -15,3 +15,6 @@ export const HookResponseStatus = {
   "Stop"    : "stop",
   "Continue": "continue",
 } as const;
+export const ExtraHookResponseStatus = {
+  "ContinueLoop": "continue-hooks-loop",
+} as const;
