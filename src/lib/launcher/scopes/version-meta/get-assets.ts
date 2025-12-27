@@ -159,7 +159,7 @@ export async function getAssets({
   await Promise.all(
     Array
       .from({ "length": ConcurrentDownloads.Assets })
-      .map(async (_, groupIndex) => {
+      .map(async (_, groupIndex: number): Promise<void> => {
         while (true) {
           if (indexReference.value >= missingAssetObjects.length) {
             break;

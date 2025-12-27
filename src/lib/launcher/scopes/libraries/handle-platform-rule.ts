@@ -30,7 +30,7 @@ export function handlePlatformRule({
             : true;
         }
         default: {
-          return rule.action === "allow";
+          return rule.action === "disallow";
         }
       }
     }
@@ -50,7 +50,7 @@ export function handlePlatformRule({
             : true;
         }
         default: {
-          return rule.action === "allow";
+          return rule.action === "disallow";
         }
       }
     }
@@ -65,7 +65,7 @@ export function handlePlatformRule({
             : true;
         }
         default: {
-          return rule.action === "allow";
+          return rule.action === "disallow";
         }
       }
     }

@@ -27,10 +27,6 @@ export function normalizeArtifactPath(artifact: string): {
     version,
   ];
 
-  if (classifier !== undefined) {
-    folders.push(classifier);
-  }
-
   return {
     "directory": General.cachedJoin(...folders),
     "file"     : classifier === undefined

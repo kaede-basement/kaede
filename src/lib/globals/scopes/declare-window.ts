@@ -164,6 +164,9 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onJavaBinaryGet": {
+        "before": [],
+      },
     },
   };
 }

@@ -28,6 +28,7 @@ export const LaunchStatus = {
   },
   "Libraries": {
     "ShallowlyValidatingLibrary": "libraries-shallowly-validating-library",
+    "DownloadingLibrary"        : "libraries-downloading-library",
     "Done"                      : "libraries-done",
   },
   "Errors": {
@@ -73,5 +74,6 @@ export const APIEndpoints = {
    */
 } as const;
 export const ConcurrentDownloads = {
-  "Assets": 64,
+  "Assets"   : 64,
+  "Libraries": 8,
 } as const;
