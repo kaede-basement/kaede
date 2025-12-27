@@ -1,5 +1,6 @@
 import { FileStructure } from "@/constants/file-structure.ts";
 import { APIEndpoints, ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
 import { fetchAssetsMeta } from "@/lib/launcher/scopes/version-meta/assets/fetch-assets-meta.ts";
@@ -14,46 +15,55 @@ import {
 } from "@/lib/launcher/scopes/version-meta/assets/shallowly-validate-meta.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { AssetObjectsType } from "@/types/launcher/assets/asset-objects.type.ts";
+import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
 import type {
-  LauncherStatusesType,
-  LaunchStatusType,
-} from "@/types/launcher/launch-status.type.ts";
-import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+  SpecificPatchAssetIndexType,
+  SpecificPatchMetaType,
+} from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function getAssets({
-  baseDirectory,
-  assetIndex,
-  statuses,
+  necessaries,
+  versionMeta,
 }: {
-  "baseDirectory": string;
-  "assetIndex"   : SpecificPatchMetaType["assetIndex"];
-  "statuses"     : LauncherStatusesType;
-}): Promise<string | false> {
+  "necessaries": PreLaunchInformationType;
+  "versionMeta": SpecificPatchMetaType;
+}): Promise<boolean> {
+  const beforeHooksResult: "continue" | boolean | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<boolean>({
+      "scope" : "onMinecraftAssetsGet",
+      "toPass": { necessaries, versionMeta },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
+  const { directories, statuses } = necessaries;
+
   if (
-    assetIndex === undefined ||
-    assetIndex?.id === undefined ||
-    assetIndex?.url === undefined
+    versionMeta?.assetIndex === undefined ||
+    versionMeta?.assetIndex?.id === undefined ||
+    versionMeta?.assetIndex?.url === undefined
   ) {
     statuses.add(LaunchStatus.Errors.MetaAssetsMissingMeta);
 
     return false;
   }
 
+  const assetIndex: SpecificPatchAssetIndexType = versionMeta.assetIndex;
   const metaFilename = assetIndex.id + ".json";
-  const assetsDirectory = General.cachedJoin(
-    baseDirectory,
-    FileStructure.Folders.Assets.Path,
-  );
   const assetsFolders: {
     "indexes": string;
     "objects": string;
   } = {
     "indexes": General.cachedJoin(
-      assetsDirectory,
+      directories.assets,
       "indexes",
     ),
     "objects": General.cachedJoin(
-      assetsDirectory,
+      directories.assets,
       "objects",
     ),
   };
@@ -66,7 +76,7 @@ export async function getAssets({
   try {
     statuses.add(LaunchStatus.Assets.ReadingCachedMeta);
     parsedMeta = await General.handleJsonFile({
-      baseDirectory,
+      "baseDirectory"  : directories.base,
       "path"           : [FileStructure.Folders.Assets.Path, "indexes", metaFilename],
       "label"          : `/assets/indexes/${metaFilename}`,
       "getDefaultValue": async () => {
@@ -172,7 +182,18 @@ export async function getAssets({
       }),
   );
 
+  const afterHooksResult: "continue" | boolean | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<boolean>({
+      "scope" : "onMinecraftAssetsGet",
+      "toPass": { necessaries, versionMeta },
+      "timing": "after",
+    });
+
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
+  }
+
   statuses.add(LaunchStatus.Assets.Done);
 
-  return assetsDirectory;
+  return true;
 }

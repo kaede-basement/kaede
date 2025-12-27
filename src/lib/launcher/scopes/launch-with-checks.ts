@@ -30,27 +30,19 @@ export async function launchWithChecks({
     return false;
   }
 
-  const versionMeta: SpecificPatchMetaType | undefined = await getVersionMeta(necessaries);
+  const versionMeta: SpecificPatchMetaType | false = await getVersionMeta(necessaries);
 
-  if (versionMeta === undefined) {
+  if (versionMeta === false) {
     return false;
   }
 
-  const {
-    assetIndex,
-    mainJar,
-    libraries,
-    logging,
-    requires,
-  } = versionMeta;
-
   // Concurrently resolve instance assets, client jar, libraries, logging configs, and patches
   const [
-    assetsDirectory,
-    clientDirectory,
-    loggingDirectory,
-    libraryPaths,
-    patchPaths,
+    assets,
+    client,
+    logging,
+    libraries,
+    patches,
   ]: [
     string | false,
     string | false,
@@ -58,29 +50,22 @@ export async function launchWithChecks({
     string | false,
     string | false,
   ] = await Promise.all([
-    getAssets({ baseDirectory, assetIndex, statuses }),
-    getClient({ baseDirectory, mainJar, statuses }),
-    getLogging({ baseDirectory, logging, statuses }),
-    getLibraries({ baseDirectory, libraries, statuses }),
-    getPatches({ baseDirectory, requires, statuses }),
+    getAssets({ necessaries, versionMeta }),
+    getClient({ necessaries, versionMeta }),
+    getLogging({ necessaries, versionMeta }),
+    getLibraries({ necessaries, versionMeta }),
+    getPatches({ necessaries, versionMeta }),
   ]);
 
   if (
-    !assetsDirectory ||
-    !clientDirectory ||
-    !loggingDirectory ||
-    !libraryPaths ||
-    !patchPaths
+    !assets ||
+    !client ||
+    !logging ||
+    !libraries ||
+    !patches
   ) {
     return false;
   }
-
-  const nativesDirectory: string = General.cachedJoin(
-    baseDirectory,
-    FileStructure.Folders.Instances.Path,
-    instanceId,
-    "natives",
-  );
 
   return launch({
     instanceId,

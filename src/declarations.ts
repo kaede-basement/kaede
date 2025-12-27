@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 import * as TauriOAuth2 from "@fabianlars/tauri-plugin-oauth";
 import * as TauriApi from "@tauri-apps/api";
 import * as TauriDialog from "@tauri-apps/plugin-dialog";
@@ -39,6 +41,7 @@ import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
@@ -740,6 +743,105 @@ declare global {
             PreLaunchInformationType | false,
             PreLaunchInformationType | false,
             "non-promise"
+          >;
+        };
+
+        /**
+         * Executed on version meta get
+         */
+        "onVersionMeta": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'PreLaunchInformationType' type
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - an object that has the 'SpecificPatchMetaType | false' type
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            PreLaunchInformationType,
+            SpecificPatchMetaType | false
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the minecraft version meta
+           * was read and validated. If the validation fails, these hooks will not fire.
+           *
+           * @param input - an object that has the 'necessaries' and 'minecraftVersionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - an object that has the 'SpecificPatchMetaType | false' type
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            {
+              "necessaries"         : PreLaunchInformationType;
+              "minecraftVersionMeta": SpecificPatchMetaType | false;
+            },
+            SpecificPatchMetaType | false
+          >;
+        };
+
+        /**
+         * Executed on minecraft assets downloading/verifying
+         */
+        "onMinecraftAssetsGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a boolean (where 'true' is success and 'false' is fail)
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            boolean
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the minecraft version meta
+           * was read and validated. If the validation fails, these hooks will not fire.
+           *
+           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a boolean (where 'true' is success and 'false' is fail)
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            boolean
           >;
         };
       };

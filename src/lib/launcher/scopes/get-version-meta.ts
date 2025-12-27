@@ -1,5 +1,6 @@
 import { FileStructure } from "@/constants/file-structure.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { fetchVersionMeta } from "@/lib/launcher/scopes/fetch-version-meta.ts";
 import Schemas from "@/lib/schemas";
@@ -7,11 +8,22 @@ import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
-export async function getVersionMeta({
-  statuses,
-  instance,
-  directories,
-}: PreLaunchInformationType): Promise<SpecificPatchMetaType | undefined> {
+export async function getVersionMeta(
+  necessaries: PreLaunchInformationType,
+): Promise<SpecificPatchMetaType | false> {
+  const beforeHooksResult: "continue" | SpecificPatchMetaType | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<SpecificPatchMetaType | false>({
+      "scope" : "onVersionMeta",
+      "toPass": necessaries,
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
+  const { directories, instance, statuses } = necessaries;
+
   const baseDirectory: string = directories.base;
   const version: string = instance.version;
   let parsed: unknown;
@@ -41,7 +53,7 @@ export async function getVersionMeta({
       },
     });
   } catch {
-    return undefined;
+    return false;
   }
 
   statuses.add(LaunchStatus.Metadata.ValidatingVersionMeta);
@@ -58,7 +70,21 @@ export async function getVersionMeta({
   if (minecraftVersionMeta === false) {
     statuses.add(LaunchStatus.Errors.MetaVersionFullValidationFailed);
 
-    return undefined;
+    return false;
+  }
+
+  const afterHooksResult: "continue" | SpecificPatchMetaType | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<SpecificPatchMetaType | false>({
+      "scope" : "onVersionMeta",
+      "toPass": {
+        necessaries,
+        minecraftVersionMeta,
+      },
+      "timing": "after",
+    });
+
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
   }
 
   return minecraftVersionMeta;

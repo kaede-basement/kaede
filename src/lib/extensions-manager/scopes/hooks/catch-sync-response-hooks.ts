@@ -5,15 +5,15 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import type { ExtensionStatusType, HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
 
-const timing = "before";
-
-export async function catchAsyncBeforeHooks<T>({
+export function catchSyncResponseHooks<T>({
   scope,
   toPass,
+  timing,
 }: {
   "scope" : keyof (Window[typeof ApplicationNamespace]["hooks"]);
   "toPass": unknown;
-}): Promise<"continue" | T | undefined> {
+  "timing": "before" | "after";
+}): "continue" | T | undefined {
   const timeMeasurementStartBefore = performance.now();
   const currentScopeHooks = window[ApplicationNamespace].hooks[scope];
 
@@ -21,7 +21,7 @@ export async function catchAsyncBeforeHooks<T>({
     return;
   }
 
-  const hooks: HookReturnType<unknown, unknown> = currentScopeHooks[timing];
+  const hooks: HookReturnType<unknown, unknown, "non-promise"> = currentScopeHooks[timing];
 
   log.debug(log.templates.hooks.iterate.start(
     scope,
@@ -35,9 +35,9 @@ export async function catchAsyncBeforeHooks<T>({
       scope,
       timing,
       index,
-      "async",
+      "sync",
     ));
-    const { status, response } = await hook(toPass) as {
+    const { status, response } = hook(toPass) as {
       "status"  : ExtensionStatusType;
       "response": T | undefined;
     };

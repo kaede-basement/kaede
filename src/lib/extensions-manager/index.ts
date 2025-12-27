@@ -13,12 +13,15 @@ import { handleCssTheme } from "@/lib/extensions-manager/scopes/handle-css-theme
 import { handleEvent } from "@/lib/extensions-manager/scopes/handle-event.ts";
 import { handlePermission } from "@/lib/extensions-manager/scopes/handle-permission.ts";
 import {
-  catchAsyncAfterHooks,
-} from "@/lib/extensions-manager/scopes/hooks/catch-async-after-hooks.ts";
+  catchAsyncResponseHooks,
+} from "@/lib/extensions-manager/scopes/hooks/catch-async-response-hooks.ts";
 import {
-  catchAsyncBeforeHooks,
-} from "@/lib/extensions-manager/scopes/hooks/catch-async-before-hooks.ts";
-import { catchBeforeHooks } from "@/lib/extensions-manager/scopes/hooks/catch-before-hooks.ts";
+  catchAsyncVoidHooks,
+} from "@/lib/extensions-manager/scopes/hooks/catch-async-void-hooks.ts";
+import {
+  catchSyncResponseHooks,
+} from "@/lib/extensions-manager/scopes/hooks/catch-sync-response-hooks.ts";
+import { catchSyncVoidHooks } from "@/lib/extensions-manager/scopes/hooks/catch-sync-void-hooks.ts";
 import { handleHookResponse } from "@/lib/extensions-manager/scopes/hooks/handle-hook-response.ts";
 import { lockdownEnvironment } from "@/lib/extensions-manager/scopes/lockdown-environment.ts";
 import { readAllExtensions } from "@/lib/extensions-manager/scopes/read-all-extensions.ts";
@@ -36,9 +39,10 @@ export default {
     permissions,
     extension,
   ),
-  catchAsyncAfterHooks,
-  catchAsyncBeforeHooks,
-  catchBeforeHooks,
+  catchAsyncResponseHooks,
+  catchAsyncVoidHooks,
+  catchSyncResponseHooks,
+  catchSyncVoidHooks,
   onGlobalStateChange,
   onInstanceStateChange,
   grantEventListeners,

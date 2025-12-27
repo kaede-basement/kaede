@@ -10,9 +10,10 @@ export async function getConfigFile(baseDirectory: string): Promise<ConfigType> 
   const configFileDirectory = General.cachedJoin(baseDirectory, FileStructure.Files.Config);
 
   const hooksResult: "continue" | ConfigType | undefined =
-    await ExtensionsManager.catchAsyncBeforeHooks<ConfigType>({
+    await ExtensionsManager.catchAsyncResponseHooks<ConfigType>({
       "scope" : "getConfigFile",
       "toPass": configFileDirectory,
+      "timing": "before",
     });
 
   if (hooksResult !== "continue" && hooksResult !== undefined) {

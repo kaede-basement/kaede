@@ -34,6 +34,9 @@ export const FileStructure = {
             "Minecraft": {
               "Path": "minecraft",
             },
+            "Natives": {
+              "Path": "natives",
+            },
           },
         },
       },

@@ -3,14 +3,14 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
 
-const timing = "after";
-
-export async function catchAsyncAfterHooks({
+export async function catchAsyncVoidHooks({
   scope,
   toPass,
+  timing,
 }: {
   "scope" : keyof (Window[typeof ApplicationNamespace]["hooks"]);
   "toPass": unknown;
+  "timing": "before" | "after";
 }): Promise<void> {
   const timeMeasurementStartAfter = performance.now();
   const currentScopeHooks = window[ApplicationNamespace].hooks[scope];
@@ -19,7 +19,7 @@ export async function catchAsyncAfterHooks({
     return;
   }
 
-  const hooks: HookReturnType<unknown, unknown> = currentScopeHooks[timing];
+  const hooks: HookReturnType<unknown, "nothing"> = currentScopeHooks[timing];
 
   log.debug(log.templates.hooks.iterate.start(
     scope,

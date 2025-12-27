@@ -12,5 +12,6 @@ export type PreLaunchInformationType = {
     "assets"   : string;
     "logging"  : string;
     "libraries": string;
+    "natives"  : string;
   };
 };

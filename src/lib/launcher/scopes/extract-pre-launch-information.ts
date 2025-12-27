@@ -17,10 +17,16 @@ export function extractPreLaunchInformation({
   "statuses"  : LauncherStatusesType;
   "instanceId": string;
 }): PreLaunchInformationType | false {
-  ExtensionsManager.catchBeforeHooks({
-    "scope" : "onPreLaunchInformation",
-    "toPass": { statuses, instanceId },
-  });
+  const beforeHooksResult: "continue" | PreLaunchInformationType | false | undefined =
+    ExtensionsManager.catchSyncResponseHooks<PreLaunchInformationType | false>({
+      "scope" : "onPreLaunchInformation",
+      "toPass": { statuses, instanceId },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
 
   const providedPlatform: Platform = platform();
   const providedArch: Arch = arch();
@@ -54,6 +60,12 @@ export function extractPreLaunchInformation({
   const librariesDirectory: string = General.cachedJoin(
     baseDirectory,
     FileStructure.Folders.Libraries.Path,
+  );
+  const nativesDirectory: string = General.cachedJoin(
+    baseDirectory,
+    FileStructure.Folders.Instances.Path,
+    instanceId,
+    FileStructure.Folders.Instances.Folders._Entry_.Folders.Natives.Path,
   );
 
   switch (providedPlatform) {
@@ -100,9 +112,7 @@ export function extractPreLaunchInformation({
     }
   }
 
-  //
-
-  return {
+  const preLaunchInformation: PreLaunchInformationType = {
     statuses,
     "platform"   : compatiblePlatform,
     "arch"       : compatibleArch,
@@ -113,6 +123,19 @@ export function extractPreLaunchInformation({
       "assets"   : assetsDirectory,
       "logging"  : loggingDirectory,
       "libraries": librariesDirectory,
+      "natives"  : nativesDirectory,
     },
   };
+  const afterHooksResult: "continue" | PreLaunchInformationType | false | undefined =
+    ExtensionsManager.catchSyncResponseHooks<PreLaunchInformationType | false>({
+      "scope" : "onPreLaunchInformation",
+      "toPass": preLaunchInformation,
+      "timing": "after",
+    });
+
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
+  }
+
+  return preLaunchInformation;
 }

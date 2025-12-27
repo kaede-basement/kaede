@@ -10,9 +10,10 @@ export function __changeInstanceState<Key extends keyof InstanceStatesType>(
   setValue: (key: Key, value: InstanceStatesType[Key]) => void,
 ): void {
   const hooksResult: "continue" | InstanceStatesType[Key] | undefined =
-    ExtensionsManager.catchBeforeHooks<InstanceStatesType[Key]>({
+    ExtensionsManager.catchSyncResponseHooks<InstanceStatesType[Key]>({
       "scope" : "onInstanceChange",
       "toPass": value,
+      "timing": "before",
     });
 
   if (hooksResult !== "continue" && hooksResult !== undefined) {
@@ -29,9 +30,10 @@ export function __changeInstanceState<Key extends keyof InstanceStatesType>(
   setValue(key, value);
 
   nextTick().then(async () => {
-    await ExtensionsManager.catchAsyncAfterHooks({
+    await ExtensionsManager.catchAsyncVoidHooks({
       "scope" : "onInstanceChange",
       "toPass": value,
+      "timing": "after",
     });
 
     ExtensionsManager.onInstanceStateChange(key, value);

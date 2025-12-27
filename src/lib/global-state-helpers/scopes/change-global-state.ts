@@ -12,9 +12,10 @@ export function __changeGlobalState<Key extends keyof GlobalStatesType>(
 ): void {
   const mappedKey = HookMappings[key];
   const hooksResult: "continue" | GlobalStatesType[Key] | undefined =
-    ExtensionsManager.catchBeforeHooks<GlobalStatesType[Key]>({
+    ExtensionsManager.catchSyncResponseHooks<GlobalStatesType[Key]>({
       "scope" : mappedKey,
       "toPass": value,
+      "timing": "before",
     });
 
   if (hooksResult !== "continue" && hooksResult !== undefined) {
@@ -31,9 +32,10 @@ export function __changeGlobalState<Key extends keyof GlobalStatesType>(
   setValue(key, value);
 
   nextTick().then(async () => {
-    await ExtensionsManager.catchAsyncAfterHooks({
+    await ExtensionsManager.catchAsyncVoidHooks({
       "scope" : mappedKey,
       "toPass": value,
+      "timing": "after",
     });
 
     ExtensionsManager.onGlobalStateChange(key, value);
