@@ -2,6 +2,7 @@
 import { ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import AllowButton from "@/components/general/extensions/permissions/AllowButton.vue";
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { IgnoredExtensionPermissions } from "@/constants/permissions.ts";
 import { __requestPermissions } from "@/lib/extensions-manager/scopes/request-permissions.ts";
@@ -136,19 +137,9 @@ window[ApplicationNamespace].__internals.requestPermissions = requestPermissions
           id="__extensions-loader__permission-request-control"
           class="w-full flex flex-nowrap items-center justify-end gap-2"
         >
-          <button
-            id="__extensions-loader__permission-request-allow-wrapper"
-            @click="() => handleUserRequest(true)"
-            class="relative rounded-md bg-neutral-800 px-3 py-1"
-          >
-            <span
-              id="__extensions-loader__permission-request-allow-label"
-              class="text-white"
-            >
-              Yes
-            </span>
-            <MaterialRipple />
-          </button>
+          <AllowButton
+            :on-click="() => handleUserRequest(true)"
+          />
           <button
             id="__extensions-loader__permission-request-deny-wrapper"
             @click="() => handleUserRequest(false)"

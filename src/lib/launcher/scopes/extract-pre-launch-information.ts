@@ -18,7 +18,7 @@ export function extractPreLaunchInformation({
   "instanceId": string;
 }): PreLaunchInformationType | false {
   ExtensionsManager.catchBeforeHooks({
-    "scope" : "",
+    "scope" : "onPreLaunchInformation",
     "toPass": { statuses, instanceId },
   });
 
