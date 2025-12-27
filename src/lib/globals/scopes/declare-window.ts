@@ -86,14 +86,14 @@ export function declareWindow(): void {
       },
     },
     "hooks": {
-      "pageTeleportsMount": {
+      "onPageTeleportsMount": {
         "after": [],
       },
-      "getConfigFile": {
+      "onConfigFileGet": {
         "before": [],
         "after" : [],
       },
-      "getDefaultConfig": {
+      "onDefaultConfigGet": {
         "before": [],
       },
       "onPagesChange": {
@@ -137,6 +137,18 @@ export function declareWindow(): void {
         "after" : [],
       },
       "onInstanceChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onPreLaunchInformation": {
+        "before": [],
+        "after" : [],
+      },
+      "onVersionMeta": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftAssetsGet": {
         "before": [],
         "after" : [],
       },

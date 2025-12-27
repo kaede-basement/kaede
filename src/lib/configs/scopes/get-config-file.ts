@@ -11,7 +11,7 @@ export async function getConfigFile(baseDirectory: string): Promise<ConfigType> 
 
   const hooksResult: "continue" | ConfigType | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<ConfigType>({
-      "scope" : "getConfigFile",
+      "scope" : "onConfigFileGet",
       "toPass": configFileDirectory,
       "timing": "before",
     });

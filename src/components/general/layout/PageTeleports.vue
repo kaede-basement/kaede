@@ -49,7 +49,7 @@ window[ApplicationNamespace].libs.Pages.mount = mountPageTo;
 window[ApplicationNamespace].libs.Pages.unmount = unmountPage;
 
 onMounted(async () => {
-  const hooks = window[ApplicationNamespace].hooks.pageTeleportsMount.after;
+  const hooks = window[ApplicationNamespace].hooks.onPageTeleportsMount.after;
 
   // TODO logging and make a reusable hooks executor
   await Promise.all(

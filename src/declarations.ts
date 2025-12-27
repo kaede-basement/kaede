@@ -250,7 +250,7 @@ declare global {
         /**
          * Executed on 'PageTeleports' mount
          */
-        "pageTeleportsMount": {
+        "onPageTeleportsMount": {
 
           /**
            * Executes 'async' or 'sync' functions after the component was mounted.
@@ -265,15 +265,18 @@ declare global {
         /**
          * Executed on the config retrieve
          */
-        "getConfigFile": {
+        "onConfigFileGet": {
 
           /**
            * Executes 'async' or 'sync' functions before the config was read.
            *
-           * Absolute pathname of the config file is passed as the argument.
+           * @param input - a string that represents absolute pathname of the config file
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'ConfigType' typed object in the 'response' field.
+           * it should also return:
+           * @param output - an object that has the 'ConfigType' type
+           * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
            * code execution will continue as if that hook did not exist.
@@ -283,10 +286,13 @@ declare global {
           /**
            * Executes 'async' or 'sync' functions after the config was read, parsed, and validated.
            *
-           * A validated config is passed as the argument.
+           * @param input - an object that has the 'ConfigType' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'ConfigType' typed object in the 'response' field.
+           * it should also return:
+           * @param output - an object that has the 'ConfigType' type
+           * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
            * it may add properties to the passed config argument or do nothing.
@@ -297,7 +303,7 @@ declare global {
         /**
          * Executed on the default config retrieve
          */
-        "getDefaultConfig": {
+        "onDefaultConfigGet": {
 
           /**
            * Executes 'async' or 'sync' functions before the default config was returned.
@@ -305,7 +311,9 @@ declare global {
            * No arguments.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'ConfigType' typed object in the 'response' field.
+           * it should also return:
+           * @param output - an object that has the 'ConfigType' type
+           * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
            * code execution will continue as if that hook did not exist.
@@ -322,10 +330,13 @@ declare global {
            * Executes 'sync'-only functions before the 'translations' property
            * in the global states will change.
            *
-           * 'TranslationsType' typed object is passed as the argument.
+           * @param input - an object that has the 'TranslationsType' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'TranslationsType' typed object in the 'response' field.
+           * it should also return:
+           * @param output - an object that has the 'TranslationsType' type
+           * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
            * code execution will continue as if that hook did not exist.
@@ -336,7 +347,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'translations' property in the global states has changed.
            *
-           * 'TranslationsType' typed object is passed as the argument.
+           * @param input - an object that has the 'TranslationsType' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -352,10 +364,12 @@ declare global {
            * Executes 'sync'-only functions before the 'layout' property
            * in the global states will change.
            *
-           * 'GlobalStatesType["layout"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["layout"]' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["layout"]' typed object
+           * it should also return:
+           * @param output - an object that has the 'GlobalStatesType["layout"]' type
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -371,7 +385,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'layout' property in the global states has changed.
            *
-           * 'GlobalStatesType["layout"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["layout"]' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -387,10 +402,12 @@ declare global {
            * Executes 'sync'-only functions before the 'pages' property
            * in the global states will change.
            *
-           * 'GlobalStatesType["pages"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["pages"]' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["pages"]' typed object
+           * it should also return:
+           * @param output - an object that has the 'GlobalStatesType["pages"]' type
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -406,7 +423,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'pages' property in the global states has changed.
            *
-           * 'GlobalStatesType["pages"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["pages"]' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -422,10 +440,12 @@ declare global {
            * Executes 'sync'-only functions before the 'logs' property
            * in the global states will change.
            *
-           * 'GlobalStatesType["logs"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["logs"]' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["logs"]' typed object
+           * it should also return:
+           * @param output - an object that has the 'GlobalStatesType["logs"]' type
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -441,7 +461,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'logs' property in the global states has changed.
            *
-           * 'GlobalStatesType["logs"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["logs"]' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -457,10 +478,12 @@ declare global {
            * Executes 'sync'-only functions before the 'sidebarItems' property
            * in the global states will change.
            *
-           * 'GlobalStatesType["sidebarItems"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["sidebarItems"]' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["sidebarItems"]' typed object
+           * it should also return:
+           * @param output - an object that has the 'GlobalStatesType["sidebarItems"]' type
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -476,7 +499,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'sidebarItems' property in the global states has changed.
            *
-           * 'GlobalStatesType["sidebarItems"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["sidebarItems"]' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -492,10 +516,12 @@ declare global {
            * Executes 'sync'-only functions before the 'contextMenuItems' property
            * in the global states will change.
            *
-           * 'GlobalStatesType["contextMenuItems"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["contextMenuItems"]' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["contextMenuItems"]' typed object
+           * it should also return:
+           * @param output - an object that has the 'GlobalStatesType["contextMenuItems"]' type
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -511,7 +537,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'contextMenuItems' property in the global states has changed.
            *
-           * 'GlobalStatesType["contextMenuItems"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["contextMenuItems"]' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -527,10 +554,12 @@ declare global {
            * Executes 'sync'-only functions before the 'development' property
            * in the global states will change.
            *
-           * 'GlobalStatesType["development"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["development"]' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["development"]' typed object
+           * it should also return:
+           * @param output - an object that has the 'GlobalStatesType["development"]' type
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -546,7 +575,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'development' property in the global states has changed.
            *
-           * 'GlobalStatesType["development"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["development"]' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -562,10 +592,12 @@ declare global {
            * Executes 'sync'-only functions before the 'misc' property
            * in the global states will change.
            *
-           * 'GlobalStatesType["misc"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["misc"]' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["misc"]' typed object
+           * it should also return:
+           * @param output - an object that has the 'GlobalStatesType["misc"]' type
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -581,7 +613,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'misc' property in the global states has changed.
            *
-           * 'GlobalStatesType["misc"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["misc"]' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -597,10 +630,12 @@ declare global {
            * Executes 'sync'-only functions before the 'minecraft' property
            * in the global states will change.
            *
-           * 'GlobalStatesType["minecraft"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["minecraft"]' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["minecraft"]' typed object
+           * it should also return:
+           * @param output - an object that has the 'GlobalStatesType["minecraft"]' type
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -616,7 +651,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'minecraft' property in the global states has changed.
            *
-           * 'GlobalStatesType["minecraft"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["minecraft"]' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -632,10 +668,12 @@ declare global {
            * Executes 'sync'-only functions before the 'extensions' property
            * in the global states will change.
            *
-           * 'GlobalStatesType["extensions"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["extensions"]' type
+           * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return a 'GlobalStatesType["extensions"]' typed object
+           * it should also return:
+           * @param output - an object that has the 'GlobalStatesType["extensions"]' type
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -651,7 +689,8 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the 'extensions' property in the global states has changed.
            *
-           * 'GlobalStatesType["extensions"]' typed object is passed as the argument.
+           * @param input - an object that has the 'GlobalStatesType["extensions"]' type
+           * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
            */
@@ -667,12 +706,12 @@ declare global {
            * Executes 'sync'-only functions before the provided field
            * in the instance states will change.
            *
-           * '{ key: string, value: InstanceStateType }' typed object
+           * @param input - an object that has the 'key' and 'value' fields
            * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
-           * it should also return
-           * a '{ key: string, value: InstanceStateType }' typed object
+           * it should also return:
+           * @param output - an object that has the 'key' and 'value' fields
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -688,7 +727,7 @@ declare global {
            * Executes 'async' or 'sync' functions on the next Vue tick,
            * after the provided field in the instance states has changed.
            *
-           * '{ key: string, value: InstanceStateType }' typed object
+           * @param input - an object that has the 'key' and 'value' fields
            * is passed as the argument.
            *
            * Hook should not return anything since the response will not be read.
