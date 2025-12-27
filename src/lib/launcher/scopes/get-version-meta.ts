@@ -3,21 +3,17 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import { fetchVersionMeta } from "@/lib/launcher/scopes/fetch-version-meta.ts";
 import Schemas from "@/lib/schemas";
-import type {
-  LauncherStatusesType,
-  LaunchStatusType,
-} from "@/types/launcher/launch-status.type.ts";
+import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function getVersionMeta({
   statuses,
-  baseDirectory,
-  version,
-}: {
-  "statuses"     : LauncherStatusesType;
-  "baseDirectory": string;
-  "version"      : SpecificPatchMetaType["version"];
-}): Promise<SpecificPatchMetaType | undefined> {
+  instance,
+  directories,
+}: PreLaunchInformationType): Promise<SpecificPatchMetaType | undefined> {
+  const baseDirectory: string = directories.base;
+  const version: string = instance.version;
   let parsed: unknown;
 
   try {
@@ -25,7 +21,7 @@ export async function getVersionMeta({
     parsed = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Cache.Path, `${version}.json`],
-      "label"          : `${version}.json`,
+      "label"          : `/cache/${version}.json`,
       "getDefaultValue": async () => {
         statuses.add(LaunchStatus.Metadata.FetchingVersionMeta);
         const fetched: object | LaunchStatusType = await fetchVersionMeta({ version });

@@ -1,7 +1,8 @@
 import { FileStructure } from "@/constants/file-structure.ts";
 import General from "@/lib/general";
-import Instances from "@/lib/instances";
-import { extractInstance } from "@/lib/launcher/scopes/extract-instance.ts";
+import {
+  extractPreLaunchInformation,
+} from "@/lib/launcher/scopes/extract-pre-launch-information.ts";
 import { getVersionMeta } from "@/lib/launcher/scopes/get-version-meta.ts";
 import { launch } from "@/lib/launcher/scopes/launch.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
@@ -9,9 +10,9 @@ import { getClient } from "@/lib/launcher/scopes/version-meta/get-client.ts";
 import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
 import { getLogging } from "@/lib/launcher/scopes/version-meta/get-logging.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
-import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function launchWithChecks({
   instanceId,
@@ -20,26 +21,16 @@ export async function launchWithChecks({
   "instanceId": string;
   "statuses"  : LauncherStatusesType;
 }): Promise<boolean> {
-  const baseDirectory: string = General.getCachedBaseDirectory();
-  const instanceDirectory: string = Instances.getMinecraftDirectory({
-    baseDirectory,
+  const necessaries: PreLaunchInformationType | false = extractPreLaunchInformation({
     instanceId,
-  });
-  const instance: InstanceStateType | undefined = extractInstance({
     statuses,
-    instanceId,
   });
 
-  if (!instance) {
+  if (necessaries === false) {
     return false;
   }
 
-  const { version } = instance;
-  const versionMeta: SpecificPatchMetaType | undefined = await getVersionMeta({
-    statuses,
-    baseDirectory,
-    version,
-  });
+  const versionMeta: SpecificPatchMetaType | undefined = await getVersionMeta(necessaries);
 
   if (versionMeta === undefined) {
     return false;

@@ -12,6 +12,6 @@ export function getMinecraftDirectory({
     baseDirectory,
     FileStructure.Folders.Instances.Path,
     instanceId,
-    "minecraft",
+    FileStructure.Folders.Instances.Folders._Entry_.Folders.Minecraft.Path,
   );
 }

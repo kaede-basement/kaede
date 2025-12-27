@@ -53,12 +53,15 @@ export type SpecificPatchArtifactType = {
   "path"?: string;
 };
 export type SpecificPatchClassifiersType = {
-  "natives-linux"      ?: SpecificPatchArtifactType;
-  "natives-linux-arm32"?: SpecificPatchArtifactType;
-  "natives-linux-arm64"?: SpecificPatchArtifactType;
-  "natives-osx"        ?: SpecificPatchArtifactType;
-  "natives-osx-arm64"  ?: SpecificPatchArtifactType;
-  "natives-windows"    ?: SpecificPatchArtifactType;
+  "natives-linux"          ?: SpecificPatchArtifactType;
+  "natives-linux-${arch}"  ?: SpecificPatchArtifactType;
+  "natives-linux-arm32"    ?: SpecificPatchArtifactType;
+  "natives-linux-arm64"    ?: SpecificPatchArtifactType;
+  "natives-osx"            ?: SpecificPatchArtifactType;
+  "natives-osx-${arch}"    ?: SpecificPatchArtifactType;
+  "natives-osx-arm64"      ?: SpecificPatchArtifactType;
+  "natives-windows"        ?: SpecificPatchArtifactType;
+  "natives-windows-${arch}"?: SpecificPatchArtifactType;
 };
 export type SpecificPatchLibraryDownloadsType = {
   "artifact"   ?: SpecificPatchArtifactType;

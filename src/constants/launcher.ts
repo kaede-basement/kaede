@@ -26,9 +26,14 @@ export const LaunchStatus = {
     "DownloadingConfig": "logging-downloading-config",
     "Done"             : "logging-done",
   },
+  "Libraries": {
+    "ShallowlyValidatingLibrary": "libraries-shallowly-validating-library",
+  },
   "Errors": {
     "UnhandledError"                    : "error-unhandled-error",
     "UndefinedInstanceVersion"          : "error-undefined-instance-version",
+    "IncompatiblePlatform"              : "error-incompatible-platform",
+    "IncompatibleArch"                  : "error-incompatible-arch",
     "MetaVersionFetchFailed"            : "error-meta-version-fetch-failed",
     "MetaVersionParseFailed"            : "error-meta-version-parse-failed",
     "MetaVersionShallowValidationFailed": "error-meta-version-shallow-validation-failed",
@@ -40,6 +45,8 @@ export const LaunchStatus = {
     "ClientMainJarMissingMeta"          : "error-client-main-jar-missing-meta",
     "LoggingMissingMeta"                : "error-logging-missing-meta",
     "PatchMissingMeta"                  : "error-patch-missing-meta",
+    "LibrariesMissingMeta"              : "error-libraries-missing-meta",
+    "LibraryShallowValidationFailed"    : "library-shallow-validation-failed",
     "VersionNotFoundInMeta"             : "error-version-not-found-in-meta",
     "MissingJava"                       : "error-missing-java",
     "IncorrectJavaVersion"              : "error-incorrect-java-version",

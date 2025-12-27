@@ -4,34 +4,56 @@ import { AssetIndexSchema } from "@/lib/schemas/scopes/meta/asset-index.schema.t
 import { LibrarySchema } from "@/lib/schemas/scopes/meta/library.schema.ts";
 import { LoggingSchema } from "@/lib/schemas/scopes/meta/logging.schema.ts";
 import { MainJarSchema } from "@/lib/schemas/scopes/meta/main-jar.schema.ts";
+import { PatchUidSchema } from "@/lib/schemas/scopes/meta/patch-uid.schema.ts";
 import { RequireSchema } from "@/lib/schemas/scopes/meta/require.schema.ts";
 
-export const PatchMetaSchema = Type.Object({
-  "+traits": Type.Optional(
-    Type.Array(
+/*
+ * Validates only top-level and some nested fields
+ * since I think that validating everything perfectly
+ * according to the 'SpecificPatchMetaType' type
+ * might backfire, because MultiMC meta server is literally not documented
+ */
+export const PatchMetaSchema = Type.Intersect([
+  Type.Object({
+    "formatVersion": Type.Number(),
+    "name"         : Type.String(),
+    "releaseTime"  : Type.String(),
+    "uid"          : PatchUidSchema,
+    "version"      : Type.String(),
+  }),
+  Type.Partial({
+    "+traits": Type.Array(
       Type.String(),
     ),
-  ),
-  "assetIndex"          : AssetIndexSchema,
-  "compatibleJavaMajors": Type.Array(
-    Type.Number(),
-  ),
-  "compatibleJavaName": Type.String(),
-  "formatVersion"     : Type.Number(),
-  "libraries"         : Type.Array(
-    LibrarySchema,
-  ),
-  "logging"           : LoggingSchema,
-  "mainClass"         : Type.String(),
-  "mainJar"           : MainJarSchema,
-  "minecraftArguments": Type.String(),
-  "name"              : Type.String(),
-  "order"             : Type.Number(),
-  "releaseTime"       : Type.String(),
-  "requires"          : Type.Array(
-    RequireSchema,
-  ),
-  "type"   : Type.String(),
-  "uid"    : Type.String(),
-  "version": Type.String(),
-});
+    "+tweakers": Type.Array(
+      Type.String(),
+    ),
+    "assetIndex"          : AssetIndexSchema,
+    "compatibleJavaMajors": Type.Array(
+      Type.Number(),
+    ),
+    "compatibleJavaName": Type.String(),
+    "conflicts"         : Type.Array(
+      RequireSchema,
+    ),
+    "libraries": Type.Array(
+      LibrarySchema,
+    ),
+    "logging"   : LoggingSchema,
+    "mainClass" : Type.String(),
+    "mainJar"   : MainJarSchema,
+    "mavenFiles": Type.Array(
+      LibrarySchema,
+    ),
+    "minecraftArguments": Type.String(),
+    "order"             : Type.Number(),
+    "requires"          : Type.Array(
+      RequireSchema,
+    ),
+    "runtimes": Type.Array(
+      Type.Object({}),
+    ),
+    "type"    : Type.String(),
+    "volatile": Type.Boolean(),
+  }),
+]);

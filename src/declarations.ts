@@ -38,6 +38,8 @@ import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
+import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
@@ -691,6 +693,53 @@ declare global {
           "after": HookReturnType<
             { "key": string; "value": InstanceStateType },
             "nothing"
+          >;
+        };
+
+        /**
+         * Executed in the very beginning of the instance launch
+         */
+        "onPreLaunchInformation": {
+
+          /**
+           * Executes 'sync'-only functions before any information reads.
+           *
+           * @param input - an object that has the 'statuses' and 'instanceId' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - an object that has the 'PreLaunchInformationType | false' type
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            { "statuses": LauncherStatusesType; "instanceId": string },
+            PreLaunchInformationType | false,
+            "non-promise"
+          >;
+
+          /**
+           * Executes 'sync'-only functions after all necessary information
+           * was read and validated. If the validation fails, these hooks will not fire.
+           *
+           * @param input - an object that has the 'PreLaunchInformationType | false' type
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - an object that has the 'PreLaunchInformationType | false' type
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            PreLaunchInformationType | false,
+            PreLaunchInformationType | false,
+            "non-promise"
           >;
         };
       };

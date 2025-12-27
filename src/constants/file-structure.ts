@@ -1,7 +1,12 @@
 export const FileStructure = {
   "Folders": {
     "Assets": {
-      "Path": "assets",
+      "Path"   : "assets",
+      "Folders": {
+        "LogConfigs": {
+          "Path": "log_configs",
+        },
+      },
     },
     "Libraries": {
       "Path": "libraries",
@@ -22,7 +27,16 @@ export const FileStructure = {
       "Path": "extensions",
     },
     "Instances": {
-      "Path": "instances",
+      "Path"   : "instances",
+      "Folders": {
+        "_Entry_": {
+          "Folders": {
+            "Minecraft": {
+              "Path": "minecraft",
+            },
+          },
+        },
+      },
     },
     "Logs": {
       "Path" : "logs",

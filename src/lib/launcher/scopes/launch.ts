@@ -1,4 +1,4 @@
-import { type Platform, platform } from "@tauri-apps/plugin-os";
+import { type Arch, arch, type Platform, platform } from "@tauri-apps/plugin-os";
 import { Command } from "@tauri-apps/plugin-shell";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
@@ -31,7 +31,6 @@ export async function launch({
   "statuses"   : LauncherStatusesType;
   "directories": DirectoriesType;
 }): Promise<boolean> {
-  const currentPlatform: Platform = platform();
   const mainClass = versionMeta.mainClass;
   const [
     javaBinary,

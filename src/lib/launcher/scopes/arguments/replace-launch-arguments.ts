@@ -5,7 +5,7 @@ import type {
   ArgumentReplacementsType,
 } from "@/types/launcher/launch/argument-replacements.type.ts";
 import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export function replaceLaunchArguments({
   auth,
@@ -24,11 +24,12 @@ export function replaceLaunchArguments({
     "classPaths": string;
   };
   "instance"   : InstanceStateType;
-  "versionMeta": MetaMinecraftVersionType;
+  "versionMeta": SpecificPatchMetaType;
   "directories": DirectoriesType;
 }): string {
+  const assetIndexId: string = versionMeta?.assetIndex?.id ?? "";
   const replacements: ArgumentReplacementsType = {
-    "assets_index_name"    : versionMeta.assetIndex.id,
+    "assets_index_name"    : assetIndexId,
     "assets_root"          : directories.assets,
     "auth_access_token"    : auth.token,
     "auth_player_name"     : auth.username,
@@ -51,7 +52,7 @@ export function replaceLaunchArguments({
     "user_properties"      : "", // 'older versions, doesn’t appear to be used in game'
     "user_type"            : "", // 'msa', 'mojang', or 'offline' (?)
     "version_name"         : instance.version,
-    "version_type"         : versionMeta.type,
+    "version_type"         : versionMeta?.type ?? "release",
   };
   const keysRegex: RegExp = new RegExp(
     Object

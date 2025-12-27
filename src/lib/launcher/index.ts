@@ -4,7 +4,6 @@ import { fetchVersionMeta } from "@/lib/launcher/scopes/fetch-version-meta.ts";
 import { getVersionMeta } from "@/lib/launcher/scopes/get-version-meta.ts";
 import { launch } from "@/lib/launcher/scopes/launch.ts";
 import { launchWithChecks } from "@/lib/launcher/scopes/launch-with-checks.ts";
-import { validateSha1 } from "@/lib/launcher/scopes/validate-sha1.ts";
 
 export default {
   downloadWithProgress,
@@ -13,5 +12,4 @@ export default {
   getVersionMeta,
   launch,
   launchWithChecks,
-  validateSha1,
 } as const;

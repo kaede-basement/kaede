@@ -1,6 +1,13 @@
 import { Type } from "typebox";
 
+import { PatchUidSchema } from "@/lib/schemas/scopes/meta/patch-uid.schema.ts";
+
 export const RequireSchema = Type.Object({
-  "suggests": Type.String(),
-  "uid"     : Type.String(),
+  "uid"   : PatchUidSchema,
+  "equals": Type.Optional(
+    Type.String(),
+  ),
+  "suggests": Type.Optional(
+    Type.String(),
+  ),
 });

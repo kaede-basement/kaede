@@ -6,7 +6,7 @@ import type {
   LauncherStatusesType,
   LaunchStatusType,
 } from "@/types/launcher/launch-status.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getPatch({
   baseDirectory,
@@ -15,7 +15,9 @@ export async function getPatch({
 }: {
   "baseDirectory": string;
   "statuses"     : LauncherStatusesType;
-  "require"      : MetaMinecraftVersionType["requires"][number];
+  "require"      : Required<
+    Required<SpecificPatchMetaType>["requires"]
+  >[number];
 }): Promise<object | false> {
   const versionWithExtension: string = require.suggests + ".json";
   const fileName: string = require.uid + "-" + versionWithExtension;
@@ -52,6 +54,8 @@ export async function getPatch({
   }
 
   if (typeof parsedMeta !== "object" || parsedMeta === null) {
+    statuses.add(LaunchStatus.Errors.ReadingCachedPatchMeta);
+
     return false;
   }
 

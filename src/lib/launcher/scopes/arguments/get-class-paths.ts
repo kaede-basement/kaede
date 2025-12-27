@@ -1,7 +1,7 @@
 import type { Platform } from "@tauri-apps/plugin-os";
 
 import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getClassPaths({
   currentPlatform,
@@ -9,7 +9,7 @@ export async function getClassPaths({
   directories,
 }: {
   "currentPlatform": Platform;
-  "versionMeta"    : MetaMinecraftVersionType;
+  "versionMeta"    : SpecificPatchMetaType;
   "directories"    : DirectoriesType;
 }): Promise<{
   "argument"  : string;

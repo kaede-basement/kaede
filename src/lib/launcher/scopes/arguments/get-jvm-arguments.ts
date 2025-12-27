@@ -2,7 +2,7 @@ import type { Platform } from "@tauri-apps/plugin-os";
 
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
-import type { MetaMinecraftVersionType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export function getJvmArguments({
   instance,
@@ -12,7 +12,7 @@ export function getJvmArguments({
 }: {
   "instance"       : InstanceStateType;
   "currentPlatform": Platform;
-  "versionMeta"    : MetaMinecraftVersionType;
+  "versionMeta"    : SpecificPatchMetaType;
   "directories"    : DirectoriesType;
 }): string {
   const isNew: boolean = versionMeta?.minecraftArguments === undefined;
