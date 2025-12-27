@@ -985,6 +985,86 @@ declare global {
             boolean
           >;
         };
+
+        /**
+         * Executed on minecraft libraries downloading/verifying
+         */
+        "onMinecraftLibrariesGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - an array of library paths (Array<string>) or 'false'
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            Array<string> | false
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the minecraft libraries were
+           * downloaded/verified. If the download/verification fails, these hooks will not fire.
+           *
+           * @param input - an object that has the 'necessaries', 'versionMeta',
+           * and 'libraries' fields is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - an array of library paths (Array<string>) or 'false'
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+              "libraries"  : Array<string>;
+            },
+            Array<string> | false
+          >;
+        };
+
+        /**
+         * Executed on a shell command name get
+         */
+        "onJavaBinaryGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a string that represents the shell command name
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            string
+          >;
+        };
       };
     };
   }

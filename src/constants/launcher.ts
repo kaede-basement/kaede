@@ -28,6 +28,7 @@ export const LaunchStatus = {
   },
   "Libraries": {
     "ShallowlyValidatingLibrary": "libraries-shallowly-validating-library",
+    "Done"                      : "libraries-done",
   },
   "Errors": {
     "UnhandledError"                    : "error-unhandled-error",

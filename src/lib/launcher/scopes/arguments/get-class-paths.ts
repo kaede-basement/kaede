@@ -1,16 +1,14 @@
-import type { Platform } from "@tauri-apps/plugin-os";
-
-import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function getClassPaths({
-  currentPlatform,
+  client,
+  necessaries,
   versionMeta,
-  directories,
 }: {
-  "currentPlatform": Platform;
-  "versionMeta"    : SpecificPatchMetaType;
-  "directories"    : DirectoriesType;
+  "client"     : string;
+  "necessaries": PreLaunchInformationType;
+  "versionMeta": SpecificPatchMetaType;
 }): Promise<{
   "argument"  : string;
   "classPaths": string;

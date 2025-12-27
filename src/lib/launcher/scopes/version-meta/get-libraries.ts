@@ -1,8 +1,9 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
+import { getAllowedLibraries } from "@/lib/launcher/scopes/libraries/get-allowed-libraries.ts";
 import {
-  shallowlyValidateLibrary,
-} from "@/lib/launcher/scopes/libraries/shallowly-validate-library.ts";
-import { log } from "@/lib/logging/scopes/log.ts";
+  handleLibrariesDownload,
+} from "@/lib/launcher/scopes/libraries/handle-libraries-download.ts";
 import type {
   SpecificPatchLibraryType,
   SpecificPatchMetaType,
@@ -16,7 +17,18 @@ export async function getLibraries({
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
 }): Promise<Array<string> | false> {
-  const { directories, statuses } = necessaries;
+  const beforeHooksResult: "continue" | Array<string> | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<Array<string> | false>({
+      "scope" : "onMinecraftLibrariesGet",
+      "toPass": { necessaries, versionMeta },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
+  const { statuses } = necessaries;
   const libraries: SpecificPatchMetaType["libraries"] = versionMeta?.libraries;
 
   if (
@@ -28,18 +40,28 @@ export async function getLibraries({
     return false;
   }
 
-  for (const entry of libraries) {
-    const library: SpecificPatchLibraryType | false = shallowlyValidateLibrary({
-      "library": entry,
-      statuses,
+  const allowedLibraries: Array<SpecificPatchLibraryType> = getAllowedLibraries({
+    necessaries,
+    libraries,
+  });
+
+  const libraryPaths: Array<string> = await handleLibrariesDownload({
+    "libraries": allowedLibraries,
+    necessaries,
+  });
+
+  const afterHooksResult: "continue" | Array<string> | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<Array<string> | false>({
+      "scope" : "onMinecraftLibrariesGet",
+      "toPass": { necessaries, versionMeta, "paths": libraryPaths },
+      "timing": "after",
     });
 
-    if (library === false) {
-      log.warn(`The '${JSON.stringify(entry)}' library is completely invalid`);
-
-      continue;
-    }
-
-
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
   }
+
+  statuses.add(LaunchStatus.Libraries.Done);
+
+  return libraryPaths;
 }

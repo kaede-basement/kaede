@@ -1,17 +1,17 @@
-import type { Platform } from "@tauri-apps/plugin-os";
-
 import { handlePlatformRule } from "@/lib/launcher/scopes/libraries/handle-platform-rule.ts";
 import type {
+  SpecificPatchLibraryOSNameType,
   SpecificPatchLibraryRuleType,
   SpecificPatchLibraryType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export function shouldIncludeLibrary({
-  currentPlatform,
+  necessaries,
   library,
 }: {
-  "currentPlatform": Platform;
-  "library"        : SpecificPatchLibraryType;
+  "necessaries": PreLaunchInformationType;
+  "library"    : SpecificPatchLibraryType;
 }): boolean {
   if (
     library?.rules === undefined ||
@@ -20,22 +20,28 @@ export function shouldIncludeLibrary({
     return true;
   }
 
-  let toInclude: boolean = true;
+  const { platform, arch } = necessaries;
   const rules: Array<SpecificPatchLibraryRuleType> = library.rules;
+  let toInclude: boolean = true;
 
   for (const rule of rules) {
-    if (
-      rule?.os === undefined ||
-      rule?.os?.name === undefined
-    ) {
+    const ruleOS: SpecificPatchLibraryOSNameType | undefined = rule?.os?.name;
+
+    if (ruleOS === undefined) {
       toInclude = rule?.action === "allow";
 
       continue;
     }
 
     toInclude = handlePlatformRule({
-      currentPlatform,
-      rule,
+      "rule": {
+        "action": rule?.action ?? "disallow",
+        "os"    : {
+          "name": ruleOS,
+        },
+      },
+      platform,
+      arch,
     });
   }
 

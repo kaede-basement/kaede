@@ -1,4 +1,3 @@
-import { type Arch, arch, type Platform, platform } from "@tauri-apps/plugin-os";
 import { Command } from "@tauri-apps/plugin-shell";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
@@ -13,24 +12,22 @@ import {
   replaceLaunchArguments,
 } from "@/lib/launcher/scopes/arguments/replace-launch-arguments.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
-import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
-import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function launch({
   instanceId,
-  instance,
+  client,
+  necessaries,
   versionMeta,
-  statuses,
-  directories,
 }: {
   "instanceId" : string;
-  "instance"   : InstanceStateType;
+  "client"     : string;
+  "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-  "statuses"   : LauncherStatusesType;
-  "directories": DirectoriesType;
 }): Promise<boolean> {
+  const { directories, statuses } = necessaries;
+
   const mainClass = versionMeta.mainClass;
   const [
     javaBinary,
@@ -43,22 +40,21 @@ export async function launch({
     string,
     string,
   ] = await Promise.all([
-    getJavaBinary({ currentPlatform }),
+    getJavaBinary({ necessaries, versionMeta }),
     getClassPaths({
-      currentPlatform,
+      necessaries,
       versionMeta,
-      directories,
+      client,
     }),
     getJvmArguments({
-      instance,
-      currentPlatform,
+      necessaries,
       versionMeta,
-      directories,
+      client,
     }),
     getGameArguments({
-      currentPlatform,
+      necessaries,
       versionMeta,
-      directories,
+      client,
     }),
   ]);
 
@@ -71,13 +67,18 @@ export async function launch({
     gameArguments,
   ].join(" ");
   const launchArguments: string = replaceLaunchArguments({
+    "auth": {
+      "uuid"    : "",
+      "token"   : "",
+      "username": "",
+    },
     "builtLaunchArguments": {
       toReplace,
       classPaths,
     },
-    instance,
+    client,
+    necessaries,
     versionMeta,
-    directories,
   });
   const instanceCommand = Command.create(
     javaBinary,

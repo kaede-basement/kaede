@@ -67,18 +67,8 @@ export async function launchWithChecks({
 
   return launch({
     instanceId,
-    instance,
+    client,
+    necessaries,
     versionMeta,
-    statuses,
-    "directories": {
-      "base"     : baseDirectory,
-      "instance" : instanceDirectory,
-      "natives"  : nativesDirectory,
-      "assets"   : assetsDirectory,
-      "client"   : clientDirectory,
-      "logging"  : loggingDirectory,
-      "libraries": libraryPaths,
-      "patches"  : patchPaths,
-    },
   });
 }

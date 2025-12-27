@@ -1,38 +1,73 @@
-import type { Platform } from "@tauri-apps/plugin-os";
-
 import type {
   SpecificPatchLibraryRuleType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 import type { DeepRequired } from "@/types/utils/deep-required.type.ts";
 
 export function handlePlatformRule({
-  currentPlatform,
+  platform,
+  arch,
   rule,
 }: {
-  "currentPlatform": Platform;
-  "rule"           : DeepRequired<SpecificPatchLibraryRuleType>;
+  "platform": PreLaunchInformationType["platform"];
+  "arch"    : PreLaunchInformationType["arch"];
+  "rule"    : DeepRequired<SpecificPatchLibraryRuleType>;
 }): boolean {
-  let allow: boolean = false;
-
-  switch (currentPlatform) {
+  switch (platform) {
     case "windows": {
       switch (rule.os.name) {
         case "windows": {
-          break;
+          return rule.action === "allow";
         }
-        case "windows-arm32": {}
-        case "windows-arm64": {}
+        case "windows-arm32": {
+          return (arch === "arm32")
+            ? (rule.action === "allow")
+            : true;
+        }
+        case "windows-arm64": {
+          return (arch === "arm64")
+            ? (rule.action === "allow")
+            : true;
+        }
+        default: {
+          return rule.action === "allow";
+        }
       }
-
-      break;
     }
     case "linux": {
-      break;
+      switch (rule.os.name) {
+        case "linux": {
+          return rule.action === "allow";
+        }
+        case "linux-arm32": {
+          return (arch === "arm32")
+            ? (rule.action === "allow")
+            : true;
+        }
+        case "linux-arm64": {
+          return (arch === "arm64")
+            ? (rule.action === "allow")
+            : true;
+        }
+        default: {
+          return rule.action === "allow";
+        }
+      }
     }
     case "macos": {
-      break;
+      switch (rule.os.name) {
+        case "osx": {
+          return rule.action === "allow";
+        }
+        case "osx-arm64": {
+          return (arch === "arm64")
+            ? (rule.action === "allow")
+            : true;
+        }
+        default: {
+          return rule.action === "allow";
+        }
+      }
     }
   }
-
-  return allow;
 }

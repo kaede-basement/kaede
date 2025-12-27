@@ -1,11 +1,28 @@
-import type { Platform } from "@tauri-apps/plugin-os";
+import ExtensionsManager from "@/lib/extensions-manager";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function getJavaBinary({
-  currentPlatform,
+  necessaries,
+  versionMeta,
 }: {
-  "currentPlatform": Platform;
+  "necessaries": PreLaunchInformationType;
+  "versionMeta": SpecificPatchMetaType;
 }): Promise<"java" | "cmd"> {
-  switch (currentPlatform) {
+  const beforeHooksResult: "continue" | "java" | "cmd" | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<"java" | "cmd">({
+      "scope" : "onJavaBinaryGet",
+      "toPass": { necessaries, versionMeta },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
+  const { platform } = necessaries;
+
+  switch (platform) {
     case "windows": {
       return "cmd";
     }

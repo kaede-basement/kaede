@@ -1,20 +1,16 @@
-import type { Platform } from "@tauri-apps/plugin-os";
-
-import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
-import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
-export function getJvmArguments({
-  instance,
-  currentPlatform,
+export async function getJvmArguments({
+  client,
+  necessaries,
   versionMeta,
-  directories,
 }: {
-  "instance"       : InstanceStateType;
-  "currentPlatform": Platform;
-  "versionMeta"    : SpecificPatchMetaType;
-  "directories"    : DirectoriesType;
-}): string {
+  "client"     : string;
+  "necessaries": PreLaunchInformationType;
+  "versionMeta": SpecificPatchMetaType;
+}): Promise<string> {
+  const { directories, platform } = necessaries;
   const isNew: boolean = versionMeta?.minecraftArguments === undefined;
   const jvmArguments: Array<string> = [];
 
@@ -31,7 +27,7 @@ export function getJvmArguments({
 
   let logFilePath: string;
 
-  switch (currentPlatform) {
+  switch (platform) {
     case "windows": {
       logFilePath = "file:///%SystemDrive%" + directories.logging.slice(2);
 
@@ -58,6 +54,10 @@ export function getJvmArguments({
 
       break;
     }
+  }
+
+  if (!versionMeta.logging) {
+    return jvmArguments.join(" ");
   }
 
   const loggingArguments = versionMeta

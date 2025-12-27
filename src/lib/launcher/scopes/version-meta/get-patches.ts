@@ -1,19 +1,19 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
 import { getPatch } from "@/lib/launcher/scopes/patches/get-patch.ts";
-import type {
-  LauncherStatusesType,
-} from "@/types/launcher/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function getPatches({
-  baseDirectory,
-  requires,
-  statuses,
+  necessaries,
+  versionMeta,
 }: {
-  "baseDirectory": string;
-  "requires"     : SpecificPatchMetaType["requires"];
-  "statuses"     : LauncherStatusesType;
+  "necessaries": PreLaunchInformationType;
+  "versionMeta": SpecificPatchMetaType;
 }): Promise<string | false> {
+  const { directories, statuses } = necessaries;
+  const conflicts: SpecificPatchMetaType["conflicts"] = versionMeta?.conflicts;
+  const requires: SpecificPatchMetaType["requires"] = versionMeta?.requires;
+
   if (
     requires === undefined ||
     !Array.isArray(requires)
@@ -25,7 +25,7 @@ export async function getPatches({
 
   const patches: Array<object> = await Promise.all(
     requires.map(require => getPatch({
-      baseDirectory,
+      "baseDirectory": directories.base,
       statuses,
       require,
     })),

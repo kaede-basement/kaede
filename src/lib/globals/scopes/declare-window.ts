@@ -160,6 +160,10 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onMinecraftLibrariesGet": {
+        "before": [],
+        "after" : [],
+      },
     },
   };
 }

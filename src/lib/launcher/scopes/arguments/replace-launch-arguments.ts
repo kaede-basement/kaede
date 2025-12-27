@@ -1,18 +1,17 @@
 import { ApplicationName } from "@/constants/application.ts";
 import General from "@/lib/general";
-import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type {
   ArgumentReplacementsType,
 } from "@/types/launcher/launch/argument-replacements.type.ts";
-import type { DirectoriesType } from "@/types/launcher/launch/directories.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export function replaceLaunchArguments({
   auth,
   builtLaunchArguments,
-  instance,
+  client,
+  necessaries,
   versionMeta,
-  directories,
 }: {
   "auth": {
     "username": string;
@@ -23,10 +22,11 @@ export function replaceLaunchArguments({
     "toReplace" : string;
     "classPaths": string;
   };
-  "instance"   : InstanceStateType;
+  "client"     : string;
+  "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-  "directories": DirectoriesType;
 }): string {
+  const { directories, instance } = necessaries;
   const assetIndexId: string = versionMeta?.assetIndex?.id ?? "";
   const replacements: ArgumentReplacementsType = {
     "assets_index_name"    : assetIndexId,
