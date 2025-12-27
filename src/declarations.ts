@@ -883,6 +883,108 @@ declare global {
             boolean
           >;
         };
+
+        /**
+         * Executed on minecraft main jar downloading/verifying
+         */
+        "onMinecraftClientGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a 'string | false' (where 'string' is a path to the main jar)
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            string | false
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the minecraft main jar
+           * was downloaded/validated. If the download/validation fails, these hooks will not fire.
+           *
+           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a 'string | false' (where 'string' is a path to the main jar)
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            string | false
+          >;
+        };
+
+        /**
+         * Executed on minecraft logging downloading/verifying
+         */
+        "onMinecraftLoggingGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a boolean (where 'true' is success and 'false' is fail)
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            boolean
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the minecraft logging config
+           * was downloaded/verified. If the download/verification fails, these hooks will not fire.
+           *
+           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a boolean (where 'true' is success and 'false' is fail)
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            boolean
+          >;
+        };
       };
     };
   }

@@ -3,21 +3,22 @@ import {
   shallowlyValidateLibrary,
 } from "@/lib/launcher/scopes/libraries/shallowly-validate-library.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type {
   SpecificPatchLibraryType,
   SpecificPatchMetaType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function getLibraries({
-  baseDirectory,
-  libraries,
-  statuses,
+  necessaries,
+  versionMeta,
 }: {
-  "baseDirectory": string;
-  "libraries"    : SpecificPatchMetaType["libraries"];
-  "statuses"     : LauncherStatusesType;
-}): Promise<string | false> {
+  "necessaries": PreLaunchInformationType;
+  "versionMeta": SpecificPatchMetaType;
+}): Promise<Array<string> | false> {
+  const { directories, statuses } = necessaries;
+  const libraries: SpecificPatchMetaType["libraries"] = versionMeta?.libraries;
+
   if (
     libraries === undefined ||
     !Array.isArray(libraries)

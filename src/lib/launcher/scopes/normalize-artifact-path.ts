@@ -1,21 +1,40 @@
 import General from "@/lib/general";
 
-export function normalizeArtifactPath(name: string): {
+export function normalizeArtifactPath(artifact: string): {
   "directory": string;
   "file"     : string;
 } {
-  const paths: Array<string> = name.split(":");
-  const normalizedPaths: Array<string> = paths[0].split(".");
+  const paths: Array<string> = artifact.split(":");
 
-  paths.shift();
-  paths.unshift(...normalizedPaths);
+  const group: string | undefined = paths?.[0];
+  const name: string | undefined = paths?.[1];
+  const version: string | undefined = paths?.[2];
+  const classifier: string | undefined = paths?.[3];
 
-  const fileName: string = paths.pop() ?? "";
+  // The 'group', 'name', and 'version' elements should be always present
+  if (!group || !name || !version) {
+    const specifiedMessage: string =
+      `(either group (${group}), name (${name}), or version (${version}) is missing)`;
+
+    throw new Error(
+      `Could not normalize artifact path ${specifiedMessage}`,
+    );
+  }
+
+  const folders: Array<string> = [
+    ...group.split("."),
+    name,
+    version,
+  ];
+
+  if (classifier !== undefined) {
+    folders.push(classifier);
+  }
 
   return {
-    "directory": General.cachedJoin(
-      ...paths,
-    ),
-    "file": fileName,
+    "directory": General.cachedJoin(...folders),
+    "file"     : classifier === undefined
+      ? `${name}-${version}.jar`
+      : `${name}-${version}-${classifier}.jar`,
   };
 }

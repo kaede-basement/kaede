@@ -1,21 +1,33 @@
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
-import { FileStructure } from "@/constants/file-structure.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
-import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function getLogging({
-  baseDirectory,
-  logging,
-  statuses,
+  necessaries,
+  versionMeta,
 }: {
-  "baseDirectory": string;
-  "logging"      : SpecificPatchMetaType["logging"];
-  "statuses"     : LauncherStatusesType;
-}): Promise<string | false> {
+  "necessaries": PreLaunchInformationType;
+  "versionMeta": SpecificPatchMetaType;
+}): Promise<boolean> {
+  const beforeHooksResult: "continue" | boolean | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<boolean>({
+      "scope" : "onMinecraftLoggingGet",
+      "toPass": { necessaries, versionMeta },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
+  const { directories, statuses } = necessaries;
+  const logging: SpecificPatchMetaType["logging"] = versionMeta?.logging;
+
   if (
     logging === undefined ||
     logging?.type === undefined ||
@@ -37,13 +49,8 @@ export async function getLogging({
     return false;
   }
 
-  const logConfigDirectory = General.cachedJoin(
-    baseDirectory,
-    FileStructure.Folders.Assets.Path,
-    "log_configs",
-  );
   const filePath = General.cachedJoin(
-    logConfigDirectory,
+    directories.logging,
     name,
   );
 
@@ -56,12 +63,12 @@ export async function getLogging({
     boolean,
     boolean,
   ] = await Promise.all([
-    exists(logConfigDirectory),
+    exists(directories.logging),
     exists(filePath),
   ]);
 
   if (!directoryExists) {
-    await mkdir(logConfigDirectory);
+    await mkdir(directories.logging);
   }
 
   if (!fileExists) {
@@ -74,7 +81,18 @@ export async function getLogging({
     });
   }
 
+  const afterHooksResult: "continue" | boolean | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<boolean>({
+      "scope" : "onMinecraftLoggingGet",
+      "toPass": { necessaries, versionMeta },
+      "timing": "after",
+    });
+
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
+  }
+
   statuses.add(LaunchStatus.Logging.Done);
 
-  return filePath;
+  return true;
 }

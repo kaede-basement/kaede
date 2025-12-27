@@ -152,6 +152,14 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onMinecraftClientGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftLoggingGet": {
+        "before": [],
+        "after" : [],
+      },
     },
   };
 }

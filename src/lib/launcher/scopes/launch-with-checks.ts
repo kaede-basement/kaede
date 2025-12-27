@@ -1,5 +1,3 @@
-import { FileStructure } from "@/constants/file-structure.ts";
-import General from "@/lib/general";
 import {
   extractPreLaunchInformation,
 } from "@/lib/launcher/scopes/extract-pre-launch-information.ts";
@@ -44,10 +42,10 @@ export async function launchWithChecks({
     libraries,
     patches,
   ]: [
+    boolean,
     string | false,
-    string | false,
-    string | false,
-    string | false,
+    boolean,
+    Array<string> | false,
     string | false,
   ] = await Promise.all([
     getAssets({ necessaries, versionMeta }),

@@ -1,24 +1,34 @@
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
-import { FileStructure } from "@/constants/file-structure.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/normalize-artifact-path.ts";
-import type {
-  LauncherStatusesType,
-} from "@/types/launcher/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function getClient({
-  baseDirectory,
-  mainJar,
-  statuses,
+  necessaries,
+  versionMeta,
 }: {
-  "baseDirectory": string;
-  "mainJar"      : SpecificPatchMetaType["mainJar"];
-  "statuses"     : LauncherStatusesType;
+  "necessaries": PreLaunchInformationType;
+  "versionMeta": SpecificPatchMetaType;
 }): Promise<string | false> {
+  const beforeHooksResult: "continue" | string | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<string | false>({
+      "scope" : "onMinecraftClientGet",
+      "toPass": { necessaries, versionMeta },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
+  const { directories, statuses } = necessaries;
+  const mainJar: SpecificPatchMetaType["mainJar"] = versionMeta?.mainJar;
+
   if (
     mainJar === undefined ||
     mainJar?.name === undefined ||
@@ -33,19 +43,29 @@ export async function getClient({
   const normalizedPaths = normalizeArtifactPath(name);
 
   const directoryPath = General.cachedJoin(
-    baseDirectory,
-    FileStructure.Folders.Libraries.Path,
+    directories.libraries,
     normalizedPaths.directory,
   );
   const filePath: string = General.cachedJoin(
     directoryPath,
-    normalizedPaths.file + ".jar",
+    normalizedPaths.file,
   );
 
   statuses.add(LaunchStatus.Client.CheckingIfPresent);
   const fileExists: boolean = await exists(filePath);
 
   if (fileExists) {
+    const afterHooksResult: "continue" | string | false | undefined =
+      await ExtensionsManager.catchAsyncResponseHooks<string | false>({
+        "scope" : "onMinecraftClientGet",
+        "toPass": { necessaries, versionMeta },
+        "timing": "after",
+      });
+
+    if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+      return afterHooksResult;
+    }
+
     statuses.add(LaunchStatus.Client.Done);
 
     return filePath;
@@ -66,6 +86,17 @@ export async function getClient({
     filePath,
     statuses,
   });
+
+  const afterHooksResult: "continue" | string | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<string | false>({
+      "scope" : "onMinecraftClientGet",
+      "toPass": { necessaries, versionMeta },
+      "timing": "after",
+    });
+
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
+  }
 
   statuses.add(LaunchStatus.Client.Done);
 
