@@ -3,7 +3,7 @@ import { getPatch } from "@/lib/launcher/scopes/version-meta/patch/get-patch.ts"
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function getPatches({
   necessaries,

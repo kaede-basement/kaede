@@ -6,8 +6,8 @@ import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import Instances from "@/lib/instances";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
-import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export function extractPreLaunchInformation({
   statuses,

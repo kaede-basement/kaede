@@ -1,8 +1,8 @@
 import General from "@/lib/general";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
-import type { MappedArtifactType } from "@/types/launcher/libraries/mapped-artifact.type.ts";
+import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export function parseLibrary({
   necessaries,

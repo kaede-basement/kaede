@@ -3,7 +3,7 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   LauncherStatusesType,
   LaunchStatusType,
-} from "@/types/launcher/launch-status.type.ts";
+} from "@/types/launcher/launch/launch-status.type.ts";
 
 export function concurrentlyDownload({
   concurrency,

@@ -4,7 +4,7 @@ import type {
   SpecificPatchLibraryRuleType,
   SpecificPatchLibraryType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export function shouldIncludeLibrary({
   necessaries,

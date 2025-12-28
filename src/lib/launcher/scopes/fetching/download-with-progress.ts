@@ -1,6 +1,6 @@
 import { download } from "@tauri-apps/plugin-upload";
 
-import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
+import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
 export function downloadWithProgress({
   url,

@@ -4,8 +4,8 @@ import { ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import { concurrentlyDownload } from "@/lib/general/scopes/concurrently-download.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { MappedArtifactType } from "@/types/launcher/libraries/mapped-artifact.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function downloadLibraries({
   necessaries,

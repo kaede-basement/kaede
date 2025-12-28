@@ -1,5 +1,5 @@
 import General from "@/lib/general";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function extractNativeArchives({
   necessaries,

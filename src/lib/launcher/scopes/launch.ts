@@ -13,7 +13,7 @@ import {
 } from "@/lib/launcher/scopes/arguments/replace-launch-arguments.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function launch({
   instanceId,

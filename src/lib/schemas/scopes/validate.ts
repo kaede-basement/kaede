@@ -1,5 +1,5 @@
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { FullValidationArgumentsType } from "@/types/application/validation-arguments.type.ts";
+import type { FullValidationArgumentsType } from "@/types/schemas/validation-arguments.type.ts";
 
 export function validate<T>({
   label,

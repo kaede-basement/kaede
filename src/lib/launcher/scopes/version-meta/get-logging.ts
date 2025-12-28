@@ -5,7 +5,7 @@ import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function getLogging({
   necessaries,

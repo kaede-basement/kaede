@@ -1,5 +1,5 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
-import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
+import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export function shallowlyValidateLibrary({

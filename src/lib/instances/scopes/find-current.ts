@@ -2,7 +2,7 @@ import type {
   InstanceStatesType,
   InstanceStateType,
 } from "@/types/application/instance-states.type.ts";
-import type { CurrentInstanceType } from "@/types/launcher/current-instance.type.ts";
+import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
 export function findCurrent(
   id: string | null | undefined,

@@ -13,13 +13,13 @@ import {
 import {
   shallowlyValidateMeta,
 } from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
-import type { AssetObjectsType } from "@/types/launcher/assets/asset-objects.type.ts";
-import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
+import type { AssetObjectsType } from "@/types/launcher/artifacts/asset-objects.type.ts";
+import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
   SpecificPatchAssetIndexType,
   SpecificPatchMetaType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function getAssets({
   necessaries,

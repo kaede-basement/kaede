@@ -6,9 +6,9 @@ import {
 } from "@/lib/launcher/scopes/validators/shallowly-validate-library.ts";
 import { shouldIncludeLibrary } from "@/lib/launcher/scopes/parsers/should-include-library.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { MappedArtifactType } from "@/types/launcher/libraries/mapped-artifact.type.ts";
+import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export function parseLibraries({
   necessaries,

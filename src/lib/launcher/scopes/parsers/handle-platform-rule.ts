@@ -1,7 +1,7 @@
 import type {
   SpecificPatchLibraryRuleType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { DeepRequired } from "@/types/utils/deep-required.type.ts";
 
 export function handlePlatformRule({

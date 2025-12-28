@@ -11,9 +11,9 @@ import { getClient } from "@/lib/launcher/scopes/version-meta/get-client.ts";
 import { getLogging } from "@/lib/launcher/scopes/version-meta/get-logging.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
-import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
+import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
+import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function launchWithChecks({
   instanceId,

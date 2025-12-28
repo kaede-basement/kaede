@@ -7,7 +7,7 @@ import { InstanceMetadataSchema } from "@/lib/schemas/scopes/instances/instance-
 import { PatchMetaSchema } from "@/lib/schemas/scopes/meta/patch-meta.schema.ts";
 import { validate } from "@/lib/schemas/scopes/validate.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
-import type { ValidationArgumentsType } from "@/types/application/validation-arguments.type.ts";
+import type { ValidationArgumentsType } from "@/types/schemas/validation-arguments.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { ExtensionMetadataType } from "@/types/extensions/extension-metadata.type.ts";

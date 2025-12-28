@@ -3,7 +3,7 @@ import { fetch } from "@tauri-apps/plugin-http";
 import { APIEndpoints, LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
+import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function fetchVersionMeta({

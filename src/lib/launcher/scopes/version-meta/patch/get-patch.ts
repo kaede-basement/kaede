@@ -6,7 +6,7 @@ import Schemas from "@/lib/schemas";
 import type {
   LauncherStatusesType,
   LaunchStatusType,
-} from "@/types/launcher/launch-status.type.ts";
+} from "@/types/launcher/launch/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getPatch({
@@ -25,19 +25,19 @@ export async function getPatch({
   let parsedMeta: unknown;
 
   try {
-    statuses.add(LaunchStatus.Metadata.ReadingCachedPatchMeta);
+    statuses.current = LaunchStatus.Metadata.ReadingCachedPatchMeta;
     parsedMeta = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Cache.Path, fileName],
       "label"          : `/cache/${fileName}`,
       "getDefaultValue": async () => {
-        statuses.add(LaunchStatus.Metadata.FetchingPatchMeta);
+        statuses.current = LaunchStatus.Metadata.FetchingPatchMeta;
         const fetched: object | LaunchStatusType = await fetchAssetsMeta({
           "url": APIEndpoints.Meta.Base + require.uid + "/" + versionWithExtension,
         });
 
         if (typeof fetched !== "object") {
-          statuses.add(fetched);
+          statuses.current = fetched;
 
           /*
            * The 'General#handleJsonFile' function writes the returned value
@@ -63,7 +63,7 @@ export async function getPatch({
   });
 
   if (validMeta === false) {
-    statuses.add(LaunchStatus.Errors.PatchFullValidationFailed);
+    statuses.current = LaunchStatus.Errors.PatchFullValidationFailed;
 
     return false;
   }

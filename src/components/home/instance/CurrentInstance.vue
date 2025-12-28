@@ -9,7 +9,7 @@ import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
-import type { CurrentInstanceType } from "@/types/launcher/current-instance.type.ts";
+import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);

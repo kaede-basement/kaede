@@ -1,4 +1,4 @@
-import type { AssetObjectsType } from "@/types/launcher/assets/asset-objects.type.ts";
+import type { AssetObjectsType } from "@/types/launcher/artifacts/asset-objects.type.ts";
 
 export function shallowlyValidateMeta({ meta }: { "meta": unknown }): AssetObjectsType | false {
   if (typeof meta !== "object" || meta === null) {
