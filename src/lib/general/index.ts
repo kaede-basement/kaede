@@ -15,6 +15,7 @@ import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
 import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-styles.ts";
 import { handleJsonFile } from "@/lib/general/scopes/handle-json-file.ts";
 import { initializeLauncher } from "@/lib/general/scopes/initialize-launcher.ts";
+import { unzip } from "@/lib/general/scopes/unzip.ts";
 
 export default {
   "nextTick": async (): Promise<void> => {
@@ -35,4 +36,5 @@ export default {
   getSidebarInnerStyles,
   handleJsonFile,
   initializeLauncher,
+  unzip,
 } as const;

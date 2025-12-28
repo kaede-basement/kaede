@@ -1,5 +1,6 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
+import { extractNativeArchives } from "@/lib/launcher/scopes/libraries/extract-native-archives.ts";
 import { getAllowedLibraries } from "@/lib/launcher/scopes/libraries/get-allowed-libraries.ts";
 import {
   handleLibrariesDownload,
@@ -51,11 +52,22 @@ export async function getLibraries({
     libraries,
   });
 
-  const libraryPaths: Array<string> = await handleLibrariesDownload({
-    "libraries": allowedLibraries,
-    natives,
-    necessaries,
-  });
+  const [
+    libraryPaths,
+  ]: [
+    Array<string>,
+    void,
+  ] = await Promise.all([
+    handleLibrariesDownload({
+      "libraries": allowedLibraries,
+      natives,
+      necessaries,
+    }),
+    extractNativeArchives({
+      necessaries,
+      "paths": natives.map(({ path }) => path),
+    }),
+  ]);
 
   const afterHooksResult: "continue" | Array<string> | false | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<Array<string> | false>({
