@@ -1,18 +1,15 @@
 import { download } from "@tauri-apps/plugin-upload";
 
-import type {
-  LauncherStatusesType,
-  LaunchStatusType,
-} from "@/types/launcher/launch-status.type.ts";
+import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 
 export function downloadWithProgress({
   url,
-  filePath,
+  path,
   statusScope,
   statuses,
 }: {
   "url"        : string;
-  "filePath"   : string;
+  "path"       : string;
   "statusScope": string;
   "statuses"   : LauncherStatusesType;
 }): Promise<void> {
@@ -21,13 +18,13 @@ export function downloadWithProgress({
 
   return download(
     url,
-    filePath,
+    path,
     ({ progressTotal, total }) => {
       const percents: number = Math.floor(progressTotal / total * 100);
       const progressStatus: string = status + "-" + percents + "%";
 
-      statuses.delete(previousStatus as LaunchStatusType);
-      statuses.add(progressStatus as LaunchStatusType);
+      statuses.downloads.delete(previousStatus);
+      statuses.downloads.add(progressStatus);
 
       previousStatus = progressStatus;
     },

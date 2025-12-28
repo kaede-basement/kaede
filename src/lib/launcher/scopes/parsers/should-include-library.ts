@@ -1,4 +1,4 @@
-import { handlePlatformRule } from "@/lib/launcher/scopes/libraries/handle-platform-rule.ts";
+import { handlePlatformRule } from "@/lib/launcher/scopes/parsers/handle-platform-rule.ts";
 import type {
   SpecificPatchLibraryOSNameType,
   SpecificPatchLibraryRuleType,

@@ -1,14 +1,13 @@
 import {
   extractPreLaunchInformation,
-} from "@/lib/launcher/scopes/extract-pre-launch-information.ts";
-import { getVersionMeta } from "@/lib/launcher/scopes/get-version-meta.ts";
+} from "@/lib/launcher/scopes/extractors/extract-pre-launch-information.ts";
+import { getVersionMeta } from "@/lib/launcher/scopes/version-meta/get-version-meta.ts";
 import { launch } from "@/lib/launcher/scopes/launch.ts";
-import { downloadLibraries } from "@/lib/launcher/scopes/libraries/download-libraries.ts";
-import { extractNativeArchives } from "@/lib/launcher/scopes/libraries/extract-native-archives.ts";
-import { parseLibraries } from "@/lib/launcher/scopes/libraries/parse-libraries.ts";
+import { downloadLibraries } from "@/lib/launcher/scopes/fetching/download-libraries.ts";
+import { extractNativeArchives } from "@/lib/launcher/scopes/extractors/extract-native-archives.ts";
+import { parseLibraries } from "@/lib/launcher/scopes/parsers/parse-libraries.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getClient } from "@/lib/launcher/scopes/version-meta/get-client.ts";
-import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
 import { getLogging } from "@/lib/launcher/scopes/version-meta/get-logging.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
@@ -59,6 +58,10 @@ export async function launchWithChecks({
     Array<string> | false,
     void,
   ] = await Promise.all([
+    getAssets({ necessaries, versionMeta }),
+    getClient({ necessaries, versionMeta }),
+    getLogging({ necessaries, versionMeta }),
+    getPatches({ necessaries, versionMeta }),
     downloadLibraries({ necessaries, libraries, natives }),
   ]);
 
@@ -67,31 +70,10 @@ export async function launchWithChecks({
     "paths": natives.map(({ path }) => path),
   });
 
-  const [
-    assets,
-    client,
-    logging,
-    ,
-    patches,
-  ]: [
-    boolean,
-    string | false,
-    boolean,
-    Array<string> | false,
-    Array<string> | false,
-  ] = await Promise.all([
-    getAssets({ necessaries, versionMeta }),
-    getClient({ necessaries, versionMeta }),
-    getLogging({ necessaries, versionMeta }),
-    getLibraries({ necessaries, versionMeta }),
-    getPatches({ necessaries, versionMeta }),
-  ]);
-
   if (
     !assets ||
     !client ||
     !logging ||
-    !libraries ||
     !patches
   ) {
     return false;

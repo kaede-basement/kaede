@@ -3,8 +3,8 @@ import { exists, mkdir } from "@tauri-apps/plugin-fs";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
-import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
-import { normalizeArtifactPath } from "@/lib/launcher/scopes/normalize-artifact-path.ts";
+import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
+import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
@@ -34,7 +34,7 @@ export async function getClient({
     mainJar?.name === undefined ||
     mainJar?.downloads === undefined
   ) {
-    statuses.add(LaunchStatus.Errors.ClientMainJarMissingMeta);
+    statuses.current = LaunchStatus.Errors.ClientMainJarMissingMeta;
 
     return false;
   }
@@ -51,7 +51,7 @@ export async function getClient({
     normalizedPaths.file,
   );
 
-  statuses.add(LaunchStatus.Client.CheckingIfPresent);
+  statuses.current = LaunchStatus.Client.CheckingIfPresent;
   const fileExists: boolean = await exists(filePath);
 
   if (fileExists) {
@@ -66,7 +66,7 @@ export async function getClient({
       return afterHooksResult;
     }
 
-    statuses.add(LaunchStatus.Client.Done);
+    statuses.current = LaunchStatus.Client.Done;
 
     return filePath;
   }
@@ -74,7 +74,7 @@ export async function getClient({
   const url: string | undefined = mainJar.downloads?.artifact?.url;
 
   if (!url) {
-    statuses.add(LaunchStatus.Errors.ClientMainJarMissingMeta);
+    statuses.current = LaunchStatus.Errors.ClientMainJarMissingMeta;
 
     return false;
   }
@@ -82,8 +82,8 @@ export async function getClient({
   await mkdir(directoryPath, { "recursive": true });
   await downloadWithProgress({
     "statusScope": LaunchStatus.Client.DownloadingJar,
+    "path"       : filePath,
     url,
-    filePath,
     statuses,
   });
 
@@ -98,7 +98,7 @@ export async function getClient({
     return afterHooksResult;
   }
 
-  statuses.add(LaunchStatus.Client.Done);
+  statuses.current = LaunchStatus.Client.Done;
 
   return filePath;
 }

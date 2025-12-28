@@ -3,7 +3,7 @@ import { exists, mkdir } from "@tauri-apps/plugin-fs";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
-import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
+import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
@@ -34,7 +34,7 @@ export async function getLogging({
     logging?.file === undefined ||
     logging?.argument === undefined
   ) {
-    statuses.add(LaunchStatus.Errors.LoggingMissingMeta);
+    statuses.current = LaunchStatus.Errors.LoggingMissingMeta;
 
     return false;
   }
@@ -44,7 +44,7 @@ export async function getLogging({
   const url: string | undefined = logging?.file?.url;
 
   if (!name || !url) {
-    statuses.add(LaunchStatus.Errors.LoggingMissingMeta);
+    statuses.current = LaunchStatus.Errors.LoggingMissingMeta;
 
     return false;
   }
@@ -54,7 +54,7 @@ export async function getLogging({
     name,
   );
 
-  statuses.add(LaunchStatus.Logging.CheckingIfPresent);
+  statuses.current = LaunchStatus.Logging.CheckingIfPresent;
 
   const [
     directoryExists,
@@ -72,11 +72,11 @@ export async function getLogging({
   }
 
   if (!fileExists) {
-    statuses.add(LaunchStatus.Logging.DownloadingConfig);
+    statuses.current = LaunchStatus.Logging.DownloadingConfig;
     await downloadWithProgress({
       "statusScope": LaunchStatus.Logging.DownloadingConfig,
+      "path"       : filePath,
       url,
-      filePath,
       statuses,
     });
   }
@@ -92,7 +92,7 @@ export async function getLogging({
     return afterHooksResult;
   }
 
-  statuses.add(LaunchStatus.Logging.Done);
+  statuses.current = LaunchStatus.Logging.Done;
 
   return true;
 }

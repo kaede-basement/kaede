@@ -1,6 +1,6 @@
 import General from "@/lib/general";
-import { normalizeArtifactPath } from "@/lib/launcher/scopes/normalize-artifact-path.ts";
-import { unifyPlatformWithArch } from "@/lib/launcher/scopes/unify-platform-with-arch.ts";
+import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
+import { unifyPlatformWithArch } from "@/lib/launcher/scopes/parsers/unify-platform-with-arch.ts";
 import type { MappedArtifactType } from "@/types/launcher/libraries/mapped-artifact.type.ts";
 import type {
   SpecificPatchClassifiersType,

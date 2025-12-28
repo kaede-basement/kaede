@@ -2,7 +2,7 @@ import { FileStructure } from "@/constants/file-structure.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
-import { fetchVersionMeta } from "@/lib/launcher/scopes/fetch-version-meta.ts";
+import { fetchVersionMeta } from "@/lib/launcher/scopes/fetching/fetch-version-meta.ts";
 import Schemas from "@/lib/schemas";
 import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";

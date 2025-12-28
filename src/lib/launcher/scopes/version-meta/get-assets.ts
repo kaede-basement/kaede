@@ -2,8 +2,8 @@ import { FileStructure } from "@/constants/file-structure.ts";
 import { APIEndpoints, ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
-import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
-import { fetchAssetsMeta } from "@/lib/launcher/scopes/version-meta/assets/fetch-assets-meta.ts";
+import { concurrentlyDownload } from "@/lib/general/scopes/concurrently-download.ts";
+import { fetchAssetsMeta } from "@/lib/launcher/scopes/fetching/fetch-assets-meta.ts";
 import {
   initializeAssetsDirectories,
 } from "@/lib/launcher/scopes/version-meta/assets/initialize-assets-directories.ts";
@@ -12,8 +12,7 @@ import {
 } from "@/lib/launcher/scopes/version-meta/assets/initialize-short-hash-directories.ts";
 import {
   shallowlyValidateMeta,
-} from "@/lib/launcher/scopes/version-meta/assets/shallowly-validate-meta.ts";
-import { log } from "@/lib/logging/scopes/log.ts";
+} from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
 import type { AssetObjectsType } from "@/types/launcher/assets/asset-objects.type.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch-status.type.ts";
 import type {
@@ -47,7 +46,7 @@ export async function getAssets({
     versionMeta?.assetIndex?.id === undefined ||
     versionMeta?.assetIndex?.url === undefined
   ) {
-    statuses.add(LaunchStatus.Errors.MetaAssetsMissingMeta);
+    statuses.current = LaunchStatus.Errors.MetaAssetsMissingMeta;
 
     return false;
   }
@@ -74,19 +73,19 @@ export async function getAssets({
   let parsedMeta: unknown;
 
   try {
-    statuses.add(LaunchStatus.Assets.ReadingCachedMeta);
+    statuses.current = LaunchStatus.Assets.ReadingCachedMeta;
     parsedMeta = await General.handleJsonFile({
       "baseDirectory"  : directories.base,
       "path"           : [FileStructure.Folders.Assets.Path, "indexes", metaFilename],
       "label"          : `/assets/indexes/${metaFilename}`,
       "getDefaultValue": async () => {
-        statuses.add(LaunchStatus.Assets.FetchingMeta);
+        statuses.current = LaunchStatus.Assets.FetchingMeta;
         const fetched: object | LaunchStatusType = await fetchAssetsMeta({
           "url": assetIndex.url,
         });
 
         if (typeof fetched !== "object") {
-          statuses.add(fetched);
+          statuses.current = fetched;
 
           /*
            * The 'General#handleJsonFile' function writes the returned value
@@ -108,7 +107,7 @@ export async function getAssets({
   });
 
   if (shallowlyValidMeta === false) {
-    statuses.add(LaunchStatus.Errors.MetaAssetsShallowValidationFailed);
+    statuses.current = LaunchStatus.Errors.MetaAssetsShallowValidationFailed;
 
     return false;
   }
@@ -116,7 +115,7 @@ export async function getAssets({
   const mappedAssetObjects: Array<{
     "shortHashPath": string;
     "url"          : string;
-    "filePath"     : string;
+    "path"         : string;
   }> = Object
     .values(shallowlyValidMeta.objects)
     .map(({ hash }) => {
@@ -134,53 +133,30 @@ export async function getAssets({
       return {
         shortHashPath,
         url,
-        filePath,
+        "path": filePath,
       };
     });
 
   const missingHashes: Set<string> = new Set(
     await General.getMissingPaths({
-      "paths": mappedAssetObjects.map(({ filePath }) => filePath),
+      "paths": mappedAssetObjects.map(({ path }) => path),
     }),
   );
 
   const missingAssetObjects: Array<{
     "shortHashPath": string;
     "url"          : string;
-    "filePath"     : string;
-  }> = mappedAssetObjects.filter(({ filePath }) => {
-    return missingHashes.has(filePath);
+    "path"         : string;
+  }> = mappedAssetObjects.filter(({ path }) => {
+    return missingHashes.has(path);
   });
-  const indexReference: { "value": number } = {
-    "value": 0,
-  };
 
-  log.debug("Starting to download asset objects");
-  await Promise.all(
-    Array
-      .from({ "length": ConcurrentDownloads.Assets })
-      .map(async (_, groupIndex: number): Promise<void> => {
-        while (true) {
-          if (indexReference.value >= missingAssetObjects.length) {
-            break;
-          }
-
-          const entryOutOfTotal = `${indexReference.value + 1}/${missingAssetObjects.length}`;
-          const index = indexReference.value++;
-          const { url, filePath } = missingAssetObjects[index];
-
-          log.debug(
-            `Concurrency group ${groupIndex}: downloading (${entryOutOfTotal}) '${url}'`,
-          );
-          await downloadWithProgress({
-            "statusScope": LaunchStatus.Assets.DownloadingAsset,
-            url,
-            filePath,
-            statuses,
-          });
-        }
-      }),
-  );
+  await concurrentlyDownload({
+    statuses,
+    "concurrency": ConcurrentDownloads.Assets,
+    "entries"    : missingAssetObjects,
+    "statusScope": LaunchStatus.Assets.DownloadingAsset,
+  });
 
   const afterHooksResult: "continue" | boolean | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<boolean>({
@@ -193,7 +169,7 @@ export async function getAssets({
     return afterHooksResult;
   }
 
-  statuses.add(LaunchStatus.Assets.Done);
+  statuses.current = LaunchStatus.Assets.Done;
 
   return true;
 }

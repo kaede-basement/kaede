@@ -21,8 +21,7 @@ const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 const loading = ref<boolean>(false);
 const statuses: LauncherStatusesType = shallowReactive({
   "current"  : undefined,
-  "assets"   : new Set,
-  "libraries": new Set,
+  "downloads": new Set,
 });
 
 const currentInstance = computed((): CurrentInstanceType => (

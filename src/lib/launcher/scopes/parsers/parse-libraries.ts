@@ -1,10 +1,10 @@
-import { checkIsNative } from "@/lib/launcher/scopes/libraries/check-is-native.ts";
-import { parseLibrary } from "@/lib/launcher/scopes/libraries/parse-library.ts";
-import { parseNative } from "@/lib/launcher/scopes/libraries/parse-native.ts";
+import { checkIsNative } from "@/lib/launcher/scopes/parsers/check-is-native.ts";
+import { parseLibrary } from "@/lib/launcher/scopes/parsers/parse-library.ts";
+import { parseNative } from "@/lib/launcher/scopes/parsers/parse-native.ts";
 import {
   shallowlyValidateLibrary,
-} from "@/lib/launcher/scopes/libraries/shallowly-validate-library.ts";
-import { shouldIncludeLibrary } from "@/lib/launcher/scopes/libraries/should-include-library.ts";
+} from "@/lib/launcher/scopes/validators/shallowly-validate-library.ts";
+import { shouldIncludeLibrary } from "@/lib/launcher/scopes/parsers/should-include-library.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/libraries/mapped-artifact.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";

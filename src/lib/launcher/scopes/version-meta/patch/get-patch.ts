@@ -1,7 +1,7 @@
 import { FileStructure } from "@/constants/file-structure.ts";
 import { APIEndpoints, LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
-import { fetchAssetsMeta } from "@/lib/launcher/scopes/version-meta/assets/fetch-assets-meta.ts";
+import { fetchAssetsMeta } from "@/lib/launcher/scopes/fetching/fetch-assets-meta.ts";
 import Schemas from "@/lib/schemas";
 import type {
   LauncherStatusesType,

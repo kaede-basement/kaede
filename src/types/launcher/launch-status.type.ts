@@ -9,6 +9,5 @@ export type LaunchStatusType = {
 
 export type LauncherStatusesType = {
   "current"  : LaunchStatusType | undefined;
-  "assets"   : Set<string>;
-  "libraries": Set<string>;
+  "downloads": Set<string>;
 };

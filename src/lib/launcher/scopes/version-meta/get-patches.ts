@@ -1,5 +1,5 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
-import { getPatch } from "@/lib/launcher/scopes/patches/get-patch.ts";
+import { getPatch } from "@/lib/launcher/scopes/version-meta/patch/get-patch.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
