@@ -10,6 +10,9 @@ import { launch } from "@/lib/launcher/scopes/launch.ts";
 import { parseLibraries } from "@/lib/launcher/scopes/parsers/parse-libraries.ts";
 import { parseLogging } from "@/lib/launcher/scopes/parsers/parse-logging.ts";
 import { parseMainJar } from "@/lib/launcher/scopes/parsers/parse-main-jar.ts";
+import {
+  ensureMinecraftDirectory,
+} from "@/lib/launcher/scopes/validators/ensure-minecraft-directory.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
 import { getVersionMeta } from "@/lib/launcher/scopes/version-meta/get-version-meta.ts";
@@ -41,7 +44,15 @@ export async function launchWithChecks({
     return false;
   }
 
-  const versionMeta: SpecificPatchMetaType | false = await getVersionMeta(necessaries);
+  const [
+    versionMeta,
+  ]: [
+    SpecificPatchMetaType | false,
+    void,
+  ] = await Promise.all([
+    getVersionMeta(necessaries),
+    ensureMinecraftDirectory(necessaries),
+  ]);
 
   if (versionMeta === false) {
     return false;
