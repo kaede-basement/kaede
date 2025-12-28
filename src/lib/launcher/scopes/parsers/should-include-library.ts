@@ -1,10 +1,12 @@
 import { handlePlatformRule } from "@/lib/launcher/scopes/parsers/handle-platform-rule.ts";
 import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
+import type {
   SpecificPatchLibraryOSNameType,
   SpecificPatchLibraryRuleType,
   SpecificPatchLibraryType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export function shouldIncludeLibrary({
   necessaries,
@@ -25,9 +27,9 @@ export function shouldIncludeLibrary({
   let toInclude: boolean = true;
 
   for (const rule of rules) {
-    const ruleOS: SpecificPatchLibraryOSNameType | undefined = rule?.os?.name;
+    const parsedOS: SpecificPatchLibraryOSNameType | undefined = rule?.os?.name;
 
-    if (ruleOS === undefined) {
+    if (parsedOS === undefined) {
       toInclude = rule?.action === "allow";
 
       continue;
@@ -37,7 +39,7 @@ export function shouldIncludeLibrary({
       "rule": {
         "action": rule?.action ?? "disallow",
         "os"    : {
-          "name": ruleOS,
+          "name": parsedOS,
         },
       },
       platform,

@@ -1,9 +1,14 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
-import { getPatch } from "@/lib/launcher/scopes/version-meta/patch/get-patch.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
+import { downloadLibraries } from "@/lib/launcher/scopes/fetching/download-libraries.ts";
+import { parseLibraries } from "@/lib/launcher/scopes/parsers/parse-libraries.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
-import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
+import { getPatch } from "@/lib/launcher/scopes/version-meta/patch/get-patch.ts";
+import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function getPatches({
   necessaries,
@@ -11,7 +16,18 @@ export async function getPatches({
 }: {
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-}): Promise<Array<string> | false> {
+}): Promise<Array<MappedArtifactType> | false> {
+  const beforeHooksResult: "continue" | Array<MappedArtifactType> | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<Array<MappedArtifactType> | false>({
+      "scope" : "onMinecraftPatchesGet",
+      "toPass": { necessaries, versionMeta },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
   const { directories, statuses } = necessaries;
   const requires: SpecificPatchMetaType["requires"] = versionMeta?.requires;
 
@@ -19,7 +35,7 @@ export async function getPatches({
     requires === undefined ||
     !Array.isArray(requires)
   ) {
-    statuses.add(LaunchStatus.Errors.PatchMissingMeta);
+    statuses.current = LaunchStatus.Errors.PatchMissingMeta;
 
     return false;
   }
@@ -31,30 +47,46 @@ export async function getPatches({
       require,
     })),
   );
-  const libraryPaths: Array<string> = [];
+  const merged: Array<MappedArtifactType> = [];
 
   for (const patch of patches) {
     if (patch === false) {
       return false;
     }
 
-    const [libraries] = await Promise.all([
-      getLibraries({
-        necessaries,
-        "versionMeta": patch,
-      }),
+    const { libraries, natives } = parseLibraries({
+      necessaries,
+      "libraries": patch?.libraries ?? [],
+    });
+
+    await Promise.all([
       getAssets({
         necessaries,
         "versionMeta": patch,
       }),
+      downloadLibraries({
+        necessaries,
+        libraries,
+        natives,
+        "versionMeta": patch,
+      }),
     ]);
 
-    if (!libraries) {
-      continue;
-    }
-
-    libraryPaths.push(...libraries);
+    merged.push(...libraries, ...natives);
   }
 
-  return libraryPaths;
+  const afterHooksResult: "continue" | Array<MappedArtifactType> | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<Array<MappedArtifactType> | false>({
+      "scope" : "onMinecraftPatchesGet",
+      "toPass": { necessaries, merged, versionMeta },
+      "timing": "after",
+    });
+
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
+  }
+
+  statuses.current = LaunchStatus.Patches.Done;
+
+  return merged;
 }

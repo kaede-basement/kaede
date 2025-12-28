@@ -1,19 +1,24 @@
+import { extractNativeArchives } from "@/lib/launcher/scopes/extractors/extract-native-archives.ts";
 import {
   extractPreLaunchInformation,
 } from "@/lib/launcher/scopes/extractors/extract-pre-launch-information.ts";
-import { getVersionMeta } from "@/lib/launcher/scopes/version-meta/get-version-meta.ts";
-import { launch } from "@/lib/launcher/scopes/launch.ts";
+import { downloadClient } from "@/lib/launcher/scopes/fetching/download-client.ts";
 import { downloadLibraries } from "@/lib/launcher/scopes/fetching/download-libraries.ts";
-import { extractNativeArchives } from "@/lib/launcher/scopes/extractors/extract-native-archives.ts";
+import { downloadLogging } from "@/lib/launcher/scopes/fetching/download-logging.ts";
+import { launch } from "@/lib/launcher/scopes/launch.ts";
 import { parseLibraries } from "@/lib/launcher/scopes/parsers/parse-libraries.ts";
+import { parseLogging } from "@/lib/launcher/scopes/parsers/parse-logging.ts";
+import { parseMainJar } from "@/lib/launcher/scopes/parsers/parse-main-jar.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
-import { getClient } from "@/lib/launcher/scopes/version-meta/get-client.ts";
-import { getLogging } from "@/lib/launcher/scopes/version-meta/get-logging.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
+import { getVersionMeta } from "@/lib/launcher/scopes/version-meta/get-version-meta.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
+import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function launchWithChecks({
   instanceId,
@@ -44,45 +49,64 @@ export async function launchWithChecks({
     necessaries,
     "libraries": versionMeta?.libraries ?? [],
   });
+  const logging: (MappedArtifactType & {
+    "argument": string;
+  }) | false = parseLogging({
+    necessaries,
+    "logging": versionMeta?.logging,
+  });
+  const client: MappedArtifactType | false = parseMainJar({
+    necessaries,
+    "client": versionMeta?.mainJar,
+  });
+
+  console.log("parsed:", libraries, natives, logging, client);
+
+  if (logging === false || client === false) {
+    return false;
+  }
 
   // Concurrently resolve instance assets, client jar, libraries, logging configs, and patches
   const [
     assets,
-    client,
-    logging,
     patches,
   ]: [
     boolean,
-    string | false,
-    boolean,
-    Array<string> | false,
+    Array<MappedArtifactType> | false,
+    void,
+    void,
     void,
   ] = await Promise.all([
     getAssets({ necessaries, versionMeta }),
-    getClient({ necessaries, versionMeta }),
-    getLogging({ necessaries, versionMeta }),
     getPatches({ necessaries, versionMeta }),
-    downloadLibraries({ necessaries, libraries, natives }),
+    downloadClient({ necessaries, client, versionMeta }),
+    downloadLogging({ necessaries, logging, versionMeta }),
+    downloadLibraries({ necessaries, libraries, natives, versionMeta }),
   ]);
+
+  console.log("downloads:", assets, patches);
+
+  if (!assets || !patches) {
+    return false;
+  }
 
   await extractNativeArchives({
     necessaries,
     "paths": natives.map(({ path }) => path),
   });
 
-  if (
-    !assets ||
-    !client ||
-    !logging ||
-    !patches
-  ) {
-    return false;
-  }
+  console.log("huh");
 
   return launch({
     instanceId,
-    client,
     necessaries,
     versionMeta,
+    "parsed": {
+      libraries,
+      natives,
+      logging,
+      client,
+      patches,
+    },
   });
 }

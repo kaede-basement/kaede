@@ -5,8 +5,10 @@ import General from "@/lib/general";
 import { fetchVersionMeta } from "@/lib/launcher/scopes/fetching/fetch-version-meta.ts";
 import Schemas from "@/lib/schemas";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function getVersionMeta(
   necessaries: PreLaunchInformationType,

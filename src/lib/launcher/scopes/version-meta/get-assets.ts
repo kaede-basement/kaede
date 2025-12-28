@@ -2,24 +2,25 @@ import { FileStructure } from "@/constants/file-structure.ts";
 import { APIEndpoints, ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
-import { concurrentlyDownload } from "@/lib/general/scopes/concurrently-download.ts";
 import { fetchAssetsMeta } from "@/lib/launcher/scopes/fetching/fetch-assets-meta.ts";
+import {
+  shallowlyValidateMeta,
+} from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
 import {
   initializeAssetsDirectories,
 } from "@/lib/launcher/scopes/version-meta/assets/initialize-assets-directories.ts";
 import {
   initializeShortHashDirectories,
 } from "@/lib/launcher/scopes/version-meta/assets/initialize-short-hash-directories.ts";
-import {
-  shallowlyValidateMeta,
-} from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
 import type { AssetObjectsType } from "@/types/launcher/artifacts/asset-objects.type.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type {
   SpecificPatchAssetIndexType,
   SpecificPatchMetaType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function getAssets({
   necessaries,
@@ -151,7 +152,7 @@ export async function getAssets({
     return missingHashes.has(path);
   });
 
-  await concurrentlyDownload({
+  await General.concurrentlyDownload({
     statuses,
     "concurrency": ConcurrentDownloads.Assets,
     "entries"    : missingAssetObjects,

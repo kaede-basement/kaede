@@ -31,6 +31,9 @@ export const LaunchStatus = {
     "DownloadingLibrary"        : "libraries-downloading-library",
     "Done"                      : "libraries-done",
   },
+  "Patches": {
+    "Done": "patches-done",
+  },
   "Errors": {
     "UnhandledError"                    : "error-unhandled-error",
     "UndefinedInstanceVersion"          : "error-undefined-instance-version",

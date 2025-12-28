@@ -1,7 +1,10 @@
+import { unifyPlatformWithArch } from "@/lib/launcher/scopes/parsers/unify-platform-with-arch.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type {
   SpecificPatchLibraryRuleType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { DeepRequired } from "@/types/utils/deep-required.type.ts";
 
 export function handlePlatformRule({
@@ -13,61 +16,19 @@ export function handlePlatformRule({
   "arch"    : PreLaunchInformationType["arch"];
   "rule"    : DeepRequired<SpecificPatchLibraryRuleType>;
 }): boolean {
-  switch (platform) {
-    case "windows": {
-      switch (rule.os.name) {
-        case "windows": {
-          return rule.action === "allow";
-        }
-        case "windows-arm32": {
-          return (arch === "arm32")
-            ? (rule.action === "allow")
-            : true;
-        }
-        case "windows-arm64": {
-          return (arch === "arm64")
-            ? (rule.action === "allow")
-            : true;
-        }
-        default: {
-          return rule.action === "disallow";
-        }
-      }
-    }
-    case "linux": {
-      switch (rule.os.name) {
-        case "linux": {
-          return rule.action === "allow";
-        }
-        case "linux-arm32": {
-          return (arch === "arm32")
-            ? (rule.action === "allow")
-            : true;
-        }
-        case "linux-arm64": {
-          return (arch === "arm64")
-            ? (rule.action === "allow")
-            : true;
-        }
-        default: {
-          return rule.action === "disallow";
-        }
-      }
-    }
-    case "macos": {
-      switch (rule.os.name) {
-        case "osx": {
-          return rule.action === "allow";
-        }
-        case "osx-arm64": {
-          return (arch === "arm64")
-            ? (rule.action === "allow")
-            : true;
-        }
-        default: {
-          return rule.action === "disallow";
-        }
-      }
-    }
+  const {
+    "platform": unifiedPlatform,
+    "arch"    : unifiedArch,
+  } = unifyPlatformWithArch(rule.os.name);
+  const isCompatiblePlatform = unifiedPlatform === platform;
+  const isCompatibleArch =
+    unifiedArch === "any" ||
+    unifiedArch === arch;
+
+  // We care about the rule only if it targets the same platform and arch
+  if (!isCompatiblePlatform || !isCompatibleArch) {
+    return true;
   }
+
+  return rule.action === "allow";
 }

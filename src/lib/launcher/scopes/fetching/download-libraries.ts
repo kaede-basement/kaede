@@ -1,21 +1,37 @@
 import { mkdir } from "@tauri-apps/plugin-fs";
 
 import { ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
-import { concurrentlyDownload } from "@/lib/general/scopes/concurrently-download.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
+import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function downloadLibraries({
   necessaries,
   libraries,
   natives,
+  versionMeta,
 }: {
   "necessaries": PreLaunchInformationType;
   "libraries"  : Array<MappedArtifactType>;
   "natives"    : Array<MappedArtifactType>;
+  "versionMeta": SpecificPatchMetaType;
 }): Promise<void> {
+  const beforeHooksResult: "continue" | void | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<void>({
+      "scope" : "onMinecraftLibrariesGet",
+      "toPass": { necessaries, libraries, natives, versionMeta },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue") {
+    return;
+  }
+
   const { statuses } = necessaries;
   const merged: Array<MappedArtifactType> = [
     ...libraries,
@@ -42,10 +58,17 @@ export async function downloadLibraries({
     )),
   );
 
-  await concurrentlyDownload({
+  await General.concurrentlyDownload({
     statuses,
     "concurrency": ConcurrentDownloads.Libraries,
     "entries"    : missingArtifacts,
     "statusScope": LaunchStatus.Libraries.DownloadingLibrary,
   });
+  await ExtensionsManager.catchAsyncVoidHooks({
+    "scope" : "onMinecraftLibrariesGet",
+    "toPass": { necessaries, libraries, natives, versionMeta },
+    "timing": "after",
+  });
+
+  statuses.current = LaunchStatus.Libraries.Done;
 }

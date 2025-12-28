@@ -14,7 +14,7 @@ export function shallowlyValidateLibrary({
     library === null ||
     !("name" in library)
   ) {
-    statuses.add(LaunchStatus.Errors.LibraryShallowValidationFailed);
+    statuses.current = LaunchStatus.Errors.LibraryShallowValidationFailed;
 
     return false;
   }

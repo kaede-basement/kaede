@@ -40,9 +40,12 @@ import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
+import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
@@ -885,9 +888,9 @@ declare global {
         };
 
         /**
-         * Executed on minecraft main jar downloading/verifying
+         * Executed on prism launcher patches downloading/verifying
          */
-        "onMinecraftClientGet": {
+        "onMinecraftPatchesGet": {
 
           /**
            * Executes 'async' or 'sync' functions before any actions.
@@ -897,7 +900,8 @@ declare global {
            *
            * If the hook returns a 'stop' status,
            * it should also return:
-           * @param output - a 'string | false' (where 'string' is a path to the main jar)
+           * @param output - an array of 'MappedArtifactType' (libraries, natives)
+           * or 'false' in case of a fail
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -908,19 +912,21 @@ declare global {
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
             },
-            string | false
+            Array<MappedArtifactType> | false
           >;
 
           /**
-           * Executes 'async' or 'sync' functions after the minecraft main jar
-           * was downloaded/validated. If the download/validation fails, these hooks will not fire.
+           * Executes 'async' or 'sync' functions after the prism launcher patches
+           * were handled. If the handling fails, these hooks will not fire.
            *
-           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * @param input - an object that has the 'necessaries', 'merged',
+           * and 'versionMeta' fields
            * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
            * it should also return:
-           * @param output - a 'string | false' (where 'string' is a path to the main jar)
+           * @param output - an array of 'MappedArtifactType' (libraries, natives)
+           * or 'false' in case of a fail
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -929,9 +935,59 @@ declare global {
           "after": HookReturnType<
             {
               "necessaries": PreLaunchInformationType;
+              "merged"     : Array<MappedArtifactType>;
               "versionMeta": SpecificPatchMetaType;
             },
-            string | false
+            Array<MappedArtifactType> | false
+          >;
+        };
+
+        /**
+         * Executed on minecraft main jar downloading/verifying
+         */
+        "onMinecraftClientGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'necessaries', 'client',
+           * and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a 'void'
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "client"     : MappedArtifactType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            void
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the minecraft main jar
+           * was downloaded/validated. If the download/validation fails, these hooks will not fire.
+           *
+           * @param input - an object that has the 'necessaries', 'client',
+           * and 'versionMeta' fields
+           * is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
+          "after": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "client"     : MappedArtifactType;
+              "versionMeta": SpecificPatchMetaType;
+            },
+            "nothing"
           >;
         };
 
@@ -943,12 +999,13 @@ declare global {
           /**
            * Executes 'async' or 'sync' functions before any actions.
            *
-           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * @param input - an object that has the 'necessaries', 'logging',
+           * and 'versionMeta' fields
            * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
            * it should also return:
-           * @param output - a boolean (where 'true' is success and 'false' is fail)
+           * @param output - a 'void'
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -957,32 +1014,33 @@ declare global {
           "before": HookReturnType<
             {
               "necessaries": PreLaunchInformationType;
+              "logging"    : MappedArtifactType & {
+                "argument": string;
+              };
               "versionMeta": SpecificPatchMetaType;
             },
-            boolean
+            void
           >;
 
           /**
            * Executes 'async' or 'sync' functions after the minecraft logging config
            * was downloaded/verified. If the download/verification fails, these hooks will not fire.
            *
-           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * @param input - an object that has the 'necessaries', 'logging',
+           * and 'versionMeta' fields
            * is passed as the argument.
            *
-           * If the hook returns a 'stop' status,
-           * it should also return:
-           * @param output - a boolean (where 'true' is success and 'false' is fail)
-           * in the 'response' field.
-           *
-           * If the hook returns a 'continue' status,
-           * code execution will continue as if that hook did not exist.
+           * Hook should not return anything since the response will not be read.
            */
           "after": HookReturnType<
             {
               "necessaries": PreLaunchInformationType;
+              "logging"    : MappedArtifactType & {
+                "argument": string;
+              };
               "versionMeta": SpecificPatchMetaType;
             },
-            boolean
+            "nothing"
           >;
         };
 
@@ -994,12 +1052,13 @@ declare global {
           /**
            * Executes 'async' or 'sync' functions before any actions.
            *
-           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * @param input - an object that has the 'necessaries', 'libraries',
+           * 'natives', and 'versionMeta' fields
            * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
            * it should also return:
-           * @param output - an array of library paths (Array<string>) or 'false'
+           * @param output - a 'void'
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -1008,33 +1067,31 @@ declare global {
           "before": HookReturnType<
             {
               "necessaries": PreLaunchInformationType;
+              "libraries"  : Array<MappedArtifactType>;
+              "natives"    : Array<MappedArtifactType>;
               "versionMeta": SpecificPatchMetaType;
             },
-            Array<string> | false
+            void
           >;
 
           /**
            * Executes 'async' or 'sync' functions after the minecraft libraries were
            * downloaded/verified. If the download/verification fails, these hooks will not fire.
            *
-           * @param input - an object that has the 'necessaries', 'versionMeta',
-           * and 'libraries' fields is passed as the argument.
+           * @param input - an object that has the 'necessaries', 'libraries',
+           * 'natives', and 'versionMeta' fields
+           * is passed as the argument.
            *
-           * If the hook returns a 'stop' status,
-           * it should also return:
-           * @param output - an array of library paths (Array<string>) or 'false'
-           * in the 'response' field.
-           *
-           * If the hook returns a 'continue' status,
-           * code execution will continue as if that hook did not exist.
+           * Hook should not return anything since the response will not be read.
            */
           "after": HookReturnType<
             {
               "necessaries": PreLaunchInformationType;
+              "libraries"  : Array<MappedArtifactType>;
+              "natives"    : Array<MappedArtifactType>;
               "versionMeta": SpecificPatchMetaType;
-              "libraries"  : Array<string>;
             },
-            Array<string> | false
+            "nothing"
           >;
         };
 

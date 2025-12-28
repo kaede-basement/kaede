@@ -14,7 +14,7 @@ export function extractInstance({
   const currentInstanceStates = instanceStates[instanceId];
 
   if (currentInstanceStates === undefined) {
-    statuses.add(LaunchStatus.Errors.UndefinedInstanceVersion);
+    statuses.current = LaunchStatus.Errors.UndefinedInstanceVersion;
 
     return undefined;
   }

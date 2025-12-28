@@ -4,6 +4,7 @@ import { cachedJoin } from "@/lib/general/scopes/cached-join.ts";
 import { capitalize } from "@/lib/general/scopes/capitalize.ts";
 import { checkDaysDifference } from "@/lib/general/scopes/check-days-difference.ts";
 import { checkIsPortable } from "@/lib/general/scopes/check-is-portable.ts";
+import { concurrentlyDownload } from "@/lib/general/scopes/concurrently-download.ts";
 import { getAtAGlance } from "@/lib/general/scopes/get-at-a-glance.ts";
 import { getBaseDirectory } from "@/lib/general/scopes/get-base-directory.ts";
 import { getCachedBaseDirectory } from "@/lib/general/scopes/get-cached-base-directory.ts";
@@ -14,17 +15,19 @@ import { getMissingPaths } from "@/lib/general/scopes/get-missing-paths.ts";
 import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
 import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-styles.ts";
 import { handleJsonFile } from "@/lib/general/scopes/handle-json-file.ts";
+import { hashString } from "@/lib/general/scopes/hash-string.ts";
 import { initializeLauncher } from "@/lib/general/scopes/initialize-launcher.ts";
 import { unzip } from "@/lib/general/scopes/unzip.ts";
 
 export default {
-  "nextTick": async (): Promise<void> => {
-    return await nextTick();
+  "nextTick": (): Promise<void> => {
+    return nextTick();
   },
   cachedJoin,
   capitalize,
   checkDaysDifference,
   checkIsPortable,
+  concurrentlyDownload,
   getAtAGlance,
   getBaseDirectory,
   getCachedBaseDirectory,
@@ -35,6 +38,7 @@ export default {
   getRelativeDate,
   getSidebarInnerStyles,
   handleJsonFile,
+  hashString,
   initializeLauncher,
   unzip,
 } as const;

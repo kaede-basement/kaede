@@ -12,20 +12,41 @@ import {
   replaceLaunchArguments,
 } from "@/lib/launcher/scopes/arguments/replace-launch-arguments.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
+import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function launch({
   instanceId,
-  client,
   necessaries,
   versionMeta,
+  parsed,
 }: {
   "instanceId" : string;
-  "client"     : string;
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
+  "parsed"     : {
+    "libraries": Array<MappedArtifactType>;
+    "natives"  : Array<MappedArtifactType>;
+    "logging"  : MappedArtifactType & {
+      "argument": string;
+    };
+    "client" : MappedArtifactType;
+    "patches": Array<MappedArtifactType>;
+  };
 }): Promise<boolean> {
+  console.log(
+    "Finally! The actual launch part.",
+    instanceId,
+    necessaries,
+    versionMeta,
+    parsed,
+  );
+
+  return;
+
   const { directories, statuses } = necessaries;
 
   const mainClass = versionMeta.mainClass;
