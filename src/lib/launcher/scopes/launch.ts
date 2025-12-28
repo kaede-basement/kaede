@@ -79,7 +79,13 @@ export async function launch({
     }),
   ]);
 
-  const additionalArguments: string = getAdditionalStartArguments({ javaBinary });
+  const additionalArguments: string = await getAdditionalStartArguments({
+    javaBinary,
+    instanceId,
+    necessaries,
+    versionMeta,
+    parsed,
+  });
   const toReplace: string = [
     additionalArguments,
     classPathsArgument,
@@ -89,17 +95,19 @@ export async function launch({
   ].join(" ");
   const launchArguments: string = replaceLaunchArguments({
     "auth": {
-      "uuid"    : "",
-      "token"   : "",
-      "username": "",
+      "uuid"    : "3206b5f6-acd3-419e-a297-7d120f510767",
+      "token"   : "huh",
+      "username": "windstone_",
+      "type"    : "msa",
     },
     "builtLaunchArguments": {
       toReplace,
       classPaths,
     },
-    client,
+    instanceId,
     necessaries,
     versionMeta,
+    parsed,
   });
   const instanceCommand = Command.create(
     javaBinary,
@@ -119,7 +127,7 @@ export async function launch({
   await instanceCommand.spawn();
 
   log.info(`The '${instanceId}' successfully launched`);
-  statuses.add(LaunchStatus.General.Success);
+  statuses.current = LaunchStatus.General.Success;
 
   return true;
 }

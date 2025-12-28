@@ -5,9 +5,7 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
-export function getGameArguments({
-  client,
-  necessaries,
+export async function getGameArguments({
   versionMeta,
 }: {
   "instanceId" : string;
@@ -24,5 +22,9 @@ export function getGameArguments({
     "mainClass": string;
   };
 }): Promise<string> {
-  return "--username windstone_ --version 1.16.5 --gameDir C:/Users/windstone/AppData/Roaming/kaede/instances/fabulously-optimized/minecraft --assetsDir C:/Users/windstone/AppData/Roaming/kaede/assets --assetIndex 1.16 --uuid 3206b5f6-acd3-419e-a297-7d120f510767 --accessToken asdf --userType msa --versionType release";
+  if (versionMeta?.minecraftArguments === undefined) {
+    throw new Error("No minecraft arguments found in the version metadata");
+  }
+
+  return versionMeta.minecraftArguments;
 }

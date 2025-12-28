@@ -6,9 +6,8 @@ import type {
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getJvmArguments({
-  client,
   necessaries,
-  versionMeta,
+  parsed,
 }: {
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
@@ -24,57 +23,46 @@ export async function getJvmArguments({
     "mainClass": string;
   };
 }): Promise<string> {
-  const { directories, platform } = necessaries;
-  const isNew: boolean = versionMeta?.minecraftArguments === undefined;
+  const { platform } = necessaries;
   const jvmArguments: Array<string> = [];
 
-  if (!isNew) {
-    jvmArguments.push(
-      "-Djava.library.path=${natives_directory}",
-      "-Djna.tmpdir=${natives_directory}",
-      "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
-      "-Dio.netty.native.workdir=${natives_directory}",
-      "-Dminecraft.launcher.brand=${launcher_name}",
-      "-Dminecraft.launcher.version=${launcher_version}",
-    );
-  }
+  jvmArguments.push(
+    "-Djava.library.path=${natives_directory}",
+    "-Djna.tmpdir=${natives_directory}",
+    "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
+    "-Dio.netty.native.workdir=${natives_directory}",
+    "-Dminecraft.launcher.brand=${launcher_name}",
+    "-Dminecraft.launcher.version=${launcher_version}",
+  );
 
   let logFilePath: string;
 
   switch (platform) {
     case "windows": {
-      logFilePath = "file:///%SystemDrive%" + directories.logging.slice(2);
+      logFilePath = "file:///" + parsed.logging.path;
 
-      if (!isNew) {
-        jvmArguments.push(
-          "-XX:HeapDumpPath=" +
-          "MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump",
-        );
-      }
+      jvmArguments.push(
+        "-XX:HeapDumpPath=" +
+        "MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump",
+      );
 
       break;
     }
     case "macos": {
-      logFilePath = directories.logging;
+      logFilePath = parsed.logging.path;
 
-      if (!isNew) {
-        jvmArguments.push("-XstartOnFirstThread");
-      }
+      jvmArguments.push("-XstartOnFirstThread");
 
       break;
     }
     default: {
-      logFilePath = directories.logging;
+      logFilePath = parsed.logging.path;
 
       break;
     }
   }
 
-  if (!versionMeta.logging) {
-    return jvmArguments.join(" ");
-  }
-
-  const loggingArguments = versionMeta
+  const loggingArguments = parsed
     .logging
     .argument
     .replace(

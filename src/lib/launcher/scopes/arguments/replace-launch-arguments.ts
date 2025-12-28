@@ -1,15 +1,18 @@
 import { ApplicationName } from "@/constants/application.ts";
 import General from "@/lib/general";
+import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
+import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   ArgumentReplacementsType,
 } from "@/types/launcher/launch/argument-replacements.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export function replaceLaunchArguments({
   auth,
   builtLaunchArguments,
-  client,
   necessaries,
   versionMeta,
 }: {
@@ -17,14 +20,25 @@ export function replaceLaunchArguments({
     "username": string;
     "token"   : string;
     "uuid"    : string;
+    "type"    : string;
   };
   "builtLaunchArguments": {
     "toReplace" : string;
     "classPaths": string;
   };
-  "client"     : string;
+  "instanceId" : string;
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
+  "parsed"     : {
+    "libraries": Array<MappedArtifactType>;
+    "natives"  : Array<MappedArtifactType>;
+    "logging"  : MappedArtifactType & {
+      "argument": string;
+    };
+    "client"   : MappedArtifactType;
+    "patches"  : LibraryArtifactsType;
+    "mainClass": string;
+  };
 }): string {
   const { directories, instance } = necessaries;
   const assetIndexId: string = versionMeta?.assetIndex?.id ?? "";
@@ -50,7 +64,7 @@ export function replaceLaunchArguments({
     "resolution_height"    : instance.windowHeight.toString(),
     "resolution_width"     : instance.windowWidth.toString(),
     "user_properties"      : "", // 'older versions, doesn’t appear to be used in game'
-    "user_type"            : "", // 'msa', 'mojang', or 'offline' (?)
+    "user_type"            : auth.type, // 'msa', 'mojang', or 'offline' (?)
     "version_name"         : instance.version,
     "version_type"         : versionMeta?.type ?? "release",
   };
