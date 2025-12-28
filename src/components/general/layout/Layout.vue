@@ -6,6 +6,7 @@ import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
 import PageError from "@/components/general/errors/PageError.vue";
 import ContextMenu from "@/components/general/layout/ContextMenu.vue";
 import Sidebar from "@/components/general/layout/Sidebar.vue";
+import AuthProvider from "@/components/general/misc/AuthProvider.vue";
 import { ApplicationNamespace } from "@/constants/application.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 
@@ -66,29 +67,31 @@ useEventListener(window, "pointerdown", (event: PointerEvent) => {
 </script>
 
 <template>
-  <div
-    id="__layout__wrapper"
-    @contextmenu.prevent
-    @contextmenu="showContextMenu"
-    class="relative h-vh w-full flex flex-nowrap gap-0 overflow-hidden text-white"
-  >
-    <ContextMenu
-      v-if="toShowContextMenu"
-      :opened="contextMenu.opened"
-      :x="contextMenu.x"
-      :y="contextMenu.y"
-    />
-    <Sidebar v-if="toShowSidebar" />
-    <!-- Pages error boundary -->
-    <ErrorBoundary :reset-key="page">
-      <template #default>
-        <slot />
-      </template>
+  <AuthProvider>
+    <div
+      id="__layout__wrapper"
+      @contextmenu.prevent
+      @contextmenu="showContextMenu"
+      class="relative h-vh w-full flex flex-nowrap gap-0 overflow-hidden text-white"
+    >
+      <ContextMenu
+        v-if="toShowContextMenu"
+        :opened="contextMenu.opened"
+        :x="contextMenu.x"
+        :y="contextMenu.y"
+      />
+      <Sidebar v-if="toShowSidebar" />
+      <!-- Pages error boundary -->
+      <ErrorBoundary :reset-key="page">
+        <template #default>
+          <slot />
+        </template>
 
-      <!-- In case of an error, show this template -->
-      <template #error="{ currentError }">
-        <PageError :error="currentError" />
-      </template>
-    </ErrorBoundary>
-  </div>
+        <!-- In case of an error, show this template -->
+        <template #error="{ currentError }">
+          <PageError :error="currentError" />
+        </template>
+      </ErrorBoundary>
+    </div>
+  </AuthProvider>
 </template>
