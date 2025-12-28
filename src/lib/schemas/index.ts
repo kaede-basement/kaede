@@ -1,17 +1,17 @@
 import { Compile } from "typebox/compile";
 
-import { AccountSchema } from "@/lib/schemas/scopes/accounts/account.schema.ts";
-import { ConfigSchema } from "@/lib/schemas/scopes/config.schema.ts";
-import { ExtensionMetadataSchema } from "@/lib/schemas/scopes/extension-metadata.schema.ts";
-import { InstanceMetadataSchema } from "@/lib/schemas/scopes/instances/instance-metadata.schema.ts";
-import { PatchMetaSchema } from "@/lib/schemas/scopes/meta/patch-meta.schema.ts";
+import { AccountSchema } from "@/lib/schemas/scopes/accounts";
+import { ConfigSchema } from "@/lib/schemas/scopes/config";
+import { ExtensionMetadataSchema } from "@/lib/schemas/scopes/extensions";
+import { InstanceMetadataSchema } from "@/lib/schemas/scopes/instances";
+import { PatchMetaSchema } from "@/lib/schemas/scopes/meta";
 import { validate } from "@/lib/schemas/scopes/validate.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
-import type { ValidationArgumentsType } from "@/types/schemas/validation-arguments.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { ExtensionMetadataType } from "@/types/extensions/extension-metadata.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { ValidationArgumentsType } from "@/types/schemas/validation-arguments.type.ts";
 
 const AccountValidator = Compile(AccountSchema);
 const ConfigValidator = Compile(ConfigSchema);

@@ -1,3 +1,5 @@
+import type { Raw, Reactive } from "vue";
+
 import type { LaunchStatus } from "@/constants/launcher.ts";
 
 type LaunchStatusObjectType = typeof LaunchStatus;
@@ -8,6 +10,17 @@ export type LaunchStatusType = {
 }[LaunchKeyType];
 
 export type LauncherStatusesType = {
+  "launching": boolean;
   "current"  : LaunchStatusType | undefined;
   "downloads": Set<string>;
 };
+export type WrappedInstanceLauncherStatusesType = Reactive<
+  Record<
+    string,
+    {
+      "launching": LauncherStatusesType["launching"];
+      "current"  : LauncherStatusesType["current"];
+      "downloads": Raw<Set<string>>;
+    }
+  >
+>;

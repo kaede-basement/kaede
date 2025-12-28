@@ -6,7 +6,7 @@ import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
 import PageError from "@/components/general/errors/PageError.vue";
 import ContextMenu from "@/components/general/layout/ContextMenu.vue";
 import Sidebar from "@/components/general/layout/Sidebar.vue";
-import AuthProvider from "@/components/general/misc/AuthProvider.vue";
+import ContextProviders from "@/components/general/misc/ContextProviders.vue";
 import { ApplicationNamespace } from "@/constants/application.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 
@@ -67,7 +67,7 @@ useEventListener(window, "pointerdown", (event: PointerEvent) => {
 </script>
 
 <template>
-  <AuthProvider>
+  <ContextProviders>
     <div
       id="__layout__wrapper"
       @contextmenu.prevent
@@ -93,5 +93,5 @@ useEventListener(window, "pointerdown", (event: PointerEvent) => {
         </template>
       </ErrorBoundary>
     </div>
-  </AuthProvider>
+  </ContextProviders>
 </template>

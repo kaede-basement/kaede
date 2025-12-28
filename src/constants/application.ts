@@ -15,6 +15,8 @@ export const GlobalStatesContextKey = Symbol();
 export const TranslationsContextKey = Symbol();
 export const InstanceStatesContextKey = Symbol();
 export const AuthStatesContextKey = Symbol();
+export const LaunchStatesContextKey = Symbol();
+export const LaunchInstanceContextKey = Symbol();
 
 export const CSSThemeExtensions = {
   "Enabled" : ".css",
