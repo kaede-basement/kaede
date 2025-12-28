@@ -2,6 +2,7 @@ import { FileStructure } from "@/constants/file-structure.ts";
 import { APIEndpoints, LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import { fetchAssetsMeta } from "@/lib/launcher/scopes/version-meta/assets/fetch-assets-meta.ts";
+import Schemas from "@/lib/schemas";
 import type {
   LauncherStatusesType,
   LaunchStatusType,
@@ -18,7 +19,7 @@ export async function getPatch({
   "require"      : Required<
     Required<SpecificPatchMetaType>["requires"]
   >[number];
-}): Promise<object | false> {
+}): Promise<SpecificPatchMetaType | false> {
   const versionWithExtension: string = require.suggests + ".json";
   const fileName: string = require.uid + "-" + versionWithExtension;
   let parsedMeta: unknown;
@@ -53,11 +54,19 @@ export async function getPatch({
     return false;
   }
 
-  if (typeof parsedMeta !== "object" || parsedMeta === null) {
-    statuses.add(LaunchStatus.Errors.ReadingCachedPatchMeta);
+  const validMeta: SpecificPatchMetaType | false = Schemas.validate.patchMeta({
+    "value": parsedMeta,
+    "label": "specific patch metadata",
+    "info" : {
+      "id": require.uid,
+    },
+  });
+
+  if (validMeta === false) {
+    statuses.add(LaunchStatus.Errors.PatchFullValidationFailed);
 
     return false;
   }
 
-  return parsedMeta;
+  return validMeta;
 }

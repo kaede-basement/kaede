@@ -8,19 +8,23 @@ import { getClient } from "@/lib/launcher/scopes/version-meta/get-client.ts";
 import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
 import { getLogging } from "@/lib/launcher/scopes/version-meta/get-logging.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
+import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function launchWithChecks({
   instanceId,
+  instance,
   statuses,
 }: {
   "instanceId": string;
+  "instance"  : InstanceStateType;
   "statuses"  : LauncherStatusesType;
 }): Promise<boolean> {
   const necessaries: PreLaunchInformationType | false = extractPreLaunchInformation({
     instanceId,
+    instance,
     statuses,
   });
 
@@ -46,7 +50,7 @@ export async function launchWithChecks({
     string | false,
     boolean,
     Array<string> | false,
-    string | false,
+    Array<string> | false,
   ] = await Promise.all([
     getAssets({ necessaries, versionMeta }),
     getClient({ necessaries, versionMeta }),

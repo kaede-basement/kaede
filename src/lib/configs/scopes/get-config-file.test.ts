@@ -210,7 +210,7 @@ test.for(tests)(
     const { getConfigFile } = await import("./get-config-file.ts");
 
     expect(
-      JSON.stringify(await getConfigFile()),
+      JSON.stringify(await getConfigFile("")),
     ).toBe(
       JSON.stringify(output),
     );

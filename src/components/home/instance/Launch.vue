@@ -27,11 +27,20 @@ const currentInstance = computed((): CurrentInstanceType => (
 const statuses: LauncherStatusesType = new Set;
 
 async function handleLaunch(): Promise<void> {
-  if (currentInstance?.value === undefined) {
+  if (
+    currentInstance?.value === undefined ||
+    currentInstance.value?.id === undefined ||
+    currentInstance.value?.instance === undefined
+  ) {
+    log.error("The instance launch button was pressed but no instance is present");
+
     return;
   }
 
   loading.value = true;
+
+  const startTime: number = performance.now();
+  let success: boolean = false;
 
   statuses.clear();
   statuses.add(LaunchStatus.General.Starting);
@@ -39,8 +48,11 @@ async function handleLaunch(): Promise<void> {
   try {
     await Launcher.launchWithChecks({
       "instanceId": currentInstance.value.id,
+      "instance"  : currentInstance.value.instance,
       statuses,
     });
+
+    success = true;
   } catch (error: unknown) {
     statuses.add(LaunchStatus.Errors.UnhandledError);
 
@@ -50,9 +62,15 @@ async function handleLaunch(): Promise<void> {
     );
   }
 
+  const endTime: number = performance.now();
+  const totalTime: string = (endTime - startTime).toFixed(2);
+
   loading.value = false;
 
-  console.log(statuses);
+  log.info(
+    `The '${currentInstance.value.id}' launch process was done in ${totalTime} ms.`,
+    `Is success: '${success}'`,
+  );
 }
 </script>
 

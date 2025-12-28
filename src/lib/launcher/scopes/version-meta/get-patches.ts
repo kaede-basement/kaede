@@ -1,5 +1,7 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
 import { getPatch } from "@/lib/launcher/scopes/patches/get-patch.ts";
+import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
+import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
@@ -9,9 +11,8 @@ export async function getPatches({
 }: {
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-}): Promise<string | false> {
+}): Promise<Array<string> | false> {
   const { directories, statuses } = necessaries;
-  const conflicts: SpecificPatchMetaType["conflicts"] = versionMeta?.conflicts;
   const requires: SpecificPatchMetaType["requires"] = versionMeta?.requires;
 
   if (
@@ -23,13 +24,37 @@ export async function getPatches({
     return false;
   }
 
-  const patches: Array<object> = await Promise.all(
+  const patches: Array<SpecificPatchMetaType | false> = await Promise.all(
     requires.map(require => getPatch({
       "baseDirectory": directories.base,
       statuses,
       require,
     })),
   );
+  const libraryPaths: Array<string> = [];
 
-  return "";
+  for (const patch of patches) {
+    if (patch === false) {
+      return false;
+    }
+
+    const [libraries] = await Promise.all([
+      getLibraries({
+        necessaries,
+        "versionMeta": patch,
+      }),
+      getAssets({
+        necessaries,
+        "versionMeta": patch,
+      }),
+    ]);
+
+    if (!libraries) {
+      continue;
+    }
+
+    libraryPaths.push(...libraries);
+  }
+
+  return libraryPaths;
 }

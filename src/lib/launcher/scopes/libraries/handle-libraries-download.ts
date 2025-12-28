@@ -5,23 +5,21 @@ import General from "@/lib/general";
 import { downloadWithProgress } from "@/lib/launcher/scopes/download-with-progress.ts";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/normalize-artifact-path.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
+import type { MappedArtifactType } from "@/types/launcher/libraries/mapped-artifact.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export async function handleLibrariesDownload({
   libraries,
+  natives,
   necessaries,
 }: {
   "libraries"  : Array<SpecificPatchLibraryType>;
+  "natives"    : Array<MappedArtifactType>;
   "necessaries": PreLaunchInformationType;
 }): Promise<Array<string>> {
   const { directories, statuses } = necessaries;
-  const mappedLibraryArtifacts: Array<{
-    "path"     : string;
-    "file"     : string;
-    "directory": string;
-    "url"      : string;
-  }> = [];
+  const mappedLibraryArtifacts: Array<MappedArtifactType> = [];
 
   for (const library of libraries) {
     const url: string | undefined = library?.downloads?.artifact?.url;
@@ -48,6 +46,9 @@ export async function handleLibrariesDownload({
     });
   }
 
+  // Natives should probably end up at the end of the libraries list
+  mappedLibraryArtifacts.push(...natives);
+
   const missingLibraries: Set<string> = new Set(
     await General.getMissingPaths({
       "paths": mappedLibraryArtifacts.map(({ path }) => path),
@@ -56,14 +57,10 @@ export async function handleLibrariesDownload({
 
   console.log(missingLibraries);
 
-  const missingLibraryArtifacts: Array<{
-    "path"     : string;
-    "file"     : string;
-    "directory": string;
-    "url"      : string;
-  }> = mappedLibraryArtifacts.filter(({ path }) => {
-    return missingLibraries.has(path);
-  });
+  const missingLibraryArtifacts: Array<MappedArtifactType> = mappedLibraryArtifacts
+    .filter(({ path }) => {
+      return missingLibraries.has(path);
+    });
   const indexReference: { "value": number } = {
     "value": 0,
   };

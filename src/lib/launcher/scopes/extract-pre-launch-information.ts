@@ -5,16 +5,17 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import Instances from "@/lib/instances";
-import { extractInstance } from "@/lib/launcher/scopes/extract-instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch-status.type.ts";
 import type { PreLaunchInformationType } from "@/types/launcher/pre-launch-information.type.ts";
 
 export function extractPreLaunchInformation({
   statuses,
+  instance,
   instanceId,
 }: {
   "statuses"  : LauncherStatusesType;
+  "instance"  : InstanceStateType;
   "instanceId": string;
 }): PreLaunchInformationType | false {
   const beforeHooksResult: "continue" | PreLaunchInformationType | false | undefined =
@@ -39,15 +40,6 @@ export function extractPreLaunchInformation({
     baseDirectory,
     instanceId,
   });
-  const instance: InstanceStateType | undefined = extractInstance({
-    statuses,
-    instanceId,
-  });
-
-  if (instance === undefined) {
-    return false;
-  }
-
   const assetsDirectory: string = General.cachedJoin(
     baseDirectory,
     FileStructure.Folders.Assets.Path,

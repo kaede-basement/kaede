@@ -4,6 +4,8 @@ import { getAllowedLibraries } from "@/lib/launcher/scopes/libraries/get-allowed
 import {
   handleLibrariesDownload,
 } from "@/lib/launcher/scopes/libraries/handle-libraries-download.ts";
+import { handleNatives } from "@/lib/launcher/scopes/libraries/handle-natives.ts";
+import type { MappedArtifactType } from "@/types/launcher/libraries/mapped-artifact.type.ts";
 import type {
   SpecificPatchLibraryType,
   SpecificPatchMetaType,
@@ -44,9 +46,14 @@ export async function getLibraries({
     necessaries,
     libraries,
   });
+  const natives: Array<MappedArtifactType> = handleNatives({
+    necessaries,
+    libraries,
+  });
 
   const libraryPaths: Array<string> = await handleLibrariesDownload({
     "libraries": allowedLibraries,
+    natives,
     necessaries,
   });
 
