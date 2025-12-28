@@ -86,13 +86,17 @@ export async function launch({
     versionMeta,
     parsed,
   });
-  const toReplace: string = [
-    additionalArguments,
+  const toReplace: Array<string> = [
     classPathsArgument,
     jvmArguments,
     mainClass,
     gameArguments,
-  ].join(" ");
+  ];
+
+  if (additionalArguments !== "") {
+    toReplace.unshift(additionalArguments);
+  }
+
   const launchArguments: string = replaceLaunchArguments({
     "auth": {
       "uuid"    : "3206b5f6-acd3-419e-a297-7d120f510767",
@@ -101,7 +105,7 @@ export async function launch({
       "type"    : "msa",
     },
     "builtLaunchArguments": {
-      toReplace,
+      "toReplace": toReplace.join(" "),
       classPaths,
     },
     instanceId,

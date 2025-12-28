@@ -1,3 +1,6 @@
+import { writeTextFile } from "@tauri-apps/plugin-fs";
+
+import General from "@/lib/general";
 import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
@@ -5,13 +8,15 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
-function mergePaths(artifacts: Array<MappedArtifactType>): string {
+function mapPaths(artifacts: Array<MappedArtifactType>): Array<string> {
   return artifacts
-    .map(({ path }) => path)
-    .join(";");
+    .map(({ path }) => path);
 }
 
+const classPathsFileName: string = "classpaths.txt";
+
 export async function getClassPaths({
+  necessaries,
   parsed,
 }: {
   "instanceId" : string;
@@ -31,20 +36,34 @@ export async function getClassPaths({
   "argument"  : string;
   "classPaths": string;
 }> {
-  const libraries: string = mergePaths(parsed.libraries);
-  const natives: string = mergePaths(parsed.natives);
-  const patchLibraries: string = mergePaths(parsed.patches.libraries);
-  const patchNatives: string = mergePaths(parsed.patches.natives);
-  const classPaths: string = [
-    libraries,
-    natives,
-    patchLibraries,
-    patchNatives,
+  const { directories } = necessaries;
+  const mergedPaths: Array<string> = [
+    ...mapPaths(parsed.libraries),
+    ...mapPaths(parsed.natives),
+    ...mapPaths(parsed.patches.libraries),
+    ...mapPaths(parsed.patches.natives),
     parsed.client.path,
-  ].join(";");
+  ];
+
+  // The libraries paths may have duplicates because of the natives
+  const uniquePaths: Set<string> = new Set(mergedPaths);
+  const classPaths: string = [...uniquePaths].join(";");
+
+  const classPathsFilePath: string = General.cachedJoin(
+    directories.instance,
+    classPathsFileName,
+  );
+
+  await writeTextFile(
+    classPathsFilePath,
+    [
+      "-cp",
+      classPaths,
+    ].join("\n"),
+  );
 
   return {
-    "argument"  : "-cp ${classpath}",
+    "argument"  : `@${classPathsFileName}`,
     "classPaths": classPaths,
   };
 }
