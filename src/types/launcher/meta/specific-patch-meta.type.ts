@@ -70,6 +70,25 @@ export type SpecificPatchClassifiersType = {
   "natives-macos"          ?: SpecificPatchArtifactType;
   "natives-macos-${arch}"  ?: SpecificPatchArtifactType;
   "natives-macos-arm64"    ?: SpecificPatchArtifactType;
+  // THIS THING ALSO EXISTS WHAT
+  "natives-windows-32"     ?: SpecificPatchArtifactType;
+  // I am tired of seeing absolutely random shit, so the next ones are made up by me
+  "natives-windows-64"     ?: SpecificPatchArtifactType;
+  "natives-windows-arm32"  ?: SpecificPatchArtifactType;
+  "natives-windows-x64"    ?: SpecificPatchArtifactType;
+  "natives-windows-x86"    ?: SpecificPatchArtifactType;
+  "natives-windows-x86_64" ?: SpecificPatchArtifactType;
+  "natives-linux-32"       ?: SpecificPatchArtifactType;
+  "natives-linux-64"       ?: SpecificPatchArtifactType;
+  "natives-linux-x64"      ?: SpecificPatchArtifactType;
+  "natives-linux-x86"      ?: SpecificPatchArtifactType;
+  "natives-linux-x86_64"   ?: SpecificPatchArtifactType;
+  "natives-osx-32"         ?: SpecificPatchArtifactType;
+  "natives-osx-64"         ?: SpecificPatchArtifactType;
+  "natives-osx-arm32"      ?: SpecificPatchArtifactType;
+  "natives-osx-x64"        ?: SpecificPatchArtifactType;
+  "natives-osx-x86"        ?: SpecificPatchArtifactType;
+  "natives-osx-x86_64"     ?: SpecificPatchArtifactType;
 };
 export type SpecificPatchLibraryDownloadsType = {
   "artifact"   ?: SpecificPatchArtifactType;

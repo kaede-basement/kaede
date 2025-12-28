@@ -25,9 +25,9 @@ export async function getClassPaths({
   "parsed"     : {
     "libraries": Array<MappedArtifactType>;
     "natives"  : Array<MappedArtifactType>;
-    "logging"  : MappedArtifactType & {
+    "logging"  : (MappedArtifactType & {
       "argument": string;
-    };
+    }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
     "mainClass": string;
@@ -36,7 +36,7 @@ export async function getClassPaths({
   "argument"  : string;
   "classPaths": string;
 }> {
-  const { directories } = necessaries;
+  const { directories, javaMajor } = necessaries;
   const mergedPaths: Array<string> = [
     ...mapPaths(parsed.libraries),
     ...mapPaths(parsed.natives),
@@ -48,6 +48,13 @@ export async function getClassPaths({
   // The libraries paths may have duplicates because of the natives
   const uniquePaths: Set<string> = new Set(mergedPaths);
   const classPaths: string = [...uniquePaths].join(";");
+
+  if (javaMajor <= 8) {
+    return {
+      "argument"  : "-cp ${classpath}",
+      "classPaths": classPaths,
+    };
+  }
 
   const classPathsFilePath: string = General.cachedJoin(
     directories.instance,

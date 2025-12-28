@@ -59,6 +59,20 @@ export async function getPatches({
       "libraries": patch?.libraries ?? [],
     });
 
+    if (patch?.assetIndex === undefined) {
+      await downloadLibraries({
+        necessaries,
+        libraries,
+        natives,
+        "versionMeta": patch,
+      });
+
+      results.libraries.push(...libraries);
+      results.natives.push(...natives);
+
+      continue;
+    }
+
     await Promise.all([
       getAssets({
         necessaries,

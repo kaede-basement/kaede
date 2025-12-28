@@ -83,7 +83,7 @@ export async function launchWithChecks({
 
   console.log("parsed:", libraries, natives, logging, client);
 
-  if (logging === false || client === false) {
+  if (client === false) {
     return false;
   }
 

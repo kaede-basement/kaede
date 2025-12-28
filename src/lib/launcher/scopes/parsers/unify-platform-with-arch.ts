@@ -29,6 +29,7 @@ export function unifyPlatformWithArch(
   "platform": PreLaunchInformationType["platform"];
   "arch"    : PreLaunchInformationType["arch"] | "any";
 } {
+  console.log(name);
   switch (name) {
     // 'SpecificPatchLibraryOSNameType | SpecificPatchRuntimeOSType'
     case "linux": {
@@ -121,6 +122,60 @@ export function unifyPlatformWithArch(
       return { "platform": "macos", "arch": "arm64" };
     }
     case "osx-x86_64": {
+      return { "platform": "macos", "arch": "x64" };
+    }
+    // Insane shit that I have discovered when tried to download 1.7.10
+    case "natives-windows-32": {
+      return { "platform": "windows", "arch": "x86" };
+    }
+    // Made up by me; may not exist
+    case "natives-windows-64": {
+      return { "platform": "windows", "arch": "x64" };
+    }
+    case "natives-windows-arm32": {
+      return { "platform": "windows", "arch": "arm32" };
+    }
+    case "natives-windows-x64": {
+      return { "platform": "windows", "arch": "x64" };
+    }
+    case "natives-windows-x86": {
+      return { "platform": "windows", "arch": "x86" };
+    }
+    case "natives-windows-x86_64": {
+      return { "platform": "windows", "arch": "x64" };
+    }
+    case "natives-linux-32": {
+      return { "platform": "linux", "arch": "x86" };
+    }
+    case "natives-linux-64": {
+      return { "platform": "linux", "arch": "x64" };
+    }
+    case "natives-linux-x64": {
+      return { "platform": "linux", "arch": "x64" };
+    }
+    case "natives-linux-x86": {
+      return { "platform": "linux", "arch": "x86" };
+    }
+    case "natives-linux-x86_64": {
+      return { "platform": "linux", "arch": "x64" };
+    }
+    case "natives-osx-32": {
+      return { "platform": "macos", "arch": "x86" };
+    }
+    case "natives-osx-64": {
+      return { "platform": "macos", "arch": "x64" };
+    }
+    // Technically shouldn't exist, but whatever
+    case "natives-osx-arm32": {
+      return { "platform": "macos", "arch": "arm32" };
+    }
+    case "natives-osx-x64": {
+      return { "platform": "macos", "arch": "x64" };
+    }
+    case "natives-osx-x86": {
+      return { "platform": "macos", "arch": "x86" };
+    }
+    case "natives-osx-x86_64": {
       return { "platform": "macos", "arch": "x64" };
     }
   }

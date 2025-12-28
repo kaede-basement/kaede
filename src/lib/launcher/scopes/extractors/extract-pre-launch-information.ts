@@ -111,6 +111,7 @@ export function extractPreLaunchInformation({
     "platform"   : compatiblePlatform,
     "arch"       : compatibleArch,
     "instance"   : instance,
+    "javaMajor"  : 11,
     "directories": {
       "base"     : baseDirectory,
       "instance" : instanceDirectory,

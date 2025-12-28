@@ -15,9 +15,9 @@ export async function getJvmArguments({
   "parsed"     : {
     "libraries": Array<MappedArtifactType>;
     "natives"  : Array<MappedArtifactType>;
-    "logging"  : MappedArtifactType & {
+    "logging"  : (MappedArtifactType & {
       "argument": string;
-    };
+    }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
     "mainClass": string;
@@ -35,11 +35,13 @@ export async function getJvmArguments({
     "-Dminecraft.launcher.version=${launcher_version}",
   );
 
-  let logFilePath: string;
+  let logFilePath: string = "";
 
   switch (platform) {
     case "windows": {
-      logFilePath = "file:///" + parsed.logging.path;
+      if (parsed.logging) {
+        logFilePath = "file:///" + parsed.logging.path;
+      }
 
       jvmArguments.push(
         "-XX:HeapDumpPath=" +
@@ -49,28 +51,34 @@ export async function getJvmArguments({
       break;
     }
     case "macos": {
-      logFilePath = parsed.logging.path;
+      if (parsed.logging) {
+        logFilePath = parsed.logging.path;
+      }
 
       jvmArguments.push("-XstartOnFirstThread");
 
       break;
     }
     default: {
-      logFilePath = parsed.logging.path;
+      if (parsed.logging) {
+        logFilePath = parsed.logging.path;
+      }
 
       break;
     }
   }
 
-  const loggingArguments = parsed
-    .logging
-    .argument
-    .replace(
-      "${path}",
-      logFilePath,
-    );
+  if (parsed.logging) {
+    const loggingArguments = parsed
+      .logging
+      .argument
+      .replace(
+        "${path}",
+        logFilePath,
+      );
 
-  jvmArguments.push(loggingArguments);
+    jvmArguments.push(loggingArguments);
+  }
 
   return jvmArguments.join(" ");
 }

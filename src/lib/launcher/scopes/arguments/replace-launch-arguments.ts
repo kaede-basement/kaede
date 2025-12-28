@@ -32,9 +32,9 @@ export function replaceLaunchArguments({
   "parsed"     : {
     "libraries": Array<MappedArtifactType>;
     "natives"  : Array<MappedArtifactType>;
-    "logging"  : MappedArtifactType & {
+    "logging"  : (MappedArtifactType & {
       "argument": string;
-    };
+    }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
     "mainClass": string;
@@ -47,7 +47,7 @@ export function replaceLaunchArguments({
     "assets_root"          : directories.assets,
     "auth_access_token"    : auth.token,
     "auth_player_name"     : auth.username,
-    "auth_session"         : "", // unknown
+    "auth_session"         : "none", // unknown --- comment by me: used in 1.6.4
     "auth_uuid"            : auth.uuid,
     "auth_xuid"            : "", // 'only present in newer versions with Microsoft integration'
     "classpath"            : builtLaunchArguments.classPaths,
@@ -63,7 +63,7 @@ export function replaceLaunchArguments({
     "quickPlaySingleplayer": "", // 'The path to the singleplayer world'
     "resolution_height"    : instance.windowHeight.toString(),
     "resolution_width"     : instance.windowWidth.toString(),
-    "user_properties"      : "", // 'older versions, doesn’t appear to be used in game'
+    "user_properties"      : "{\"kaede\":[\"\"]}", // 'older versions, doesn’t appear to be used in game'
     "user_type"            : auth.type, // 'msa', 'mojang', or 'offline' (?)
     "version_name"         : instance.version,
     "version_type"         : versionMeta?.type ?? "release",

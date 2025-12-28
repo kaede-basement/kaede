@@ -14,9 +14,9 @@ export async function getGameArguments({
   "parsed"     : {
     "libraries": Array<MappedArtifactType>;
     "natives"  : Array<MappedArtifactType>;
-    "logging"  : MappedArtifactType & {
+    "logging"  : (MappedArtifactType & {
       "argument": string;
-    };
+    }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
     "mainClass": string;

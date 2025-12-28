@@ -15,11 +15,16 @@ export async function downloadLogging({
   versionMeta,
 }: {
   "necessaries": PreLaunchInformationType;
-  "logging"    : MappedArtifactType & {
+  "logging"    : (MappedArtifactType & {
     "argument": string;
-  };
+  }) | false;
   "versionMeta": SpecificPatchMetaType;
 }): Promise<void> {
+  // Old versions (pre 1.7) do not have this field
+  if (!logging) {
+    return;
+  }
+
   const beforeHooksResult: "continue" | void | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<void>({
       "scope" : "onMinecraftLoggingGet",

@@ -6,6 +6,7 @@ export type PreLaunchInformationType = {
   "platform"   : "windows" | "macos" | "linux";
   "arch"       : "x64" | "x86" | "arm64" | "arm32";
   "instance"   : InstanceStateType;
+  "javaMajor"  : number;
   "directories": {
     "base"     : string;
     "instance" : string;
