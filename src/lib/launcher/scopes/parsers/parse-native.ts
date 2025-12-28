@@ -6,6 +6,7 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type {
+  SpecificPatchClassifierKeyType,
   SpecificPatchClassifiersType,
   SpecificPatchLibraryType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
@@ -74,7 +75,7 @@ export function parseNative({
     const {
       "platform": classifierPlatform,
       "arch"    : classifierArch,
-    } = unifyPlatformWithArch(currentClassifier as keyof SpecificPatchClassifiersType);
+    } = unifyPlatformWithArch(currentClassifier as SpecificPatchClassifierKeyType);
     const isPlatformCompatible: boolean = classifierPlatform === platform;
     const isArchCompatible: boolean =
       classifierArch === "any" ||

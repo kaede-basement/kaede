@@ -56,40 +56,43 @@ export type SpecificPatchArtifactType = {
   "id"  ?: string;
   "path"?: string;
 };
-export type SpecificPatchClassifiersType = {
-  "natives-linux"          ?: SpecificPatchArtifactType;
-  "natives-linux-${arch}"  ?: SpecificPatchArtifactType;
-  "natives-linux-arm32"    ?: SpecificPatchArtifactType;
-  "natives-linux-arm64"    ?: SpecificPatchArtifactType;
-  "natives-osx"            ?: SpecificPatchArtifactType;
-  "natives-osx-${arch}"    ?: SpecificPatchArtifactType;
-  "natives-osx-arm64"      ?: SpecificPatchArtifactType;
-  "natives-windows"        ?: SpecificPatchArtifactType;
-  "natives-windows-${arch}"?: SpecificPatchArtifactType;
-  // Apparently this shit can also happen. Fuck you, MultiMC meta and Mojang API
-  "natives-macos"          ?: SpecificPatchArtifactType;
-  "natives-macos-${arch}"  ?: SpecificPatchArtifactType;
-  "natives-macos-arm64"    ?: SpecificPatchArtifactType;
+export type SpecificPatchClassifierKeyType =
+  "natives-linux" |
+  "natives-linux-${arch}" |
+  "natives-linux-arm32" |
+  "natives-linux-arm64" |
+  "natives-osx" |
+  "natives-osx-${arch}" |
+  "natives-osx-arm64" |
+  "natives-windows" |
+  "natives-windows-${arch}" |
+  // But there is already 'natives-osx' ?????
+  "natives-macos" |
+  "natives-macos-${arch}" |
+  "natives-macos-arm64" |
   // THIS THING ALSO EXISTS WHAT
-  "natives-windows-32"     ?: SpecificPatchArtifactType;
+  "natives-windows-32" |
   // I am tired of seeing absolutely random shit, so the next ones are made up by me
-  "natives-windows-64"     ?: SpecificPatchArtifactType;
-  "natives-windows-arm32"  ?: SpecificPatchArtifactType;
-  "natives-windows-x64"    ?: SpecificPatchArtifactType;
-  "natives-windows-x86"    ?: SpecificPatchArtifactType;
-  "natives-windows-x86_64" ?: SpecificPatchArtifactType;
-  "natives-linux-32"       ?: SpecificPatchArtifactType;
-  "natives-linux-64"       ?: SpecificPatchArtifactType;
-  "natives-linux-x64"      ?: SpecificPatchArtifactType;
-  "natives-linux-x86"      ?: SpecificPatchArtifactType;
-  "natives-linux-x86_64"   ?: SpecificPatchArtifactType;
-  "natives-osx-32"         ?: SpecificPatchArtifactType;
-  "natives-osx-64"         ?: SpecificPatchArtifactType;
-  "natives-osx-arm32"      ?: SpecificPatchArtifactType;
-  "natives-osx-x64"        ?: SpecificPatchArtifactType;
-  "natives-osx-x86"        ?: SpecificPatchArtifactType;
-  "natives-osx-x86_64"     ?: SpecificPatchArtifactType;
-};
+  "natives-windows-64" |
+  "natives-windows-arm32" |
+  "natives-windows-x64" |
+  "natives-windows-x86" |
+  "natives-windows-x86_64" |
+  "natives-linux-32" |
+  "natives-linux-64" |
+  "natives-linux-x64" |
+  "natives-linux-x86" |
+  "natives-linux-x86_64" |
+  "natives-osx-32" |
+  "natives-osx-64" |
+  "natives-osx-arm32" |
+  "natives-osx-x64" |
+  "natives-osx-x86" |
+  "natives-osx-x86_64";
+export type SpecificPatchClassifiersType = Record<
+  SpecificPatchClassifierKeyType,
+  SpecificPatchArtifactType
+>;
 export type SpecificPatchLibraryDownloadsType = {
   "artifact"   ?: SpecificPatchArtifactType;
   "classifiers"?: SpecificPatchClassifiersType;

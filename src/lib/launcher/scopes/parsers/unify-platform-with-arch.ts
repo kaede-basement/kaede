@@ -2,8 +2,8 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type {
+  SpecificPatchClassifierKeyType,
   SpecificPatchClassifierOSType,
-  SpecificPatchClassifiersType,
   SpecificPatchLibraryOSNameType,
   SpecificPatchRuntimeOSType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
@@ -22,7 +22,7 @@ export function unifyPlatformWithArch(
   name:
     SpecificPatchLibraryOSNameType |
     SpecificPatchRuntimeOSType |
-    keyof SpecificPatchClassifiersType |
+    SpecificPatchClassifierKeyType |
     // These values are stored in the artifact name in new minecraft versions
     SpecificPatchClassifierOSType,
 ): {
@@ -68,7 +68,7 @@ export function unifyPlatformWithArch(
     case "mac-os-x64": {
       return { "platform": "macos", "arch": "x64" };
     }
-    // 'keyof SpecificPatchClassifiersType'
+    // 'SpecificPatchClassifierKeyType'
     case "natives-linux": {
       return { "platform": "linux", "arch": "any" };
     }
