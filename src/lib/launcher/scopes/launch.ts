@@ -120,6 +120,8 @@ export async function launch({
     console.log(line);
   });
   instanceCommand.stderr.on("data", line => {
+    statuses.current = LaunchStatus.Errors.UnhandledError;
+
     console.error(line);
   });
 
