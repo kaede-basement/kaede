@@ -1,3 +1,4 @@
+import { LaunchStatus } from "@/constants/launcher.ts";
 import { extractNativeArchives } from "@/lib/launcher/scopes/extractors/extract-native-archives.ts";
 import {
   extractPreLaunchInformation,
@@ -13,6 +14,7 @@ import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
 import { getVersionMeta } from "@/lib/launcher/scopes/version-meta/get-version-meta.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
+import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
@@ -45,6 +47,14 @@ export async function launchWithChecks({
     return false;
   }
 
+  const mainClass: string | undefined = versionMeta?.mainClass;
+
+  if (mainClass === undefined) {
+    statuses.current = LaunchStatus.Errors.MetaMissingMainClass;
+
+    return false;
+  }
+
   const { libraries, natives } = parseLibraries({
     necessaries,
     "libraries": versionMeta?.libraries ?? [],
@@ -72,7 +82,7 @@ export async function launchWithChecks({
     patches,
   ]: [
     boolean,
-    Array<MappedArtifactType> | false,
+    LibraryArtifactsType | false,
     void,
     void,
     void,
@@ -92,7 +102,10 @@ export async function launchWithChecks({
 
   await extractNativeArchives({
     necessaries,
-    "paths": natives.map(({ path }) => path),
+    "paths": [
+      ...natives.map(({ path }) => path),
+      ...patches.natives.map(({ path }) => path),
+    ],
   });
 
   console.log("huh");
@@ -107,6 +120,7 @@ export async function launchWithChecks({
       logging,
       client,
       patches,
+      mainClass,
     },
   });
 }

@@ -39,6 +39,7 @@ export const LaunchStatus = {
     "UndefinedInstanceVersion"          : "error-undefined-instance-version",
     "IncompatiblePlatform"              : "error-incompatible-platform",
     "IncompatibleArch"                  : "error-incompatible-arch",
+    "MetaMissingMainClass"              : "error-meta-missing-main-class",
     "MetaVersionFetchFailed"            : "error-meta-version-fetch-failed",
     "MetaVersionParseFailed"            : "error-meta-version-parse-failed",
     "MetaVersionShallowValidationFailed": "error-meta-version-shallow-validation-failed",

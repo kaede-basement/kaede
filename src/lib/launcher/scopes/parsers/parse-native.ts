@@ -3,10 +3,12 @@ import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-a
 import { unifyPlatformWithArch } from "@/lib/launcher/scopes/parsers/unify-platform-with-arch.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
+import type {
   SpecificPatchClassifiersType,
   SpecificPatchLibraryType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export function parseNative({
   necessaries,
@@ -19,9 +21,9 @@ export function parseNative({
   const classifiers: SpecificPatchClassifiersType | undefined = library?.downloads?.classifiers;
   const isNewFormat: boolean = classifiers === undefined;
   const name: string | undefined = library?.name;
-  const url: string | undefined = library?.downloads?.artifact?.url;
+  const newFormattedUrl: string | undefined = library?.downloads?.artifact?.url;
 
-  if (name === undefined || url === undefined) {
+  if (name === undefined) {
     return false;
   }
 
@@ -31,14 +33,19 @@ export function parseNative({
     relativeDirectory,
   );
   const path: string = General.cachedJoin(directory, file);
-  const artifact: MappedArtifactType = {
-    directory,
-    file,
-    url,
-    path,
-  };
 
   if (isNewFormat) {
+    if (newFormattedUrl === undefined) {
+      return false;
+    }
+
+    const artifact: MappedArtifactType = {
+      directory,
+      file,
+      path,
+      "url": newFormattedUrl,
+    };
+
     if (classifier === undefined) {
       return artifact;
     }
@@ -60,7 +67,7 @@ export function parseNative({
   }
 
   if (!classifiers) {
-    return artifact;
+    return false;
   }
 
   for (const [currentClassifier, { "url": nativesUrl }] of Object.entries(classifiers)) {

@@ -48,6 +48,7 @@ import type {
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
+import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 
 /* Expand the globals with Kaede and Tauri namespaces */
 declare global {
@@ -900,7 +901,7 @@ declare global {
            *
            * If the hook returns a 'stop' status,
            * it should also return:
-           * @param output - an array of 'MappedArtifactType' (libraries, natives)
+           * @param output - an object that has the 'LibraryArtifactsType' type
            * or 'false' in case of a fail
            * in the 'response' field.
            *
@@ -912,20 +913,20 @@ declare global {
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
             },
-            Array<MappedArtifactType> | false
+            LibraryArtifactsType | false
           >;
 
           /**
            * Executes 'async' or 'sync' functions after the prism launcher patches
            * were handled. If the handling fails, these hooks will not fire.
            *
-           * @param input - an object that has the 'necessaries', 'merged',
+           * @param input - an object that has the 'necessaries', 'results',
            * and 'versionMeta' fields
            * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
            * it should also return:
-           * @param output - an array of 'MappedArtifactType' (libraries, natives)
+           * @param output - an object that has the 'LibraryArtifactsType' type
            * or 'false' in case of a fail
            * in the 'response' field.
            *
@@ -935,10 +936,10 @@ declare global {
           "after": HookReturnType<
             {
               "necessaries": PreLaunchInformationType;
-              "merged"     : Array<MappedArtifactType>;
+              "results"    : LibraryArtifactsType;
               "versionMeta": SpecificPatchMetaType;
             },
-            Array<MappedArtifactType> | false
+            LibraryArtifactsType | false
           >;
         };
 

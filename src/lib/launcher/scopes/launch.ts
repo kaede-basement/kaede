@@ -12,6 +12,7 @@ import {
   replaceLaunchArguments,
 } from "@/lib/launcher/scopes/arguments/replace-launch-arguments.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
+import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
@@ -33,23 +34,14 @@ export async function launch({
     "logging"  : MappedArtifactType & {
       "argument": string;
     };
-    "client" : MappedArtifactType;
-    "patches": Array<MappedArtifactType>;
+    "client"   : MappedArtifactType;
+    "patches"  : LibraryArtifactsType;
+    "mainClass": string;
   };
 }): Promise<boolean> {
-  console.log(
-    "Finally! The actual launch part.",
-    instanceId,
-    necessaries,
-    versionMeta,
-    parsed,
-  );
-
-  return;
-
   const { directories, statuses } = necessaries;
+  const { mainClass } = parsed;
 
-  const mainClass = versionMeta.mainClass;
   const [
     javaBinary,
     { "argument": classPathsArgument, classPaths },
@@ -61,21 +53,29 @@ export async function launch({
     string,
     string,
   ] = await Promise.all([
-    getJavaBinary({ necessaries, versionMeta }),
-    getClassPaths({
+    getJavaBinary({
+      instanceId,
       necessaries,
       versionMeta,
-      client,
+      parsed,
+    }),
+    getClassPaths({
+      instanceId,
+      necessaries,
+      versionMeta,
+      parsed,
     }),
     getJvmArguments({
+      instanceId,
       necessaries,
       versionMeta,
-      client,
+      parsed,
     }),
     getGameArguments({
+      instanceId,
       necessaries,
       versionMeta,
-      client,
+      parsed,
     }),
   ]);
 

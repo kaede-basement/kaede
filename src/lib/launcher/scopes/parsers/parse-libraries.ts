@@ -1,14 +1,17 @@
 import { checkIsNative } from "@/lib/launcher/scopes/parsers/check-is-native.ts";
 import { parseLibrary } from "@/lib/launcher/scopes/parsers/parse-library.ts";
 import { parseNative } from "@/lib/launcher/scopes/parsers/parse-native.ts";
+import { shouldIncludeLibrary } from "@/lib/launcher/scopes/parsers/should-include-library.ts";
 import {
   shallowlyValidateLibrary,
 } from "@/lib/launcher/scopes/validators/shallowly-validate-library.ts";
-import { shouldIncludeLibrary } from "@/lib/launcher/scopes/parsers/should-include-library.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
+import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export function parseLibraries({
   necessaries,
@@ -16,15 +19,9 @@ export function parseLibraries({
 }: {
   "necessaries": PreLaunchInformationType;
   "libraries"  : Array<SpecificPatchLibraryType>;
-}): {
-  "libraries": Array<MappedArtifactType>;
-  "natives"  : Array<MappedArtifactType>;
-} {
+}): LibraryArtifactsType {
   const { statuses } = necessaries;
-  const results: {
-    "libraries": Array<MappedArtifactType>;
-    "natives"  : Array<MappedArtifactType>;
-  } = {
+  const results: LibraryArtifactsType = {
     "libraries": [],
     "natives"  : [],
   };
@@ -53,18 +50,18 @@ export function parseLibraries({
     }
 
     const isNative: boolean = checkIsNative(library);
-    const artifact: MappedArtifactType | false = isNative
-      ? parseLibrary({ necessaries, library })
-      : parseNative({ necessaries, library });
 
-    if (!artifact) {
-      continue;
+    const libraryArtifact: MappedArtifactType | false = parseLibrary({ necessaries, library });
+    const nativeArtifact: MappedArtifactType | false = isNative
+      ? parseNative({ necessaries, library })
+      : false;
+
+    if (libraryArtifact) {
+      results.libraries.push(libraryArtifact);
     }
 
-    if (isNative) {
-      results.natives.push(artifact);
-    } else {
-      results.libraries.push(artifact);
+    if (nativeArtifact) {
+      results.natives.push(nativeArtifact);
     }
   }
 

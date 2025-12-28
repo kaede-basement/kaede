@@ -4,7 +4,7 @@ import { downloadLibraries } from "@/lib/launcher/scopes/fetching/download-libra
 import { parseLibraries } from "@/lib/launcher/scopes/parsers/parse-libraries.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getPatch } from "@/lib/launcher/scopes/version-meta/patch/get-patch.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -16,9 +16,9 @@ export async function getPatches({
 }: {
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-}): Promise<Array<MappedArtifactType> | false> {
-  const beforeHooksResult: "continue" | Array<MappedArtifactType> | false | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<Array<MappedArtifactType> | false>({
+}): Promise<LibraryArtifactsType | false> {
+  const beforeHooksResult: "continue" | LibraryArtifactsType | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<LibraryArtifactsType | false>({
       "scope" : "onMinecraftPatchesGet",
       "toPass": { necessaries, versionMeta },
       "timing": "before",
@@ -47,7 +47,7 @@ export async function getPatches({
       require,
     })),
   );
-  const merged: Array<MappedArtifactType> = [];
+  const results: LibraryArtifactsType = { "libraries": [], "natives": [] };
 
   for (const patch of patches) {
     if (patch === false) {
@@ -72,13 +72,14 @@ export async function getPatches({
       }),
     ]);
 
-    merged.push(...libraries, ...natives);
+    results.libraries.push(...libraries);
+    results.natives.push(...natives);
   }
 
-  const afterHooksResult: "continue" | Array<MappedArtifactType> | false | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<Array<MappedArtifactType> | false>({
+  const afterHooksResult: "continue" | LibraryArtifactsType | false | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<LibraryArtifactsType | false>({
       "scope" : "onMinecraftPatchesGet",
-      "toPass": { necessaries, merged, versionMeta },
+      "toPass": { necessaries, results, versionMeta },
       "timing": "after",
     });
 
@@ -88,5 +89,5 @@ export async function getPatches({
 
   statuses.current = LaunchStatus.Patches.Done;
 
-  return merged;
+  return results;
 }

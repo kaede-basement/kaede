@@ -11,6 +11,7 @@ export async function extractNativeArchives({
   "paths"      : Array<string>;
 }): Promise<void> {
   const { directories } = necessaries;
+  console.log("uhee", paths);
 
   await Promise.all(
     paths.map(path => General.unzip({

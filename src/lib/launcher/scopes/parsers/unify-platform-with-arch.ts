@@ -95,6 +95,15 @@ export function unifyPlatformWithArch(
     case "natives-windows-${arch}": {
       return { "platform": "windows", "arch": "any" };
     }
+    case "natives-macos": {
+      return { "platform": "macos", "arch": "any" };
+    }
+    case "natives-macos-${arch}": {
+      return { "platform": "macos", "arch": "any" };
+    }
+    case "natives-macos-arm64": {
+      return { "platform": "macos", "arch": "arm64" };
+    }
     // 'SpecificPatchClassifierOSType'
     case "windows-aarch_64": {
       return { "platform": "windows", "arch": "arm64" };

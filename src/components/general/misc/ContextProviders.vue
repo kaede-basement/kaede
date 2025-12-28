@@ -80,6 +80,8 @@ async function launchInstance(instanceId?: string): Promise<void> {
   const endTime: number = performance.now();
   const totalTime: string = (endTime - startTime).toFixed(2);
 
+  statuses.launching = false;
+
   log.info(
     `The '${instanceId}' launch process was done in ${totalTime} ms.`,
     `Is success: '${success}'`,

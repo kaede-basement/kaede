@@ -66,6 +66,10 @@ export type SpecificPatchClassifiersType = {
   "natives-osx-arm64"      ?: SpecificPatchArtifactType;
   "natives-windows"        ?: SpecificPatchArtifactType;
   "natives-windows-${arch}"?: SpecificPatchArtifactType;
+  // Apparently this shit can also happen. Fuck you, MultiMC meta and Mojang API
+  "natives-macos"          ?: SpecificPatchArtifactType;
+  "natives-macos-${arch}"  ?: SpecificPatchArtifactType;
+  "natives-macos-arm64"    ?: SpecificPatchArtifactType;
 };
 export type SpecificPatchLibraryDownloadsType = {
   "artifact"   ?: SpecificPatchArtifactType;
