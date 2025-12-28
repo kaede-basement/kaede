@@ -1,8 +1,12 @@
 import General from "@/lib/general";
+import type {
+  SpecificPatchClassifierOSType,
+} from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export function normalizeArtifactPath(artifact: string): {
-  "directory": string;
-  "file"     : string;
+  "directory" : string;
+  "file"      : string;
+  "classifier": SpecificPatchClassifierOSType | undefined;
 } {
   const paths: Array<string> = artifact.split(":");
 
@@ -32,5 +36,6 @@ export function normalizeArtifactPath(artifact: string): {
     "file"     : classifier === undefined
       ? `${name}-${version}.jar`
       : `${name}-${version}-${classifier}.jar`,
+    "classifier": classifier as SpecificPatchClassifierOSType | undefined,
   };
 }

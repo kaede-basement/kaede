@@ -17,6 +17,10 @@ export type SpecificPatchRuntimeVersionType = {
 };
 export type SpecificPatchRuntimeDownloadType = "archive" | "manifest";
 export type SpecificPatchRuntimePackageType = "jre";
+export type SpecificPatchClassifierOSType =
+  "windows-aarch_64" | "windows-x86_64" |
+  "linux-aarch_64" | "linux-x86_64" |
+  "osx-aarch_64" | "osx-x86_64";
 export type SpecificPatchRuntimeOSType =
   "linux-arm64" |
   "linux-x64" |

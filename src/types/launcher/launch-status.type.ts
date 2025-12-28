@@ -7,4 +7,8 @@ export type LaunchStatusType = {
   [Key in LaunchKeyType]: LaunchStatusObjectType[Key][keyof LaunchStatusObjectType[Key]];
 }[LaunchKeyType];
 
-export type LauncherStatusesType = Set<LaunchStatusType>;
+export type LauncherStatusesType = {
+  "current"  : LaunchStatusType | undefined;
+  "assets"   : Set<string>;
+  "libraries": Set<string>;
+};

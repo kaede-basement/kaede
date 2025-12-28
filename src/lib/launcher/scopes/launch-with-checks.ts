@@ -1,8 +1,10 @@
+import { LaunchStatus } from "@/constants/launcher.ts";
 import {
   extractPreLaunchInformation,
 } from "@/lib/launcher/scopes/extract-pre-launch-information.ts";
 import { getVersionMeta } from "@/lib/launcher/scopes/get-version-meta.ts";
 import { launch } from "@/lib/launcher/scopes/launch.ts";
+import { parseLibraries } from "@/lib/launcher/scopes/libraries/parse-libraries.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getClient } from "@/lib/launcher/scopes/version-meta/get-client.ts";
 import { getLibraries } from "@/lib/launcher/scopes/version-meta/get-libraries.ts";
@@ -37,6 +39,22 @@ export async function launchWithChecks({
   if (versionMeta === false) {
     return false;
   }
+
+  const unknownLibraryEntries: SpecificPatchMetaType["libraries"] = versionMeta?.libraries;
+
+  if (
+    unknownLibraryEntries === undefined ||
+    !Array.isArray(unknownLibraryEntries)
+  ) {
+    necessaries.statuses.current = LaunchStatus.Errors.LibrariesMissingMeta;
+
+    return false;
+  }
+
+  const { libraries, natives } = parseLibraries({
+    necessaries,
+    "libraries": unknownLibraryEntries,
+  });
 
   // Concurrently resolve instance assets, client jar, libraries, logging configs, and patches
   const [

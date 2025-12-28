@@ -52,8 +52,11 @@ export function handleNatives({
   for (const library of libraries) {
     const name: string | undefined = library?.name;
     const classifiers: SpecificPatchClassifiersType | undefined = library?.downloads?.classifiers;
+    const isClassifier: boolean =
+      (name !== undefined && classifiers !== undefined) ||
+      (name !== undefined && name.includes("native"));
 
-    if (name === undefined || classifiers === undefined) {
+    if (!isClassifier) {
       continue;
     }
 

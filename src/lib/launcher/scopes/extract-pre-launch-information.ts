@@ -69,7 +69,7 @@ export function extractPreLaunchInformation({
       break;
     }
     default: {
-      statuses.add(LaunchStatus.Errors.IncompatiblePlatform);
+      statuses.current = LaunchStatus.Errors.IncompatiblePlatform;
 
       return false;
     }
@@ -98,7 +98,7 @@ export function extractPreLaunchInformation({
       break;
     }
     default: {
-      statuses.add(LaunchStatus.Errors.IncompatibleArch);
+      statuses.current = LaunchStatus.Errors.IncompatibleArch;
 
       return false;
     }

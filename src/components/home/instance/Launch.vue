@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, inject, ref, shallowReactive } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey, InstanceStatesContextKey } from "@/constants/application.ts";
@@ -19,12 +19,15 @@ const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 
 const loading = ref<boolean>(false);
+const statuses: LauncherStatusesType = shallowReactive({
+  "current"  : undefined,
+  "assets"   : new Set,
+  "libraries": new Set,
+});
 
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
 ));
-
-const statuses: LauncherStatusesType = new Set;
 
 async function handleLaunch(): Promise<void> {
   if (
@@ -42,8 +45,9 @@ async function handleLaunch(): Promise<void> {
   const startTime: number = performance.now();
   let success: boolean = false;
 
-  statuses.clear();
-  statuses.add(LaunchStatus.General.Starting);
+  statuses.current = LaunchStatus.General.Starting;
+  statuses.assets.clear();
+  statuses.libraries.clear();
 
   try {
     await Launcher.launchWithChecks({
@@ -54,7 +58,7 @@ async function handleLaunch(): Promise<void> {
 
     success = true;
   } catch (error: unknown) {
-    statuses.add(LaunchStatus.Errors.UnhandledError);
+    statuses.current = LaunchStatus.Errors.UnhandledError;
 
     log.error(
       `Could not launch the '${currentInstance.value.id}' instance:`,

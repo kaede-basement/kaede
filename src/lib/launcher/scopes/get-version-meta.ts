@@ -29,17 +29,17 @@ export async function getVersionMeta(
   let parsed: unknown;
 
   try {
-    statuses.add(LaunchStatus.Metadata.ReadingCachedVersionMeta);
+    statuses.current = LaunchStatus.Metadata.ReadingCachedVersionMeta;
     parsed = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Cache.Path, `${version}.json`],
       "label"          : `/cache/${version}.json`,
       "getDefaultValue": async () => {
-        statuses.add(LaunchStatus.Metadata.FetchingVersionMeta);
+        statuses.current = LaunchStatus.Metadata.FetchingVersionMeta;
         const fetched: object | LaunchStatusType = await fetchVersionMeta({ version });
 
         if (typeof fetched === "string") {
-          statuses.add(fetched);
+          statuses.current = fetched;
 
           /*
            * The 'General#handleJsonFile' function writes the returned value
@@ -56,7 +56,7 @@ export async function getVersionMeta(
     return false;
   }
 
-  statuses.add(LaunchStatus.Metadata.ValidatingVersionMeta);
+  statuses.current = LaunchStatus.Metadata.ValidatingVersionMeta;
   const unsafeParsed = (parsed as { "uid"?: string });
   const logId: string = unsafeParsed?.uid ?? "unknown";
   const minecraftVersionMeta: SpecificPatchMetaType | false = Schemas.validate.patchMeta({
@@ -68,7 +68,7 @@ export async function getVersionMeta(
   });
 
   if (minecraftVersionMeta === false) {
-    statuses.add(LaunchStatus.Errors.MetaVersionFullValidationFailed);
+    statuses.current = LaunchStatus.Errors.MetaVersionFullValidationFailed;
 
     return false;
   }
