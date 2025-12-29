@@ -8,11 +8,13 @@ export type PreLaunchInformationType = {
   "instance"   : InstanceStateType;
   "javaMajor"  : number;
   "directories": {
-    "base"     : string;
-    "instance" : string;
-    "assets"   : string;
-    "logging"  : string;
-    "libraries": string;
-    "natives"  : string;
+    "base"        : string;
+    "instance"    : string;
+    "assets"      : string;
+    "logging"     : string;
+    "libraries"   : string;
+    "natives"     : string;
+    "assetIndexes": string;
+    "assetObjects": string;
   };
 };

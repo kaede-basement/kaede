@@ -20,19 +20,22 @@ export async function getJvmArguments({
     }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
-    "mainClass": string;
+    "mainClass": string | undefined;
   };
 }): Promise<string> {
   const { platform } = necessaries;
   const jvmArguments: Array<string> = [];
 
   jvmArguments.push(
+    "-Xms1G",
+    "-Xmx2G",
     "-Djava.library.path=${natives_directory}",
     "-Djna.tmpdir=${natives_directory}",
     "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
     "-Dio.netty.native.workdir=${natives_directory}",
     "-Dminecraft.launcher.brand=${launcher_name}",
     "-Dminecraft.launcher.version=${launcher_version}",
+    "-Duser.language=en",
   );
 
   let logFilePath: string = "";

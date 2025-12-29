@@ -19,7 +19,7 @@ export async function getGameArguments({
     }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
-    "mainClass": string;
+    "mainClass": string | undefined;
   };
 }): Promise<string> {
   if (versionMeta?.minecraftArguments === undefined) {

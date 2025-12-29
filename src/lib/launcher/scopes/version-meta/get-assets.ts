@@ -6,12 +6,6 @@ import { fetchAssetsMeta } from "@/lib/launcher/scopes/fetching/fetch-assets-met
 import {
   shallowlyValidateMeta,
 } from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
-import {
-  initializeAssetsDirectories,
-} from "@/lib/launcher/scopes/version-meta/assets/initialize-assets-directories.ts";
-import {
-  initializeShortHashDirectories,
-} from "@/lib/launcher/scopes/version-meta/assets/initialize-short-hash-directories.ts";
 import type { AssetObjectsType } from "@/types/launcher/artifacts/asset-objects.type.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
@@ -54,22 +48,6 @@ export async function getAssets({
 
   const assetIndex: SpecificPatchAssetIndexType = versionMeta.assetIndex;
   const metaFilename = assetIndex.id + ".json";
-  const assetsFolders: {
-    "indexes": string;
-    "objects": string;
-  } = {
-    "indexes": General.cachedJoin(
-      directories.assets,
-      "indexes",
-    ),
-    "objects": General.cachedJoin(
-      directories.assets,
-      "objects",
-    ),
-  };
-
-  await initializeAssetsDirectories({ assetsFolders });
-  await initializeShortHashDirectories({ assetsFolders });
 
   let parsedMeta: unknown;
 
@@ -123,7 +101,7 @@ export async function getAssets({
       const shortHash = hash.slice(0, 2);
       const url = APIEndpoints.Resources.Base + shortHash + "/" + hash;
       const shortHashPath = General.cachedJoin(
-        assetsFolders.objects,
+        directories.assetObjects,
         shortHash,
       );
       const filePath = General.cachedJoin(

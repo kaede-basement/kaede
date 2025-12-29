@@ -23,7 +23,7 @@ export async function getJavaBinary({
     }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
-    "mainClass": string;
+    "mainClass": string | undefined;
   };
 }): Promise<"java" | "cmd"> {
   const beforeHooksResult: "continue" | "java" | "cmd" | undefined =

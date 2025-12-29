@@ -20,7 +20,7 @@ export async function getAdditionalStartArguments({
     }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
-    "mainClass": string;
+    "mainClass": string | undefined;
   };
 }): Promise<string> {
   return javaBinary === "cmd" ? "/C javaw" : "";

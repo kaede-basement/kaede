@@ -15,10 +15,12 @@ export function extractPreLaunchInformation({
   statuses,
   instance,
   instanceId,
+  javaMajor,
 }: {
   "statuses"  : LauncherStatusesType;
   "instance"  : InstanceStateType;
   "instanceId": string;
+  "javaMajor" : number;
 }): PreLaunchInformationType | false {
   const beforeHooksResult: "continue" | PreLaunchInformationType | false | undefined =
     ExtensionsManager.catchSyncResponseHooks<PreLaunchInformationType | false>({
@@ -111,14 +113,22 @@ export function extractPreLaunchInformation({
     "platform"   : compatiblePlatform,
     "arch"       : compatibleArch,
     "instance"   : instance,
-    "javaMajor"  : 11,
+    "javaMajor"  : javaMajor,
     "directories": {
-      "base"     : baseDirectory,
-      "instance" : instanceDirectory,
-      "assets"   : assetsDirectory,
-      "logging"  : loggingDirectory,
-      "libraries": librariesDirectory,
-      "natives"  : nativesDirectory,
+      "base"        : baseDirectory,
+      "instance"    : instanceDirectory,
+      "assets"      : assetsDirectory,
+      "logging"     : loggingDirectory,
+      "libraries"   : librariesDirectory,
+      "natives"     : nativesDirectory,
+      "assetIndexes": General.cachedJoin(
+        assetsDirectory,
+        "indexes",
+      ),
+      "assetObjects": General.cachedJoin(
+        assetsDirectory,
+        "objects",
+      ),
     },
   };
   const afterHooksResult: "continue" | PreLaunchInformationType | false | undefined =

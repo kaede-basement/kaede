@@ -1,4 +1,3 @@
-import { LaunchStatus } from "@/constants/launcher.ts";
 import { extractNativeArchives } from "@/lib/launcher/scopes/extractors/extract-native-archives.ts";
 import {
   extractPreLaunchInformation,
@@ -13,6 +12,9 @@ import { parseMainJar } from "@/lib/launcher/scopes/parsers/parse-main-jar.ts";
 import {
   ensureMinecraftDirectory,
 } from "@/lib/launcher/scopes/validators/ensure-minecraft-directory.ts";
+import {
+  initializeAssetsDirectories,
+} from "@/lib/launcher/scopes/version-meta/assets/initialize-assets-directories.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
 import { getVersionMeta } from "@/lib/launcher/scopes/version-meta/get-version-meta.ts";
@@ -29,15 +31,18 @@ export async function launchWithChecks({
   instanceId,
   instance,
   statuses,
+  javaMajor,
 }: {
   "instanceId": string;
   "instance"  : InstanceStateType;
   "statuses"  : LauncherStatusesType;
+  "javaMajor" : number;
 }): Promise<boolean> {
   const necessaries: PreLaunchInformationType | false = extractPreLaunchInformation({
     instanceId,
     instance,
     statuses,
+    javaMajor,
   });
 
   if (necessaries === false) {
@@ -49,20 +54,14 @@ export async function launchWithChecks({
   ]: [
     SpecificPatchMetaType | false,
     void,
+    void,
   ] = await Promise.all([
     getVersionMeta(necessaries),
     ensureMinecraftDirectory(necessaries),
+    initializeAssetsDirectories(necessaries),
   ]);
 
   if (versionMeta === false) {
-    return false;
-  }
-
-  const mainClass: string | undefined = versionMeta?.mainClass;
-
-  if (mainClass === undefined) {
-    statuses.current = LaunchStatus.Errors.MetaMissingMainClass;
-
     return false;
   }
 
@@ -131,7 +130,7 @@ export async function launchWithChecks({
       logging,
       client,
       patches,
-      mainClass,
+      "mainClass": versionMeta?.mainClass,
     },
   });
 }

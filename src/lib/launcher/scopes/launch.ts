@@ -36,7 +36,7 @@ export async function launch({
     }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
-    "mainClass": string;
+    "mainClass": string | undefined;
   };
 }): Promise<boolean> {
   const { directories, statuses } = necessaries;
@@ -44,13 +44,13 @@ export async function launch({
 
   const [
     javaBinary,
-    { "argument": classPathsArgument, classPaths },
     jvmArguments,
+    { "argument": classPathsArgument, classPaths },
     gameArguments,
   ]: [
     "java" | "cmd",
-    { "argument": string; "classPaths": string },
     string,
+    { "argument": string; "classPaths": string },
     string,
   ] = await Promise.all([
     getJavaBinary({
@@ -59,13 +59,13 @@ export async function launch({
       versionMeta,
       parsed,
     }),
-    getClassPaths({
+    getJvmArguments({
       instanceId,
       necessaries,
       versionMeta,
       parsed,
     }),
-    getJvmArguments({
+    getClassPaths({
       instanceId,
       necessaries,
       versionMeta,
@@ -86,10 +86,11 @@ export async function launch({
     versionMeta,
     parsed,
   });
+  const validMainClass: string = mainClass ?? "net.minecraft.client.Minecraft";
   const toReplace: Array<string> = [
-    classPathsArgument,
     jvmArguments,
-    mainClass,
+    classPathsArgument,
+    validMainClass,
     gameArguments,
   ];
 
@@ -123,7 +124,7 @@ export async function launch({
   instanceCommand.stdout.on("data", line => {
     console.log(line);
   });
-  instanceCommand.stderr.on("data", line => {
+  instanceCommand.on("error", line => {
     statuses.current = LaunchStatus.Errors.UnhandledError;
 
     console.error(line);

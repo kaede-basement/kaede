@@ -37,7 +37,7 @@ export function replaceLaunchArguments({
     }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
-    "mainClass": string;
+    "mainClass": string | undefined;
   };
 }): string {
   const { directories, instance } = necessaries;

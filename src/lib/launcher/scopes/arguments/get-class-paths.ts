@@ -30,7 +30,7 @@ export async function getClassPaths({
     }) | false;
     "client"   : MappedArtifactType;
     "patches"  : LibraryArtifactsType;
-    "mainClass": string;
+    "mainClass": string | undefined;
   };
 }): Promise<{
   "argument"  : string;
