@@ -107,7 +107,7 @@ export async function getPatches({
     return afterHooksResult;
   }
 
-  log.error(`Successfully handled ${patches.length} patches`);
+  log.info(`Successfully handled ${patches.length} patches`);
   statuses.current = LaunchStatus.Patches.Done;
 
   return results;

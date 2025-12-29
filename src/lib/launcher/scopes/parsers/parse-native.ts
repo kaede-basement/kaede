@@ -72,7 +72,7 @@ export function parseNative({
       return artifact;
     }
 
-    log.warn(`The '${name}' native is not compatible`);
+    log.debug(`The '${name}' native is not compatible`);
 
     return false;
   }
@@ -111,7 +111,7 @@ export function parseNative({
     };
   }
 
-  log.warn(`The '${name}' native is not compatible`);
+  log.debug(`The '${name}' native is not compatible`);
 
   return false;
 }
