@@ -4,6 +4,7 @@ import { downloadLibraries } from "@/lib/launcher/scopes/fetching/download-libra
 import { parseLibraries } from "@/lib/launcher/scopes/parsers/parse-libraries.ts";
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getPatch } from "@/lib/launcher/scopes/version-meta/patch/get-patch.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type {
   PreLaunchInformationType,
@@ -28,6 +29,7 @@ export async function getPatches({
     return beforeHooksResult;
   }
 
+  log.debug("Getting the patch requires metadata");
   const { directories, statuses } = necessaries;
   const requires: SpecificPatchMetaType["requires"] = versionMeta?.requires;
 
@@ -35,11 +37,13 @@ export async function getPatches({
     requires === undefined ||
     !Array.isArray(requires)
   ) {
+    log.error("The version meta is missing patch requires metadata");
     statuses.current = LaunchStatus.Errors.PatchMissingMeta;
 
     return false;
   }
 
+  log.debug(`Getting the metadata for ${requires.length} patches`);
   const patches: Array<SpecificPatchMetaType | false> = await Promise.all(
     requires.map(require => getPatch({
       "baseDirectory": directories.base,
@@ -60,6 +64,7 @@ export async function getPatches({
     });
 
     if (patch?.assetIndex === undefined) {
+      log.debug(`The '${patch?.uid}' patch does not have assetIndex`);
       await downloadLibraries({
         necessaries,
         libraries,
@@ -73,6 +78,7 @@ export async function getPatches({
       continue;
     }
 
+    log.debug(`The '${patch?.uid}' patch has assetIndex`);
     await Promise.all([
       getAssets({
         necessaries,
@@ -101,6 +107,7 @@ export async function getPatches({
     return afterHooksResult;
   }
 
+  log.error(`Successfully handled ${patches.length} patches`);
   statuses.current = LaunchStatus.Patches.Done;
 
   return results;

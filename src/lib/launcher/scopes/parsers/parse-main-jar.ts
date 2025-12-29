@@ -27,7 +27,7 @@ export function parseMainJar({
     url === undefined ||
     hash === undefined
   ) {
-    log.debug("The main jar metadata is invalid");
+    log.error("The main jar metadata is invalid");
     statuses.current = LaunchStatus.Errors.ClientMainJarMissingMeta;
 
     return false;

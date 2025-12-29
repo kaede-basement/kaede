@@ -1,3 +1,4 @@
+import Errors from "@/lib/errors";
 import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type {
@@ -38,12 +39,20 @@ export function concurrentlyDownload({
           log.debug(
             `Concurrency group ${groupIndex}: downloading (${entryOutOfTotal}) '${url}'`,
           );
-          await downloadWithProgress({
-            url,
-            path,
-            statuses,
-            statusScope,
-          });
+          try {
+            await downloadWithProgress({
+              url,
+              path,
+              statuses,
+              statusScope,
+            });
+          } catch (error: unknown) {
+            log.error(
+              `Concurrency group ${groupIndex}:`,
+              `could not download the ${entryOutOfTotal} object:`,
+              Errors.prettify(error),
+            );
+          }
         }
       }),
   );

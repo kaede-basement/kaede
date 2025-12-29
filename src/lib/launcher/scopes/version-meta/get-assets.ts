@@ -36,7 +36,7 @@ export async function getAssets({
     return beforeHooksResult;
   }
 
-  log.debug("");
+  log.debug("Getting the assetIndex metadata");
   const { directories, statuses, instance } = necessaries;
 
   if (
@@ -44,6 +44,7 @@ export async function getAssets({
     versionMeta?.assetIndex?.id === undefined ||
     versionMeta?.assetIndex?.url === undefined
   ) {
+    log.error("The version meta is missing assetIndex metadata");
     statuses.current = LaunchStatus.Errors.MetaAssetsMissingMeta;
 
     return false;
@@ -55,18 +56,21 @@ export async function getAssets({
   let parsedMeta: unknown;
 
   try {
+    log.debug("Reading the cached assets metadata");
     statuses.current = LaunchStatus.Assets.ReadingCachedMeta;
     parsedMeta = await General.handleJsonFile({
       "baseDirectory"  : directories.base,
       "path"           : [FileStructure.Folders.Assets.Path, "indexes", metaFilename],
       "label"          : `/assets/indexes/${metaFilename}`,
       "getDefaultValue": async () => {
+        log.warn("No cache; fetching the assets metadata");
         statuses.current = LaunchStatus.Assets.FetchingMeta;
         const fetched: object | LaunchStatusType = await fetchAssetsMeta({
           "url": assetIndex.url,
         });
 
         if (typeof fetched !== "object") {
+          log.error("Could not fetch the assets metadata. Status:", fetched);
           statuses.current = fetched;
 
           /*
@@ -84,11 +88,13 @@ export async function getAssets({
     return false;
   }
 
+  log.debug("Validating the assets metadata");
   const shallowlyValidMeta: AssetObjectsType | false = shallowlyValidateMeta({
     "meta": parsedMeta,
   });
 
   if (shallowlyValidMeta === false) {
+    log.error("The assets metadata is invalid");
     statuses.current = LaunchStatus.Errors.MetaAssetsShallowValidationFailed;
 
     return false;
@@ -121,17 +127,25 @@ export async function getAssets({
       };
     });
 
-  const t1 = performance.now();
+  log.debug(
+    `Verifying ${mappedAssetObjects.length} assets for their existence.`,
+    `SHA1 checks enabled: ${instance.checksum}`,
+  );
+  const startTime: number = performance.now();
   const hashesToReDownload: Set<string> = new Set(
     await verifyArtifacts({
       "paths"   : mappedAssetObjects,
       "checksum": instance.checksum,
     }),
   );
-  const t2 = performance.now();
+  const endTime: number = performance.now();
+  const totalTime: string = (endTime - startTime).toFixed(2);
 
-  console.log(t2 - t1, `ms spent on verifying ${mappedAssetObjects.length} paths`);
-  console.log("verification failed for:", hashesToReDownload);
+  log.info(
+    `Successfully verified ${mappedAssetObjects.length} assets in ${totalTime} ms.`,
+    `Total mismatches: ${hashesToReDownload.size}.`,
+    `SHA1 checks enabled: ${instance.checksum}`,
+  );
 
   const missingAssetObjects: Array<{
     "shortHashPath": string;
@@ -159,6 +173,10 @@ export async function getAssets({
     return afterHooksResult;
   }
 
+  log.info(
+    `Successfully handled ${mappedAssetObjects.length} assets`,
+    `and re-downloaded ${hashesToReDownload.size} of them`,
+  );
   statuses.current = LaunchStatus.Assets.Done;
 
   return true;

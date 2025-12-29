@@ -1154,6 +1154,51 @@ declare global {
         };
 
         /**
+         * Executed on minecraft natives extraction
+         */
+        "onNativesExtract": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'necessaries' and 'paths' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a 'void'
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "paths"      : Array<string>;
+            },
+            void
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the minecraft libraries were
+           * downloaded/verified. If the download/verification fails, these hooks will not fire.
+           *
+           * @param input - an object that has the 'necessaries' and 'paths' fields
+           * is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
+          "after": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "paths"      : Array<string>;
+            },
+            "nothing"
+          >;
+        };
+
+        /**
          * Executed on a shell command name get
          */
         "onJavaBinaryGet": {

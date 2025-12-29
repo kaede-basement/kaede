@@ -152,6 +152,10 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onLibrariesParsing": {
+        "before": [],
+        "after" : [],
+      },
       "onMinecraftAssetsGet": {
         "before": [],
         "after" : [],
@@ -169,6 +173,10 @@ export function declareWindow(): void {
         "after" : [],
       },
       "onMinecraftLibrariesGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onNativesExtract": {
         "before": [],
         "after" : [],
       },

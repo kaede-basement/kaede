@@ -95,5 +95,7 @@ export async function getVersionMeta(
     return afterHooksResult;
   }
 
+  log.info("The version metadata is valid");
+
   return minecraftVersionMeta;
 }

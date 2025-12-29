@@ -24,6 +24,10 @@ export async function initializeShortHashDirectories({
     .filter(hash => !existingFolders.has(hash))
     .map(hash => General.cachedJoin(directories.assetObjects, hash));
 
+  if (missingPaths.length === 0) {
+    return;
+  }
+
   log.warn(`Missing ${missingPaths.length} short hash directories; creating them`);
   await Promise.all(
     missingPaths.map(path => mkdir(path)),
