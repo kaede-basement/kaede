@@ -1,5 +1,6 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
@@ -15,6 +16,7 @@ export function parseLogging({
 }): (MappedArtifactType & {
   "argument": string;
 }) | false {
+  log.debug("Parsing the logging metadata");
   const { directories, statuses } = necessaries;
 
   if (
@@ -23,6 +25,10 @@ export function parseLogging({
     logging?.file === undefined ||
     logging?.argument === undefined
   ) {
+    log.warn(
+      "The 'logging' field is invalid. Contents:",
+      "\n" + JSON.stringify(logging, null, 2),
+    );
     statuses.current = LaunchStatus.Errors.LoggingMissingMeta;
 
     return false;
@@ -34,6 +40,7 @@ export function parseLogging({
   const hash: string | undefined = logging.file?.sha1;
 
   if (!name || !url || !hash) {
+    log.warn("Missing the logging config file metadata");
     statuses.current = LaunchStatus.Errors.LoggingMissingMeta;
 
     return false;
@@ -43,6 +50,8 @@ export function parseLogging({
     directories.logging,
     name,
   );
+
+  log.debug("Parsed the logging metadata");
 
   return {
     "file"     : name,

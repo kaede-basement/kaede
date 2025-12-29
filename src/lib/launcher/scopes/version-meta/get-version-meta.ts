@@ -3,6 +3,7 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { fetchVersionMeta } from "@/lib/launcher/scopes/fetching/fetch-version-meta.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
@@ -31,16 +32,19 @@ export async function getVersionMeta(
   let parsed: unknown;
 
   try {
+    log.debug("Reading the cached version metadata");
     statuses.current = LaunchStatus.Metadata.ReadingCachedVersionMeta;
     parsed = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Cache.Path, `${version}.json`],
       "label"          : `/cache/${version}.json`,
       "getDefaultValue": async () => {
+        log.warn("No cache; fetching the version metadata");
         statuses.current = LaunchStatus.Metadata.FetchingVersionMeta;
         const fetched: object | LaunchStatusType = await fetchVersionMeta({ version });
 
         if (typeof fetched === "string") {
+          log.error("Could not fetch the version metadata. Status:", fetched);
           statuses.current = fetched;
 
           /*
@@ -58,6 +62,7 @@ export async function getVersionMeta(
     return false;
   }
 
+  log.debug("Validating the version metadata");
   statuses.current = LaunchStatus.Metadata.ValidatingVersionMeta;
   const unsafeParsed = (parsed as { "uid"?: string });
   const logId: string = unsafeParsed?.uid ?? "unknown";
@@ -70,6 +75,7 @@ export async function getVersionMeta(
   });
 
   if (minecraftVersionMeta === false) {
+    log.error("The version metadata is invalid");
     statuses.current = LaunchStatus.Errors.MetaVersionFullValidationFailed;
 
     return false;

@@ -27,11 +27,13 @@ export async function getJavaMajor(): Promise<number> {
    * Also, seems like the output is written into 'stderr' instead of 'stdout'
    * while the 'stdout' part remains an empty string
    */
-  const output: string = process.stdout || process.stderr;
+  const output: string = (process.stdout || process.stderr) ?? "";
   const parsed: Array<string> = output.split("\"");
   const possibleVersion: string | undefined = parsed?.[1];
 
   if (!possibleVersion) {
+    log.error("Could not parse the Java major version. The original output:", output);
+
     return FamousAndOldJavaMajorVersion;
   }
 
@@ -40,6 +42,8 @@ export async function getJavaMajor(): Promise<number> {
   );
 
   if (Number.isNaN(majorVersion)) {
+    log.error("The parsed Java major version is not a number. The original output:", output);
+
     return FamousAndOldJavaMajorVersion;
   }
 

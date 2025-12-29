@@ -1,4 +1,5 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
@@ -14,6 +15,7 @@ export function shallowlyValidateLibrary({
     library === null ||
     !("name" in library)
   ) {
+    log.debug(`The '${JSON.stringify(library)}' is completely incompatible`);
     statuses.current = LaunchStatus.Errors.LibraryShallowValidationFailed;
 
     return false;

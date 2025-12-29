@@ -66,7 +66,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
       ?? await General.getJavaMajor();
 
     await Launcher.launchWithChecks({
-      "instance" : currentInstance.instance,
+      "instance": currentInstance.instance,
       javaMajor,
       instanceId,
       statuses,
@@ -77,6 +77,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
     statuses.current = LaunchStatus.Errors.UnhandledError;
 
     log.error(
+      "Unhandled error.",
       `Could not launch the '${instanceId}' instance:`,
       Errors.prettify(error),
     );

@@ -1,3 +1,4 @@
+import ExtensionsManager from "@/lib/extensions-manager";
 import { checkIsNative } from "@/lib/launcher/scopes/parsers/check-is-native.ts";
 import { parseLibrary } from "@/lib/launcher/scopes/parsers/parse-library.ts";
 import { parseNative } from "@/lib/launcher/scopes/parsers/parse-native.ts";
@@ -20,12 +21,24 @@ export function parseLibraries({
   "necessaries": PreLaunchInformationType;
   "libraries"  : Array<SpecificPatchLibraryType>;
 }): LibraryArtifactsType {
+  const beforeHooksResult: "continue" | LibraryArtifactsType | undefined =
+    ExtensionsManager.catchSyncResponseHooks<LibraryArtifactsType>({
+      "scope" : "onLibrariesParsing",
+      "toPass": { necessaries, libraries },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
   const { statuses } = necessaries;
   const results: LibraryArtifactsType = {
     "libraries": [],
     "natives"  : [],
   };
 
+  log.debug(`Parsing ${libraries.length} libraries`);
   for (const entry of libraries) {
     const library: SpecificPatchLibraryType | false = shallowlyValidateLibrary({
       "library": entry,
@@ -44,8 +57,6 @@ export function parseLibraries({
     });
 
     if (!toInclude) {
-      log.debug(`The '${library?.name}' library was not included (incompatible)`);
-
       continue;
     }
 
@@ -64,6 +75,24 @@ export function parseLibraries({
       results.natives.push(nativeArtifact);
     }
   }
+
+  const afterHooksResult: "continue" | LibraryArtifactsType | undefined =
+    ExtensionsManager.catchSyncResponseHooks<LibraryArtifactsType>({
+      "scope" : "onLibrariesParsing",
+      "toPass": {
+        necessaries,
+        "unparsed": libraries,
+        "parsed"  : results,
+      },
+      "timing": "after",
+    });
+
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
+  }
+
+  log.debug(`Got ${results.libraries.length}/${libraries.length} libraries`);
+  log.debug(`Got ${results.natives.length} natives`);
 
   return results;
 }

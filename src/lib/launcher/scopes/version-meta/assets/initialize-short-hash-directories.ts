@@ -1,6 +1,7 @@
 import { type DirEntry, mkdir, readDir } from "@tauri-apps/plugin-fs";
 
 import General from "@/lib/general";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -14,6 +15,7 @@ const shortHashes: Array<string> = Array
 export async function initializeShortHashDirectories({
   directories,
 }: PreLaunchInformationType): Promise<void> {
+  log.debug("Reading the '/assets/objects' directory");
   const objects: Array<DirEntry> = await readDir(directories.assetObjects);
   const existingFolders: Set<string> = new Set(
     objects.map(({ name }) => name),
@@ -22,8 +24,7 @@ export async function initializeShortHashDirectories({
     .filter(hash => !existingFolders.has(hash))
     .map(hash => General.cachedJoin(directories.assetObjects, hash));
 
-  console.log(missingPaths);
-
+  log.warn(`Missing ${missingPaths.length} short hash directories; creating them`);
   await Promise.all(
     missingPaths.map(path => mkdir(path)),
   );

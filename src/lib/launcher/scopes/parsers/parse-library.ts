@@ -1,5 +1,6 @@
 import General from "@/lib/general";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
@@ -19,6 +20,8 @@ export function parseLibrary({
   const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
   if (name === undefined || url === undefined || hash === undefined) {
+    log.warn(`The '${name}' library is invalid`);
+
     return false;
   }
 

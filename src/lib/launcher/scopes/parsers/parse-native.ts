@@ -1,6 +1,7 @@
 import General from "@/lib/general";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
 import { unifyPlatformWithArch } from "@/lib/launcher/scopes/parsers/unify-platform-with-arch.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
@@ -20,11 +21,12 @@ export function parseNative({
 }): MappedArtifactType | false {
   const { directories, platform, arch } = necessaries;
   const classifiers: SpecificPatchClassifiersType | undefined = library?.downloads?.classifiers;
-  const isNewFormat: boolean = classifiers === undefined;
   const name: string | undefined = library?.name;
   const newFormattedUrl: string | undefined = library?.downloads?.artifact?.url;
 
   if (name === undefined) {
+    log.warn(`The '${name}' native is invalid`);
+
     return false;
   }
 
@@ -35,10 +37,13 @@ export function parseNative({
   );
   const path: string = General.cachedJoin(directory, file);
 
-  if (isNewFormat) {
+  // New natives format does not have a 'classifiers' field
+  if (classifiers === undefined) {
     const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
     if (newFormattedUrl === undefined || hash === undefined) {
+      log.warn(`The '${name}' native is invalid`);
+
       return false;
     }
 
@@ -67,10 +72,8 @@ export function parseNative({
       return artifact;
     }
 
-    return false;
-  }
+    log.warn(`The '${name}' native is not compatible`);
 
-  if (!classifiers) {
     return false;
   }
 
@@ -107,6 +110,8 @@ export function parseNative({
       "hash"     : sha1,
     };
   }
+
+  log.warn(`The '${name}' native is not compatible`);
 
   return false;
 }

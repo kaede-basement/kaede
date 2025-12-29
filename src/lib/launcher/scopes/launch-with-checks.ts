@@ -18,6 +18,7 @@ import {
 import { getAssets } from "@/lib/launcher/scopes/version-meta/get-assets.ts";
 import { getPatches } from "@/lib/launcher/scopes/version-meta/get-patches.ts";
 import { getVersionMeta } from "@/lib/launcher/scopes/version-meta/get-version-meta.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
@@ -46,6 +47,8 @@ export async function launchWithChecks({
   });
 
   if (necessaries === false) {
+    log.warn("Aborting the launch process since failed to extract pre-launch information");
+
     return false;
   }
 
@@ -62,6 +65,8 @@ export async function launchWithChecks({
   ]);
 
   if (versionMeta === false) {
+    log.warn("Aborting the launch process since failed to get version metadata");
+
     return false;
   }
 
@@ -80,9 +85,9 @@ export async function launchWithChecks({
     "client": versionMeta?.mainJar,
   });
 
-  console.log("parsed:", libraries, natives, logging, client);
-
   if (client === false) {
+    log.warn("Aborting the launch process since failed to parse main jar metadata");
+
     return false;
   }
 
@@ -104,9 +109,9 @@ export async function launchWithChecks({
     downloadLibraries({ necessaries, libraries, natives, versionMeta }),
   ]);
 
-  console.log("downloads:", assets, patches);
-
   if (!assets || !patches) {
+    log.warn("Aborting the launch process since failed to handle assets or patches");
+
     return false;
   }
 
@@ -117,8 +122,6 @@ export async function launchWithChecks({
       ...patches.natives.map(({ path }) => path),
     ],
   });
-
-  console.log("huh");
 
   return launch({
     instanceId,

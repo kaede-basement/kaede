@@ -5,6 +5,7 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import Instances from "@/lib/instances";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
@@ -73,6 +74,7 @@ export function extractPreLaunchInformation({
       break;
     }
     default: {
+      log.error(`The provided platform (${providedPlatform}) is incompatible`);
       statuses.current = LaunchStatus.Errors.IncompatiblePlatform;
 
       return false;
@@ -102,6 +104,7 @@ export function extractPreLaunchInformation({
       break;
     }
     default: {
+      log.error(`The provided arch (${providedArch}) is incompatible`);
       statuses.current = LaunchStatus.Errors.IncompatibleArch;
 
       return false;

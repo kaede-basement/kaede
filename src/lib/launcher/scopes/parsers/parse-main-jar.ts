@@ -1,6 +1,7 @@
 import { LaunchStatus } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
@@ -14,6 +15,7 @@ export function parseMainJar({
   "necessaries": PreLaunchInformationType;
   "client"     : SpecificPatchMetaType["mainJar"];
 }): MappedArtifactType | false {
+  log.debug("Parsing the main jar metadata");
   const { directories, statuses } = necessaries;
   const name: string | undefined = client?.name;
   const url: string | undefined = client?.downloads?.artifact?.url;
@@ -25,6 +27,7 @@ export function parseMainJar({
     url === undefined ||
     hash === undefined
   ) {
+    log.debug("The main jar metadata is invalid");
     statuses.current = LaunchStatus.Errors.ClientMainJarMissingMeta;
 
     return false;
@@ -39,6 +42,8 @@ export function parseMainJar({
     directory,
     file,
   );
+
+  log.debug("Parsed the main jar metadata");
 
   return {
     url,

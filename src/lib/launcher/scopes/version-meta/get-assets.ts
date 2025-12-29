@@ -7,6 +7,7 @@ import {
   shallowlyValidateMeta,
 } from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
 import { verifyArtifacts } from "@/lib/launcher/scopes/validators/verify-artifacts.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { AssetObjectsType } from "@/types/launcher/artifacts/asset-objects.type.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
@@ -35,6 +36,7 @@ export async function getAssets({
     return beforeHooksResult;
   }
 
+  log.debug("");
   const { directories, statuses, instance } = necessaries;
 
   if (

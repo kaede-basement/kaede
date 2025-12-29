@@ -44,7 +44,10 @@ import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
-import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type {
+  SpecificPatchLibraryType,
+  SpecificPatchMetaType,
+} from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
@@ -785,6 +788,60 @@ declare global {
           "after": HookReturnType<
             PreLaunchInformationType | false,
             PreLaunchInformationType | false,
+            "non-promise"
+          >;
+        };
+
+        /**
+         * Executed on libraries and natives parsing
+         */
+        "onLibrariesParsing": {
+
+          /**
+           * Executes 'sync'-only functions before any actions.
+           *
+           * @param input - an object that has the 'necessaries' and 'libraries' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - an object that has the 'LibraryArtifactsType' type
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "libraries"  : Array<SpecificPatchLibraryType>;
+            },
+            LibraryArtifactsType,
+            "non-promise"
+          >;
+
+          /**
+           * Executes 'sync'-only functions after all libraries and natives are parsed.
+           *
+           * @param input - an object that has the 'necessaries', 'unparsed',
+           * and 'parsed' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - an object that has the 'LibraryArtifactsType' type
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            {
+              "necessaries": PreLaunchInformationType;
+              "unparsed"   : Array<SpecificPatchLibraryType>;
+              "parsed"     : LibraryArtifactsType;
+            },
+            LibraryArtifactsType,
             "non-promise"
           >;
         };
