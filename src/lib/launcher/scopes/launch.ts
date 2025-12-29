@@ -39,6 +39,7 @@ export async function launch({
     "mainClass": string | undefined;
   };
 }): Promise<boolean> {
+  log.debug("Entered the actual launch function");
   const { directories, statuses } = necessaries;
   const { mainClass } = parsed;
 

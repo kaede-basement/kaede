@@ -38,14 +38,26 @@ export async function downloadLibraries({
     ...libraries,
     ...natives,
   ];
+
+  log.debug(
+    `Verifying ${merged.length} libraries for their existence.`,
+    `SHA1 checks enabled: ${instance.checksum}`,
+  );
+  const startTime: number = performance.now();
   const missing: Set<string> = new Set(
     await verifyArtifacts({
       "paths"   : merged,
       "checksum": instance.checksum,
     }),
   );
+  const endTime: number = performance.now();
+  const totalTime: string = (endTime - startTime).toFixed(2);
 
-  console.log("missing:", missing);
+  log.info(
+    `Successfully verified ${merged.length} libraries in ${totalTime} ms.`,
+    `Total mismatches: ${missing.size}.`,
+    `SHA1 checks enabled: ${instance.checksum}`,
+  );
 
   const missingArtifacts: Array<MappedArtifactType> = merged
     .filter(({ path }) => {
@@ -72,5 +84,9 @@ export async function downloadLibraries({
     "timing": "after",
   });
 
+  log.info(
+    `Successfully handled ${merged.length} libraries`,
+    `and re-downloaded ${missing.size} of them`,
+  );
   statuses.current = LaunchStatus.Libraries.Done;
 }

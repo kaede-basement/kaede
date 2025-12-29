@@ -3,6 +3,7 @@ import { exists, mkdir } from "@tauri-apps/plugin-fs";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
@@ -20,8 +21,10 @@ export async function downloadLogging({
   }) | false;
   "versionMeta": SpecificPatchMetaType;
 }): Promise<void> {
-  // Old versions (pre 1.7) do not have this field
   if (!logging) {
+    log.warn("No logging field found. Perhaps, the instance version is pre-1.7?");
+    necessaries.statuses.current = LaunchStatus.Logging.Done;
+
     return;
   }
 
@@ -39,6 +42,7 @@ export async function downloadLogging({
   const { directories, statuses } = necessaries;
   const { url, path } = logging;
 
+  log.debug("Checking if the logging config exists");
   statuses.current = LaunchStatus.Logging.CheckingIfPresent;
 
   const [
@@ -53,10 +57,13 @@ export async function downloadLogging({
   ]);
 
   if (!directoryExists) {
+    log.warn("The logging config directory does not exist");
     await mkdir(directories.logging);
   }
 
   if (!fileExists) {
+    log.warn("The logging config file does not exist");
+    log.debug("Downloading the logging config file");
     statuses.current = LaunchStatus.Logging.DownloadingConfig;
     await downloadWithProgress({
       "statusScope": LaunchStatus.Logging.DownloadingConfig,
@@ -72,5 +79,6 @@ export async function downloadLogging({
     "timing": "after",
   });
 
+  log.info("Successfully handled the logging config");
   statuses.current = LaunchStatus.Logging.Done;
 }

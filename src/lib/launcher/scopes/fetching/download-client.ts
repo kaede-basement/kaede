@@ -1,8 +1,10 @@
-import { exists, mkdir } from "@tauri-apps/plugin-fs";
+import { mkdir } from "@tauri-apps/plugin-fs";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
+import { verifyArtifacts } from "@/lib/launcher/scopes/validators/verify-artifacts.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
@@ -29,19 +31,29 @@ export async function downloadClient({
     return;
   }
 
-  const { statuses } = necessaries;
+  const { statuses, instance } = necessaries;
 
+  log.debug(`Checking if the main jar exists. SHA1 checks enabled: ${instance.checksum}`);
   statuses.current = LaunchStatus.Client.CheckingIfPresent;
-  const fileExists: boolean = await exists(client.path);
+  const mismatches: Array<string> = await verifyArtifacts({
+    "paths"   : [client],
+    "checksum": instance.checksum,
+  });
+  const isMismatch: boolean = mismatches.length > 0;
 
-  if (!fileExists) {
+  if (isMismatch) {
+    log.warn(`The main jar is not valid. SHA1 checks enabled: ${instance.checksum}`);
+    log.debug("Making a directory for the main jar");
     await mkdir(client.directory, { "recursive": true });
+    log.debug("Downloading the main jar");
     await downloadWithProgress({
       "statusScope": LaunchStatus.Client.DownloadingJar,
       "path"       : client.path,
       "url"        : client.url,
       statuses,
     });
+  } else {
+    log.info(`The main jar is valid. SHA1 checks enabled: ${instance.checksum}`);
   }
 
   await ExtensionsManager.catchAsyncVoidHooks({
@@ -50,5 +62,6 @@ export async function downloadClient({
     "timing": "after",
   });
 
+  log.info("Successfully handled the main jar");
   statuses.current = LaunchStatus.Client.Done;
 }
