@@ -1,6 +1,11 @@
 use tokio;
 use std::fs;
 use std::path::{Path};
+use std::fs::{File};
+use std::io::{self, BufReader, Read};
+use sha1::{Sha1, Digest};
+use rayon::prelude::*;
+use serde::{Deserialize};
 
 // Keep track of launcher UI reloads
 static mut LAUNCHES_COUNT: i32 = -1;
@@ -109,4 +114,64 @@ pub async fn get_missing_files(paths: Vec<String>) -> Result<Vec<String>, String
     })
     .await
     .map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+pub struct Artifact {
+    path: String,
+    hash: String,
+}
+
+#[tauri::command]
+pub async fn verify_file_paths(artifacts: Vec<Artifact>) -> Result<Vec<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        let mismatched_paths: Vec<String> = artifacts
+            .par_iter()
+            .filter_map(|artifact| {
+                let path = Path::new(&artifact.path);
+
+                if !path.exists() {
+                    return Some(artifact.path.clone());
+                }
+
+                match verify_file_hash(path, &artifact.hash) {
+                    Ok(is_valid) => {
+                        if !is_valid {
+                            Some(artifact.path.clone())
+                        } else {
+                            None
+                        }
+                    }
+                    Err(_) => Some(artifact.path.clone()),
+                }
+            })
+            .collect();
+
+        Ok(mismatched_paths)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn verify_file_hash(path: &Path, expected_hash: &str) -> io::Result<bool> {
+    let file = File::open(path)?;
+
+    let mut reader = BufReader::new(file);
+    let mut hasher = Sha1::new();
+    let mut buffer = [0; 8192];
+
+    loop {
+        let bytes_read = reader.read(&mut buffer)?;
+
+        if bytes_read == 0 {
+            break;
+        }
+
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    let result = hasher.finalize();
+    let actual_hash = format!("{:x}", result);
+
+    Ok(actual_hash == expected_hash)
 }

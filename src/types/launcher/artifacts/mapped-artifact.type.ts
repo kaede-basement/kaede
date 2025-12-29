@@ -3,4 +3,5 @@ export type MappedArtifactType = {
   "file"     : string;
   "directory": string;
   "url"      : string;
+  "hash"     : string;
 };

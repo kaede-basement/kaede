@@ -3,8 +3,9 @@ import type { ShallowReactive } from "vue";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export type InstanceStateType = GlobalStatesType["minecraft"] & {
-  "name"   : string;
-  "version": string;
+  "name"    : string;
+  "version" : string;
+  "checksum": boolean;
 };
 
 /* Per-instance Minecraft settings */

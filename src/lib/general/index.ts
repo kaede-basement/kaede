@@ -13,6 +13,7 @@ import { getExecutableDirectory } from "@/lib/general/scopes/get-executable-dire
 import { getLauncherVersion } from "@/lib/general/scopes/get-launcher-version.ts";
 import { getMissingPaths } from "@/lib/general/scopes/get-missing-paths.ts";
 import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
+import { getSha1Mismatches } from "@/lib/general/scopes/get-sha1-mismatches.ts";
 import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-styles.ts";
 import { handleJsonFile } from "@/lib/general/scopes/handle-json-file.ts";
 import { hashString } from "@/lib/general/scopes/hash-string.ts";
@@ -35,6 +36,7 @@ export default {
   getExecutableDirectory,
   getLauncherVersion,
   getMissingPaths,
+  getSha1Mismatches,
   getRelativeDate,
   getSidebarInnerStyles,
   handleJsonFile,

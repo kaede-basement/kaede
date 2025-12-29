@@ -1,8 +1,10 @@
 import General from "@/lib/general";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import type { PreLaunchInformationType } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export function parseLibrary({
   necessaries,
@@ -14,8 +16,9 @@ export function parseLibrary({
   const { directories } = necessaries;
   const name: string | undefined = library?.name;
   const url: string | undefined = library?.downloads?.artifact?.url;
+  const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
-  if (name === undefined || url === undefined) {
+  if (name === undefined || url === undefined || hash === undefined) {
     return false;
   }
 
@@ -34,5 +37,6 @@ export function parseLibrary({
     file,
     url,
     path,
+    hash,
   };
 }

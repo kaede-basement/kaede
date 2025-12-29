@@ -17,11 +17,13 @@ export function parseMainJar({
   const { directories, statuses } = necessaries;
   const name: string | undefined = client?.name;
   const url: string | undefined = client?.downloads?.artifact?.url;
+  const hash: string | undefined = client?.downloads?.artifact?.sha1;
 
   if (
     client === undefined ||
     name === undefined ||
-    url === undefined
+    url === undefined ||
+    hash === undefined
   ) {
     statuses.current = LaunchStatus.Errors.ClientMainJarMissingMeta;
 
@@ -42,6 +44,7 @@ export function parseMainJar({
     url,
     file,
     path,
+    hash,
     directory,
   };
 }

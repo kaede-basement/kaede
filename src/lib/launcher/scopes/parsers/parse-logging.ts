@@ -30,9 +30,10 @@ export function parseLogging({
 
   // Already contains an extension (.xml)
   const name: string | undefined = logging.file?.id;
-  const url: string | undefined = logging?.file?.url;
+  const url: string | undefined = logging.file?.url;
+  const hash: string | undefined = logging.file?.sha1;
 
-  if (!name || !url) {
+  if (!name || !url || !hash) {
     statuses.current = LaunchStatus.Errors.LoggingMissingMeta;
 
     return false;
@@ -47,6 +48,7 @@ export function parseLogging({
     "file"     : name,
     "path"     : path,
     "url"      : url,
+    "hash"     : hash,
     "argument" : logging.argument,
     "directory": directories.logging,
   };

@@ -63,7 +63,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
   try {
     await Launcher.launchWithChecks({
       "instance" : currentInstance.instance,
-      "javaMajor": 8,
+      "javaMajor": 25,
       instanceId,
       statuses,
     });

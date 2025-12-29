@@ -36,7 +36,9 @@ export function parseNative({
   const path: string = General.cachedJoin(directory, file);
 
   if (isNewFormat) {
-    if (newFormattedUrl === undefined) {
+    const hash: string | undefined = library?.downloads?.artifact?.sha1;
+
+    if (newFormattedUrl === undefined || hash === undefined) {
       return false;
     }
 
@@ -44,6 +46,7 @@ export function parseNative({
       directory,
       file,
       path,
+      hash,
       "url": newFormattedUrl,
     };
 
@@ -71,7 +74,7 @@ export function parseNative({
     return false;
   }
 
-  for (const [currentClassifier, { "url": nativesUrl }] of Object.entries(classifiers)) {
+  for (const [currentClassifier, { sha1, "url": nativesUrl }] of Object.entries(classifiers)) {
     const {
       "platform": classifierPlatform,
       "arch"    : classifierArch,
@@ -101,6 +104,7 @@ export function parseNative({
       "file"     : requiredName,
       "path"     : updatedPath,
       "url"      : nativesUrl,
+      "hash"     : sha1,
     };
   }
 

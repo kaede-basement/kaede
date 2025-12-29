@@ -6,6 +6,7 @@ import { fetchAssetsMeta } from "@/lib/launcher/scopes/fetching/fetch-assets-met
 import {
   shallowlyValidateMeta,
 } from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
+import { verifyArtifacts } from "@/lib/launcher/scopes/validators/verify-artifacts.ts";
 import type { AssetObjectsType } from "@/types/launcher/artifacts/asset-objects.type.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
@@ -34,7 +35,7 @@ export async function getAssets({
     return beforeHooksResult;
   }
 
-  const { directories, statuses } = necessaries;
+  const { directories, statuses, instance } = necessaries;
 
   if (
     versionMeta?.assetIndex === undefined ||
@@ -93,6 +94,7 @@ export async function getAssets({
 
   const mappedAssetObjects: Array<{
     "shortHashPath": string;
+    "hash"         : string;
     "url"          : string;
     "path"         : string;
   }> = Object
@@ -111,23 +113,30 @@ export async function getAssets({
 
       return {
         shortHashPath,
+        hash,
         url,
         "path": filePath,
       };
     });
 
-  const missingHashes: Set<string> = new Set(
-    await General.getMissingPaths({
-      "paths": mappedAssetObjects.map(({ path }) => path),
+  const t1 = performance.now();
+  const hashesToReDownload: Set<string> = new Set(
+    await verifyArtifacts({
+      "paths"   : mappedAssetObjects,
+      "checksum": instance.checksum,
     }),
   );
+  const t2 = performance.now();
+
+  console.log(t2 - t1, `ms spent on verifying ${mappedAssetObjects.length} paths`);
+  console.log("verification failed for:", hashesToReDownload);
 
   const missingAssetObjects: Array<{
     "shortHashPath": string;
     "url"          : string;
     "path"         : string;
   }> = mappedAssetObjects.filter(({ path }) => {
-    return missingHashes.has(path);
+    return hashesToReDownload.has(path);
   });
 
   await General.concurrentlyDownload({

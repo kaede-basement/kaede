@@ -139,6 +139,7 @@ pub fn run() {
             launcher::get_launched_state,
             launcher::get_executable_directory,
             launcher::get_missing_files,
+            launcher::verify_file_paths,
             system::get_system_memory,
             system::get_process_memory,
             zip::unzip_file,

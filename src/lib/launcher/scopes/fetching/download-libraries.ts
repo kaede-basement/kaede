@@ -3,6 +3,7 @@ import { mkdir } from "@tauri-apps/plugin-fs";
 import { ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
+import { verifyArtifacts } from "@/lib/launcher/scopes/validators/verify-artifacts.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
@@ -32,14 +33,15 @@ export async function downloadLibraries({
     return;
   }
 
-  const { statuses } = necessaries;
+  const { statuses, instance } = necessaries;
   const merged: Array<MappedArtifactType> = [
     ...libraries,
     ...natives,
   ];
   const missing: Set<string> = new Set(
-    await General.getMissingPaths({
-      "paths": merged.map(({ path }) => path),
+    await verifyArtifacts({
+      "paths"   : merged,
+      "checksum": instance.checksum,
     }),
   );
 
