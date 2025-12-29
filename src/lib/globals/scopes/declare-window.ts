@@ -1,6 +1,7 @@
 import { cancel, onInvalidUrl, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
 import * as DiscordRPC from "tauri-plugin-drpc";
 import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
+import * as ShellXPlugin from "tauri-plugin-shellx-api";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { FileStructure } from "@/constants/file-structure.ts";
@@ -34,6 +35,9 @@ export function declareWindow(): void {
       onInvalidUrl,
       onUrl,
       start,
+    },
+    "shell": {
+      ...ShellXPlugin,
     },
   };
   window[ApplicationNamespace] = {

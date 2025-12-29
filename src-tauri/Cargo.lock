@@ -2320,7 +2320,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-os",
  "tauri-plugin-process",
- "tauri-plugin-shell",
+ "tauri-plugin-shellx",
  "tauri-plugin-single-instance",
  "tauri-plugin-upload",
  "tokio",
@@ -4481,6 +4481,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "strip-ansi-escapes"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a8f8038e7e7969abb3f1b7c2a811225e9296da208539e0f79c5251d6cac0025"
+dependencies = [
+ "vte",
+]
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4998,13 +5007,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-plugin-shell"
-version = "2.3.1"
+name = "tauri-plugin-shellx"
+version = "2.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54777d0c0d8add34eea3ced84378619ef5b97996bd967d3038c668feefd21071"
+checksum = "1b83b29705410452dbfc85f604f3dce2b674047449060b488fcd9f3a907c25ef"
 dependencies = [
  "encoding_rs",
- "log",
  "open",
  "os_pipe",
  "regex",
@@ -5012,9 +5020,10 @@ dependencies = [
  "serde",
  "serde_json",
  "shared_child",
+ "strip-ansi-escapes",
  "tauri",
  "tauri-plugin",
- "thiserror 2.0.16",
+ "thiserror 1.0.69",
  "tokio",
 ]
 
@@ -5722,6 +5731,15 @@ checksum = "fb067e4cbd1ff067d1df46c9194b5de0e98efd2810bbc95c5d5e5f25a3231150"
 dependencies = [
  "cc",
  "libc",
+]
+
+[[package]]
+name = "vte"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "231fdcd7ef3037e8330d8e17e61011a2c244126acc0a982f4040ac3f9f0bc077"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]

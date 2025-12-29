@@ -22,7 +22,7 @@ pub fn run() {
                 .expect("no main window found - tauri single instance plugin")
                 .set_focus();
         }))
-        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_shellx::init(true))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())

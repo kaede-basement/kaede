@@ -1,4 +1,4 @@
-import { Command } from "@tauri-apps/plugin-shell";
+import { Command } from "tauri-plugin-shellx-api";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
 import {

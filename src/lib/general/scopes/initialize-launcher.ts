@@ -43,6 +43,9 @@ export async function initializeLauncher({
     );
   }
 
+  // Cache the java major version since it will not change until the application relaunch
+  window[ApplicationNamespace].__internals.javaMajor = await General.getJavaMajor();
+
   log.debug("Checking if all directories present");
   const directoriesStartTime = performance.now();
   const foldersArray = Object.values(FileStructure.Folders);

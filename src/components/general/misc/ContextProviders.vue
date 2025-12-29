@@ -9,6 +9,7 @@ import {
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
+import General from "@/lib/general";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -61,9 +62,12 @@ async function launchInstance(instanceId?: string): Promise<void> {
   statuses.downloads.clear();
 
   try {
+    const javaMajor: number = window[ApplicationNamespace].__internals.javaMajor
+      ?? await General.getJavaMajor();
+
     await Launcher.launchWithChecks({
       "instance" : currentInstance.instance,
-      "javaMajor": 25,
+      javaMajor,
       instanceId,
       statuses,
     });

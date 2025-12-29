@@ -1,5 +1,4 @@
 /* eslint-disable max-lines */
-
 import * as TauriOAuth2 from "@fabianlars/tauri-plugin-oauth";
 import * as TauriApi from "@tauri-apps/api";
 import * as TauriDialog from "@tauri-apps/plugin-dialog";
@@ -9,7 +8,6 @@ import * as TauriNotification from "@tauri-apps/plugin-notification";
 import * as TauriOpener from "@tauri-apps/plugin-opener";
 import * as TauriOs from "@tauri-apps/plugin-os";
 import * as TauriProcess from "@tauri-apps/plugin-process";
-import * as TauriShell from "@tauri-apps/plugin-shell";
 import * as TauriUpload from "@tauri-apps/plugin-upload";
 import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
@@ -40,6 +38,7 @@ import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
+import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
@@ -48,7 +47,6 @@ import type {
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
-import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 
 /* Expand the globals with Kaede and Tauri namespaces */
 declare global {
@@ -65,7 +63,6 @@ declare global {
       "opener"      : typeof TauriOpener;
       "os"          : typeof TauriOs;
       "process"     : typeof TauriProcess;
-      "shell"       : typeof TauriShell;
       "upload"      : typeof TauriUpload;
     };
 
@@ -73,6 +70,7 @@ declare global {
     "__TAURI_PLUGINS_COMMUNITY__": {
       "discord": typeof TauriDiscordRpc & typeof TauriDiscordRpcClasses;
       "oauth2" : typeof TauriOAuth2;
+      "shell"  : object;
     };
 
     /**
@@ -123,6 +121,8 @@ declare global {
         "atAGlance"          ?: AtAGlanceType;
         // A timestamp for the application's JavaScript code initialization
         "startTime"          ?: number;
+        // A Java major version (for example, 8, 11, or 17)
+        "javaMajor"          ?: number;
       };
 
       /**
