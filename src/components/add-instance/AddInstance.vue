@@ -42,7 +42,7 @@ const { data, status } = useQuery({
   },
 });
 
-function addInstance(version: string): void {
+async function addInstance(version: string): Promise<void> {
   Instances.change(`custom-${version}`, {
     version,
     "name"        : "Minecraft (bruh)",
@@ -52,6 +52,12 @@ function addInstance(version: string): void {
     "windowWidth" : 854,
     "checksum"    : true,
   });
+
+  if (instanceStates === undefined) {
+    return;
+  }
+
+  return Instances.syncMetadata(instanceStates);
 }
 </script>
 
