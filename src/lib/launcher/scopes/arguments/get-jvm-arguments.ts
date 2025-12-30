@@ -1,4 +1,5 @@
 import ExtensionsManager from "@/lib/extensions-manager";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
@@ -31,6 +32,7 @@ export async function getJvmArguments({
 
   const { platform } = necessaries;
 
+  log.debug("Adding default JVM arguments");
   jvmArguments.push(
     "-Xms1G",
     "-Xmx8G",
@@ -47,6 +49,8 @@ export async function getJvmArguments({
 
   switch (platform) {
     case "windows": {
+      log.debug("Adding Windows-only JVM arguments");
+
       if (parsed.logging) {
         logFilePath = "file:///" + parsed.logging.path;
       }
@@ -59,6 +63,8 @@ export async function getJvmArguments({
       break;
     }
     case "macos": {
+      log.debug("Adding macOS-only JVM arguments");
+
       if (parsed.logging) {
         logFilePath = parsed.logging.path;
       }
@@ -68,6 +74,8 @@ export async function getJvmArguments({
       break;
     }
     default: {
+      log.debug("Adding Linux-only JVM arguments");
+
       if (parsed.logging) {
         logFilePath = parsed.logging.path;
       }
@@ -77,6 +85,7 @@ export async function getJvmArguments({
   }
 
   if (parsed.logging) {
+    log.debug("Adding logging config to JVM arguments");
     const loggingArguments = parsed
       .logging
       .argument

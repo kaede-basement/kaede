@@ -1,4 +1,5 @@
 import ExtensionsManager from "@/lib/extensions-manager";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
@@ -28,13 +29,20 @@ export async function getJavaBinary({
   }
 
   const { platform } = necessaries;
+  let javaBinary: string;
 
   switch (platform) {
     case "windows": {
-      return "cmd";
+      javaBinary = "cmd";
+
+      break;
     }
     default: {
-      return "java";
+      javaBinary = "java";
     }
   }
+
+  log.debug(`The '${javaBinary}' command name will be used for launching`);
+
+  return javaBinary;
 }

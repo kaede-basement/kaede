@@ -2,6 +2,7 @@ import { writeTextFile } from "@tauri-apps/plugin-fs";
 
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
@@ -30,6 +31,7 @@ export async function getClassPaths({
   "argument"  : string;
   "classPaths": string;
 }> {
+  log.debug("Merging all library, native, and main jar paths for classpaths");
   const { directories, javaMajor } = necessaries;
   const mergedPaths: Array<string> = [
     ...mapPaths(parsed.libraries),
@@ -56,22 +58,27 @@ export async function getClassPaths({
     return beforeHooksResult;
   }
 
-  // The libraries paths may have duplicates because of the natives
+  // The library paths may have duplicates because of the natives
+  log.debug("Removing duplicated classpaths");
   const uniquePaths: Set<string> = new Set(mergedPaths);
   const classPaths: string = [...uniquePaths].join(";");
 
   if (javaMajor <= 8) {
+    log.info("The Java major version is equal to or below 8; using direct classpaths");
+
     return {
       "argument"  : "-cp ${classpath}",
       "classPaths": classPaths,
     };
   }
 
+  log.info("The Java major version is higher than 8; using @argfile argument");
   const classPathsFilePath: string = General.cachedJoin(
     directories.instance,
     classPathsFileName,
   );
 
+  log.debug(`Writing @argfile classpaths to '${classPathsFilePath}'`);
   await writeTextFile(
     classPathsFilePath,
     [

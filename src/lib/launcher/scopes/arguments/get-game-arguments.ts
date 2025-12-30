@@ -1,4 +1,5 @@
 import ExtensionsManager from "@/lib/extensions-manager";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
@@ -27,7 +28,11 @@ export async function getGameArguments({
     return beforeHooksResult;
   }
 
+  log.debug("Adding game arguments");
+
   if (versionMeta?.minecraftArguments === undefined) {
+    log.error("Could not get game arguments from version meta");
+
     throw new Error("No minecraft arguments found in the version metadata");
   }
 
