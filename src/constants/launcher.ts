@@ -27,9 +27,8 @@ export const LaunchStatus = {
     "Done"             : "logging-done",
   },
   "Libraries": {
-    "ShallowlyValidatingLibrary": "libraries-shallowly-validating-library",
-    "DownloadingLibrary"        : "libraries-downloading-library",
-    "Done"                      : "libraries-done",
+    "DownloadingLibrary": "libraries-downloading-library",
+    "Done"              : "libraries-done",
   },
   "Patches": {
     "Done": "patches-done",

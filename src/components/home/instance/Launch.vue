@@ -119,7 +119,7 @@ watchEffect((): void => {
     class="relative w-fit rounded-sm bg-white px-1 py-2 text-black transition-[opacity] disabled:opacity-80"
   >
     <span
-      id="__home-page__launch-options-icon"
+      id="__home-page__launch-abort-icon"
       class="i-lucide-x block"
     ></span>
     <MaterialRipple
