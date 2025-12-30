@@ -56,16 +56,8 @@ export async function getJvmArguments({
       if (version().slice(0, 2) === "10") {
         log.debug("Adding Windows 10 specific JVM arguments");
         jvmArguments.push(
-
-          /*
-           * TODO
-           *
-           * Breaks old versions of minecraft (for example, 1.1).
-           * I suppose it is because the 'Windows 10' part is not in quotes
-           *
-           * "-Dos.name=Windows 10",
-           * "-Dos.version=10.0",
-           */
+          // "-Dos.name=\"Windows 10\"", // broken even with quotes around command instead value
+          "-Dos.version=10.0",
         );
       }
 

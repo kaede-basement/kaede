@@ -7,6 +7,7 @@ import "@/globals.css";
 // Import styles that are necessary for Material You ripple effect
 import "m3ripple-vue/style.css";
 
+import { VueQueryPlugin } from "@tanstack/vue-query";
 import { createApp } from "vue";
 
 import App from "@/App.vue";
@@ -24,27 +25,22 @@ import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
-// Measure high resolution timestamp before launcher initialization
 const startTime = performance.now();
 
 // 'window[ApplicationNamespace]' is accessed not only by extensions but by the application itself
 Globals.declareWindow();
 
-// Concurrent promise resolving saves us around 15 ms
+// Concurrent promise resolving saves us around 20 ms
 const [launchCount, portable]: [number, boolean, void, void] = await Promise.all([
   // Get application UI reloads count
   Globals.getLaunchCount(),
-  // Check if launcher is in a portable mode to share the status between multiple functions
   General.checkIsPortable(),
 
   /*
-   * Even the simplest invokes from Tauri API are expensive (around 5 ms on my laptop);
-   * To optimize 'join' calls, find out the delimiter and cache it.
-   *
-   * Does not return anything
+   * Even the simplest invokes from Tauri API are expensive (around 5 ms on my laptop).
+   * To optimize 'join' calls, find out the delimiter and cache it
    */
   Globals.cachePathJoin(),
-  // Cache the launcher version
   Globals.cacheLauncherVersion(),
 ]);
 
@@ -105,11 +101,12 @@ if (config.development?.enableDebugMode) {
 }
 
 log.debug("Creating a Vue instance");
-// 'App' is the 'App.vue' entry
 const AppInstance = createApp(App);
 
+log.debug("Initializing Vue Query plugin");
+AppInstance.use(VueQueryPlugin);
+
 log.debug(`Mounting an app instance to the DOM element (${ApplicationRootID})`);
-// Attach the app to a DOM element with the '#app' id
 AppInstance.mount(ApplicationRootID);
 
 log.debug("Initializing launcher");
