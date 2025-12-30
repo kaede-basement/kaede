@@ -1,6 +1,5 @@
 import ExtensionsManager from "@/lib/extensions-manager";
-import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -15,19 +14,10 @@ export async function getJavaBinary({
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-  "parsed"     : {
-    "libraries": Array<MappedArtifactType>;
-    "natives"  : Array<MappedArtifactType>;
-    "logging"  : (MappedArtifactType & {
-      "argument": string;
-    }) | false;
-    "client"   : MappedArtifactType;
-    "patches"  : LibraryArtifactsType;
-    "mainClass": string | undefined;
-  };
-}): Promise<"java" | "cmd"> {
-  const beforeHooksResult: "continue" | "java" | "cmd" | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<"java" | "cmd">({
+  "parsed"     : ParsedMetaType;
+}): Promise<string> {
+  const beforeHooksResult: "continue" | string | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<string>({
       "scope" : "onJavaBinaryGet",
       "toPass": { instanceId, necessaries, versionMeta, parsed },
       "timing": "before",

@@ -183,6 +183,21 @@ export function declareWindow(): void {
       "onJavaBinaryGet": {
         "before": [],
       },
+      "onJVMArgumentsGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onClassPathsGet": {
+        "before": [],
+      },
+      "onGameArgumentsGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onAdditionalStartArgumentsGet": {
+        "before": [],
+        "after" : [],
+      },
     },
   };
 }

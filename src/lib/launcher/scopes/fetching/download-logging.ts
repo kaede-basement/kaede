@@ -4,7 +4,7 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -16,9 +16,7 @@ export async function downloadLogging({
   versionMeta,
 }: {
   "necessaries": PreLaunchInformationType;
-  "logging"    : (MappedArtifactType & {
-    "argument": string;
-  }) | false;
+  "logging"    : ParsedMetaType["logging"];
   "versionMeta": SpecificPatchMetaType;
 }): Promise<void> {
   if (!logging) {

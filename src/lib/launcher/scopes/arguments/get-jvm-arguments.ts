@@ -1,34 +1,39 @@
-import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
+import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export async function getJvmArguments({
+  instanceId,
   necessaries,
+  versionMeta,
   parsed,
 }: {
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-  "parsed"     : {
-    "libraries": Array<MappedArtifactType>;
-    "natives"  : Array<MappedArtifactType>;
-    "logging"  : (MappedArtifactType & {
-      "argument": string;
-    }) | false;
-    "client"   : MappedArtifactType;
-    "patches"  : LibraryArtifactsType;
-    "mainClass": string | undefined;
-  };
+  "parsed"     : ParsedMetaType;
 }): Promise<string> {
-  const { platform } = necessaries;
   const jvmArguments: Array<string> = [];
+
+  const beforeHooksResult: "continue" | string | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<string>({
+      "scope" : "onJVMArgumentsGet",
+      "toPass": { jvmArguments, instanceId, necessaries, versionMeta, parsed },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
+  const { platform } = necessaries;
 
   jvmArguments.push(
     "-Xms1G",
-    "-Xmx2G",
+    "-Xmx8G",
     "-Djava.library.path=${natives_directory}",
     "-Djna.tmpdir=${natives_directory}",
     "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
@@ -81,6 +86,17 @@ export async function getJvmArguments({
       );
 
     jvmArguments.push(loggingArguments);
+  }
+
+  const afterHooksResult: "continue" | string | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<string>({
+      "scope" : "onJVMArgumentsGet",
+      "toPass": { jvmArguments, instanceId, necessaries, versionMeta, parsed },
+      "timing": "after",
+    });
+
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
   }
 
   return jvmArguments.join(" ");

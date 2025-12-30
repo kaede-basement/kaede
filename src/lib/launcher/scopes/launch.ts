@@ -12,9 +12,8 @@ import {
   replaceLaunchArguments,
 } from "@/lib/launcher/scopes/arguments/replace-launch-arguments.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
+import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -30,17 +29,8 @@ export async function launch({
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-  "parsed"     : {
-    "libraries": Array<MappedArtifactType>;
-    "natives"  : Array<MappedArtifactType>;
-    "logging"  : (MappedArtifactType & {
-      "argument": string;
-    }) | false;
-    "client"   : MappedArtifactType;
-    "patches"  : LibraryArtifactsType;
-    "mainClass": string | undefined;
-  };
-  "onClose": (instanceId: string) => void;
+  "parsed"     : ParsedMetaType;
+  "onClose"    : (instanceId: string) => void;
 }): Promise<LaunchResponseType> {
   log.debug("Entered the actual launch function");
   const { directories, statuses } = necessaries;
@@ -52,7 +42,7 @@ export async function launch({
     { "argument": classPathsArgument, classPaths },
     gameArguments,
   ]: [
-    "java" | "cmd",
+    string,
     string,
     { "argument": string; "classPaths": string },
     string,

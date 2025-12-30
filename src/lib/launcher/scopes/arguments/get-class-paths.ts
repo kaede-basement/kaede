@@ -1,8 +1,9 @@
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 
+import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
-import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -16,22 +17,15 @@ function mapPaths(artifacts: Array<MappedArtifactType>): Array<string> {
 const classPathsFileName: string = "classpaths.txt";
 
 export async function getClassPaths({
+  instanceId,
   necessaries,
+  versionMeta,
   parsed,
 }: {
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-  "parsed"     : {
-    "libraries": Array<MappedArtifactType>;
-    "natives"  : Array<MappedArtifactType>;
-    "logging"  : (MappedArtifactType & {
-      "argument": string;
-    }) | false;
-    "client"   : MappedArtifactType;
-    "patches"  : LibraryArtifactsType;
-    "mainClass": string | undefined;
-  };
+  "parsed"     : ParsedMetaType;
 }): Promise<{
   "argument"  : string;
   "classPaths": string;
@@ -44,6 +38,23 @@ export async function getClassPaths({
     ...mapPaths(parsed.patches.natives),
     parsed.client.path,
   ];
+
+  const beforeHooksResult: "continue" | {
+    "argument"  : string;
+    "classPaths": string;
+  } | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<{
+      "argument"  : string;
+      "classPaths": string;
+    }>({
+      "scope" : "onClassPathsGet",
+      "toPass": { mergedPaths, instanceId, necessaries, versionMeta, parsed },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
 
   // The libraries paths may have duplicates because of the natives
   const uniquePaths: Set<string> = new Set(mergedPaths);

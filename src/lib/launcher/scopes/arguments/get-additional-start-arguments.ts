@@ -1,5 +1,5 @@
-import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
+import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -7,21 +7,27 @@ import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch
 
 export async function getAdditionalStartArguments({
   javaBinary,
+  instanceId,
+  necessaries,
+  versionMeta,
+  parsed,
 }: {
-  "javaBinary" : "java" | "cmd";
+  "javaBinary" : string;
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
-  "parsed"     : {
-    "libraries": Array<MappedArtifactType>;
-    "natives"  : Array<MappedArtifactType>;
-    "logging"  : (MappedArtifactType & {
-      "argument": string;
-    }) | false;
-    "client"   : MappedArtifactType;
-    "patches"  : LibraryArtifactsType;
-    "mainClass": string | undefined;
-  };
+  "parsed"     : ParsedMetaType;
 }): Promise<string> {
+  const beforeHooksResult: "continue" | string | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<string>({
+      "scope" : "onAdditionalStartArgumentsGet",
+      "toPass": { javaBinary, instanceId, necessaries, versionMeta, parsed },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
   return javaBinary === "cmd" ? "/C javaw" : "";
 }

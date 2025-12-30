@@ -41,6 +41,7 @@ import type { PermissionType } from "@/types/extensions/permission.type.ts";
 import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
+import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -1206,7 +1207,8 @@ declare global {
           /**
            * Executes 'async' or 'sync' functions before any actions.
            *
-           * @param input - an object that has the 'necessaries' and 'versionMeta' fields
+           * @param input - an object that has the 'instanceId', 'necessaries',
+           * 'versionMeta', and 'parsed' fields
            * is passed as the argument.
            *
            * If the hook returns a 'stop' status,
@@ -1221,6 +1223,164 @@ declare global {
             {
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
+            },
+            string
+          >;
+        };
+
+        /**
+         * Executed on JVM arguments get
+         */
+        "onJVMArgumentsGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'instanceId', 'necessaries',
+           * 'versionMeta', 'jvmArguments', and 'parsed' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a string that represents the JVM arguments
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "jvmArguments": Array<string>;
+              "instanceId"  : string;
+              "necessaries" : PreLaunchInformationType;
+              "versionMeta" : SpecificPatchMetaType;
+              "parsed"      : ParsedMetaType;
+            },
+            string
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the JVM arguments were collected.
+           *
+           * @param input - an object that has the 'instanceId', 'necessaries',
+           * 'versionMeta', and 'parsed' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a string that represents the JVM arguments
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            {
+              "jvmArguments": Array<string>;
+              "instanceId"  : string;
+              "necessaries" : PreLaunchInformationType;
+              "versionMeta" : SpecificPatchMetaType;
+              "parsed"      : ParsedMetaType;
+            },
+            string
+          >;
+        };
+
+        /**
+         * Executed on classpaths get
+         */
+        "onClassPathsGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions right after
+           * acquiring merged library, native, and main jar paths.
+           *
+           * @param input - an object that has the 'instanceId', 'necessaries',
+           * 'versionMeta', 'mergedPaths', and 'parsed' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - an object that has the argument string and classpaths string
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "mergedPaths": Array<string>;
+              "instanceId" : string;
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+              "parsed"     : ParsedMetaType;
+            },
+            {
+              "argument"  : string;
+              "classPaths": string;
+            }
+          >;
+        };
+
+        /**
+         * Executed on game arguments get
+         */
+        "onGameArgumentsGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'instanceId', 'necessaries',
+           * 'versionMeta', and 'parsed' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a string that represents the game arguments
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "instanceId" : string;
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+              "parsed"     : ParsedMetaType;
+            },
+            string
+          >;
+        };
+
+        /**
+         * Executed on additional start arguments get.
+         * For example, '/C javaw' for the 'cmd' command
+         */
+        "onAdditionalStartArgumentsGet": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'instanceId', 'necessaries',
+           * 'versionMeta', 'javaBinary', and 'parsed' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a string that represents additional commands before JVM arguments
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "jvmArguments": Array<string>;
+              "instanceId"  : string;
+              "necessaries" : PreLaunchInformationType;
+              "versionMeta" : SpecificPatchMetaType;
+              "parsed"      : ParsedMetaType;
             },
             string
           >;
