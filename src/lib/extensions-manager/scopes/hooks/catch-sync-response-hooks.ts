@@ -21,7 +21,7 @@ export function catchSyncResponseHooks<T>({
     return;
   }
 
-  const hooks: HookReturnType<unknown, unknown, "non-promise"> = currentScopeHooks[timing];
+  const hooks = currentScopeHooks[timing] as HookReturnType<unknown, unknown, "non-promise">;
 
   log.debug(log.templates.hooks.iterate.start(
     scope,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { ref } from "vue";
 
 import PagesSelector from "@/components/general/layout/PagesSelector.vue";
 import { ApplicationNamespace } from "@/constants/application.ts";
@@ -47,15 +47,6 @@ function unmountPage(page: Exclude<RouteType, "none">): void {
 
 window[ApplicationNamespace].libs.Pages.mount = mountPageTo;
 window[ApplicationNamespace].libs.Pages.unmount = unmountPage;
-
-onMounted(async () => {
-  const hooks = window[ApplicationNamespace].hooks.onPageTeleportsMount.after;
-
-  // TODO logging and make a reusable hooks executor
-  await Promise.all(
-    hooks.map((hook: () => Promise<void>) => hook()),
-  );
-});
 </script>
 
 <template>

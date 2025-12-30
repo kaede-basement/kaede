@@ -90,9 +90,6 @@ export function declareWindow(): void {
       },
     },
     "hooks": {
-      "onPageTeleportsMount": {
-        "after": [],
-      },
       "onConfigFileGet": {
         "before": [],
         "after" : [],

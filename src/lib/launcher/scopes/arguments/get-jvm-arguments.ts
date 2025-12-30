@@ -1,3 +1,5 @@
+import { version } from "@tauri-apps/plugin-os";
+
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
@@ -5,7 +7,6 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import { version } from "@tauri-apps/plugin-os";
 
 export async function getJvmArguments({
   instanceId,

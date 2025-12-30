@@ -260,21 +260,6 @@ declare global {
       "hooks": {
 
         /**
-         * Executed on 'PageTeleports' mount
-         */
-        "onPageTeleportsMount": {
-
-          /**
-           * Executes 'async' or 'sync' functions after the component was mounted.
-           *
-           * No arguments.
-           *
-           * Hook should not return anything since the response will not be read.
-           */
-          "after": HookReturnType<"nothing", "nothing">;
-        };
-
-        /**
          * Executed on the config retrieve
          */
         "onConfigFileGet": {

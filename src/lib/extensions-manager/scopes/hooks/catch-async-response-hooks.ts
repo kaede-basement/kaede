@@ -21,7 +21,7 @@ export async function catchAsyncResponseHooks<T>({
     return;
   }
 
-  const hooks: HookReturnType<unknown, unknown> = currentScopeHooks[timing];
+  const hooks = currentScopeHooks[timing] as HookReturnType<unknown, unknown>;
 
   log.debug(log.templates.hooks.iterate.start(
     scope,

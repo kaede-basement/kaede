@@ -19,7 +19,7 @@ export function catchSyncVoidHooks({
     return;
   }
 
-  const hooks: HookReturnType<unknown, "nothing", "non-promise"> = currentScopeHooks[timing];
+  const hooks = currentScopeHooks[timing] as HookReturnType<unknown, "nothing", "non-promise">;
 
   log.debug(log.templates.hooks.iterate.start(
     scope,
