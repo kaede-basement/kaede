@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, inject, ref, watchEffect } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import {
@@ -83,6 +83,15 @@ async function handleClose(): Promise<void> {
 
   killing.value = false;
 }
+
+watchEffect((): void => {
+  const launchingInstance: boolean = statuses.value?.launching === 1;
+  const killingInstance: boolean = killing.value;
+
+  document.body.style.cursor = (launchingInstance || killingInstance)
+    ? "progress"
+    : "";
+});
 </script>
 
 <template>
@@ -90,7 +99,7 @@ async function handleClose(): Promise<void> {
     @click="handleLaunch"
     :disabled="statuses?.launching === 1 || statuses?.launching === 2"
     id="__home-page__launch-button"
-    class="relative w-fit rounded-l-md rounded-r-sm bg-white px-4 py-2 text-black transition-[opacity] disabled:cursor-progress disabled:opacity-80"
+    class="relative w-fit rounded-l-md rounded-r-sm bg-white px-4 py-2 text-black transition-[opacity] disabled:opacity-80"
   >
     <span
       id="__home-page__launch-label"
@@ -107,7 +116,7 @@ async function handleClose(): Promise<void> {
     @click="handleClose"
     id="__home-page__launch-abort-button"
     :disabled="killing"
-    class="relative w-fit rounded-sm bg-white px-1 py-2 text-black transition-[opacity] disabled:cursor-progress disabled:opacity-80"
+    class="relative w-fit rounded-sm bg-white px-1 py-2 text-black transition-[opacity] disabled:opacity-80"
   >
     <span
       id="__home-page__launch-options-icon"
