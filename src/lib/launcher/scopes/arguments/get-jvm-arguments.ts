@@ -5,6 +5,7 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import { version } from "@tauri-apps/plugin-os";
 
 export async function getJvmArguments({
   instanceId,
@@ -50,6 +51,22 @@ export async function getJvmArguments({
   switch (platform) {
     case "windows": {
       log.debug("Adding Windows-only JVM arguments");
+
+      if (version().slice(0, 2) === "10") {
+        log.debug("Adding Windows 10 specific JVM arguments");
+        jvmArguments.push(
+
+          /*
+           * TODO
+           *
+           * Breaks old versions of minecraft (for example, 1.1).
+           * I suppose it is because the 'Windows 10' part is not in quotes
+           *
+           * "-Dos.name=Windows 10",
+           * "-Dos.version=10.0",
+           */
+        );
+      }
 
       if (parsed.logging) {
         logFilePath = "file:///" + parsed.logging.path;

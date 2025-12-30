@@ -112,7 +112,7 @@ export function extractPreLaunchInformation({
   }
 
   const preLaunchInformation: PreLaunchInformationType = {
-    statuses,
+    "statuses"   : statuses,
     "platform"   : compatiblePlatform,
     "arch"       : compatibleArch,
     "instance"   : instance,
