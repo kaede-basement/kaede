@@ -40,6 +40,10 @@ import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type {
+  ArgumentAuthReplacementsType,
+  ArgumentReplacementsType,
+} from "@/types/launcher/launch/argument-replacements.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
@@ -1383,6 +1387,99 @@ declare global {
               "parsed"      : ParsedMetaType;
             },
             string
+          >;
+        };
+
+        /**
+         * Executed on argument placeholders replace in the launch command
+         */
+        "onLaunchArgumentsReplace": {
+
+          /**
+           * Executes 'sync'-only functions before making a regex replacements (no auth)
+           *
+           * @param input - an object that has the 'auth', 'replacements', 'builtLaunchArguments',
+           * 'instanceId', 'necessaries', 'versionMeta', 'parsed', and 'javaBinary' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a string that represents the final launch command
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "auth": {
+                "username": string;
+
+                /**
+                 * Scary!
+                 */
+                "token": string;
+                "uuid" : string;
+                "type" : string;
+              };
+              "replacements"        : ArgumentReplacementsType;
+              "builtLaunchArguments": {
+                "toReplace" : string;
+                "classPaths": string;
+              };
+              "instanceId" : string;
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+              "parsed"     : ParsedMetaType;
+              "javaBinary" : string;
+            },
+            string,
+            "non-promise"
+          >;
+
+          /**
+           * Executes 'sync'-only functions before making an auth regex replacements,
+           * but after the non-auth regex replacements
+           *
+           * @param input - an object that has the 'auth', 'authReplacements',
+           * 'replacements', 'builtLaunchArguments', 'instanceId',
+           * 'necessaries', 'versionMeta', 'parsed', and 'javaBinary' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a string that represents the final launch command
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            {
+              "auth": {
+                "username": string;
+
+                /**
+                 * Scary!
+                 */
+                "token": string;
+                "uuid" : string;
+                "type" : string;
+              };
+              "replacements"        : ArgumentReplacementsType;
+              "authReplacements"    : ArgumentAuthReplacementsType;
+              "builtLaunchArguments": {
+                "toReplace" : string;
+                "classPaths": string;
+              };
+              "instanceId" : string;
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+              "parsed"     : ParsedMetaType;
+              "javaBinary" : string;
+            },
+            string,
+            "non-promise"
           >;
         };
       };

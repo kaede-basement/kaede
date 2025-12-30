@@ -24,12 +24,14 @@ export async function launch({
   necessaries,
   versionMeta,
   parsed,
+  onLine,
   onClose,
 }: {
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
   "versionMeta": SpecificPatchMetaType;
   "parsed"     : ParsedMetaType;
+  "onLine"     : (line: string) => void;
   "onClose"    : (instanceId: string) => void;
 }): Promise<LaunchResponseType> {
   log.debug("Entered the actual launch function");
@@ -107,21 +109,19 @@ export async function launch({
     necessaries,
     versionMeta,
     parsed,
+    javaBinary,
   });
   const instanceCommand = Command.create(
     javaBinary,
     launchArguments,
     { "cwd": directories.instance },
   );
-  console.log(launchArguments);
 
   log.debug(`Launching the '${instanceId}' instance`);
   const process: Child = await instanceCommand.spawn();
 
   log.debug(`Adding listeners to the '${instanceId}' instance process`);
-  instanceCommand.stdout.on("data", line => {
-    console.log(line);
-  });
+  instanceCommand.stdout.on("data", onLine);
   instanceCommand.on("close", payload => {
     log.info(
       `The '${instanceId}' was closed. Payload:`,
