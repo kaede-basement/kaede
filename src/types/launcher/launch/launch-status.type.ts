@@ -10,7 +10,7 @@ export type LaunchStatusType = {
 }[LaunchKeyType];
 
 export type LauncherStatusesType = {
-  "launching": boolean;
+  "launching": 0 | 1 | 2;
   "current"  : LaunchStatusType | undefined;
   "downloads": Set<string>;
 };

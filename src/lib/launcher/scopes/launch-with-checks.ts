@@ -22,23 +22,31 @@ import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
+const launchFailed: LaunchResponseType = {
+  "success": false,
+  "process": undefined,
+};
+
 export async function launchWithChecks({
   instanceId,
   instance,
   statuses,
   javaMajor,
+  onClose,
 }: {
   "instanceId": string;
   "instance"  : InstanceStateType;
   "statuses"  : LauncherStatusesType;
   "javaMajor" : number;
-}): Promise<boolean> {
+  "onClose"   : (instanceId: string) => void;
+}): Promise<LaunchResponseType> {
   const necessaries: PreLaunchInformationType | false = extractPreLaunchInformation({
     instanceId,
     instance,
@@ -49,7 +57,7 @@ export async function launchWithChecks({
   if (necessaries === false) {
     log.warn("Aborting the launch process since failed to extract pre-launch information");
 
-    return false;
+    return launchFailed;
   }
 
   const [
@@ -67,7 +75,7 @@ export async function launchWithChecks({
   if (versionMeta === false) {
     log.warn("Aborting the launch process since failed to get version metadata");
 
-    return false;
+    return launchFailed;
   }
 
   const { libraries, natives } = parseLibraries({
@@ -88,7 +96,7 @@ export async function launchWithChecks({
   if (client === false) {
     log.warn("Aborting the launch process since failed to parse main jar metadata");
 
-    return false;
+    return launchFailed;
   }
 
   // Concurrently resolve instance assets, client jar, libraries, logging configs, and patches
@@ -112,7 +120,7 @@ export async function launchWithChecks({
   if (!assets || !patches) {
     log.warn("Aborting the launch process since failed to handle assets or patches");
 
-    return false;
+    return launchFailed;
   }
 
   await extractNativeArchives({
@@ -127,6 +135,7 @@ export async function launchWithChecks({
     instanceId,
     necessaries,
     versionMeta,
+    onClose,
     "parsed": {
       libraries,
       natives,

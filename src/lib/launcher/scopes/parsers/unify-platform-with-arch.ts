@@ -29,7 +29,6 @@ export function unifyPlatformWithArch(
   "platform": PreLaunchInformationType["platform"];
   "arch"    : PreLaunchInformationType["arch"] | "any";
 } {
-  console.log(name);
   switch (name) {
     // 'SpecificPatchLibraryOSNameType | SpecificPatchRuntimeOSType'
     case "linux": {

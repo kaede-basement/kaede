@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed, inject, ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import {
+  CloseInstanceContextKey,
   GlobalStatesContextKey,
-  InstanceStatesContextKey, LaunchInstanceContextKey,
+  InstanceStatesContextKey,
+  LaunchInstanceContextKey,
   LaunchStatesContextKey,
 } from "@/constants/application.ts";
+import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type {
@@ -16,6 +20,8 @@ import type {
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
+const killing = ref<boolean>(false);
+
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
@@ -23,6 +29,9 @@ const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
 );
 const launchInstance = inject<(instanceId?: string) => Promise<void>>(
   LaunchInstanceContextKey,
+);
+const closeInstance = inject<(instanceId: string) => Promise<void>>(
+  CloseInstanceContextKey,
 );
 
 const currentInstance = computed((): CurrentInstanceType => (
@@ -42,17 +51,44 @@ const statuses = computed((): LauncherStatusesType | undefined => {
 });
 
 function handleLaunch(): void {
-  launchInstance?.(currentInstance?.value?.id);
+  if (launchInstance === undefined) {
+    log.error("The injected 'launchInstance' function is undefined. What happened lol");
+
+    return;
+  }
+
+  launchInstance(currentInstance?.value?.id);
+}
+async function handleClose(): Promise<void> {
+  if (closeInstance === undefined) {
+    log.error("The injected 'closeInstance' function is undefined. What happened lol");
+
+    return;
+  }
+
+  const instanceId: string | undefined = currentInstance?.value?.id;
+
+  if (instanceId === undefined) {
+    log.error("The current instance id is undefined");
+
+    return;
+  }
+
+  try {
+    killing.value = true;
+    await closeInstance(instanceId);
+  } catch (error: unknown) {
+    log.error("Could not close the instance process:", Errors.prettify(error));
+  }
+
+  killing.value = false;
 }
 </script>
 
 <template>
-  <div id="__temp" class="size-64 overflow-auto bg-neutral-800 text-xs">
-    {{ statuses }}
-  </div>
   <button
     @click="handleLaunch"
-    :disabled="statuses?.launching"
+    :disabled="statuses?.launching === 1 || statuses?.launching === 2"
     id="__home-page__launch-button"
     class="relative w-fit rounded-l-md rounded-r-sm bg-white px-4 py-2 text-black transition-[opacity] disabled:cursor-progress disabled:opacity-80"
   >
@@ -62,6 +98,21 @@ function handleLaunch(): void {
     >
       Launch
     </span>
+    <MaterialRipple
+      :colors="{ ripple: '#00000010', sparkles: '0 0 0' }"
+    />
+  </button>
+  <button
+    v-if="statuses?.launching === 2"
+    @click="handleClose"
+    id="__home-page__launch-abort-button"
+    :disabled="killing"
+    class="relative w-fit rounded-sm bg-white px-1 py-2 text-black transition-[opacity] disabled:cursor-progress disabled:opacity-80"
+  >
+    <span
+      id="__home-page__launch-options-icon"
+      class="i-lucide-x block"
+    ></span>
     <MaterialRipple
       :colors="{ ripple: '#00000010', sparkles: '0 0 0' }"
     />

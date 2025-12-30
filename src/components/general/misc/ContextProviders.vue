@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { platform } from "@tauri-apps/plugin-os";
+import { type Child, Command } from "tauri-plugin-shellx-api";
 import { markRaw, provide, reactive, ref } from "vue";
 
 import {
   ApplicationNamespace,
-  AuthStatesContextKey,
+  AuthStatesContextKey, CloseInstanceContextKey,
   LaunchInstanceContextKey,
   LaunchStatesContextKey,
 } from "@/constants/application.ts";
@@ -15,6 +17,7 @@ import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
+import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type {
   LauncherStatusesType,
   WrappedInstanceLauncherStatusesType,
@@ -26,8 +29,16 @@ const accounts = ref<Array<AccountType>>(
 );
 const launches = reactive<Record<string, LauncherStatusesType>>({});
 
+const childProcesses: Record<string, Child> = {};
+
 // Do not expose accounts data to globals since extensions will easily access it
 window[ApplicationNamespace].__internals.temporaryAccounts = [];
+
+function onClose(instanceId: string): void {
+  const statuses: LauncherStatusesType = launches[instanceId];
+
+  statuses.launching = 0;
+}
 
 async function launchInstance(instanceId?: string): Promise<void> {
   if (!instanceId) {
@@ -49,14 +60,13 @@ async function launchInstance(instanceId?: string): Promise<void> {
   }
 
   launches[instanceId] = {
-    "launching": true,
+    "launching": 1,
     "current"  : undefined,
     "downloads": markRaw(new Set),
   };
 
   const statuses: LauncherStatusesType = launches[instanceId];
   const startTime: number = performance.now();
-  let success: boolean = false;
 
   statuses.current = LaunchStatus.General.Starting;
   statuses.downloads.clear();
@@ -64,16 +74,21 @@ async function launchInstance(instanceId?: string): Promise<void> {
   try {
     const javaMajor: number = window[ApplicationNamespace].__internals.javaMajor
       ?? await General.getJavaMajor();
-
-    await Launcher.launchWithChecks({
+    const { success, process }: LaunchResponseType = await Launcher.launchWithChecks({
       "instance": currentInstance.instance,
       javaMajor,
       instanceId,
       statuses,
+      onClose,
     });
 
-    success = true;
+    statuses.launching = success ? 2 : 0;
+
+    if (process !== undefined) {
+      childProcesses[instanceId] = process;
+    }
   } catch (error: unknown) {
+    statuses.launching = 0;
     statuses.current = LaunchStatus.Errors.UnhandledError;
 
     log.error(
@@ -86,12 +101,31 @@ async function launchInstance(instanceId?: string): Promise<void> {
   const endTime: number = performance.now();
   const totalTime: string = (endTime - startTime).toFixed(2);
 
-  statuses.launching = false;
-
   log.info(
     `The '${instanceId}' launch process was done in ${totalTime} ms.`,
-    `Is success: '${success}'`,
+    `Is success: '${statuses.launching === 2}'`,
   );
+}
+async function closeInstance(instanceId: string): Promise<void> {
+  const process: {
+    "pid" : number;
+    "kill": () => Promise<void>;
+  } | undefined = childProcesses[instanceId];
+
+  if (!process) {
+    log.error(`The '${instanceId}' instance kill action was called but no process is present`);
+
+    return;
+  }
+
+  // Refer to https://github.com/tauri-apps/tauri/issues/4949
+  if (platform() === "windows") {
+    await Command.create("cmd", `/C taskkill /pid ${process.pid} /f /t`).execute();
+
+    return;
+  }
+
+  return process.kill();
 }
 
 /*
@@ -106,6 +140,7 @@ provide<WrappedAccountsType>(AuthStatesContextKey, accounts);
  */
 provide<WrappedInstanceLauncherStatusesType>(LaunchStatesContextKey, launches);
 provide<(instanceId?: string) => Promise<void>>(LaunchInstanceContextKey, launchInstance);
+provide<(instanceId: string) => Promise<void>>(CloseInstanceContextKey, closeInstance);
 </script>
 
 <template>

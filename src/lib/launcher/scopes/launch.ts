@@ -1,4 +1,4 @@
-import { Command } from "tauri-plugin-shellx-api";
+import { Child, Command } from "tauri-plugin-shellx-api";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
 import {
@@ -14,6 +14,7 @@ import {
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -24,6 +25,7 @@ export async function launch({
   necessaries,
   versionMeta,
   parsed,
+  onClose,
 }: {
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
@@ -38,7 +40,8 @@ export async function launch({
     "patches"  : LibraryArtifactsType;
     "mainClass": string | undefined;
   };
-}): Promise<boolean> {
+  "onClose": (instanceId: string) => void;
+}): Promise<LaunchResponseType> {
   log.debug("Entered the actual launch function");
   const { directories, statuses } = necessaries;
   const { mainClass } = parsed;
@@ -122,20 +125,30 @@ export async function launch({
   );
   console.log(launchArguments);
 
+  log.debug(`Launching the '${instanceId}' instance`);
+  const process: Child = await instanceCommand.spawn();
+
+  log.debug(`Adding listeners to the '${instanceId}' instance process`);
   instanceCommand.stdout.on("data", line => {
     console.log(line);
   });
-  instanceCommand.on("error", line => {
-    statuses.current = LaunchStatus.Errors.UnhandledError;
-
-    console.error(line);
+  instanceCommand.on("close", payload => {
+    log.info(
+      `The '${instanceId}' was closed. Payload:`,
+      "\n" + JSON.stringify(payload, null, 2),
+    );
+    onClose(instanceId);
   });
-
-  log.debug(`Launching the '${instanceId}' instance`);
-  await instanceCommand.spawn();
+  instanceCommand.on("error", payload => {
+    log.error(
+      `Something went wrong with the '${instanceId}' instance. Payload:`,
+      "\n" + JSON.stringify(payload, null, 2),
+    );
+    statuses.current = LaunchStatus.Errors.UnhandledError;
+  });
 
   log.info(`The '${instanceId}' successfully launched`);
   statuses.current = LaunchStatus.General.Success;
 
-  return true;
+  return { "success": true, process };
 }
