@@ -63,22 +63,19 @@ vi.mock("@/lib/configs/scopes/initialize-config-file.ts", async () => {
 
 const tests: Array<{
   "arguments": {
-    "exists"       : boolean;
-    "fetchedConfig": string;
+    "fetchedConfig": unknown;
   };
   "output": unknown;
 }> = [
   {
     "arguments": {
-      "exists"       : true,
-      "fetchedConfig": JSON.stringify({}),
+      "fetchedConfig": {},
     },
     "output": defaultConfig,
   },
   {
     "arguments": {
-      "exists"       : true,
-      "fetchedConfig": JSON.stringify({
+      "fetchedConfig": {
         ...defaultConfig,
         "layout": {
           ...defaultConfig.layout,
@@ -86,7 +83,7 @@ const tests: Array<{
             "spent 2 days thinking why my tests were broken xd",
         },
         "TUYU": "is awesome",
-      }),
+      },
     },
     "output": {
       ...defaultConfig,
@@ -100,8 +97,7 @@ const tests: Array<{
   },
   {
     "arguments": {
-      "exists"       : true,
-      "fetchedConfig": JSON.stringify({
+      "fetchedConfig": {
         ...defaultConfig,
         "layout": {
 
@@ -111,14 +107,13 @@ const tests: Array<{
            */
           "custom": "blue",
         },
-      }),
+      },
     },
     "output": defaultConfig,
   },
   {
     "arguments": {
-      "exists"       : true,
-      "fetchedConfig": JSON.stringify({
+      "fetchedConfig": {
         ...defaultConfig,
         "minecraft": {
           // 'windowHeight' should have a 'number' type
@@ -126,14 +121,13 @@ const tests: Array<{
           "windowWidth" : 854,
           "jvmArgs"     : "",
         },
-      }),
+      },
     },
     "output": defaultConfig,
   },
   {
     "arguments": {
-      "exists"       : true,
-      "fetchedConfig": JSON.stringify({
+      "fetchedConfig": {
         ...defaultConfig,
         "layout": {
           ...defaultConfig.layout,
@@ -142,7 +136,7 @@ const tests: Array<{
             "url": "some-url",
           },
         },
-      }),
+      },
     },
     "output": {
       ...defaultConfig,
@@ -157,46 +151,41 @@ const tests: Array<{
   },
   {
     "arguments": {
-      "exists"       : true,
-      "fetchedConfig": "0",
+      "fetchedConfig": 0,
     },
     "output": defaultConfig,
   },
   {
     "arguments": {
-      "exists"       : false,
-      // If 'exists' were 'true', it would throw an error (expected behaviour)
       "fetchedConfig": "",
     },
     "output": defaultConfig,
   },
 ];
 
-let index = 0;
+let index = -1;
 
 beforeEach(() => {
+  vi.doMock("@/lib/extensions-manager", async () => {
+    return {
+      "default": {
+        "catchAsyncResponseHooks": async (): Promise<string> => "continue",
+      },
+    };
+  });
   vi.doMock("@/lib/general", async () => {
     return {
       "default": {
-        "checkIsPortable" : async (): Promise<boolean> => false,
-        "getBaseDirectory": async (): Promise<string> => "",
-        "cachedJoin"      : (): string => "",
+        // 'handleJsonFile' returns actually stored config
+        "handleJsonFile": async (): Promise<unknown> => tests[index].arguments.fetchedConfig,
+        "cachedJoin"    : (): string => "",
       },
     };
   });
-  vi.doMock("@tauri-apps/api/path", async () => {
+  vi.doMock("@/lib/configs/scopes/regenerate-config-file.ts", async () => {
     return {
-      "join": async (): Promise<string> => "",
-    };
-  });
-  vi.doMock("@tauri-apps/plugin-fs", async () => {
-    return {
-      "BaseDirectory": {
-        "AppData": 14,
-      },
-      "rename"      : async (): Promise<void> => {},
-      "exists"      : async (): Promise<boolean> => tests[index].arguments.exists,
-      "readTextFile": async (): Promise<string> => tests[index].arguments.fetchedConfig,
+      // 'regenerateConfigFile' returns a default config
+      "regenerateConfigFile": async (): Promise<unknown> => defaultConfig,
     };
   });
 });
@@ -209,12 +198,13 @@ test.for(tests)(
      */
     const { getConfigFile } = await import("./get-config-file.ts");
 
+    index++;
+
+    // For some reason, these 'expect' tests throw an error on test fail
     expect(
       JSON.stringify(await getConfigFile("")),
     ).toBe(
       JSON.stringify(output),
     );
-
-    index++;
   },
 );

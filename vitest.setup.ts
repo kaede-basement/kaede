@@ -1,6 +1,9 @@
 import { vi } from "vitest";
 
 import type { KaedeNamespaceType } from "./src/declarations";
+import type { InstanceStatesType } from "./src/types/application/instance-states.type";
+import type { AccountType } from "./src/types/configs/account.type";
+import type { TranslationsType } from "./src/types/translations/translations.type";
 
 // Overwrite the 'window' object for tests only
 vi.stubGlobal("window", {
@@ -13,20 +16,24 @@ vi.stubGlobal("window", {
       "requestPermissions"  : async (): Promise<Array<boolean>> => ([]),
       "syncConfig"          : async (): Promise<void> => {},
       "joinDelimiter"       : "",
+      "launcherVersion"     : "",
       "initialPortable"     : false,
       "initialBaseDirectory": "",
       "initialConfig"       : {},
+      "temporaryAccounts"   : [] as Array<AccountType>,
+      "initialTranslations" : {} as TranslationsType,
+      "initialInstances"    : {} as InstanceStatesType,
     },
     "variables": {
       "rippleColor"     : "",
       "sparklesColorRGB": "255 255 255",
     },
     "hooks": {
-      "getConfigFile": {
+      "onConfigFileGet": {
         "before": [],
         "after" : [],
       },
-      "getDefaultConfig": {
+      "onDefaultConfigGet": {
         "before": [],
       },
       "onPagesChange": {
@@ -49,10 +56,6 @@ vi.stubGlobal("window", {
         "before": [],
         "after" : [],
       },
-      "onTranslationsChange": {
-        "before": [],
-        "after" : [],
-      },
       "onDevelopmentChange": {
         "before": [],
         "after" : [],
@@ -65,7 +68,71 @@ vi.stubGlobal("window", {
         "before": [],
         "after" : [],
       },
+      "onTranslationsChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onExtensionsChange": {
+        "before": [],
+        "after" : [],
+      },
       "onInstanceChange": {
+        "before": [],
+        "after" : [],
+      },
+      "onPreLaunchInformation": {
+        "before": [],
+        "after" : [],
+      },
+      "onVersionMeta": {
+        "before": [],
+        "after" : [],
+      },
+      "onLibrariesParsing": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftAssetsGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftPatchesGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftClientGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftLoggingGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftLibrariesGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onNativesExtract": {
+        "before": [],
+        "after" : [],
+      },
+      "onJavaBinaryGet": {
+        "before": [],
+      },
+      "onJVMArgumentsGet": {
+        "before": [],
+        "after" : [],
+      },
+      "onClassPathsGet": {
+        "before": [],
+      },
+      "onGameArgumentsGet": {
+        "before": [],
+      },
+      "onAdditionalStartArgumentsGet": {
+        "before": [],
+      },
+      "onLaunchArgumentsReplace": {
         "before": [],
         "after" : [],
       },
