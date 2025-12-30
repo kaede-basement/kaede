@@ -63,9 +63,10 @@ export type GlobalStatesSidebarItemsType = Array<"divider" | {
   "image"?: string;
 }>;
 export type GlobalStatesContextMenuItemsType = Array<{
-  "icon"  : string;
   "name"  : string;
   "action": () => void;
+  "icon" ?: string;
+  "image"?: string;
 }>;
 export type GlobalStatesDevelopmentType = {
   "showFPS"                   : boolean;

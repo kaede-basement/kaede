@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { inject } from "vue";
 
+import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
@@ -30,9 +31,17 @@ const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
         class="__context_menu__entry __context-menu-disable relative flex flex-nowrap items-center gap-2 p-2 hover:bg-neutral-700"
       >
         <span
+          v-if="item.icon"
           :id="`__context-menu__entry-${item.icon}-icon`"
           :class="[item.icon, '__context-menu-disable block size-4']"
         ></span>
+        <Image
+          v-else-if="item.image"
+          :id="`__context-menu__entry-${item.name}-image`"
+          :src="item.image"
+          :alt="`An image for the ${item.name} context menu item`"
+          class-names="size-4"
+        />
         <span
           :id="`__context-menu__entry-${item.icon}-label`"
           class="__context-menu-disable block whitespace-nowrap text-sm leading-none"
