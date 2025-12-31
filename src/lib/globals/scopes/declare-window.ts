@@ -5,6 +5,7 @@ import * as ShellXPlugin from "tauri-plugin-shellx-api";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { FileStructure } from "@/constants/file-structure.ts";
+import { APIEndpoints } from "@/constants/launcher.ts";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import Errors from "@/lib/errors";
@@ -64,6 +65,7 @@ export function declareWindow(): void {
       "sparklesColorRGB": "255 255 255",
     },
     "libs": {
+      APIEndpoints,
       Configs,
       DevelopmentModeHelpers,
       FileStructure,

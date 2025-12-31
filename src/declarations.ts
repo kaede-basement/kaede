@@ -13,6 +13,7 @@ import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 
 import type { FileStructure } from "@/constants/file-structure.ts";
+import type { APIEndpoints } from "@/constants/launcher.ts";
 import type Configs from "@/lib/configs";
 import type DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import type Errors from "@/lib/errors";
@@ -94,13 +95,13 @@ declare global {
        * These fields are not intended to be modified by extensions
        */
       "__internals": {
-        // Gets current application's global states (use 'libs.GlobalStateHelpers#get')
+        // Gets current application global states (use 'libs.GlobalStateHelpers#get')
         "getGlobalStates"     : () => GlobalStatesType;
-        // Changes application's global states (use 'libs.GlobalStateHelpers#change')
+        // Changes application global states (use 'libs.GlobalStateHelpers#change')
         "changeGlobalStates"  : GlobalStatesChangerType;
-        // Gets current application's instance states (use 'libs.Instances#get')
+        // Gets current application instance states (use 'libs.Instances#get')
         "getInstanceStates"   : () => InstanceStatesType;
-        // Changes application's instance states (use 'libs.Instances#change')
+        // Changes application instance states (use 'libs.Instances#change')
         "changeInstanceStates": InstanceStatesChangerType;
         // Requests plugin permissions from user
         "requestPermissions"  : (
@@ -127,7 +128,7 @@ declare global {
         "initialBaseDirectory": string;
         // A temporary storage for the 'At a Glance' widget
         "atAGlance"          ?: AtAGlanceType;
-        // A timestamp for the application's JavaScript code initialization
+        // A timestamp for the application code initialization
         "startTime"          ?: number;
         // A Java major version (for example, 8, 11, or 17)
         "javaMajor"          ?: number;
@@ -159,67 +160,72 @@ declare global {
       "libs": {
 
         /**
-         * Launcher's configuration-related collection of utilities
+         * Launcher API endpoints
+         */
+        "APIEndpoints": typeof APIEndpoints;
+
+        /**
+         * Launcher configuration-related collection of utilities
          */
         "Configs": typeof Configs;
 
         /**
-         * Launcher's development mode related collection of utilities
+         * Launcher development mode related collection of utilities
          */
         "DevelopmentModeHelpers": typeof DevelopmentModeHelpers;
 
         /**
-         * Launcher's file structure
+         * Launcher file structure
          */
         "FileStructure": typeof FileStructure;
 
         /**
-         * Launcher's errors-related collection of utilities
+         * Launcher errors-related collection of utilities
          */
         "Errors": typeof Errors;
 
         /**
-         * Launcher's extension system related collection of utilities
+         * Launcher extension system related collection of utilities
          */
         "ExtensionsManager": typeof ExtensionsManager;
 
         /**
-         * Launcher's general-purpose collection of utilities
+         * Launcher general-purpose collection of utilities
          */
         "General": typeof General;
 
         /**
-         * Launcher's global states related collection of utilities
+         * Launcher global states related collection of utilities
          */
         "GlobalStateHelpers": typeof GlobalStateHelpers;
 
         /**
-         * Launcher's 'window' object related collection of utilities
+         * Launcher 'window' object related collection of utilities
          */
         "Globals": typeof Globals;
 
         /**
-         * Launcher's Minecraft instances related collection of utilities
+         * Launcher Minecraft instances related collection of utilities
          */
         "Instances": typeof Instances;
 
         /**
-         * Launcher's Minecraft-related collection of utilities
+         * Launcher Minecraft-related collection of utilities
          */
         "Launcher": typeof Launcher;
 
         /**
-         * Launcher's logging-related collection of utilities
+         * Launcher logging-related collection of utilities
          */
         "Logging": typeof Logging;
 
         /**
-         * Launcher's collection of typebox validation schemas
+         * Launcher collection of typebox validation schemas
          */
         "Schemas": typeof Schemas;
 
         /**
-         * Launcher's context menu related collection of utilities
+         * Launcher context menu related collection of utilities
          */
         "ContextMenu": {
 
@@ -234,7 +240,7 @@ declare global {
         };
 
         /**
-         * Launcher's pages-related collection of utilities
+         * Launcher pages-related collection of utilities
          */
         "Pages": {
           // Teleports the specified page to an element with the provided selector
