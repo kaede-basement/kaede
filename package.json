@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
+    "build:debug": "tauri build --debug",
     "dev:frontend": "vite",
     "build:frontend": "vue-tsc -b && vite build",
     "preview:frontend": "vite preview",
