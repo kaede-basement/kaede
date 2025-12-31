@@ -28,6 +28,11 @@ vi.stubGlobal("window", {
       "rippleColor"     : "",
       "sparklesColorRGB": "255 255 255",
     },
+
+    /*
+     * We need to explicitly define everything since
+     * 'vitest' will fail even if we just use one object for these fields
+     */
     "hooks": {
       "onConfigFileGet": {
         "before": [],
