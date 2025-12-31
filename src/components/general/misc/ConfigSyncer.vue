@@ -8,7 +8,6 @@ import { FileStructure } from "@/constants/file-structure.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
-import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   ContextGlobalStatesType,
@@ -21,6 +20,12 @@ const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const syncing = ref<boolean>(false);
 
 async function handleConfigSync(): Promise<void> {
+  if (globalStates === undefined) {
+    log.error("Config sync was triggered but no global states are present");
+
+    return;
+  }
+
   const t1 = performance.now();
 
   syncing.value = true;
@@ -28,7 +33,7 @@ async function handleConfigSync(): Promise<void> {
   log.debug("Getting current global states");
   const currentGlobalStatesDetached: ConfigType & Partial<GlobalStatesType> = {
     // Spread the global states to re-create one-level deep properties
-    ...GlobalStateHelpers.get(),
+    ...globalStates,
   };
   const configPath = General.cachedJoin(
     General.getCachedBaseDirectory(),
@@ -47,7 +52,7 @@ async function handleConfigSync(): Promise<void> {
   log.debug("Creating a 'ConfigType' typed object with the global states contents");
   const configOnlyGlobalStates: ConfigType = {
     // Spread the global states since there might be additional properties by extensions
-    ...globalStates,
+    ...currentGlobalStatesDetached,
     // Arrange these properties in a way that the config itself arranges them
     "development": currentGlobalStatesDetached.development,
     "extensions" : currentGlobalStatesDetached.extensions,
