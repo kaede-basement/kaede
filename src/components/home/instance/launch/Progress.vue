@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed, inject, ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import {
@@ -16,6 +16,9 @@ import type {
   WrappedInstanceLauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
+import { useIntervalFn } from "@vueuse/core";
+
+const progressLimit: number = 88;
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
@@ -23,7 +26,7 @@ const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );
 
-const progressLimit: number = 88;
+const downloadsAmount = ref<number>(0);
 
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
@@ -90,9 +93,20 @@ const progress = computed<number>((oldValue: number | undefined): number => {
     }
   }
 });
+
+useIntervalFn(() => {
+  if (statuses.value === undefined) {
+    return;
+  }
+
+  downloadsAmount.value = statuses.value.downloads.size;
+}, 50);
 </script>
 
 <template>
+  <div id="__home-page__launch-progress-bar-downloads" class="text-sm">
+    Downloads: {{ downloadsAmount }}
+  </div>
   <button
     v-if="progress > 0"
     @click="() => {}"
