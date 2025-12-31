@@ -16,7 +16,7 @@ const minecraftUID: string = "net.minecraft";
 
 const { data, status } = useQuery({
   "queryKey": ["meta", minecraftUID, "versions"],
-  "queryFn" : async (): Promise<PatchMetaType> => {
+  "queryFn" : async (): Promise<PatchMetaType["versions"]> => {
     const response: Response = await fetch(APIEndpoints.Meta.Base + minecraftUID);
     const parsed: unknown = await response.json();
 
@@ -38,7 +38,9 @@ const { data, status } = useQuery({
       throw new Error("No version or type fields in the parsed versions");
     }
 
-    return parsed as PatchMetaType;
+    return parsed
+      .versions
+      .filter(({ type }) => type === "release");
   },
 });
 
@@ -68,9 +70,9 @@ async function addInstance(version: string): Promise<void> {
         {{ status }}
       </div>
       <div id="__add-instance-page__versions-wrapper" class="grid cols-6 gap-2">
-        <template v-if="data?.versions">
+        <template v-if="data">
           <button
-            v-for="entry in data.versions"
+            v-for="entry in data"
             :key="entry.version"
             :disabled="instanceStates?.[`custom-${entry.version}`] !== undefined"
             @click="() => addInstance(entry.version)"
