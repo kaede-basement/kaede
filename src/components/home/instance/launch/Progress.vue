@@ -23,6 +23,8 @@ const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );
 
+const progressLimit: number = 88;
+
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
 ));
@@ -39,59 +41,52 @@ const statuses = computed((): LauncherStatusesType | undefined => {
   return instanceStatuses[instanceId];
 });
 const progress = computed<number>((oldValue: number | undefined): number => {
-  if (statuses.value === undefined) {
+  if (statuses.value === undefined || statuses.value.launching === 0) {
     return 0;
   }
 
-  if (statuses.value.launching === 0) {
-    return 0;
+  if (!oldValue) {
+    return statuses.value.current === LaunchStatus.General.Starting
+      ? 4
+      : 0;
   }
 
   switch (statuses.value.current) {
-    case LaunchStatus.General.Starting: {
-      return 4;
-    }
     case LaunchStatus.Metadata.ReadingCachedVersionMeta: {
-      return 6;
-    }
-    case LaunchStatus.Metadata.FetchingVersionMeta: {
-      return 8;
+      return Math.min(oldValue + 2, progressLimit);
     }
     case LaunchStatus.Metadata.ValidatingVersionMeta: {
-      return 20;
+      return Math.min(oldValue + 4, progressLimit);
     }
     case LaunchStatus.Assets.ReadingCachedMeta: {
-      return 22;
-    }
-    case LaunchStatus.Assets.FetchingMeta: {
-      return 24;
+      return Math.min(oldValue + 2, progressLimit);
     }
     case LaunchStatus.Logging.DownloadingConfig: {
-      return 30;
+      return Math.min(oldValue + 2, progressLimit);
     }
     case LaunchStatus.Client.DownloadingJar: {
-      return 25;
-    }
-    case LaunchStatus.Logging.Done: {
-      return 30;
-    }
-    case LaunchStatus.Client.Done: {
-      return 40;
-    }
-    case LaunchStatus.Libraries.Done: {
-      return 50;
-    }
-    case LaunchStatus.Patches.Done: {
-      return 70;
+      return Math.min(oldValue + 2, progressLimit);
     }
     case LaunchStatus.Assets.Done: {
-      return 90;
+      return Math.min(oldValue + 12, progressLimit);
+    }
+    case LaunchStatus.Client.Done: {
+      return Math.min(oldValue + 12, progressLimit);
+    }
+    case LaunchStatus.Logging.Done: {
+      return Math.min(oldValue + 12, progressLimit);
+    }
+    case LaunchStatus.Libraries.Done: {
+      return Math.min(oldValue + 12, progressLimit);
+    }
+    case LaunchStatus.Patches.Done: {
+      return Math.min(oldValue + 12, progressLimit);
     }
     case LaunchStatus.General.Success: {
       return 100;
     }
     default: {
-      return oldValue ?? 0;
+      return oldValue;
     }
   }
 });
