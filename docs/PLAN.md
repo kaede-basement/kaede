@@ -15,17 +15,20 @@
     - [ ] Repository fetching
     - [ ] Downloading from the repository
     - [ ] UI to manage plugins
-- [ ] Minecraft launching
-  - [x] Version manifest parsing & caching
-  - [ ] Version metadata parsing & caching
-  - [ ] Launch command builder
-  - [ ] All versions support
+- [x] Minecraft launching
+  - [x] MultiMC meta
+  - [x] Caching
+  - [x] Precise missing assets/libraries/jars re-download
+  - [x] Precise SHA1 mismatched assets/libraries/jars re-download (with the option to disable them)
+  - [x] Plugin hooks for every launch step
+  - [x] Launching process with the same launch features as Prism Launcher takes up the same amount of time
+  - [x] 1.0-1.21.11 works
 - [ ] Authentication
     - [ ] Microsoft authentication
     - [ ] Offline accounts if user has a Microsoft account with the game
     - [ ] Profile systems (?) (basically different launcher settings for different users)
 - [ ] Instance management
-    - [ ] Isolated instances
+    - [x] Isolated instances
     - [ ] Instance import (from Prism Launcher, Modrinth, etc.)
     - [ ] Instance export
     - [ ] Sandboxed minecraft instances (?)
