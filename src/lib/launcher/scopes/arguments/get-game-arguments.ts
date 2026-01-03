@@ -36,5 +36,12 @@ export async function getGameArguments({
     throw new Error("No minecraft arguments found in the version metadata");
   }
 
-  return versionMeta.minecraftArguments;
+  const tweakersList: Array<string> = versionMeta["+tweakers"] ?? [];
+  const argumentsWithTweakers: Array<string> = [versionMeta.minecraftArguments];
+
+  for (const tweaker of tweakersList) {
+    argumentsWithTweakers.push(`--tweakClass ${tweaker}`);
+  }
+
+  return argumentsWithTweakers.join(" ");
 }
