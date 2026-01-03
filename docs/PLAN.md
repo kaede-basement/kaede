@@ -22,7 +22,9 @@
   - [x] Precise SHA1 mismatched assets/libraries/jars re-download (with the option to disable them)
   - [x] Plugin hooks for every launch step
   - [x] Launching process with the same launch features as Prism Launcher takes up the same amount of time
-  - [x] 1.0-1.21.11 works
+  - [x] 1.0-1.21.11 works (snapshots should work too)
+  - [ ] Launch wrapper for old versions of minecraft
+  - [ ] Handle indev, alpha, and beta versions
 - [ ] Authentication
     - [ ] Microsoft authentication
     - [ ] Offline accounts if user has a Microsoft account with the game
