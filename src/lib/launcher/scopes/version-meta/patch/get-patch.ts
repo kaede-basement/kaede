@@ -22,7 +22,14 @@ export async function getPatch({
   >[number];
 }): Promise<SpecificPatchMetaType | false> {
   const versionWithExtension: string = require.suggests + ".json";
-  const fileName: string = require.uid + "-" + versionWithExtension;
+
+  /*
+   * The minecraft version metadata is stored as '${version}.json',
+   * so make sure the patch metadata file format follows the same structure
+   */
+  const fileName: string = require.uid === "net.minecraft"
+    ? versionWithExtension
+    : require.uid + "-" + versionWithExtension;
   let parsedMeta: unknown;
 
   try {
