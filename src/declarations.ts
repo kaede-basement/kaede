@@ -1346,6 +1346,32 @@ declare global {
             },
             string
           >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the MultiMC tweakers were added.
+           *
+           * @param input - an object that has the 'argumentsWithTweakers', 'instanceId',
+           * 'necessaries', 'versionMeta', and 'parsed' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a string that represents the game arguments
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "after": HookReturnType<
+            {
+              "argumentsWithTweakers": Array<string>;
+              "instanceId"           : string;
+              "necessaries"          : PreLaunchInformationType;
+              "versionMeta"          : SpecificPatchMetaType;
+              "parsed"               : ParsedMetaType;
+            },
+            string
+          >;
         };
 
         /**

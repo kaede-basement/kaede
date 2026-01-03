@@ -43,5 +43,16 @@ export async function getGameArguments({
     argumentsWithTweakers.push(`--tweakClass ${tweaker}`);
   }
 
+  const afterHooksResult: "continue" | string | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<string>({
+      "scope" : "onGameArgumentsGet",
+      "toPass": { argumentsWithTweakers, instanceId, necessaries, versionMeta, parsed },
+      "timing": "after",
+    });
+
+  if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
+    return afterHooksResult;
+  }
+
   return argumentsWithTweakers.join(" ");
 }

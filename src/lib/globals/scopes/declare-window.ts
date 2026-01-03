@@ -191,6 +191,7 @@ export function declareWindow(): void {
       },
       "onGameArgumentsGet": {
         "before": [],
+        "after" : [],
       },
       "onAdditionalStartArgumentsGet": {
         "before": [],

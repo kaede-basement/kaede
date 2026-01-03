@@ -133,6 +133,7 @@ vi.stubGlobal("window", {
       },
       "onGameArgumentsGet": {
         "before": [],
+        "after" : [],
       },
       "onAdditionalStartArgumentsGet": {
         "before": [],
