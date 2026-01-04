@@ -27,13 +27,14 @@ This folder contains only Vue components. All components use [Composition API](h
 
 ### `z-index` table
 
-| Elements          | Value  |
-|-------------------|--------|
-| [dev] FPS counter | `9500` |
-| Context Menu      | `9000` |
-| Permissions Modal | `8000` |
-| Sidebar Tooltip   | `7000` |
-| Log Viewer        | `6000` |
-| Sidebar           | `5000` |
-| Config Sync Icon  | `1500` |
-| Global Background | `-10`  |
+| Elements           | Value  |
+|--------------------|--------|
+| `dev` FPS counter  | `9500` |
+| Context Menu       | `9000` |
+| Permissions Modal  | `8000` |
+| Sidebar Tooltip    | `7000` |
+| Launch Progressbar | `6500` |
+| Log Viewer         | `6000` |
+| Sidebar            | `5000` |
+| Config Sync Icon   | `1500` |
+| Global Background  | `-10`  |

@@ -4,7 +4,6 @@ import AtAGlance from "@/components/home/glance/AtAGlance.vue";
 import CurrentInstance from "@/components/home/instance/CurrentInstance.vue";
 import CurrentPlaytime from "@/components/home/instance/CurrentPlaytime.vue";
 import Launch from "@/components/home/instance/Launch.vue";
-import Progress from "@/components/home/instance/launch/Progress.vue";
 import LaunchOptions from "@/components/home/instance/LaunchOptions.vue";
 </script>
 
@@ -23,12 +22,9 @@ import LaunchOptions from "@/components/home/instance/LaunchOptions.vue";
           <CurrentInstance />
           <CurrentPlaytime />
         </div>
-        <div id="__home-page__launch-section-wrapper" class="flex flex-col gap-2 p-2">
-          <Progress />
-          <div id="__home-page__launch-section-row-second" class="flex flex-nowrap gap-1">
-            <Launch />
-            <LaunchOptions />
-          </div>
+        <div id="__home-page__launch-section-wrapper" class="flex flex-nowrap gap-1 p-2">
+          <Launch />
+          <LaunchOptions />
         </div>
       </div>
     </div>

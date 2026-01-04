@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { useIntervalFn } from "@vueuse/core";
 import { computed, inject, ref } from "vue";
 
-import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import {
   GlobalStatesContextKey,
   InstanceStatesContextKey,
@@ -16,7 +16,6 @@ import type {
   WrappedInstanceLauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
-import { useIntervalFn } from "@vueuse/core";
 
 const progressLimit: number = 88;
 
@@ -104,24 +103,12 @@ useIntervalFn(() => {
 </script>
 
 <template>
-  <div id="__home-page__launch-progress-bar-downloads" class="text-sm">
-    Downloads: {{ downloadsAmount }}
-  </div>
-  <button
+  <div
     v-if="progress > 0"
-    @click="() => {}"
-    id="__home-page__launch-progress-bar-button"
-    class="relative w-full rounded-md bg-white p-1 transition-[background-color] hover:bg-[theme(colors.neutral.100/.85)]"
-  >
-    <span
-      id="__home-page__launch-progress-bar-text"
-      class="block h-[6px] rounded-md bg-neutral-800 transition-[width]"
-      :style="{
-        width: progress + '%',
+    id="__layout__launch-progress-bar-text"
+    class="absolute bottom-0 left-[-50%] z-6500 block h-1 w-full rounded-r-md bg-white transition-[transform]"
+    :style="{
+        transform: `scaleX(${progress * 2}%)`,
       }"
-    ></span>
-    <MaterialRipple
-      :colors="{ ripple: '#00000010', sparkles: '0 0 0' }"
-    />
-  </button>
+  ></div>
 </template>
