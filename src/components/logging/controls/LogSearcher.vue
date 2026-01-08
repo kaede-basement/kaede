@@ -3,6 +3,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 
 import CustomInput from "@/components/general/base/CustomInput.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import { ApplicationName } from "@/constants/application.ts";
 
 const {
   searching,
@@ -104,7 +105,7 @@ function handleTextSelection(event: KeyboardEvent): void {
     "Sorry, but you can't select text in the virtualized log viewer. " +
     "Either disable it or open the log file in a text editor.",
     {
-      "title": "Kaede",
+      "title": ApplicationName,
       "kind" : "warning",
     },
   );
