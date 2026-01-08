@@ -11,6 +11,7 @@ import * as TauriProcess from "@tauri-apps/plugin-process";
 import * as TauriUpload from "@tauri-apps/plugin-upload";
 import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
+import type { Child } from "tauri-plugin-shellx-api";
 
 import type { FileStructure } from "@/constants/file-structure.ts";
 import type { APIEndpoints } from "@/constants/launcher.ts";
@@ -1497,6 +1498,134 @@ declare global {
             },
             string,
             "non-promise"
+          >;
+        };
+
+        /**
+         * Executed on minecraft instance launch
+         */
+        "onMinecraftLaunch": {
+
+          /**
+           * Executes 'async' or 'sync' functions before any actions.
+           *
+           * @param input - an object that has the 'command', 'auth',
+           * 'builtLaunchArguments', 'instanceId', 'necessaries',
+           * 'parsed', 'versionMeta', and 'javaBinary' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a 'void'
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              // [javaBinary, launchCommand]
+              "command": [string, string];
+              "auth"   : {
+                "username": string;
+
+                /**
+                 * Scary!
+                 */
+                "token": string;
+                "uuid" : string;
+                "type" : string;
+              };
+              "builtLaunchArguments": {
+                "toReplace" : string;
+                "classPaths": string;
+              };
+              "instanceId" : string;
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+              "parsed"     : ParsedMetaType;
+              "javaBinary" : string;
+            },
+            void
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the minecraft instance was launched.
+           *
+           * @param input - an object that has the 'process', 'command', 'auth',
+           * 'builtLaunchArguments', 'instanceId', 'necessaries',
+           * 'parsed', 'versionMeta', and 'javaBinary' fields
+           * is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
+          "after": HookReturnType<
+            {
+              "process": Child;
+              // [javaBinary, launchCommand]
+              "command": [string, string];
+              "auth"   : {
+                "username": string;
+
+                /**
+                 * Scary!
+                 */
+                "token": string;
+                "uuid" : string;
+                "type" : string;
+              };
+              "builtLaunchArguments": {
+                "toReplace" : string;
+                "classPaths": string;
+              };
+              "instanceId" : string;
+              "necessaries": PreLaunchInformationType;
+              "versionMeta": SpecificPatchMetaType;
+              "parsed"     : ParsedMetaType;
+              "javaBinary" : string;
+            },
+            "nothing"
+          >;
+        };
+
+        /**
+         * Executed on minecraft instance kill
+         */
+        "onMinecraftKill": {
+
+          /**
+           * Executes 'async' or 'sync' functions before the instance was killed.
+           *
+           * @param input - an object that has the 'pid' and 'kill' fields
+           * is passed as the argument.
+           *
+           * If the hook returns a 'stop' status,
+           * it should also return:
+           * @param output - a 'void'
+           * in the 'response' field.
+           *
+           * If the hook returns a 'continue' status,
+           * code execution will continue as if that hook did not exist.
+           */
+          "before": HookReturnType<
+            {
+              "pid" : number;
+              "kill": () => Promise<void>;
+            },
+            void
+          >;
+
+          /**
+           * Executes 'async' or 'sync' functions after the instance was killed.
+           *
+           * @param input - an instance process id number
+           * is passed as the argument.
+           *
+           * Hook should not return anything since the response will not be read.
+           */
+          "after": HookReturnType<
+            number,
+            "nothing"
           >;
         };
       };

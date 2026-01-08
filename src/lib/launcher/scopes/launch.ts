@@ -1,6 +1,7 @@
 import { Child, Command } from "tauri-plugin-shellx-api";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
+import ExtensionsManager from "@/lib/extensions-manager";
 import {
   getAdditionalStartArguments,
 } from "@/lib/launcher/scopes/arguments/get-additional-start-arguments.ts";
@@ -110,6 +111,40 @@ export async function launch({
     javaBinary,
   });
 
+  const beforeHooksResult: "continue" | void | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<void>({
+      "scope" : "onMinecraftLaunch",
+      "toPass": {
+        "command": [
+          javaBinary,
+          launchArguments,
+        ],
+        "auth": {
+          "uuid"    : "3206b5f6-acd3-419e-a297-7d120f510767",
+          "token"   : "huh",
+          "username": "windstone_",
+          "type"    : "msa",
+        },
+        "builtLaunchArguments": {
+          "toReplace": toReplace.join(" "),
+          classPaths,
+        },
+        instanceId,
+        necessaries,
+        versionMeta,
+        parsed,
+        javaBinary,
+      },
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue") {
+    return {
+      "success": true,
+      "process": undefined,
+    };
+  }
+
   log.debug(`Creating a launch command with the '${directories.instance}' working directory`);
   const instanceCommand = Command.create(
     javaBinary,
@@ -119,6 +154,33 @@ export async function launch({
 
   log.debug(`Launching the '${instanceId}' instance`);
   const process: Child = await instanceCommand.spawn();
+
+  await ExtensionsManager.catchAsyncVoidHooks({
+    "scope" : "onMinecraftLaunch",
+    "toPass": {
+      process,
+      "command": [
+        javaBinary,
+        launchArguments,
+      ],
+      "auth": {
+        "uuid"    : "3206b5f6-acd3-419e-a297-7d120f510767",
+        "token"   : "huh",
+        "username": "windstone_",
+        "type"    : "msa",
+      },
+      "builtLaunchArguments": {
+        "toReplace": toReplace.join(" "),
+        classPaths,
+      },
+      instanceId,
+      necessaries,
+      versionMeta,
+      parsed,
+      javaBinary,
+    },
+    "timing": "before",
+  });
 
   log.debug(`Adding listeners to the '${instanceId}' instance process`);
   instanceCommand.on("close", payload => {

@@ -142,6 +142,14 @@ vi.stubGlobal("window", {
         "before": [],
         "after" : [],
       },
+      "onMinecraftLaunch": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftKill": {
+        "before": [],
+        "after" : [],
+      },
     },
   },
 } satisfies {

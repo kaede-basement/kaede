@@ -11,12 +11,14 @@ import {
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
+import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
+import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type {
   LauncherStatusesType,
@@ -118,6 +120,17 @@ async function closeInstance(instanceId: string): Promise<void> {
     return;
   }
 
+  const beforeHooksResult: "continue" | void | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<void>({
+      "scope" : "onMinecraftKill",
+      "toPass": process,
+      "timing": "before",
+    });
+
+  if (beforeHooksResult !== "continue") {
+    return;
+  }
+
   // Refer to https://github.com/tauri-apps/tauri/issues/4949
   if (platform() === "windows") {
     await Command.create("cmd", `/C taskkill /pid ${process.pid} /f /t`).execute();
@@ -125,7 +138,12 @@ async function closeInstance(instanceId: string): Promise<void> {
     return;
   }
 
-  return process.kill();
+  await process.kill();
+  await ExtensionsManager.catchAsyncVoidHooks({
+    "scope" : "onMinecraftKill",
+    "toPass": process.pid,
+    "timing": "after",
+  });
 }
 
 /*

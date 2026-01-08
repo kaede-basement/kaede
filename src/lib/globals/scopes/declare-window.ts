@@ -200,6 +200,14 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onMinecraftLaunch": {
+        "before": [],
+        "after" : [],
+      },
+      "onMinecraftKill": {
+        "before": [],
+        "after" : [],
+      },
     },
   };
 }
