@@ -1,19 +1,45 @@
-import { debug, error, info, warn } from "@tauri-apps/plugin-log";
+import { invoke } from "@tauri-apps/api/core";
 
 import { capitalize } from "@/lib/general/scopes/capitalize.ts";
 import type { LogMethodType } from "@/types/logging/log-method.type.ts";
 
-/*
- * We do not care about promises here
- * Yeah, that can possibly lead to racing conditions...
- */
+function invokeLog(
+  level: number,
+  message: string,
+  location: string,
+): void {
+  // TODO remove
+  if (message === "") {
+    /*
+     * We do not care about promises here
+     * Yeah, that can possibly lead to racing conditions...
+     */
+    invoke("plugin:log|log", {
+      level,
+      "message" : location,
+      "location": "unknown",
+    });
+
+    return;
+  }
+
+  /*
+   * We do not care about promises here
+   * Yeah, that can possibly lead to racing conditions...
+   */
+  invoke("plugin:log|log", {
+    level,
+    message,
+    location,
+  });
+}
 export const log = {
 
   /*
    * 'log#debug' will point to the '__debug-defined' when debug mode is enabled
    */
-  "__debug-defined": (...input: string[]): void => {
-    debug(input.join(" "));
+  "__debug-defined": (prefix: string, ...input: string[]): void => {
+    invokeLog(2, input.join(" "), prefix);
   },
 
   /*
@@ -25,14 +51,14 @@ export const log = {
    * Actual logging methods
    */
   "debug": ((): void => {}) as LogMethodType,
-  "info" : (...input: string[]): void => {
-    info(input.join(" "));
+  "info" : (prefix: string, ...input: string[]): void => {
+    invokeLog(3, input.join(" "), prefix);
   },
-  "warn": (...input: string[]): void => {
-    warn(input.join(" "));
+  "warn": (prefix: string, ...input: string[]): void => {
+    invokeLog(4, input.join(" "), prefix);
   },
-  "error": (...input: string[]): void => {
-    error(input.join(" "));
+  "error": (prefix: string, ...input: string[]): void => {
+    invokeLog(5, input.join(" "), prefix);
   },
 
   /*

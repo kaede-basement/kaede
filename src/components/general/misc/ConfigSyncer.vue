@@ -30,7 +30,7 @@ async function handleConfigSync(): Promise<void> {
 
   syncing.value = true;
 
-  log.debug("Getting current global states");
+  log.debug("ConfigSyncer.vue", "Getting current global states");
   const currentGlobalStatesDetached: ConfigType & Partial<GlobalStatesType> = {
     // Spread the global states to re-create one-level deep properties
     ...globalStates,

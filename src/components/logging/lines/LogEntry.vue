@@ -9,23 +9,22 @@ import type { LogEntryInformationType } from "@/types/logging/log-entry-informat
 import type { FieldTextType } from "@/types/logging/log-field-text.type.ts";
 
 /**
- * 'line' format: [date][time][target?][level] message
+ * 'line' format:
+ * time | level | target | message
  */
-const { line, index, searching, showDates, searchPosition, selectionIndexes } = defineProps<{
+const { line, index, searching, searchPosition, selectionIndexes } = defineProps<{
   "line"             : string | [number, string];
   "index"            : number;
   "searching"        : string;
-  "showDates"       ?: boolean;
   "searchPosition"  ?: number | undefined;
   "selectionIndexes"?: [number, number] | undefined;
 }>();
 
 const information = computed((): LogEntryInformationType => Logging.getLogEntryInformation(line));
 const extractedInformation = computed((): {
-  "date"   : string | FieldTextType;
   "time"   : string | FieldTextType;
-  "target" : string | FieldTextType;
   "level"  : string | FieldTextType;
+  "target" : string | FieldTextType;
   "message": string | FieldTextType;
 } => {
   let safeSearching: string = searching;
@@ -44,13 +43,12 @@ const extractedInformation = computed((): {
     safeSearching = "Invalid regular expression";
   }
 
-  const date = Logging.getLogFieldText(information.value.date, safeSearching);
   const time = Logging.getLogFieldText(information.value.time, safeSearching);
-  const target = Logging.getLogFieldText(information.value.target, safeSearching);
   const level = Logging.getLogFieldText(information.value.level, safeSearching);
+  const target = Logging.getLogFieldText(information.value.target, safeSearching);
   const message = Logging.getLogFieldText(information.value.message, safeSearching);
 
-  return { date, time, target, level, message };
+  return { time, level, target, message };
 });
 const isInRange = computed((): boolean => {
   if (!selectionIndexes) {
@@ -83,45 +81,6 @@ const isInRange = computed((): boolean => {
     </p>
     <div :id="`__log-entry__text-wrapper-${index}`" class="__log-entry__text-wrapper break-all">
       <span
-        :id="`__log-entry__level-${index}`"
-        v-if="typeof extractedInformation.level === 'string'"
-        :class="[
-          '__log-entry__level',
-          extractedInformation.level !== ''
-            && 'text-justify-last inline-block w-[70px]',
-          Logging.getLogLevelColor(information.level),
-        ]"
-      >
-        {{ extractedInformation.level }}
-      </span>
-      <LogHighlighter
-        v-else
-        :color-class="Logging.getLogLevelColor(information.level)"
-        :index="index"
-        :fields="extractedInformation.level.fields"
-        :occurrences="extractedInformation.level.extractions"
-        :search-position="searchPosition"
-      />
-
-      <template v-if="showDates">
-        <span
-          :id="`__log-entry__date-${index}`"
-          v-if="typeof extractedInformation.date === 'string'"
-          class="__log-entry__date text-neutral-400"
-        >
-        {{ extractedInformation.date }}
-      </span>
-        <LogHighlighter
-          v-else
-          color-class="text-neutral-400"
-          :index="index"
-          :fields="extractedInformation.date.fields"
-          :occurrences="extractedInformation.date.extractions"
-          :search-position="searchPosition"
-        />
-      </template>
-
-      <span
         :id="`__log-entry__time-${index}`"
         v-if="typeof extractedInformation.time === 'string'"
         class="__log-entry__time whitespace-pre text-neutral-400"
@@ -136,7 +95,28 @@ const isInRange = computed((): boolean => {
         :occurrences="extractedInformation.time.extractions"
         :search-position="searchPosition"
       />
-
+      {{ " " }}
+      <span
+        :id="`__log-entry__level-${index}`"
+        v-if="typeof extractedInformation.level === 'string'"
+        :class="[
+          '__log-entry__level',
+          extractedInformation.level !== ''
+            && 'inline-block text-white w-5 text-center',
+          Logging.getLogLevelColor(information.level),
+        ]"
+      >
+        {{ extractedInformation.level[0] }}
+      </span>
+      <LogHighlighter
+        v-else
+        :color-class="Logging.getLogLevelColor(information.level)"
+        :index="index"
+        :fields="extractedInformation.level.fields"
+        :occurrences="extractedInformation.level.extractions"
+        :search-position="searchPosition"
+      />
+      {{ " " }}
       <span
         :id="`__log-entry__target-${index}`"
         v-if="typeof extractedInformation.target === 'string'"
@@ -152,7 +132,7 @@ const isInRange = computed((): boolean => {
         :occurrences="extractedInformation.target.extractions"
         :search-position="searchPosition"
       />
-
+      {{ " " }}
       <span
         :id="`__log-entry__message-${index}`"
         v-if="typeof extractedInformation.message === 'string'"

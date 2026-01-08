@@ -1,17 +1,10 @@
 import type { LogEntryInformationType } from "@/types/logging/log-entry-information.type.ts";
 
 export function getLogEntryInformation(line: string | [number, string]): LogEntryInformationType {
-  const current: {
-    "date"   : string;
-    "time"   : string;
-    "target" : string;
-    "level"  : string;
-    "message": string;
-  } = {
-    "date"   : "",
+  const current: LogEntryInformationType = {
     "time"   : "",
-    "target" : "",
     "level"  : "",
+    "target" : "",
     "message": "",
   };
   const actualLine = typeof line === "string" ? line : line[1];
@@ -35,13 +28,11 @@ export function getLogEntryInformation(line: string | [number, string]): LogEntr
   }
 
   /*
-   * Log entries start with the square bracket symbol and the date.
-   * If the character after the '[' symbol is not a number,
+   * Log entries start with the time.
+   * If the first character is not a number,
    * then the provided line is not a log entry
    */
-  const isLogEntry =
-    actualLine?.[0] === "[" &&
-    !Number.isNaN(Number(actualLine?.[1]));
+  const isLogEntry = !Number.isNaN(Number(actualLine?.[0]));
 
   if (!isLogEntry) {
     current.time = actualLine;
@@ -49,72 +40,12 @@ export function getLogEntryInformation(line: string | [number, string]): LogEntr
     return current;
   }
 
-  const parts = actualLine.split("]");
+  const parts = actualLine.split(" | ");
 
-  for (const [partIndex, part] of parts.entries()) {
-    switch (partIndex) {
-      case 0: {
-        if (parts.length === 1) {
-          current.time = part;
-
-          break;
-        }
-
-        current.date = "[ " + part.slice(1) + " ]";
-
-        break;
-      }
-      case 1: {
-        current.time = "[ " + part.slice(1) + " ]";
-
-        break;
-      }
-      case 2: {
-        // If true, then the target part is empty
-        if (part.startsWith(" ")) {
-          current.level = "[ " + part.trim().slice(1) + " ]";
-
-          break;
-        }
-
-        if (part.startsWith("[webview:")) {
-          const targetParts = part.split("/");
-
-          current.target = "[ " + targetParts[targetParts.length - 1] + " ]";
-
-          break;
-        }
-
-        current.target = "[ " + part.slice(1) + " ]";
-
-        break;
-      }
-      case 3: {
-        // If true, then the target part is empty
-        if (current.level !== "") {
-          current.message = part;
-
-          break;
-        }
-
-        current.level = "[ " + part.slice(1) + " ]";
-
-        break;
-      }
-      default: {
-        // If true, then we stumbled upon a closing bracket in the message
-        if (partIndex !== parts.length - 1) {
-          current.message = current.message + part + "]";
-
-          break;
-        }
-
-        current.message = current.message + part;
-
-        break;
-      }
-    }
-  }
+  current.time = parts?.[0] ?? "";
+  current.level = parts?.[1] ?? "";
+  current.target = parts?.[2] ?? "";
+  current.message = parts.slice(3).join(" | ");
 
   return current;
 }

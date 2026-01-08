@@ -1,7 +1,6 @@
 export type LogEntryInformationType = {
-  "date"   : string;
   "time"   : string;
-  "target" : string;
   "level"  : string;
+  "target" : string;
   "message": string;
 };

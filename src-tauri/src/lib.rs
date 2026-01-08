@@ -112,16 +112,14 @@ pub fn run() {
                     // Make a custom logs format
                     .format(|out, message, record| {
                         let now_utc: DateTime<Utc> = Utc::now();
-                        let formatted_date = now_utc.format("%d-%m-%Y").to_string();
                         // Default tauri logging format does not include milliseconds
                         let formatted_time = now_utc.format("%H:%M:%S%.3f").to_string();
 
                         out.finish(format_args!(
-                            "[{}][{}][{}][{}] {}",
-                            formatted_date,
+                            "{} | {} | {} | {}",
                             formatted_time,
-                            record.target(),
                             record.level(),
+                            record.target(),
                             message,
                         ))
                     })

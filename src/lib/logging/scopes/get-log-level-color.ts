@@ -1,19 +1,19 @@
 export function getLogLevelColor(level: string): string {
-  if (level.includes("DEBUG")) {
-    return "text-white";
+  switch (level) {
+    case "DEBUG": {
+      return "bg-black";
+    }
+    case "INFO": {
+      return "bg-blue-600";
+    }
+    case "WARN": {
+      return "bg-yellow-600";
+    }
+    case "ERROR": {
+      return "bg-red-600";
+    }
+    default: {
+      return "bg-neutral-700";
+    }
   }
-
-  if (level.includes("INFO")) {
-    return "text-blue-400";
-  }
-
-  if (level.includes("WARN")) {
-    return "text-yellow-400";
-  }
-
-  if (level.includes("ERROR")) {
-    return "text-red-600";
-  }
-
-  return "text-neutral-400";
 }

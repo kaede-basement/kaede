@@ -7,6 +7,8 @@ import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
+const __filename = (new URL(import.meta.url)).pathname;
+
 export async function initializeLauncher({
   config,
   baseDirectory,
@@ -68,6 +70,7 @@ export async function initializeLauncher({
 
   if (toCreate.length === 0) {
     log.info(
+      __filename,
       "All launcher directories present. Time spent to check:",
       (performance.now() - directoriesStartTime).toFixed(1),
       "ms",
