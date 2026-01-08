@@ -1,6 +1,6 @@
 /*
  * Kaede, a Minecraft Launcher
- * Copyright (C) 2026 windstone <notwindstone@gmail.com>
+ * Copyright (C) 2026  windstone <notwindstone@gmail.com> and contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -9,11 +9,11 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 import { fetch } from "@tauri-apps/plugin-http";
@@ -30,41 +30,33 @@ export async function fetchMetadata({
   url,
   label,
   scope,
+  prefix,
 }: {
-  "url"  : string;
-  "label": string;
-  "scope": LaunchKeyType;
-}): Promise<object | LaunchStatusType> {
+  "url"   : string;
+  "label" : string;
+  "scope" : Extract<LaunchKeyType, "PatchIndex" | "PatchMetadata" | "AssetIndex">;
+  "prefix": string;
+}): Promise<{ "data": unknown } | LaunchStatusType> {
   let response: Response;
   let data: unknown;
 
   try {
-    log.debug(`Fetching the ${label} from '${url}'`);
+    log.debug(`${prefix} | Fetching the ${label} from '${url}'`);
 
     response = await fetch(url);
   } catch (error: unknown) {
-    log.error(`Could not fetch '${url}':`, Errors.prettify(error));
+    log.error(`${prefix} | Could not fetch '${url}':`, Errors.prettify(error));
 
-    return LaunchStatus[scope].MetadataFetchFailed;
+    return LaunchStatus[scope].FailedToFetch;
   }
 
   try {
     data = await response.json();
   } catch (error: unknown) {
-    log.error(`Could not parse the data from '${url}':`, Errors.prettify(error));
+    log.error(`${prefix} | Could not parse the ${label} from '${url}':`, Errors.prettify(error));
 
-    return LaunchStatus[scope].MetadataParseFailed;
+    return LaunchStatus[scope].FailedToParse;
   }
 
-  // Full validation will be provided later in the code
-  if (typeof data !== "object" || data === null) {
-    log.error(
-      `Failed to shallowly validate the parsed data from '${url}'. Contents:`,
-      "\n" + JSON.stringify(data, null, 2),
-    );
-
-    return LaunchStatus[scope].MetadataShallowValidationFailed;
-  }
-
-  return data;
+  return { data };
 }

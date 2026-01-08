@@ -1,5 +1,36 @@
 export const LaunchStatus = {
   "General": {
+    "Starting": "general-pending-starting",
+    "Aborted" : "general-aborted",
+    "Success" : "general-success",
+  },
+  "PatchIndex": {
+    "Reading"         : "patch-index-pending-reading",
+    "Fetching"        : "patch-index-pending-fetching",
+    "FailedToFetch"   : "patch-index-error-fetch",
+    "FailedToParse"   : "patch-index-error-parse",
+    "FailedToValidate": "patch-index-error-validation",
+    "Success"         : "patch-index-success",
+  },
+  "PatchMetadata": {
+    "Reading"         : "patch-metadata-pending-reading",
+    "Fetching"        : "patch-metadata-pending-fetching",
+    "FailedToFetch"   : "patch-metadata-error-fetch",
+    "FailedToParse"   : "patch-metadata-error-parse",
+    "FailedToValidate": "patch-metadata-error-validation",
+    "Success"         : "patch-metadata-success",
+  },
+  "AssetIndex": {
+    "Reading"         : "asset-index-pending-reading",
+    "Fetching"        : "asset-index-pending-fetching",
+    "FailedToFetch"   : "asset-index-error-fetch",
+    "FailedToParse"   : "asset-index-error-parse",
+    "FailedToValidate": "asset-index-error-validation",
+    "Success"         : "asset-index-success",
+  },
+} as const;
+export const _LaunchStatus = {
+  "General": {
     "Starting": "general-starting",
     "Success" : "general-success",
   },
@@ -64,7 +95,7 @@ export const APIEndpoints = {
     "Base" : "https://meta.prismlauncher.org/v1/",
     "Paths": {
       "Minecraft": {
-        "id"  : "net.minecraft",
+        "Id"  : "net.minecraft",
         "Base": "net.minecraft/",
       },
     },
