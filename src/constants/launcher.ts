@@ -3,6 +3,11 @@ export const LaunchStatus = {
     "Starting": "general-starting",
     "Success" : "general-success",
   },
+  "Patches": {
+    "ReadingLatestVersion" : "patches-reading-latest-version",
+    "FetchingLatestVersion": "patches-fetching-latest-version",
+    "Done"                 : "patches-done",
+  },
   "Metadata": {
     "ReadingCachedVersionMeta": "meta-reading-cached-version-meta",
     "FetchingVersionMeta"     : "meta-fetching-version-meta",
@@ -29,9 +34,6 @@ export const LaunchStatus = {
   "Libraries": {
     "DownloadingLibrary": "libraries-downloading-library",
     "Done"              : "libraries-done",
-  },
-  "Patches": {
-    "Done": "patches-done",
   },
   "Errors": {
     "UnhandledError"                    : "error-unhandled-error",

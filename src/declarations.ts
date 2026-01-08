@@ -1628,6 +1628,7 @@ declare global {
             "nothing"
           >;
         };
+        "onMinecraftPatchResolve": {};
       };
     };
   }
