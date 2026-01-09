@@ -31,6 +31,13 @@ const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
 ));
 
+function openInstancesSelector(): void {
+  selector.value = true;
+}
+function closeInstancesSelector(): void {
+  selector.value = false;
+}
+
 async function selectInstance(id: string, layout: GlobalStatesType["layout"]): Promise<void> {
   syncing.value = true;
 
@@ -39,7 +46,7 @@ async function selectInstance(id: string, layout: GlobalStatesType["layout"]): P
       ...layout,
       "currentInstance": id,
     });
-    selector.value = false;
+    closeInstancesSelector();
 
     await Configs.sync();
   } catch (error: unknown) {
@@ -65,17 +72,13 @@ const dropdown = computed((): Array<DropdownItemType> => {
     return {
       "id"      : `__home-page__current-instance-${id}`,
       "image"   : instance.icon,
-      "onclick" : (): void => selectInstance(id, globalStates.layout),
+      "onclick" : (): Promise<void> => selectInstance(id, globalStates.layout),
       "title"   : instance.name,
       "subtitle": instance.version,
       "disabled": id === currentId,
     };
   });
 });
-
-function openInstancesSelector(): void {
-  selector.value = true;
-}
 </script>
 
 <template>
@@ -83,7 +86,8 @@ function openInstancesSelector(): void {
     id="__home-page__current-instance-dropdown"
     add-class-names="absolute bottom-16 z-50"
     size-class-names="h-85 w-full"
-    :show="selector"
+    :shown="selector"
+    :close="closeInstancesSelector"
     :items="dropdown"
   />
   <button

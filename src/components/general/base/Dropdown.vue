@@ -17,23 +17,31 @@
   -->
 
 <script setup lang="ts">
+import { onClickOutside } from "@vueuse/core";
+import { useTemplateRef } from "vue";
+
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import type { DropdownItemType } from "@/types/application/dropdown-item.type.ts";
 
-const { show, id, sizeClassNames, addClassNames, items } = defineProps<{
-  "show"          : boolean;
+const { shown, close, id, sizeClassNames, addClassNames, items } = defineProps<{
+  "shown"         : boolean;
+  "close"         : () => void;
   "id"            : string;
   "addClassNames" : string;
   "sizeClassNames": string;
   "items"         : Array<DropdownItemType>;
 }>();
+
+const target = useTemplateRef("target");
+
+onClickOutside(target, close);
 </script>
 
 <template>
   <Transition name="expand">
     <div
-      v-if="show"
+      v-if="shown"
       :id="`${id}-expand-transform`"
       :class="[
         'rounded-md bg-neutral-900 py-1',
@@ -44,7 +52,8 @@ const { show, id, sizeClassNames, addClassNames, items } = defineProps<{
   </Transition>
   <Transition name="slide-up">
     <div
-      v-if="show"
+      v-if="shown"
+      ref="target"
       :id="id"
       :class="[
         'flex flex-col gap-1',
