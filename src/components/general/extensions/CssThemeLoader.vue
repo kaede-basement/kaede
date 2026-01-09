@@ -18,7 +18,7 @@ const stylesheets = shallowReactive<{
 async function transformToPromise(path: string, filename: string): Promise<CustomThemeType> {
   const filePath = General.cachedJoin(path, filename);
 
-  log.debug(`Reading the '${filename}' theme in the 'themes' folder`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Reading the '${filename}' theme in the 'themes' folder`);
   const fileCode = await readTextFile(filePath);
 
   return {
@@ -75,7 +75,7 @@ onMounted(async () => {
   }
 
   for (const { id, content } of stylesheets.applied) {
-    log.debug(`Applying CSS styles of the '${id}' theme`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `Applying CSS styles of the '${id}' theme`);
     ExtensionsManager.handleCssTheme(
       `.garbage_collection_id_${id} {} ` +
       content,

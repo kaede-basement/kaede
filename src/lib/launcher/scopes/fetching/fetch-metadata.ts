@@ -41,7 +41,7 @@ export async function fetchMetadata({
   let data: unknown;
 
   try {
-    log.debug(`${prefix} | Fetching the ${label} from '${url}'`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `${prefix} | Fetching the ${label} from '${url}'`);
 
     response = await fetch(url);
   } catch (error: unknown) {

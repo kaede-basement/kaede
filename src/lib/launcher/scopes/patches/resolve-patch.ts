@@ -58,7 +58,7 @@ export async function resolvePatch({
   const logPrefix: string = metadata.uid + fileName;
   let parsedPatch: unknown;
 
-  log.debug(`${logPrefix} | Reading the cached patch metadata`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `${logPrefix} | Reading the cached patch metadata`);
   statuses.current = LaunchStatus.PatchMetadata.Reading;
   try {
     parsedPatch = await General.handleJsonFile({
@@ -108,7 +108,7 @@ export async function resolvePatch({
     return false;
   }
 
-  log.debug(`${logPrefix} | Validating the patch metadata`);
+  log.debug(__PRE_BUNDLED_FILENAME__`, ${logPrefix} | Validating the patch metadata`);
   const validPatch: SpecificPatchMetaType | false = Schemas.validate.patchMeta({
     "value": parsedPatch,
     "label": "patch metadata",

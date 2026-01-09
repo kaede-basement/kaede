@@ -1,67 +1,98 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed, inject, ref } from "vue";
 
+import Dropdown from "@/components/general/base/Dropdown.vue";
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey, InstanceStatesContextKey } from "@/constants/application.ts";
+import Configs from "@/lib/configs";
+import Errors from "@/lib/errors";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
-import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
+import type { DropdownItemType } from "@/types/application/dropdown-item.type.ts";
+import type {
+  ContextGlobalStatesType,
+  GlobalStatesType,
+} from "@/types/application/global-states.type.ts";
+import type {
+  InstanceStatesType,
+  InstanceStateType,
+} from "@/types/application/instance-states.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 
+const selector = ref<boolean>(false);
+const syncing = ref<boolean>(false);
+
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
 ));
 
-async function __changeName(): Promise<void> {
-  if (!currentInstance.value || !globalStates || !instanceStates) {
-    return;
-  }
+async function selectInstance(id: string, layout: GlobalStatesType["layout"]): Promise<void> {
+  syncing.value = true;
 
-  const instanceKeys = Object.keys(instanceStates);
-
-  if (instanceKeys.length === 1) {
-    return;
-  }
-
-  const randomIndex = Math.floor(
-    Math.random() * instanceKeys.length,
-  );
-  const newKey = instanceKeys[randomIndex];
-
-  if (newKey === currentInstance.value.id) {
-    const safeIndex = (randomIndex - 1) < 0
-      ? 1
-      : ((randomIndex + 1) >= instanceKeys.length
-        ? 0
-        : randomIndex + 1);
-    const differentKey = instanceKeys[safeIndex];
-
+  try {
     GlobalStateHelpers.change("layout", {
-      ...globalStates.layout,
-      "currentInstance": differentKey,
+      ...layout,
+      "currentInstance": id,
     });
+    selector.value = false;
 
-    return;
+    await Configs.sync();
+  } catch (error: unknown) {
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not select the instance:",
+      Errors.prettify(error),
+    );
   }
 
-  GlobalStateHelpers.change("layout", {
-    ...globalStates.layout,
-    "currentInstance": newKey,
+  syncing.value = false;
+}
+
+const dropdown = computed((): Array<DropdownItemType> => {
+  if (instanceStates === undefined || globalStates === undefined) {
+    return [];
+  }
+
+  const instances: Array<[string, InstanceStateType]> = Object.entries(instanceStates);
+  const currentId: string | undefined = currentInstance.value?.id;
+
+  return instances.map(([id, instance]) => {
+    return {
+      "id"      : `__home-page__current-instance-${id}`,
+      "image"   : instance.icon,
+      "onclick" : (): void => selectInstance(id, globalStates.layout),
+      "title"   : instance.name,
+      "subtitle": instance.version,
+      "disabled": id === currentId,
+    };
   });
+});
+
+function openInstancesSelector(): void {
+  selector.value = true;
 }
 </script>
 
 <template>
+  <Dropdown
+    id="__home-page__current-instance-dropdown"
+    add-class-names="absolute bottom-16 z-50"
+    size-class-names="h-85 w-full"
+    :show="selector"
+    :items="dropdown"
+  />
   <button
     v-if="currentInstance"
-    @click="__changeName"
+    :disabled="syncing"
+    @mousedown="openInstancesSelector"
+    @click="openInstancesSelector"
     id="__home-page__current-instance-button"
-    class="relative flex flex-nowrap items-center gap-2 rounded-md p-2 transition-[background-color,opacity] hover:bg-[theme(colors.neutral.100/.05)]"
+    class="relative flex flex-nowrap items-center gap-2 rounded-md p-2 transition-[background-color,opacity] active:cursor-default hover:bg-[theme(colors.neutral.100/.05)]"
   >
     <Image
       id="__home-page__current-instance-logo"

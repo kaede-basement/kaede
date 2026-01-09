@@ -37,11 +37,11 @@ const teleportStates = ref<Record<
 });
 
 function mountPageTo(page: Exclude<RouteType, "none">, to: string): void {
-  log.debug(`Mounting the '${page}' page to the '${to}' element`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Mounting the '${page}' page to the '${to}' element`);
   teleportStates.value[page].value = to;
 }
 function unmountPage(page: Exclude<RouteType, "none">): void {
-  log.debug(`Unmounting the '${page}' page`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Unmounting the '${page}' page`);
   teleportStates.value[page].value = undefined;
 }
 

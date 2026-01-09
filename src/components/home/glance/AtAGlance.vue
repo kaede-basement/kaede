@@ -62,7 +62,10 @@ const handleEdit = useDebounceFn(async (event: Event): Promise<void> => {
     return;
   }
 
-  log.debug(`Setting the global 'At a Glance - ${key}' value to: ${value}`);
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Setting the global 'At a Glance - ${key}' value to: ${value}`,
+  );
   GlobalStateHelpers.change("layout", {
     ...globalStates.layout,
     "atAGlance": {

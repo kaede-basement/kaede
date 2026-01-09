@@ -55,7 +55,7 @@ export async function resolvePatchVersion({
   const fileName: string = metadata.uid + ".json";
   let parsedPatchIndex: unknown;
 
-  log.debug(`${metadata.uid} | Reading the cached index manifest`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `${metadata.uid} | Reading the cached index manifest`);
   statuses.current = LaunchStatus.PatchIndex.Reading;
   try {
     parsedPatchIndex = await General.handleJsonFile({
@@ -105,7 +105,7 @@ export async function resolvePatchVersion({
     return false;
   }
 
-  log.debug(`${metadata.uid} | Validating the index manifest`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `${metadata.uid} | Validating the index manifest`);
 
   if (
     // Ensure the index manifest is an object

@@ -36,14 +36,14 @@ export async function spawnMinecraft({
 
   const { directories, statuses } = necessaries;
 
-  log.debug(`Creating a launch command with the '${directories.instance}' working directory`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Creating a launch command with the '${directories.instance}' working directory`);
   const launchTask = Command.create(
     command.program,
     command.arguments,
     { "cwd": directories.instance },
   );
 
-  log.debug(`Launching the '${instanceId}' instance`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Launching the '${instanceId}' instance`);
   const process: Child = await launchTask.spawn();
 
   await ExtensionsManager.catchAsyncVoidHooks({
@@ -52,7 +52,7 @@ export async function spawnMinecraft({
     "timing": "after",
   });
 
-  log.debug(`Adding listeners to the '${instanceId}' instance process`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Adding listeners to the '${instanceId}' instance process`);
   launchTask.on("close", payload => {
     onClose(instanceId);
     log.info(

@@ -16,8 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-module.exports = {
-  "getCurrentWindow": () => ({
-    "theme": async () => "dark",
-  }),
+export type DropdownItemType = {
+  "id"       : string;
+  "onclick"  : () => void;
+  "title"    : string;
+  "subtitle" : string;
+  "icon"    ?: string;
+  "image"   ?: string;
+  "disabled"?: boolean;
 };

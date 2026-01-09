@@ -53,7 +53,7 @@ export async function readLogs({
 
   // If the log file is big (>=32 KBs), open it with the virtualized list
   if (existingLogs.length >= 32_768) {
-    log.debug(`Log file is too big (${existingLogs.length} bytes), using a virtualized list`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `Log file is too big (${existingLogs.length} bytes), using a virtualized list`);
     GlobalStateHelpers.Logs.toggle("virtualized", true);
   }
 

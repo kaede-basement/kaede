@@ -1,3 +1,21 @@
+/*
+ * Kaede, a Minecraft Launcher
+ * Copyright (C) 2026  windstone <notwindstone@gmail.com> and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 // Import UnoCSS essentials
 import "virtual:uno.css";
 // Reset all CSS styles in a Tailwind-like way
@@ -71,19 +89,21 @@ const [
   Instances.readStored(baseDirectory),
 ]);
 
+const __internals = window[ApplicationNamespace].__internals;
+
 // Define launcher's initial values at globals to make them accessible from anywhere
-window[ApplicationNamespace].__internals.initialConfig = config;
-window[ApplicationNamespace].__internals.initialTranslations = translations;
-window[ApplicationNamespace].__internals.initialInstances = instances;
-window[ApplicationNamespace].__internals.initialPortable = portable;
-window[ApplicationNamespace].__internals.initialBaseDirectory = baseDirectory;
+__internals.initialConfig = config;
+__internals.initialTranslations = translations;
+__internals.initialInstances = instances;
+__internals.initialPortable = portable;
+__internals.initialBaseDirectory = baseDirectory;
 
 /*
  * Exposing account details to the global object
  * makes retrieving account tokens in extensions a bit easier,
  * so we will delete this field as soon as the app-scoped reactive state will be created
  */
-window[ApplicationNamespace].__internals.temporaryAccounts = accounts;
+__internals.temporaryAccounts = accounts;
 
 // Enabling debug mode means that debug-level messages will be logged
 if (config.development?.enableDebugMode) {
