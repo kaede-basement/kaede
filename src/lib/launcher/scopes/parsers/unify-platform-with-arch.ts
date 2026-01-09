@@ -177,5 +177,8 @@ export function unifyPlatformWithArch(
     case "natives-osx-x86_64": {
       return { "platform": "macos", "arch": "x64" };
     }
+    default: {
+      throw new Error(`Unhandled platform format: ${name}`);
+    }
   }
 }

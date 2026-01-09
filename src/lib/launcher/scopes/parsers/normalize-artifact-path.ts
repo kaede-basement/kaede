@@ -8,7 +8,10 @@ export function normalizeArtifactPath(artifact: string): {
   "file"      : string;
   "classifier": SpecificPatchClassifierOSType | undefined;
 } {
-  const paths: Array<string> = artifact.split(":");
+  const prepared: Array<string> = artifact.split("@");
+  const cleaned = prepared?.[0] ?? "";
+  const extension = prepared?.[1] ?? "jar";
+  const paths: Array<string> = cleaned.split(":");
 
   const group: string | undefined = paths?.[0];
   const name: string | undefined = paths?.[1];
@@ -34,8 +37,8 @@ export function normalizeArtifactPath(artifact: string): {
   return {
     "directory": General.cachedJoin(...folders),
     "file"     : classifier === undefined
-      ? `${name}-${version}.jar`
-      : `${name}-${version}-${classifier}.jar`,
+      ? `${name}-${version}.${extension}`
+      : `${name}-${version}-${classifier}.${extension}`,
     "classifier": classifier as SpecificPatchClassifierOSType | undefined,
   };
 }

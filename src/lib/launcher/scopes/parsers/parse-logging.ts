@@ -30,7 +30,7 @@ export function parseLogging({
       "The 'logging' field is invalid. Contents:",
       "\n" + JSON.stringify(logging, null, 2),
     );
-    statuses.current = LaunchStatus.Errors.LoggingMissingMeta;
+    statuses.current = LaunchStatus.Logging.FailedToParse;
 
     return false;
   }
@@ -42,7 +42,7 @@ export function parseLogging({
 
   if (!name || !url || !hash) {
     log.warn(__PRE_BUNDLED_FILENAME__, "Missing the logging config file metadata");
-    statuses.current = LaunchStatus.Errors.LoggingMissingMeta;
+    statuses.current = LaunchStatus.Logging.FailedToParse;
 
     return false;
   }
@@ -55,6 +55,7 @@ export function parseLogging({
   log.debug(__PRE_BUNDLED_FILENAME__, "Parsed the logging metadata");
 
   return {
+    "id"       : name,
     "file"     : name,
     "path"     : path,
     "url"      : url,

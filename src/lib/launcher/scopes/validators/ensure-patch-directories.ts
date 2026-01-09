@@ -16,41 +16,51 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { type DirEntry, mkdir, readDir } from "@tauri-apps/plugin-fs";
+import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
+import { FileStructure } from "@/constants/file-structure.ts";
+import { PatchUIDs } from "@/constants/meta.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
-const shortHashes: Array<string> = Array
-  .from(
-    { "length": 256 },
-    (_, index) => index.toString(16).padStart(2, "0"),
-  );
+export async function ensurePatchDirectories(
+  necessaries: PreLaunchInformationType,
+): Promise<void> {
+  const { directories } = necessaries;
 
-export async function initializeShortHashDirectories({
-  directories,
-}: PreLaunchInformationType): Promise<void> {
-  log.debug(__PRE_BUNDLED_FILENAME__, "Reading the '/assets/objects' directory");
-  const objects: Array<DirEntry> = await readDir(directories.assetObjects);
-  const existingFolders: Set<string> = new Set(
-    objects.map(({ name }) => name),
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Checking if ${PatchUIDs.length} patch directories exist`,
   );
-  const missingPaths = shortHashes
-    .filter(hash => !existingFolders.has(hash))
-    .map(hash => General.cachedJoin(directories.assetObjects, hash));
+  const existStatuses: Array<boolean> = await Promise.all(
+    PatchUIDs.map(uid => exists(
+      General.cachedJoin(
+        directories.base,
+        FileStructure.Folders.Cache.Path,
+        uid,
+      ),
+    )),
+  );
+  const toCreate: Array<string> = [];
 
-  if (missingPaths.length === 0) {
-    return;
+  for (const [index, status] of existStatuses.entries()) {
+    if (status) {
+      continue;
+    }
+
+    toCreate.push(
+      General.cachedJoin(
+        directories.base,
+        FileStructure.Folders.Cache.Path,
+        PatchUIDs[index],
+      ),
+    );
   }
 
-  log.warn(
-    __PRE_BUNDLED_FILENAME__,
-    `Missing ${missingPaths.length} short hash directories; creating them`,
-  );
   await Promise.all(
-    missingPaths.map(path => mkdir(path)),
+    toCreate.map(path => mkdir(path)),
   );
 }

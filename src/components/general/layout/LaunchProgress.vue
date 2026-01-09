@@ -53,37 +53,41 @@ const progress = computed<number>((oldValue: number | undefined): number => {
       : 0;
   }
 
+  console.log(progressLimit);
+
   switch (statuses.value.current) {
-    case LaunchStatus.Metadata.ReadingCachedVersionMeta: {
-      return Math.min(oldValue + 2, progressLimit);
-    }
-    case LaunchStatus.Metadata.ValidatingVersionMeta: {
-      return Math.min(oldValue + 4, progressLimit);
-    }
-    case LaunchStatus.Assets.ReadingCachedMeta: {
-      return Math.min(oldValue + 2, progressLimit);
-    }
-    case LaunchStatus.Logging.DownloadingConfig: {
-      return Math.min(oldValue + 2, progressLimit);
-    }
-    case LaunchStatus.Client.DownloadingJar: {
-      return Math.min(oldValue + 2, progressLimit);
-    }
-    case LaunchStatus.Assets.Done: {
-      return Math.min(oldValue + 12, progressLimit);
-    }
-    case LaunchStatus.Client.Done: {
-      return Math.min(oldValue + 12, progressLimit);
-    }
-    case LaunchStatus.Logging.Done: {
-      return Math.min(oldValue + 12, progressLimit);
-    }
-    case LaunchStatus.Libraries.Done: {
-      return Math.min(oldValue + 12, progressLimit);
-    }
-    case LaunchStatus.Patches.Done: {
-      return Math.min(oldValue + 12, progressLimit);
-    }
+    /*
+     * | case LaunchStatus.Metadata.ReadingCachedVersionMeta: {
+     *       return Math.min(oldValue + 2, progressLimit);
+     *     }
+     *     case LaunchStatus.Metadata.ValidatingVersionMeta: {
+     *       return Math.min(oldValue + 4, progressLimit);
+     *     }
+     *     case LaunchStatus.Assets.ReadingCachedMeta: {
+     *       return Math.min(oldValue + 2, progressLimit);
+     *     }
+     *     case LaunchStatus.Logging.DownloadingConfig: {
+     *       return Math.min(oldValue + 2, progressLimit);
+     *     }
+     *     case LaunchStatus.Client.DownloadingJar: {
+     *       return Math.min(oldValue + 2, progressLimit);
+     *     }
+     *     case LaunchStatus.Assets.Done: {
+     *       return Math.min(oldValue + 12, progressLimit);
+     *     }
+     *     case LaunchStatus.Client.Done: {
+     *       return Math.min(oldValue + 12, progressLimit);
+     *     }
+     *     case LaunchStatus.Logging.Done: {
+     *       return Math.min(oldValue + 12, progressLimit);
+     *     }
+     *     case LaunchStatus.Libraries.Done: {
+     *       return Math.min(oldValue + 12, progressLimit);
+     *     }
+     *     case LaunchStatus.Patches.Done: {
+     *       return Math.min(oldValue + 12, progressLimit);
+     *     }
+     */
     case LaunchStatus.General.Success: {
       return 100;
     }
@@ -98,7 +102,7 @@ useIntervalFn(() => {
     return;
   }
 
-  downloadsAmount.value = statuses.value.downloads.size;
+  downloadsAmount.value = statuses.value.downloads.total;
 }, 50);
 </script>
 

@@ -36,7 +36,10 @@ export async function spawnMinecraft({
 
   const { directories, statuses } = necessaries;
 
-  log.debug(__PRE_BUNDLED_FILENAME__, `Creating a launch command with the '${directories.instance}' working directory`);
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Creating a launch command with the '${directories.instance}' working directory`,
+  );
   const launchTask = Command.create(
     command.program,
     command.arguments,

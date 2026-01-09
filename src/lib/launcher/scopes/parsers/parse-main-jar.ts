@@ -31,7 +31,7 @@ export function parseMainJar({
       __PRE_BUNDLED_FILENAME__,
       "The main jar metadata is invalid",
     );
-    statuses.current = LaunchStatus.Errors.ClientMainJarMissingMeta;
+    statuses.current = LaunchStatus.Client.FailedToParse;
 
     return false;
   }
@@ -49,6 +49,7 @@ export function parseMainJar({
   log.debug(__PRE_BUNDLED_FILENAME__, "Parsed the main jar metadata");
 
   return {
+    "id": name,
     url,
     file,
     path,

@@ -9,10 +9,16 @@ export type LaunchStatusType = {
   [Key in LaunchKeyType]: LaunchStatusObjectType[Key][keyof LaunchStatusObjectType[Key]];
 }[LaunchKeyType];
 
+export type LauncherStatusesDownloadsType = {
+  "current": Map<string, number>;
+  "success": number;
+  "failed" : number;
+  "total"  : number;
+};
 export type LauncherStatusesType = {
   "launching": 0 | 1 | 2;
   "current"  : LaunchStatusType | undefined;
-  "downloads": Set<string>;
+  "downloads": LauncherStatusesDownloadsType;
 };
 export type WrappedInstanceLauncherStatusesType = Reactive<
   Record<
@@ -20,7 +26,7 @@ export type WrappedInstanceLauncherStatusesType = Reactive<
     {
       "launching": LauncherStatusesType["launching"];
       "current"  : LauncherStatusesType["current"];
-      "downloads": Raw<Set<string>>;
+      "downloads": Raw<LauncherStatusesDownloadsType>;
     }
   >
 >;

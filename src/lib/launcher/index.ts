@@ -1,15 +1,5 @@
-import { extractInstance } from "@/lib/launcher/scopes/extractors/extract-instance.ts";
-import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
-import { fetchVersionMeta } from "@/lib/launcher/scopes/fetching/fetch-version-meta.ts";
-import { launch } from "@/lib/launcher/scopes/launch.ts";
-import { launchWithChecks } from "@/lib/launcher/scopes/launch-with-checks.ts";
-import { getVersionMeta } from "@/lib/launcher/scopes/version-meta/get-version-meta.ts";
+import { handleLaunch } from "@/lib/launcher/scopes/handle-launch.ts";
 
 export default {
-  downloadWithProgress,
-  extractInstance,
-  fetchVersionMeta,
-  getVersionMeta,
-  launch,
-  launchWithChecks,
+  handleLaunch,
 } as const;

@@ -10,10 +10,12 @@ import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-pa
 export function parseLibrary({
   necessaries,
   library,
+  isMaven,
 }: {
   "necessaries": PreLaunchInformationType;
   "library"    : SpecificPatchLibraryType;
-}): MappedArtifactType | false {
+  "isMaven"    : boolean;
+}): Required<MappedArtifactType> | false {
   const { directories } = necessaries;
   const name: string | undefined = library?.name;
   const url: string | undefined = library?.downloads?.artifact?.url;
@@ -36,6 +38,8 @@ export function parseLibrary({
   );
 
   return {
+    "id"    : name,
+    "status": isMaven ? "mavenFile" : "library",
     directory,
     file,
     url,

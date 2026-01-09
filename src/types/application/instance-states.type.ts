@@ -1,11 +1,13 @@
 import type { ShallowReactive } from "vue";
 
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { PatchUIDType } from "@/types/launcher/meta/patch-meta.type.ts";
 
 export type InstanceStateType = GlobalStatesType["minecraft"] & {
   "name"    : string;
   "version" : string;
   "checksum": boolean;
+  "entry"   : PatchUIDType;
 };
 
 /* Per-instance Minecraft settings */

@@ -18,7 +18,7 @@ export function parseNative({
 }: {
   "necessaries": PreLaunchInformationType;
   "library"    : SpecificPatchLibraryType;
-}): MappedArtifactType | false {
+}): Required<MappedArtifactType> | false {
   const { directories, platform, arch } = necessaries;
   const classifiers: SpecificPatchClassifiersType | undefined = library?.downloads?.classifiers;
   const name: string | undefined = library?.name;
@@ -47,12 +47,14 @@ export function parseNative({
       return false;
     }
 
-    const artifact: MappedArtifactType = {
+    const artifact: Required<MappedArtifactType> = {
+      "id"    : name,
+      "url"   : newFormattedUrl,
+      "status": "native",
       directory,
       file,
       path,
       hash,
-      "url": newFormattedUrl,
     };
 
     if (classifier === undefined) {
@@ -93,21 +95,23 @@ export function parseNative({
 
     const suffix = `-natives-${platform === "macos" ? "osx" : platform}`;
     const currentNaming: Array<string> = file.split(".");
-
-    currentNaming.pop();
+    const extension: string = currentNaming.pop() ?? "jar";
 
     const requiredName: string =
       currentNaming.join(".") +
       suffix +
-      ".jar";
+      "." +
+      extension;
     const updatedPath: string = General.cachedJoin(directory, requiredName);
 
     return {
+      "id"       : name,
       "directory": directory,
       "file"     : requiredName,
       "path"     : updatedPath,
       "url"      : nativesUrl,
       "hash"     : sha1,
+      "status"   : "native",
     };
   }
 

@@ -84,6 +84,8 @@ export default defineConfigWithVueTs(
       "unicorn/prefer-query-selector" : ["off"],
       // Requires a different compiler lib version
       "unicorn/prefer-at"             : ["off"],
+      // Requires a different compiler lib version
+      "unicorn/no-array-reverse"      : ["off"],
       // Conflicts with 'eslint@stylistic/key-spacing'
       "@stylistic/no-multi-spaces"    : ["off"],
       // Conflicts with git

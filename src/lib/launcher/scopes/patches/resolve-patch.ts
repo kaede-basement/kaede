@@ -34,17 +34,17 @@ import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch
 
 export async function resolvePatch({
   necessaries,
-  versionMeta,
   metadata,
+  patchMeta,
 }: {
   "necessaries": PreLaunchInformationType;
-  "versionMeta": SpecificPatchMetaType;
   "metadata"   : PatchRequiresType;
+  "patchMeta" ?: SpecificPatchMetaType;
 }): Promise<SpecificPatchMetaType | false> {
   const beforeHooksResult: "continue" | SpecificPatchMetaType | false | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<SpecificPatchMetaType | false>({
       "scope" : "onMinecraftPatchResolve",
-      "toPass": { necessaries, versionMeta, metadata },
+      "toPass": { necessaries, patchMeta, metadata },
       "timing": "before",
     });
 
@@ -108,7 +108,7 @@ export async function resolvePatch({
     return false;
   }
 
-  log.debug(__PRE_BUNDLED_FILENAME__`, ${logPrefix} | Validating the patch metadata`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `${logPrefix} | Validating the patch metadata`);
   const validPatch: SpecificPatchMetaType | false = Schemas.validate.patchMeta({
     "value": parsedPatch,
     "label": "patch metadata",
@@ -126,7 +126,7 @@ export async function resolvePatch({
   const afterHooksResult: "continue" | SpecificPatchMetaType | false | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<SpecificPatchMetaType | false>({
       "scope" : "onMinecraftPatchResolve",
-      "toPass": { necessaries, versionMeta, metadata },
+      "toPass": { necessaries, patchMeta, metadata },
       "timing": "after",
     });
 

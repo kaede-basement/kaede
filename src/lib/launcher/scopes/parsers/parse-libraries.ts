@@ -7,7 +7,6 @@ import {
   shallowlyValidateLibrary,
 } from "@/lib/launcher/scopes/validators/shallowly-validate-library.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
@@ -17,12 +16,14 @@ import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-pa
 export function parseLibraries({
   necessaries,
   libraries,
+  isMaven,
 }: {
   "necessaries": PreLaunchInformationType;
   "libraries"  : Array<SpecificPatchLibraryType>;
-}): LibraryArtifactsType {
-  const beforeHooksResult: "continue" | LibraryArtifactsType | undefined =
-    ExtensionsManager.catchSyncResponseHooks<LibraryArtifactsType>({
+  "isMaven"    : boolean;
+}): Array<MappedArtifactType> {
+  const beforeHooksResult: "continue" | Array<MappedArtifactType> | undefined =
+    ExtensionsManager.catchSyncResponseHooks<Array<MappedArtifactType>>({
       "scope" : "onLibrariesParsing",
       "toPass": { necessaries, libraries },
       "timing": "before",
@@ -33,10 +34,7 @@ export function parseLibraries({
   }
 
   const { statuses } = necessaries;
-  const results: LibraryArtifactsType = {
-    "libraries": [],
-    "natives"  : [],
-  };
+  const results: Array<MappedArtifactType> = [];
 
   log.debug(__PRE_BUNDLED_FILENAME__, `Parsing ${libraries.length} libraries`);
   for (const entry of libraries) {
@@ -64,23 +62,17 @@ export function parseLibraries({
     }
 
     const isNative: boolean = checkIsNative(library);
-
-    const libraryArtifact: MappedArtifactType | false = parseLibrary({ necessaries, library });
-    const nativeArtifact: MappedArtifactType | false = isNative
+    const artifact: MappedArtifactType | false = isNative
       ? parseNative({ necessaries, library })
-      : false;
+      : parseLibrary({ necessaries, library, isMaven });
 
-    if (libraryArtifact) {
-      results.libraries.push(libraryArtifact);
-    }
-
-    if (nativeArtifact) {
-      results.natives.push(nativeArtifact);
+    if (artifact) {
+      results.push(artifact);
     }
   }
 
-  const afterHooksResult: "continue" | LibraryArtifactsType | undefined =
-    ExtensionsManager.catchSyncResponseHooks<LibraryArtifactsType>({
+  const afterHooksResult: "continue" | Array<MappedArtifactType> | undefined =
+    ExtensionsManager.catchSyncResponseHooks<Array<MappedArtifactType>>({
       "scope" : "onLibrariesParsing",
       "toPass": {
         necessaries,
@@ -96,11 +88,7 @@ export function parseLibraries({
 
   log.debug(
     __PRE_BUNDLED_FILENAME__,
-    `Got ${results.libraries.length}/${libraries.length} libraries`,
-  );
-  log.debug(
-    __PRE_BUNDLED_FILENAME__,
-    `Got ${results.natives.length} natives`,
+    `Got ${results.length}/${libraries.length} libraries`,
   );
 
   return results;

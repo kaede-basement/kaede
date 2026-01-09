@@ -28,6 +28,23 @@ export const LaunchStatus = {
     "FailedToValidate": "asset-index-error-validation",
     "Success"         : "asset-index-success",
   },
+  "Libraries": {
+    "FailedToValidate": "libraries-error-validation",
+    "Success"         : "libraries-success",
+  },
+  "Logging": {
+    "FailedToParse": "logging-error-parse",
+    "Success"      : "logging-success",
+  },
+  "Client": {
+    "FailedToParse": "client-error-parse",
+    "Success"      : "client-success",
+  },
+  "Errors": {
+    "UnhandledError"      : "errors-unhandled-error",
+    "IncompatiblePlatform": "errors-incompatible-platform",
+    "IncompatibleArch"    : "errors-incompatible-arch",
+  },
 } as const;
 export const _LaunchStatus = {
   "General": {

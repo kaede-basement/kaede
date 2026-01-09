@@ -16,26 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { exists, mkdir } from "@tauri-apps/plugin-fs";
-
-import { log } from "@/lib/logging/scopes/log.ts";
 import type {
-  PreLaunchInformationType,
+  PreLaunchInformationType
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
+import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
-export async function ensureMinecraftDirectory(
-  necessaries: PreLaunchInformationType,
-): Promise<void> {
-  log.debug(__PRE_BUNDLED_FILENAME__, "Checking if the minecraft directory exists");
-  const directoryExists: boolean = await exists(necessaries.directories.instance);
-
-  if (!directoryExists) {
-    log.warn(
-      __PRE_BUNDLED_FILENAME__,
-      "The minecraft directory does not exist; creating it",
-    );
-    await mkdir(necessaries.directories.instance, {
-      "recursive": true,
-    });
-  }
-}
+export async function downloadAssets({
+  necessaries,
+  finalizedPatch,
+}: {
+  "necessaries"   : PreLaunchInformationType;
+  "finalizedPatch": FinalizedPatchType;
+}): Promise<boolean> {}

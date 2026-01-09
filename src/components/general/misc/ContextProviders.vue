@@ -18,7 +18,6 @@ import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
-import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type {
   LauncherStatusesType,
@@ -67,21 +66,33 @@ async function launchInstance(instanceId?: string): Promise<void> {
   launches[instanceId] = {
     "launching": 1,
     "current"  : undefined,
-    "downloads": markRaw(new Set),
+    "downloads": markRaw({
+      "current": new Map<string, number>,
+      "success": 0,
+      "failed" : 0,
+      "total"  : 0,
+    }),
   };
 
   const statuses: LauncherStatusesType = launches[instanceId];
   const startTime: number = performance.now();
 
   statuses.current = LaunchStatus.General.Starting;
-  statuses.downloads.clear();
 
   try {
     const javaMajor: number = window[ApplicationNamespace].__internals.javaMajor
       ?? await General.getJavaMajor();
-    const { success, process }: LaunchResponseType = await Launcher.launchWithChecks({
-      "instance": currentInstance.instance,
-      javaMajor,
+    const { success, process }: LaunchResponseType = await Launcher.handleLaunch({
+      "instance"       : currentInstance.instance,
+      "userPreferences": {
+        // TODO
+        "javaBinary": "javaw",
+        "javaMajor" : javaMajor,
+        "versions"  : {
+          "net.minecraft"     : currentInstance.instance.version,
+          "net.minecraftforge": "36.2.42",
+        },
+      },
       instanceId,
       statuses,
       onClose,

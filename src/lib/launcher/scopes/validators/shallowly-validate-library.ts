@@ -19,7 +19,7 @@ export function shallowlyValidateLibrary({
       __PRE_BUNDLED_FILENAME__,
       `The '${JSON.stringify(library)}' is completely incompatible`,
     );
-    statuses.current = LaunchStatus.Errors.LibraryShallowValidationFailed;
+    statuses.current = LaunchStatus.Libraries.FailedToValidate;
 
     return false;
   }

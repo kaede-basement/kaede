@@ -9,16 +9,16 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 export async function downloadLogging({
   necessaries,
   logging,
   versionMeta,
 }: {
-  "necessaries": PreLaunchInformationType;
-  "logging"    : ParsedMetaType["logging"];
-  "versionMeta": SpecificPatchMetaType;
-}): Promise<void> {
+  "necessaries"   : PreLaunchInformationType;
+  "finalizedPatch": FinalizedPatchType;
+}): Promise<boolean> {
   if (!logging) {
     log.warn(
       __PRE_BUNDLED_FILENAME__,

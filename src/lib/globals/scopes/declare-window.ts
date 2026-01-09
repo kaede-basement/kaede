@@ -208,6 +208,10 @@ export function declareWindow(): void {
         "before": [],
         "after" : [],
       },
+      "onMinecraftPatchResolve": {
+        "before": [],
+        "after" : [],
+      },
     },
   };
 }

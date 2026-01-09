@@ -53,6 +53,7 @@ async function addInstance(version: string): Promise<void> {
     "windowHeight": 480,
     "windowWidth" : 854,
     "checksum"    : true,
+    "entry"       : "net.minecraft",
   });
 
   if (instanceStates === undefined) {

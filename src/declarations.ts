@@ -1649,7 +1649,10 @@ declare global {
             "nothing"
           >;
         };
-        "onMinecraftPatchResolve": {};
+        "onMinecraftPatchResolve": {
+          "before": [];
+          "after" : [];
+        };
       };
     };
   }
