@@ -15,10 +15,11 @@ const image = computed((): DeepNonNullable<GlobalStatesType["layout"]["backgroun
   const background = globalStates?.layout?.background;
 
   return {
-    "key"  : background?.key ?? background?.url ?? "",
-    "url"  : background?.url ?? "",
-    "blur" : background?.blur ?? 0,
-    "color": background?.color ?? "rgba(28, 28, 28, 0.6)",
+    "key"    : background?.key ?? background?.url ?? "",
+    "url"    : background?.url ?? "",
+    "blur"   : background?.blur ?? 0,
+    "color"  : background?.color ?? "rgba(28, 28, 28, 0.6)",
+    "isVideo": background?.isVideo ?? false,
   };
 });
 </script>
@@ -40,7 +41,19 @@ const image = computed((): DeepNonNullable<GlobalStatesType["layout"]["backgroun
       }"
     ></div>
     <Transition v-if="image.url !== ''" name="global-background">
+      <video
+        id="__router__background-video"
+        v-if="image.isVideo"
+        autoplay
+        muted
+        loop
+        class="absolute left-0 h-full w-full bg-center object-cover -z-10"
+      >
+        <source :src="image.url" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
       <Image
+        v-else
         :key="image.key"
         :src="image.url"
         id="__router__background-image"

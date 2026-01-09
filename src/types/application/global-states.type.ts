@@ -8,10 +8,11 @@ export type GlobalStatesLayoutType = {
   "enableMaterialYouRipple": boolean;
   "custom"                 : boolean | Array<"sidebar" | "contextMenu">;
   "background"             : {
-    "url"  : string | null;
-    "key"  : string | number | null;
-    "blur" : number | null;
-    "color": string | null;
+    "url"    : string | null;
+    "key"    : string | number | null;
+    "blur"   : number | null;
+    "color"  : string | null;
+    "isVideo": boolean;
   };
   "sidebar": {
     "blur"      : number | null;

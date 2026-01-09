@@ -13,10 +13,11 @@ const defaultConfig: ConfigType = {
     "enableMaterialYouRipple": true,
     "custom"                 : false,
     "background"             : {
-      "url"  : null,
-      "key"  : null,
-      "blur" : null,
-      "color": null,
+      "url"    : null,
+      "key"    : null,
+      "blur"   : null,
+      "color"  : null,
+      "isVideo": false,
     },
     "sidebar": {
       "background": null,

@@ -142,6 +142,7 @@ export default defineConfigWithVueTs(
           "iframe",
           "img",
           "svg",
+          "video",
         ],
       }],
 

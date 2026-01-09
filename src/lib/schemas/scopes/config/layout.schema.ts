@@ -33,6 +33,7 @@ export const LayoutSchema = Type.Object({
       Type.String(),
       Type.Null(),
     ]),
+    "isVideo": Type.Boolean(),
   }),
   "sidebar": Type.Object({
     "background": Type.Union([
