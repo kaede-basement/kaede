@@ -15,8 +15,8 @@ export function getConfigGlobalStates(): GlobalStatesType {
 
   const portableVersion = portable ? "Portable" : "Non-portable";
 
-  log.info(`Running in the '${portableVersion}' version`);
-  log.debug("Finishing 'getConfigGlobalStates' execution");
+  log.info(__PRE_BUNDLED_FILENAME__, `Running in the '${portableVersion}' version`);
+  log.debug(__PRE_BUNDLED_FILENAME__, "Finishing 'getConfigGlobalStates' execution");
 
   return {
     ...configFile,

@@ -12,10 +12,10 @@ export async function getTranslations(baseDirectory: string): Promise<Translatio
     "getDefaultValue": async (): Promise<TranslationsType> => (EnglishTranslations),
   });
 
-  log.debug("get-translations.ts", "Shallowly validating the parsed translations file");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Shallowly validating the parsed translations file");
 
   if (typeof parsedTranslations !== "object" || parsedTranslations === null) {
-    log.info("The provided translations are invalid");
+    log.info(__PRE_BUNDLED_FILENAME__, "The provided translations are invalid");
 
     return EnglishTranslations;
   }

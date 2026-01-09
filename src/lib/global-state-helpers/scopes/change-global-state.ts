@@ -25,6 +25,7 @@ export function __changeGlobalState<Key extends keyof GlobalStatesType>(
   }
 
   log.debug(
+    __PRE_BUNDLED_FILENAME__,
     "Changing the global state.",
     `Key: ${key};`,
     `value: \n${JSON.stringify(value, null, 2)}`,

@@ -9,7 +9,11 @@ export async function getLaunchCount(): Promise<number> {
   try {
     count = await invoke("get_launched_state");
   } catch (error: unknown) {
-    log.error("Failed to retrieve application launch count:", Errors.prettify(error));
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Failed to retrieve application launch count:",
+      Errors.prettify(error),
+    );
     count = 0;
   }
 

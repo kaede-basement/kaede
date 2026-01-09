@@ -31,7 +31,10 @@ export async function getClassPaths({
   "argument"  : string;
   "classPaths": string;
 }> {
-  log.debug("Merging all library, native, and main jar paths for classpaths");
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    "Merging all library, native, and main jar paths for classpaths",
+  );
   const { directories, javaMajor } = necessaries;
   const mergedPaths: Array<string> = [
     ...mapPaths(parsed.libraries),
@@ -59,12 +62,15 @@ export async function getClassPaths({
   }
 
   // The library paths may have duplicates because of the natives
-  log.debug("Removing duplicated classpaths");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Removing duplicated classpaths");
   const uniquePaths: Set<string> = new Set(mergedPaths);
   const classPaths: string = [...uniquePaths].join(";");
 
   if (javaMajor <= 8) {
-    log.info("The Java major version is equal to or below 8; using direct classpaths");
+    log.info(
+      __PRE_BUNDLED_FILENAME__,
+      "The Java major version is equal to or below 8; using direct classpaths",
+    );
 
     return {
       "argument"  : "-cp ${classpath}",
@@ -72,13 +78,16 @@ export async function getClassPaths({
     };
   }
 
-  log.info("The Java major version is higher than 8; using @argfile argument");
+  log.info(
+    __PRE_BUNDLED_FILENAME__,
+    "The Java major version is higher than 8; using @argfile argument",
+  );
   const classPathsFilePath: string = General.cachedJoin(
     directories.instance,
     classPathsFileName,
   );
 
-  log.debug(`Writing @argfile classpaths to '${classPathsFilePath}'`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Writing @argfile classpaths to '${classPathsFilePath}'`);
   await writeTextFile(
     classPathsFilePath,
     [

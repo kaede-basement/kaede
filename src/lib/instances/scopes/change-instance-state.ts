@@ -23,6 +23,7 @@ export function __changeInstanceState<Key extends keyof InstanceStatesType>(
   }
 
   log.debug(
+    __PRE_BUNDLED_FILENAME__,
     "Changing instance state.",
     `Key: ${key};`,
     `value: \n${JSON.stringify(value, null, 2)}`,

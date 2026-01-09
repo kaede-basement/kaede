@@ -29,7 +29,7 @@ export async function getPatches({
     return beforeHooksResult;
   }
 
-  log.debug("Getting the patch requires metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Getting the patch requires metadata");
   const { directories, statuses } = necessaries;
   const requires: SpecificPatchMetaType["requires"] = versionMeta?.requires;
 
@@ -37,13 +37,13 @@ export async function getPatches({
     requires === undefined ||
     !Array.isArray(requires)
   ) {
-    log.error("The version meta is missing patch requires metadata");
+    log.error(__PRE_BUNDLED_FILENAME__, "The version meta is missing patch requires metadata");
     statuses.current = LaunchStatus.Errors.PatchMissingMeta;
 
     return false;
   }
 
-  log.debug(`Getting the metadata for ${requires.length} patches`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Getting the metadata for ${requires.length} patches`);
   const patches: Array<SpecificPatchMetaType | false> = await Promise.all(
     requires.map(require => getPatch({
       "baseDirectory": directories.base,
@@ -64,7 +64,7 @@ export async function getPatches({
     });
 
     if (patch?.assetIndex === undefined) {
-      log.debug(`The '${patch?.uid}' patch does not have assetIndex`);
+      log.debug(__PRE_BUNDLED_FILENAME__, `The '${patch?.uid}' patch does not have assetIndex`);
       await downloadLibraries({
         necessaries,
         libraries,
@@ -78,7 +78,7 @@ export async function getPatches({
       continue;
     }
 
-    log.debug(`The '${patch?.uid}' patch has assetIndex`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `The '${patch?.uid}' patch has assetIndex`);
     await Promise.all([
       getAssets({
         necessaries,
@@ -107,7 +107,7 @@ export async function getPatches({
     return afterHooksResult;
   }
 
-  log.info(`Successfully handled ${patches.length} patches`);
+  log.info(__PRE_BUNDLED_FILENAME__, `Successfully handled ${patches.length} patches`);
   statuses.current = LaunchStatus.Patches.Done;
 
   return results;

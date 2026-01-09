@@ -7,8 +7,6 @@ import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
-const __filename = (new URL(import.meta.url)).pathname;
-
 export async function initializeLauncher({
   config,
   baseDirectory,
@@ -35,10 +33,11 @@ export async function initializeLauncher({
      * Webview window is still hidden, so make it visible now
      * because frontend is already loaded by this time
      */
-    log.debug("Making current webview window visible");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Making current webview window visible");
     await getCurrentWebviewWindow().show();
 
     log.info(
+      __PRE_BUNDLED_FILENAME__,
       "Launcher successfully initialized in:",
       (performance.now() - startTime).toFixed(1),
       "ms",
@@ -48,7 +47,7 @@ export async function initializeLauncher({
   // Cache the java major version since it will not change until the application relaunch
   window[ApplicationNamespace].__internals.javaMajor = await General.getJavaMajor();
 
-  log.debug("Checking if all directories present");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Checking if all directories present");
   const directoriesStartTime = performance.now();
   const foldersArray = Object.values(FileStructure.Folders);
 
@@ -63,14 +62,14 @@ export async function initializeLauncher({
 
   for (const [index, status] of statuses.entries()) {
     if (!status) {
-      log.debug(`The '${directories[index]}' path is missing`);
+      log.debug(__PRE_BUNDLED_FILENAME__, `The '${directories[index]}' path is missing`);
       toCreate.push(directories[index]);
     }
   }
 
   if (toCreate.length === 0) {
     log.info(
-      __filename,
+      __PRE_BUNDLED_FILENAME__,
       "All launcher directories present. Time spent to check:",
       (performance.now() - directoriesStartTime).toFixed(1),
       "ms",
@@ -84,6 +83,7 @@ export async function initializeLauncher({
   );
 
   log.info(
+    __PRE_BUNDLED_FILENAME__,
     "Created all launcher directories in:",
     (performance.now() - directoriesStartTime).toFixed(1),
     "ms",

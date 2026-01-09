@@ -12,10 +12,10 @@ export async function getAccounts(baseDirectory: string): Promise<Array<AccountT
     "getDefaultValue": async (): Promise<Array<unknown>> => ([]),
   });
 
-  log.debug("Validating the parsed accounts file");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Validating the parsed accounts file");
 
   if (!Array.isArray(parsedAccounts)) {
-    log.info("The provided accounts data is not array-like");
+    log.info(__PRE_BUNDLED_FILENAME__, "The provided accounts data is not array-like");
 
     return [];
   }

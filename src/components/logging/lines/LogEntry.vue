@@ -35,6 +35,7 @@ const extractedInformation = computed((): {
     const extractedError = Errors.extract(error);
 
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       "Couldn't parse the searching value",
       "(stacktrace is absent to avoid huge logs flooding):",
       extractedError.name + ":",

@@ -94,9 +94,9 @@ onMounted(async () => {
     return;
   }
 
-  log.debug("Locking down the JavaScript environment");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Locking down the JavaScript environment");
   ExtensionsManager.lockdownEnvironment();
-  log.info("The JavaScript environment was locked down");
+  log.info(__PRE_BUNDLED_FILENAME__, "The JavaScript environment was locked down");
 
   log.debug("Initializing all enabled sandboxed extensions");
   for (const { id, code, permissions } of toExecute.sandbox) {
@@ -105,6 +105,7 @@ onMounted(async () => {
       ExtensionsManager.runInSandbox({ id, code });
     } catch (error: unknown) {
       log.error(
+        __PRE_BUNDLED_FILENAME__,
         `An error occurred while running the '${id}' extension:`,
         Errors.prettify(error),
       );

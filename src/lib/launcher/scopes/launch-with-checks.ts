@@ -55,7 +55,10 @@ export async function launchWithChecks({
   });
 
   if (necessaries === false) {
-    log.warn("Aborting the launch process since failed to extract pre-launch information");
+    log.warn(
+      __PRE_BUNDLED_FILENAME__,
+      "Aborting the launch process since failed to extract pre-launch information",
+    );
 
     return launchFailed;
   }
@@ -73,7 +76,10 @@ export async function launchWithChecks({
   ]);
 
   if (versionMeta === false) {
-    log.warn("Aborting the launch process since failed to get version metadata");
+    log.warn(
+      __PRE_BUNDLED_FILENAME__,
+      "Aborting the launch process since failed to get version metadata",
+    );
 
     return launchFailed;
   }
@@ -94,7 +100,10 @@ export async function launchWithChecks({
   });
 
   if (client === false) {
-    log.warn("Aborting the launch process since failed to parse main jar metadata");
+    log.warn(
+      __PRE_BUNDLED_FILENAME__,
+      "Aborting the launch process since failed to parse main jar metadata",
+    );
 
     return launchFailed;
   }
@@ -118,7 +127,10 @@ export async function launchWithChecks({
   ]);
 
   if (!assets || !patches) {
-    log.warn("Aborting the launch process since failed to handle assets or patches");
+    log.warn(
+      __PRE_BUNDLED_FILENAME__,
+      "Aborting the launch process since failed to handle assets or patches",
+    );
 
     return launchFailed;
   }

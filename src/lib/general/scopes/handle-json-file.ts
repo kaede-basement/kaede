@@ -17,15 +17,15 @@ export async function handleJsonFile({
 }): Promise<unknown> {
   const filePath: string = cachedJoin(baseDirectory, ...path);
 
-  log.debug(`Checking if the '${label}' file exists`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Checking if the '${label}' file exists`);
   const fileExists = await exists(filePath);
 
   if (!fileExists) {
-    log.warn(`The '${label}' file does not exist`);
-    log.debug(`Getting the default value for '${label}'`);
+    log.warn(__PRE_BUNDLED_FILENAME__, `The '${label}' file does not exist`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `Getting the default value for '${label}'`);
     const defaultValue = await getDefaultValue();
 
-    log.debug(`Initializing the '${label}' file`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `Initializing the '${label}' file`);
     await writeTextFile(
       filePath,
       JSON.stringify(
@@ -38,22 +38,26 @@ export async function handleJsonFile({
     return defaultValue;
   }
 
-  log.debug(`Reading the '${label}' file`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Reading the '${label}' file`);
   const storedFileData: string = await readTextFile(filePath);
   let parsed: unknown;
 
   try {
-    log.debug(`Parsing the '${label}' file`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `Parsing the '${label}' file`);
     parsed = JSON.parse(storedFileData);
   } catch (error: unknown) {
-    log.error(`Could not parse the '${label}' file data:`, Errors.prettify(error));
-    log.debug(`Returning the default value for '${label}'`);
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      `Could not parse the '${label}' file data:`,
+      Errors.prettify(error),
+    );
+    log.debug(__PRE_BUNDLED_FILENAME__, `Returning the default value for '${label}'`);
 
     // No need to await here
     return getDefaultValue();
   }
 
-  log.debug(`Returning the parsed '${label}' file`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Returning the parsed '${label}' file`);
 
   return parsed;
 }

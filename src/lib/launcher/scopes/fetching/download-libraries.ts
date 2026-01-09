@@ -40,6 +40,7 @@ export async function downloadLibraries({
   ];
 
   log.debug(
+    __PRE_BUNDLED_FILENAME__,
     `Verifying ${merged.length} libraries for their existence.`,
     `SHA1 checks enabled: ${instance.checksum}`,
   );
@@ -54,6 +55,7 @@ export async function downloadLibraries({
   const totalTime: string = (endTime - startTime).toFixed(2);
 
   log.info(
+    __PRE_BUNDLED_FILENAME__,
     `Successfully verified ${merged.length} libraries in ${totalTime} ms.`,
     `Total mismatches: ${missing.size}.`,
     `SHA1 checks enabled: ${instance.checksum}`,
@@ -64,7 +66,7 @@ export async function downloadLibraries({
       return missing.has(path);
     });
 
-  log.debug("Initializing missing library and native directories");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing missing library and native directories");
   await Promise.all(
     missingArtifacts.map(({ directory }) => mkdir(
       directory,
@@ -85,6 +87,7 @@ export async function downloadLibraries({
   });
 
   log.info(
+    __PRE_BUNDLED_FILENAME__,
     `Successfully handled ${merged.length} libraries`,
     `and re-downloaded ${missing.size} of them`,
   );

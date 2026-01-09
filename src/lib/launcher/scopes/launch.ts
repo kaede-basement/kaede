@@ -33,7 +33,7 @@ export async function launch({
   "parsed"     : ParsedMetaType;
   "onClose"    : (instanceId: string) => void;
 }): Promise<LaunchResponseType> {
-  log.debug("Entered the actual launch function");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Entered the actual launch function");
   const { directories, statuses } = necessaries;
   const { mainClass } = parsed;
 
@@ -145,14 +145,17 @@ export async function launch({
     };
   }
 
-  log.debug(`Creating a launch command with the '${directories.instance}' working directory`);
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Creating a launch command with the '${directories.instance}' working directory`,
+  );
   const instanceCommand = Command.create(
     javaBinary,
     launchArguments,
     { "cwd": directories.instance },
   );
 
-  log.debug(`Launching the '${instanceId}' instance`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Launching the '${instanceId}' instance`);
   const process: Child = await instanceCommand.spawn();
 
   await ExtensionsManager.catchAsyncVoidHooks({
@@ -182,9 +185,10 @@ export async function launch({
     "timing": "before",
   });
 
-  log.debug(`Adding listeners to the '${instanceId}' instance process`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Adding listeners to the '${instanceId}' instance process`);
   instanceCommand.on("close", payload => {
     log.info(
+      __PRE_BUNDLED_FILENAME__,
       `The '${instanceId}' was closed. Payload:`,
       "\n" + JSON.stringify(payload, null, 2),
     );
@@ -192,13 +196,14 @@ export async function launch({
   });
   instanceCommand.on("error", payload => {
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       `Something went wrong with the '${instanceId}' instance. Payload:`,
       "\n" + JSON.stringify(payload, null, 2),
     );
     statuses.current = LaunchStatus.Errors.UnhandledError;
   });
 
-  log.info(`The '${instanceId}' successfully launched`);
+  log.info(__PRE_BUNDLED_FILENAME__, `The '${instanceId}' successfully launched`);
   statuses.current = LaunchStatus.General.Success;
 
   return { "success": true, process };

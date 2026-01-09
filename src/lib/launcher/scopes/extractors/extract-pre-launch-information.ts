@@ -74,7 +74,10 @@ export function extractPreLaunchInformation({
       break;
     }
     default: {
-      log.error(`The provided platform (${providedPlatform}) is incompatible`);
+      log.error(
+        __PRE_BUNDLED_FILENAME__,
+        `The provided platform (${providedPlatform}) is incompatible`,
+      );
       statuses.current = LaunchStatus.Errors.IncompatiblePlatform;
 
       return false;
@@ -104,7 +107,10 @@ export function extractPreLaunchInformation({
       break;
     }
     default: {
-      log.error(`The provided arch (${providedArch}) is incompatible`);
+      log.error(
+        __PRE_BUNDLED_FILENAME__,
+        `The provided arch (${providedArch}) is incompatible`,
+      );
       statuses.current = LaunchStatus.Errors.IncompatibleArch;
 
       return false;

@@ -45,7 +45,11 @@ export async function fetchMetadata({
 
     response = await fetch(url);
   } catch (error: unknown) {
-    log.error(`${prefix} | Could not fetch '${url}':`, Errors.prettify(error));
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      `${prefix} | Could not fetch '${url}':`,
+      Errors.prettify(error),
+    );
 
     return LaunchStatus[scope].FailedToFetch;
   }
@@ -53,7 +57,11 @@ export async function fetchMetadata({
   try {
     data = await response.json();
   } catch (error: unknown) {
-    log.error(`${prefix} | Could not parse the ${label} from '${url}':`, Errors.prettify(error));
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      `${prefix} | Could not parse the ${label} from '${url}':`,
+      Errors.prettify(error),
+    );
 
     return LaunchStatus[scope].FailedToParse;
   }

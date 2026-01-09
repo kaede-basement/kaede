@@ -11,7 +11,7 @@ export function validate<T>({
     ? `id: ${info?.id}`
     : `id: ${info?.id}; index: ${info.index}`;
 
-  log.debug(`Checking if the provided ${label} (${entryInfo}) is valid`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Checking if the provided ${label} (${entryInfo}) is valid`);
   const validated: boolean = schema.Check(value);
 
   if (!validated) {
@@ -22,6 +22,7 @@ export function validate<T>({
     );
 
     log.warn(
+      __PRE_BUNDLED_FILENAME__,
       `The provided ${label} (${entryInfo}) is not valid:`,
       "\n" + errors,
     );
@@ -29,7 +30,7 @@ export function validate<T>({
     return false;
   }
 
-  log.info(`The provided ${label} (${entryInfo}) is valid`);
+  log.info(__PRE_BUNDLED_FILENAME__, `The provided ${label} (${entryInfo}) is valid`);
 
   return value as T;
 }

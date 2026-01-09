@@ -3,7 +3,7 @@ import { log } from "@/lib/logging/scopes/log.ts";
 export function runInUnrestricted(id: string, code: string): void {
   const startTime = performance.now();
 
-  log.debug(`Initializing the '${id}' extension code`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Initializing the '${id}' extension code`);
 
   /*
    * JavaScript also allows 'AsyncFunction' constructors.
@@ -11,11 +11,17 @@ export function runInUnrestricted(id: string, code: string): void {
    */
   const compiled = new Function(code);
 
-  log.debug(`Executing the '${id}' extension code in the unrestricted environment`);
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Executing the '${id}' extension code in the unrestricted environment`,
+  );
   compiled();
 
   const endTime = performance.now();
   const timeDifference = (endTime - startTime).toFixed(2);
 
-  log.info(`The '${id}' plugin was successfully executed in ${timeDifference} ms`);
+  log.info(
+    __PRE_BUNDLED_FILENAME__,
+    `The '${id}' plugin was successfully executed in ${timeDifference} ms`,
+  );
 }

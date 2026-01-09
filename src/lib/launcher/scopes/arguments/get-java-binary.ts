@@ -42,7 +42,10 @@ export async function getJavaBinary({
     }
   }
 
-  log.debug(`The '${javaBinary}' command name will be used for launching`);
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `The '${javaBinary}' command name will be used for launching`,
+  );
 
   return javaBinary;
 }

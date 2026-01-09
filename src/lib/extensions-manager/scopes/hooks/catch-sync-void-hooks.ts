@@ -21,7 +21,7 @@ export function catchSyncVoidHooks({
 
   const hooks = currentScopeHooks[timing] as HookReturnType<unknown, "nothing", "non-promise">;
 
-  log.debug(log.templates.hooks.iterate.start(
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.start(
     scope,
     timing,
     hooks.length,
@@ -29,7 +29,7 @@ export function catchSyncVoidHooks({
   for (const [index, hook] of hooks.entries()) {
     const timeMeasurementStartHook = performance.now();
 
-    log.debug(log.templates.hooks.iterate.execution(
+    log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.execution(
       scope,
       timing,
       index,
@@ -40,7 +40,7 @@ export function catchSyncVoidHooks({
     const timeMeasurementEndHook = performance.now();
     const currentAfterHookTime = timeMeasurementEndHook - timeMeasurementStartHook;
 
-    log.debug(log.templates.hooks.iterate["no-response"](
+    log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate["no-response"](
       scope,
       timing,
       index,
@@ -52,7 +52,7 @@ export function catchSyncVoidHooks({
   const timeMeasurementEndAfter = performance.now();
   const afterHooksTime = timeMeasurementEndAfter - timeMeasurementStartAfter;
 
-  log.debug(log.templates.hooks.iterate.end(
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.end(
     scope,
     timing,
     afterHooksTime,

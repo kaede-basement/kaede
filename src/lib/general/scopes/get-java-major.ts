@@ -9,13 +9,17 @@ export async function getJavaMajor(): Promise<number> {
   let process: ChildProcess<string>;
 
   try {
-    log.debug("Getting the Java version");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Getting the Java version");
     process = await Command.create("java", [
       // The '--version' arguments does not work in Java 8 and older
       "-version",
     ]).execute();
   } catch (error: unknown) {
-    log.error("Could not get the Java version output:", Errors.prettify(error));
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not get the Java version output:",
+      Errors.prettify(error),
+    );
 
     return FamousAndOldJavaMajorVersion;
   }
@@ -32,7 +36,11 @@ export async function getJavaMajor(): Promise<number> {
   const possibleVersion: string | undefined = parsed?.[1];
 
   if (!possibleVersion) {
-    log.error("Could not parse the Java major version. The original output:", output);
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not parse the Java major version. The original output:",
+      output,
+    );
 
     return FamousAndOldJavaMajorVersion;
   }
@@ -42,12 +50,20 @@ export async function getJavaMajor(): Promise<number> {
   );
 
   if (Number.isNaN(majorVersion)) {
-    log.error("The parsed Java major version is not a number. The original output:", output);
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "The parsed Java major version is not a number. The original output:",
+      output,
+    );
 
     return FamousAndOldJavaMajorVersion;
   }
 
-  log.debug("The current Java major version is:", majorVersion.toString());
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    "The current Java major version is:",
+    majorVersion.toString(),
+  );
 
   return majorVersion;
 }

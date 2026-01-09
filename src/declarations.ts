@@ -60,6 +60,7 @@ import type { TranslationsType } from "@/types/translations/translations.type.ts
 
 /* Expand the globals with Kaede and Tauri namespaces */
 declare global {
+  const __PRE_BUNDLED_FILENAME__: string;
 
   /* Declared in the '@/lib/globals/scopes/declare-window.ts' */
   interface Window {

@@ -169,7 +169,7 @@ onMounted(async () => {
   const existingLogs: string = await readTextFile(latestLogAbsolutePath);
 
   if (existingLogs === "") {
-    log.warn("Log file is empty");
+    log.warn(__PRE_BUNDLED_FILENAME__, "Log file is empty");
     logs.value = ["__kaede-trigger-initial"];
 
     return;
@@ -183,8 +183,8 @@ onMounted(async () => {
 
   const filesize = (existingLogs.length / (1024 * 1024)).toFixed(3);
 
-  log.info("Log file is not empty");
-  log.debug("Adding existing logs to the 'logs' state");
+  log.info(__PRE_BUNDLED_FILENAME__, "Log file is not empty");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Adding existing logs to the 'logs' state");
   logs.value = [
     globalStates?.logs?.virtualized ? "__kaede-trigger-virtualized" : "__kaede-trigger-initial",
     ...existingLogs.split("\n"),

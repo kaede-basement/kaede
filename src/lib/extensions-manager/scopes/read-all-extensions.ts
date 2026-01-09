@@ -24,18 +24,22 @@ export async function readAllExtensions(): Promise<Array<ExtensionInfoType>> {
   );
 
   if (!path) {
-    log.error("The extensions folder path in global states is undefined");
+    log.error(__PRE_BUNDLED_FILENAME__, "The extensions folder path in global states is undefined");
 
     return [];
   }
 
-  log.debug("Reading the extensions folder");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Reading the extensions folder");
   let storedFiles: Array<DirEntry>;
 
   try {
     storedFiles = await readDir(path);
   } catch (error: unknown) {
-    log.error("Could not read the extensions folder:", Errors.prettify(error));
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not read the extensions folder:",
+      Errors.prettify(error),
+    );
 
     return [];
   }
@@ -59,7 +63,7 @@ export async function readAllExtensions(): Promise<Array<ExtensionInfoType>> {
   const endTime = performance.now();
   const timeDifference: string = (endTime - startTime).toFixed(2);
 
-  log.info("Finished reading all extensions in:", timeDifference, "ms");
+  log.info(__PRE_BUNDLED_FILENAME__, "Finished reading all extensions in:", timeDifference, "ms");
 
   return extensionCodes;
 }

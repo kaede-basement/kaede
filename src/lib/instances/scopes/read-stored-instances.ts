@@ -15,10 +15,10 @@ export async function readStoredInstances(baseDirectory: string): Promise<Instan
     "getDefaultValue": async (): Promise<object> => ({}),
   });
 
-  log.debug("Validating the instances metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Validating the instances metadata");
 
   if (typeof parsedMetadata !== "object" || parsedMetadata === null) {
-    log.debug("Instances metadata are completely invalid");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Instances metadata are completely invalid");
 
     return {};
   }
@@ -45,7 +45,7 @@ export async function readStoredInstances(baseDirectory: string): Promise<Instan
   }
 
   if (allValid) {
-    log.info("All specified metadata instances are valid");
+    log.info(__PRE_BUNDLED_FILENAME__, "All specified metadata instances are valid");
   }
 
   return validInstances;

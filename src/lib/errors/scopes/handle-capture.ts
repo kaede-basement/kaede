@@ -6,6 +6,7 @@ export function handleCapture(error: Error): NativeErrorType {
   const extractedError = extract(error);
 
   log.error(
+    __PRE_BUNDLED_FILENAME__,
     "A global error was captured:",
     extractedError.name + ":",
     extractedError.message + ";",

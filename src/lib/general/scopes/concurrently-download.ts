@@ -21,7 +21,7 @@ export function concurrentlyDownload({
     "value": 0,
   };
 
-  log.debug(`Starting to download ${entries.length} objects`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Starting to download ${entries.length} objects`);
 
   return Promise.all(
     Array
@@ -37,6 +37,7 @@ export function concurrentlyDownload({
           const { url, path } = entries[index];
 
           log.debug(
+            __PRE_BUNDLED_FILENAME__,
             `Concurrency group ${groupIndex}: downloading (${entryOutOfTotal}) '${url}'`,
           );
           try {
@@ -48,6 +49,7 @@ export function concurrentlyDownload({
             });
           } catch (error: unknown) {
             log.error(
+              __PRE_BUNDLED_FILENAME__,
               `Concurrency group ${groupIndex}:`,
               `could not download the ${entryOutOfTotal} object:`,
               Errors.prettify(error),

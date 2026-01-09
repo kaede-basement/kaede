@@ -17,6 +17,7 @@ export function getLogFieldText(input: string, toSearch: string): string | Field
     ];
   } catch (error: unknown) {
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       "Couldn't match all search keyword occurrences in the logs:",
       Errors.prettify(error),
     );

@@ -8,21 +8,6 @@ function invokeLog(
   message: string,
   location: string,
 ): void {
-  // TODO remove
-  if (message === "") {
-    /*
-     * We do not care about promises here
-     * Yeah, that can possibly lead to racing conditions...
-     */
-    invoke("plugin:log|log", {
-      level,
-      "message" : location,
-      "location": "unknown",
-    });
-
-    return;
-  }
-
   /*
    * We do not care about promises here
    * Yeah, that can possibly lead to racing conditions...

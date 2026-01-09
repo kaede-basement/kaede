@@ -16,7 +16,7 @@ export function parseLogging({
 }): (MappedArtifactType & {
   "argument": string;
 }) | false {
-  log.debug("Parsing the logging metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Parsing the logging metadata");
   const { directories, statuses } = necessaries;
 
   if (
@@ -26,6 +26,7 @@ export function parseLogging({
     logging?.argument === undefined
   ) {
     log.warn(
+      __PRE_BUNDLED_FILENAME__,
       "The 'logging' field is invalid. Contents:",
       "\n" + JSON.stringify(logging, null, 2),
     );
@@ -40,7 +41,7 @@ export function parseLogging({
   const hash: string | undefined = logging.file?.sha1;
 
   if (!name || !url || !hash) {
-    log.warn("Missing the logging config file metadata");
+    log.warn(__PRE_BUNDLED_FILENAME__, "Missing the logging config file metadata");
     statuses.current = LaunchStatus.Errors.LoggingMissingMeta;
 
     return false;
@@ -51,7 +52,7 @@ export function parseLogging({
     name,
   );
 
-  log.debug("Parsed the logging metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Parsed the logging metadata");
 
   return {
     "file"     : name,

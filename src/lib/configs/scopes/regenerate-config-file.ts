@@ -13,8 +13,8 @@ export async function regenerateConfigFile({
   "baseDirectory"      : string;
   "configFileDirectory": string;
 }): Promise<ConfigType> {
-  log.warn("Config file is invalid");
-  log.debug("Renaming the invalid config file");
+  log.warn(__PRE_BUNDLED_FILENAME__, "Config file is invalid");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Renaming the invalid config file");
   const currentTimestamp: string = Date.now().toString();
 
   await rename(
@@ -25,10 +25,10 @@ export async function regenerateConfigFile({
     ),
   );
 
-  log.debug("Initializing a new config file with default values");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing a new config file with default values");
   await initializeConfigFile(configFileDirectory);
 
-  log.debug("Returning a promise with default config");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Returning a promise with default config");
 
   // Awaiting here will just be an unnecessary action
   return getDefaultConfig();

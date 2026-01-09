@@ -66,7 +66,10 @@ export async function resolvePatch({
       "path"           : [FileStructure.Folders.Cache.Path, metadata.uid, fileName],
       "label"          : `/cache/${metadata.uid}/${fileName}`,
       "getDefaultValue": async () => {
-        log.debug(`${logPrefix} | No cache; fetching the patch metadata`);
+        log.warn(
+          __PRE_BUNDLED_FILENAME__,
+          `${logPrefix} | No cache; fetching the patch metadata`,
+        );
         statuses.current = LaunchStatus.PatchMetadata.Fetching;
         const fetched: { "data": unknown } | LaunchStatusType = await fetchMetadata({
           "url"   : APIEndpoints.Meta.Base + metadata.uid + "/" + fileName,
@@ -80,7 +83,10 @@ export async function resolvePatch({
           return fetched.data;
         }
 
-        log.error(`${logPrefix} | Could not fetch the patch metadata. Status: ${fetched}`);
+        log.error(
+          __PRE_BUNDLED_FILENAME__,
+          `${logPrefix} | Could not fetch the patch metadata. Status: ${fetched}`,
+        );
         statuses.current = fetched;
 
         /*
@@ -94,6 +100,7 @@ export async function resolvePatch({
     });
   } catch (error: unknown) {
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       `${logPrefix} | Caught an error while getting the patch metadata:`,
       Errors.prettify(error),
     );
@@ -111,7 +118,7 @@ export async function resolvePatch({
   });
 
   if (validPatch === false) {
-    log.error(`${logPrefix} | Invalid metadata`);
+    log.error(__PRE_BUNDLED_FILENAME__, `${logPrefix} | Invalid metadata`);
 
     return false;
   }
@@ -127,7 +134,7 @@ export async function resolvePatch({
     return afterHooksResult;
   }
 
-  log.info(`${logPrefix} | Successful validation`);
+  log.info(__PRE_BUNDLED_FILENAME__, `${logPrefix} | Successful validation`);
 
   return validPatch;
 }

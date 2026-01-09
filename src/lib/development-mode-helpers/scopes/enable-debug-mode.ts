@@ -7,7 +7,10 @@ export function enableDebugMode(developmentModeEntries?: GlobalStatesType["devel
     ?? GlobalStateHelpers.get()?.development;
 
   if (!currentDevelopmentMode) {
-    log.error("Debug mode was triggered, but development mode is disabled.");
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Debug mode was triggered, but development mode is disabled.",
+    );
 
     return;
   }
@@ -18,5 +21,5 @@ export function enableDebugMode(developmentModeEntries?: GlobalStatesType["devel
   });
 
   log.debug = log["__debug-defined"];
-  log.warn("Debug mode was enabled");
+  log.warn(__PRE_BUNDLED_FILENAME__, "Debug mode was enabled");
 }

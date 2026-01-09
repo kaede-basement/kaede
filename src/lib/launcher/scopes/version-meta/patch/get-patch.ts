@@ -33,21 +33,27 @@ export async function getPatch({
   let parsedMeta: unknown;
 
   try {
-    log.debug(`Reading the cached metadata for '${require?.uid}'`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `Reading the cached metadata for '${require?.uid}'`);
     statuses.current = LaunchStatus.Metadata.ReadingCachedPatchMeta;
     parsedMeta = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Cache.Path, fileName],
       "label"          : `/cache/${fileName}`,
       "getDefaultValue": async () => {
-        log.debug(`No cache; fetching the metadata for '${require?.uid}'`);
+        log.warn(
+          __PRE_BUNDLED_FILENAME__,
+          `No cache; fetching the metadata for '${require?.uid}'`,
+        );
         statuses.current = LaunchStatus.Metadata.FetchingPatchMeta;
         const fetched: object | LaunchStatusType = await fetchAssetsMeta({
           "url": APIEndpoints.Meta.Base + require.uid + "/" + versionWithExtension,
         });
 
         if (typeof fetched !== "object") {
-          log.error(`Could not fetch the metadata for '${require?.uid}'. Status:`, fetched);
+          log.error(
+            __PRE_BUNDLED_FILENAME__,
+            `Could not fetch the metadata for '${require?.uid}'. Status: ${fetched}`,
+          );
           statuses.current = fetched;
 
           /*
@@ -65,7 +71,7 @@ export async function getPatch({
     return false;
   }
 
-  log.debug(`Validating the metadata for '${require?.uid}'`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Validating the metadata for '${require?.uid}'`);
   const validMeta: SpecificPatchMetaType | false = Schemas.validate.patchMeta({
     "value": parsedMeta,
     "label": "specific patch metadata",
@@ -75,13 +81,13 @@ export async function getPatch({
   });
 
   if (validMeta === false) {
-    log.error(`The metadata for '${require?.uid}' is invalid`);
+    log.error(__PRE_BUNDLED_FILENAME__, `The metadata for '${require?.uid}' is invalid`);
     statuses.current = LaunchStatus.Errors.PatchFullValidationFailed;
 
     return false;
   }
 
-  log.info(`The '${validMeta.uid}' patch metadata is valid`);
+  log.info(__PRE_BUNDLED_FILENAME__, `The '${validMeta.uid}' patch metadata is valid`);
 
   return validMeta;
 }

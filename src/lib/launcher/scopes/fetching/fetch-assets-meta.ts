@@ -14,11 +14,15 @@ export async function fetchAssetsMeta({
   let data: unknown;
 
   try {
-    log.debug(`Fetching the assets meta from '${url}'`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `Fetching the assets meta from '${url}'`);
 
     response = await fetch(url);
   } catch (error: unknown) {
-    log.error(`Could not fetch '${url}':`, Errors.prettify(error));
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      `Could not fetch '${url}':`,
+      Errors.prettify(error),
+    );
 
     return LaunchStatus.Errors.MetaAssetsFetchFailed;
   }
@@ -26,7 +30,11 @@ export async function fetchAssetsMeta({
   try {
     data = await response.json();
   } catch (error: unknown) {
-    log.error(`Could not parse the data from '${url}':`, Errors.prettify(error));
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      `Could not parse the data from '${url}':`,
+      Errors.prettify(error),
+    );
 
     return LaunchStatus.Errors.MetaAssetsParseFailed;
   }
@@ -34,6 +42,7 @@ export async function fetchAssetsMeta({
   // Full validation will be provided later in the code
   if (typeof data !== "object" || data === null) {
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       `Failed to shallowly validate the parsed data from '${url}'. Contents:`,
       "\n" + JSON.stringify(data, null, 2),
     );

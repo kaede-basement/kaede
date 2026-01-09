@@ -6,7 +6,7 @@ export function handleLoggingPermission(id: string): void {
     method: "debug" | "info" | "warn" | "error",
     ...input: Array<string>
   ): void => {
-    return log[method](`[${id}]`, ...input);
+    return log[method](`${id}`, ...input);
   };
 
   GrantedScopes[id].log = {

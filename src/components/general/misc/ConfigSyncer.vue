@@ -21,7 +21,10 @@ const syncing = ref<boolean>(false);
 
 async function handleConfigSync(): Promise<void> {
   if (globalStates === undefined) {
-    log.error("Config sync was triggered but no global states are present");
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Config sync was triggered but no global states are present",
+    );
 
     return;
   }
@@ -30,7 +33,7 @@ async function handleConfigSync(): Promise<void> {
 
   syncing.value = true;
 
-  log.debug("ConfigSyncer.vue", "Getting current global states");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Getting current global states");
   const currentGlobalStatesDetached: ConfigType & Partial<GlobalStatesType> = {
     // Spread the global states to re-create one-level deep properties
     ...globalStates,
@@ -40,7 +43,7 @@ async function handleConfigSync(): Promise<void> {
     FileStructure.Files.Config,
   );
 
-  log.debug("Getting current user config");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Getting current user config");
   const config = await Configs.getSafe();
 
   // Remove all non-config properties
@@ -49,7 +52,10 @@ async function handleConfigSync(): Promise<void> {
   delete currentGlobalStatesDetached.contextMenuItems;
   delete currentGlobalStatesDetached.pages;
 
-  log.debug("Creating a 'ConfigType' typed object with the global states contents");
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    "Creating a 'ConfigType' typed object with the global states contents",
+  );
   const configOnlyGlobalStates: ConfigType = {
     // Spread the global states since there might be additional properties by extensions
     ...currentGlobalStatesDetached,
@@ -68,23 +74,24 @@ async function handleConfigSync(): Promise<void> {
   const stringyGlobalStates = JSON.stringify(configOnlyGlobalStates);
 
   if (stringyConfig === stringyGlobalStates) {
-    log.info("Seems like config didn't change. No need for config sync");
+    log.info(__PRE_BUNDLED_FILENAME__, "Seems like config didn't change. No need for config sync");
     syncing.value = false;
 
     return;
   }
 
   try {
-    log.debug("Updating the config file with new values");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Updating the config file with new values");
     await writeTextFile(
       configPath,
       JSON.stringify(configOnlyGlobalStates, null, 2),
     );
   } catch (error: unknown) {
-    log.error("Failed to sync the config file:", Errors.prettify(error));
+    log.error(__PRE_BUNDLED_FILENAME__, "Failed to sync the config file:", Errors.prettify(error));
   }
 
   log.info(
+    __PRE_BUNDLED_FILENAME__,
     "Config file successfully synced in:",
     (performance.now() - t1).toFixed(1),
     "ms",

@@ -49,7 +49,11 @@ export const ContextMenuItems = [
           FileStructure.Files.Config,
         ),
       ).catch((error: unknown) => {
-        log.error("Failed to reveal the config file in the explorer:", Errors.prettify(error));
+        log.error(
+          __PRE_BUNDLED_FILENAME__,
+          "Failed to reveal the config file in the explorer:",
+          Errors.prettify(error),
+        );
       });
     },
   },
@@ -73,7 +77,11 @@ export const ContextMenuItems = [
       revealItemInDir(
         General.cachedJoin(minecraftDirectory),
       ).catch((error: unknown) => {
-        log.error("Failed to reveal the config file in the explorer:", Errors.prettify(error));
+        log.error(
+          __PRE_BUNDLED_FILENAME__,
+          "Failed to reveal the config file in the explorer:",
+          Errors.prettify(error),
+        );
       });
     },
   },

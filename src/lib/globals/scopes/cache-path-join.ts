@@ -11,6 +11,6 @@ export async function cachePathJoin(): Promise<void> {
   // Extract the delimiter by removing 3 characters from both ends
   const delimiter = joined.slice(Placeholder.length, -1 * Placeholder.length);
 
-  log.debug("Current path delimiter:", delimiter);
+  log.debug(__PRE_BUNDLED_FILENAME__, "Current path delimiter:", delimiter);
   window[ApplicationNamespace].__internals.joinDelimiter = delimiter;
 }

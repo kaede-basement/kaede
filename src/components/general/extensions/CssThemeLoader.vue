@@ -65,7 +65,7 @@ onMounted(async () => {
       )),
     );
   } catch (error: unknown) {
-    log.error("Could not load all CSS themes:", Errors.prettify(error));
+    log.error(__PRE_BUNDLED_FILENAME__, "Could not load all CSS themes:", Errors.prettify(error));
   }
 
   if (stylesheets.applied.length === 0) {
@@ -82,7 +82,7 @@ onMounted(async () => {
     );
   }
 
-  log.info(`Custom CSS themes applied: ${stylesheets.applied.length}`);
+  log.info(__PRE_BUNDLED_FILENAME__, `Custom CSS themes applied: ${stylesheets.applied.length}`);
 });
 </script>
 

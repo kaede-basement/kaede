@@ -20,7 +20,10 @@ export async function downloadLogging({
   "versionMeta": SpecificPatchMetaType;
 }): Promise<void> {
   if (!logging) {
-    log.warn("No logging field found. Perhaps, the instance version is pre-1.7?");
+    log.warn(
+      __PRE_BUNDLED_FILENAME__,
+      "No logging field found. Perhaps, the instance version is pre-1.7?",
+    );
     necessaries.statuses.current = LaunchStatus.Logging.Done;
 
     return;
@@ -40,7 +43,7 @@ export async function downloadLogging({
   const { directories, statuses } = necessaries;
   const { url, path } = logging;
 
-  log.debug("Checking if the logging config exists");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Checking if the logging config exists");
   statuses.current = LaunchStatus.Logging.CheckingIfPresent;
 
   const [
@@ -55,13 +58,13 @@ export async function downloadLogging({
   ]);
 
   if (!directoryExists) {
-    log.warn("The logging config directory does not exist");
+    log.warn(__PRE_BUNDLED_FILENAME__, "The logging config directory does not exist");
     await mkdir(directories.logging);
   }
 
   if (!fileExists) {
-    log.warn("The logging config file does not exist");
-    log.debug("Downloading the logging config file");
+    log.warn(__PRE_BUNDLED_FILENAME__, "The logging config file does not exist");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Downloading the logging config file");
     statuses.current = LaunchStatus.Logging.DownloadingConfig;
     await downloadWithProgress({
       "statusScope": LaunchStatus.Logging.DownloadingConfig,
@@ -77,6 +80,6 @@ export async function downloadLogging({
     "timing": "after",
   });
 
-  log.info("Successfully handled the logging config");
+  log.info(__PRE_BUNDLED_FILENAME__, "Successfully handled the logging config");
   statuses.current = LaunchStatus.Logging.Done;
 }

@@ -34,7 +34,7 @@ export async function getJvmArguments({
 
   const { platform } = necessaries;
 
-  log.debug("Adding default JVM arguments");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Adding default JVM arguments");
   jvmArguments.push(
     "-Xms1G",
     "-Xmx8G",
@@ -51,10 +51,10 @@ export async function getJvmArguments({
 
   switch (platform) {
     case "windows": {
-      log.debug("Adding Windows-only JVM arguments");
+      log.debug(__PRE_BUNDLED_FILENAME__, "Adding Windows-only JVM arguments");
 
       if (version().slice(0, 2) === "10") {
-        log.debug("Adding Windows 10 specific JVM arguments");
+        log.debug(__PRE_BUNDLED_FILENAME__, "Adding Windows 10 specific JVM arguments");
         jvmArguments.push(
           // "-Dos.name=\"Windows 10\"", // broken even with quotes around command instead value
           "-Dos.version=10.0",
@@ -73,7 +73,7 @@ export async function getJvmArguments({
       break;
     }
     case "macos": {
-      log.debug("Adding macOS-only JVM arguments");
+      log.debug(__PRE_BUNDLED_FILENAME__, "Adding macOS-only JVM arguments");
 
       if (parsed.logging) {
         logFilePath = parsed.logging.path;
@@ -84,7 +84,7 @@ export async function getJvmArguments({
       break;
     }
     default: {
-      log.debug("Adding Linux-only JVM arguments");
+      log.debug(__PRE_BUNDLED_FILENAME__, "Adding Linux-only JVM arguments");
 
       if (parsed.logging) {
         logFilePath = parsed.logging.path;
@@ -95,7 +95,7 @@ export async function getJvmArguments({
   }
 
   if (parsed.logging) {
-    log.debug("Adding logging config to JVM arguments");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Adding logging config to JVM arguments");
     const loggingArguments = parsed
       .logging
       .argument

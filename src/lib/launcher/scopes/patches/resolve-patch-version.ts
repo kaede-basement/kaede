@@ -63,7 +63,10 @@ export async function resolvePatchVersion({
       "path"           : [FileStructure.Folders.Cache.Path, fileName],
       "label"          : `/cache/${fileName}`,
       "getDefaultValue": async () => {
-        log.debug(`${metadata.uid} | No cache; fetching the index manifest`);
+        log.warn(
+          __PRE_BUNDLED_FILENAME__,
+          `${metadata.uid} | No cache; fetching the index manifest`,
+        );
         statuses.current = LaunchStatus.PatchIndex.Fetching;
         const fetched: { "data": unknown } | LaunchStatusType = await fetchMetadata({
           "url"   : APIEndpoints.Meta.Base + metadata.uid,
@@ -77,7 +80,10 @@ export async function resolvePatchVersion({
           return fetched.data;
         }
 
-        log.error(`${metadata.uid} | Could not fetch the index manifest. Status: ${fetched}`);
+        log.error(
+          __PRE_BUNDLED_FILENAME__,
+          `${metadata.uid} | Could not fetch the index manifest. Status: ${fetched}`,
+        );
         statuses.current = fetched;
 
         /*
@@ -91,6 +97,7 @@ export async function resolvePatchVersion({
     });
   } catch (error: unknown) {
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       `${metadata.uid} | Caught an error while getting the index manifest:`,
       Errors.prettify(error),
     );
@@ -115,6 +122,7 @@ export async function resolvePatchVersion({
     typeof parsedPatchIndex.versions[0].version !== "string"
   ) {
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       `${metadata.uid} | Failed to shallowly validate the index manifest. Contents:`,
       "\n" + JSON.stringify(parsedPatchIndex, null, 2),
     );

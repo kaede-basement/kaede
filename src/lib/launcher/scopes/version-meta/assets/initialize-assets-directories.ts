@@ -13,14 +13,20 @@ export async function initializeAssetsDirectories(
 ): Promise<void> {
   const { directories } = necessaries;
 
-  log.debug("Checking if '/assets/indexes/' and '/assets/objects/' exist");
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    "Checking if '/assets/indexes/' and '/assets/objects/' exist",
+  );
   const [indexesExists, objectsExists]: [boolean, boolean] = await Promise.all([
     exists(directories.assetIndexes),
     exists(directories.assetObjects),
   ]);
 
   if (!indexesExists && !objectsExists) {
-    log.debug("Initializing the '/assets/indexes/' and '/assets/objects/' directories");
+    log.debug(
+      __PRE_BUNDLED_FILENAME__,
+      "Initializing the '/assets/indexes/' and '/assets/objects/' directories",
+    );
     await Promise.all([
       mkdir(directories.assetIndexes),
       mkdir(directories.assetObjects),
@@ -30,20 +36,26 @@ export async function initializeAssetsDirectories(
   }
 
   if (!indexesExists) {
-    log.debug("Initializing the '/assets/indexes/' directory");
+    log.debug(
+      __PRE_BUNDLED_FILENAME__,
+      "Initializing the '/assets/indexes/' directory",
+    );
     await mkdir(directories.assetIndexes);
 
     return initializeShortHashDirectories(necessaries);
   }
 
   if (!objectsExists) {
-    log.debug("Initializing the '/assets/objects/' directory");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Initializing the '/assets/objects/' directory");
     await mkdir(directories.assetObjects);
 
     return initializeShortHashDirectories(necessaries);
   }
 
-  log.info("The '/assets/indexes/' and '/assets/objects/' directories exist");
+  log.info(
+    __PRE_BUNDLED_FILENAME__,
+    "The '/assets/indexes/' and '/assets/objects/' directories exist",
+  );
 
   return initializeShortHashDirectories(necessaries);
 }

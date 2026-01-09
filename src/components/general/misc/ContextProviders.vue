@@ -44,7 +44,10 @@ function onClose(instanceId: string): void {
 
 async function launchInstance(instanceId?: string): Promise<void> {
   if (!instanceId) {
-    log.error("The instance launch button was pressed but no instance is present");
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "The instance launch button was pressed but no instance is present",
+    );
 
     return;
   }
@@ -56,7 +59,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
   );
 
   if (!currentInstance || !currentInstance.instance) {
-    log.error("No current instance found");
+    log.error(__PRE_BUNDLED_FILENAME__, "No current instance found");
 
     return;
   }
@@ -94,6 +97,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
     statuses.current = LaunchStatus.Errors.UnhandledError;
 
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       "Unhandled error.",
       `Could not launch the '${instanceId}' instance:`,
       Errors.prettify(error),
@@ -104,6 +108,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
   const totalTime: string = (endTime - startTime).toFixed(2);
 
   log.info(
+    __PRE_BUNDLED_FILENAME__,
     `The '${instanceId}' launch process was done in ${totalTime} ms.`,
     `Is success: '${statuses.launching === 2}'`,
   );
@@ -115,7 +120,10 @@ async function closeInstance(instanceId: string): Promise<void> {
   } | undefined = childProcesses[instanceId];
 
   if (!process) {
-    log.error(`The '${instanceId}' instance kill action was called but no process is present`);
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      `The '${instanceId}' instance kill action was called but no process is present`,
+    );
 
     return;
   }

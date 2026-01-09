@@ -25,7 +25,7 @@ export function parseNative({
   const newFormattedUrl: string | undefined = library?.downloads?.artifact?.url;
 
   if (name === undefined) {
-    log.warn(`The '${name}' native is invalid`);
+    log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' native is invalid`);
 
     return false;
   }
@@ -42,7 +42,7 @@ export function parseNative({
     const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
     if (newFormattedUrl === undefined || hash === undefined) {
-      log.warn(`The '${name}' native is invalid`);
+      log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' native is invalid`);
 
       return false;
     }
@@ -72,7 +72,7 @@ export function parseNative({
       return artifact;
     }
 
-    log.debug(`The '${name}' native is not compatible`);
+    log.debug(__PRE_BUNDLED_FILENAME__, `The '${name}' native is not compatible`);
 
     return false;
   }
@@ -111,7 +111,7 @@ export function parseNative({
     };
   }
 
-  log.debug(`The '${name}' native is not compatible`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `The '${name}' native is not compatible`);
 
   return false;
 }

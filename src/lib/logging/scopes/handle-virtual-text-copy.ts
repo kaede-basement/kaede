@@ -55,6 +55,7 @@ export async function handleVirtualTextCopy(
     }, 500);
   } catch (error: unknown) {
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       "Couldn't copy the selected text in virtualized log viewer:",
       Errors.prettify(error),
     );

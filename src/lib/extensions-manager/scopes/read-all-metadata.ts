@@ -17,7 +17,7 @@ export async function readAllMetadata(): Promise<Array<ExtensionMetadataType>> {
   const metadataExists = await exists(metadataPath);
 
   if (!metadataExists) {
-    log.warn("Extensions metadata file does not exist");
+    log.warn(__PRE_BUNDLED_FILENAME__, "Extensions metadata file does not exist");
     log.debug("Initializing an extensions metadata file");
     await writeTextFile(metadataPath, "[]");
   }
@@ -31,13 +31,17 @@ export async function readAllMetadata(): Promise<Array<ExtensionMetadataType>> {
   try {
     parsedMetadata = JSON.parse(metadata);
   } catch (error: unknown) {
-    log.error("Could not parse extensions metadata file:", Errors.prettify(error));
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not parse extensions metadata file:",
+      Errors.prettify(error),
+    );
 
     return [];
   }
 
   if (!Array.isArray(parsedMetadata)) {
-    log.error("The parsed extensions metadata is not an array");
+    log.error(__PRE_BUNDLED_FILENAME__, "The parsed extensions metadata is not an array");
 
     return [];
   }

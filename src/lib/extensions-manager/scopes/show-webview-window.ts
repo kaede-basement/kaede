@@ -8,6 +8,7 @@ export async function showWebviewWindow(show: boolean | undefined): Promise<void
     const startTime: number | undefined = window[ApplicationNamespace].__internals?.startTime;
 
     log.debug(
+      __PRE_BUNDLED_FILENAME__,
       "User has enabled 'show-after-extensions-initialization';",
       "Showing the webview now",
     );
@@ -18,6 +19,7 @@ export async function showWebviewWindow(show: boolean | undefined): Promise<void
       : (performance.now() - startTime).toFixed(1);
 
     log.info(
+      __PRE_BUNDLED_FILENAME__,
       "Launcher successfully initialized in:",
       timeDifference,
       "ms",

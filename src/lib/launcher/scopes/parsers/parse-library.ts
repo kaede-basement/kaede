@@ -20,7 +20,7 @@ export function parseLibrary({
   const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
   if (name === undefined || url === undefined || hash === undefined) {
-    log.warn(`The '${name}' library is invalid`);
+    log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' library is invalid`);
 
     return false;
   }

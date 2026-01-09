@@ -2,6 +2,8 @@ import { arch, platform, version } from "@tauri-apps/plugin-os";
 
 import { ApplicationName } from "@/constants/application.ts";
 
+const date = (new Date).toISOString();
+
 export function getASCIIArt(portable: boolean, launchCount: number): string {
   return (
     "\n" +
@@ -14,9 +16,9 @@ export function getASCIIArt(portable: boolean, launchCount: number): string {
     "\n / ,< / /_/ /  __/ /_/ /  __/" +
     "  mode   " + (portable ? "portable" : "non-portable") +
     "\n/_/|_|\\__,_/\\___/\\__,_/\\___/ " +
-    "  launch " + (
+    "  date   " + date +
+    "\n                             " + "  launch " + (
       launchCount === 0 ? "clean" : `reloaded ${launchCount} times`
-    ) +
-    "\n                             "
+    )
   );
 }

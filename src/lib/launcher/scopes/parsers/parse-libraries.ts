@@ -38,7 +38,7 @@ export function parseLibraries({
     "natives"  : [],
   };
 
-  log.debug(`Parsing ${libraries.length} libraries`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Parsing ${libraries.length} libraries`);
   for (const entry of libraries) {
     const library: SpecificPatchLibraryType | false = shallowlyValidateLibrary({
       "library": entry,
@@ -46,7 +46,10 @@ export function parseLibraries({
     });
 
     if (library === false) {
-      log.warn(`The '${JSON.stringify(entry)}' library is completely invalid`);
+      log.warn(
+        __PRE_BUNDLED_FILENAME__,
+        `The '${JSON.stringify(entry)}' library is completely invalid`,
+      );
 
       continue;
     }
@@ -91,8 +94,14 @@ export function parseLibraries({
     return afterHooksResult;
   }
 
-  log.debug(`Got ${results.libraries.length}/${libraries.length} libraries`);
-  log.debug(`Got ${results.natives.length} natives`);
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Got ${results.libraries.length}/${libraries.length} libraries`,
+  );
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Got ${results.natives.length} natives`,
+  );
 
   return results;
 }

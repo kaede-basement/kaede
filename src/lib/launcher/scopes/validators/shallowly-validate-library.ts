@@ -15,7 +15,10 @@ export function shallowlyValidateLibrary({
     library === null ||
     !("name" in library)
   ) {
-    log.debug(`The '${JSON.stringify(library)}' is completely incompatible`);
+    log.debug(
+      __PRE_BUNDLED_FILENAME__,
+      `The '${JSON.stringify(library)}' is completely incompatible`,
+    );
     statuses.current = LaunchStatus.Errors.LibraryShallowValidationFailed;
 
     return false;

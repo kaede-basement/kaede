@@ -5,7 +5,7 @@ export function disableDebugMode(): void {
   const currentDevelopmentMode = GlobalStateHelpers.get()?.development;
 
   if (!currentDevelopmentMode) {
-    log.warn("Debug mode is already disabled.");
+    log.warn(__PRE_BUNDLED_FILENAME__, "Debug mode is already disabled.");
 
     return;
   }
@@ -16,5 +16,5 @@ export function disableDebugMode(): void {
   });
 
   log.debug = log["__debug-undefined"];
-  log.info("Debug mode disabled");
+  log.info(__PRE_BUNDLED_FILENAME__, "Debug mode disabled");
 }

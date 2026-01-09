@@ -33,7 +33,10 @@ export async function downloadClient({
 
   const { statuses, instance } = necessaries;
 
-  log.debug(`Checking if the main jar exists. SHA1 checks enabled: ${instance.checksum}`);
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Checking if the main jar exists. SHA1 checks enabled: ${instance.checksum}`,
+  );
   statuses.current = LaunchStatus.Client.CheckingIfPresent;
   const mismatches: Array<string> = await verifyArtifacts({
     "paths"   : [client],
@@ -42,10 +45,13 @@ export async function downloadClient({
   const isMismatch: boolean = mismatches.length > 0;
 
   if (isMismatch) {
-    log.warn(`The main jar is not valid. SHA1 checks enabled: ${instance.checksum}`);
-    log.debug("Making a directory for the main jar");
+    log.warn(
+      __PRE_BUNDLED_FILENAME__,
+      `The main jar is not valid. SHA1 checks enabled: ${instance.checksum}`,
+    );
+    log.debug(__PRE_BUNDLED_FILENAME__, "Making a directory for the main jar");
     await mkdir(client.directory, { "recursive": true });
-    log.debug("Downloading the main jar");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Downloading the main jar");
     await downloadWithProgress({
       "statusScope": LaunchStatus.Client.DownloadingJar,
       "path"       : client.path,
@@ -53,7 +59,10 @@ export async function downloadClient({
       statuses,
     });
   } else {
-    log.info(`The main jar is valid. SHA1 checks enabled: ${instance.checksum}`);
+    log.info(
+      __PRE_BUNDLED_FILENAME__,
+      `The main jar is valid. SHA1 checks enabled: ${instance.checksum}`,
+    );
   }
 
   await ExtensionsManager.catchAsyncVoidHooks({
@@ -62,6 +71,6 @@ export async function downloadClient({
     "timing": "after",
   });
 
-  log.info("Successfully handled the main jar");
+  log.info(__PRE_BUNDLED_FILENAME__, "Successfully handled the main jar");
   statuses.current = LaunchStatus.Client.Done;
 }

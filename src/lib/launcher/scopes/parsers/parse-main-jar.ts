@@ -15,7 +15,7 @@ export function parseMainJar({
   "necessaries": PreLaunchInformationType;
   "client"     : SpecificPatchMetaType["mainJar"];
 }): MappedArtifactType | false {
-  log.debug("Parsing the main jar metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Parsing the main jar metadata");
   const { directories, statuses } = necessaries;
   const name: string | undefined = client?.name;
   const url: string | undefined = client?.downloads?.artifact?.url;
@@ -27,7 +27,10 @@ export function parseMainJar({
     url === undefined ||
     hash === undefined
   ) {
-    log.error("The main jar metadata is invalid");
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "The main jar metadata is invalid",
+    );
     statuses.current = LaunchStatus.Errors.ClientMainJarMissingMeta;
 
     return false;
@@ -43,7 +46,7 @@ export function parseMainJar({
     file,
   );
 
-  log.debug("Parsed the main jar metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Parsed the main jar metadata");
 
   return {
     url,

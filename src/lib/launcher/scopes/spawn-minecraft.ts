@@ -56,6 +56,7 @@ export async function spawnMinecraft({
   launchTask.on("close", payload => {
     onClose(instanceId);
     log.info(
+      __PRE_BUNDLED_FILENAME__,
       `The '${instanceId}' was closed.`,
       `Payload (everything ${ApplicationName} has):`,
       "\n" + JSON.stringify(payload, null, 2),
@@ -70,6 +71,7 @@ export async function spawnMinecraft({
     statuses.current = LaunchStatus.Errors.UnhandledError;
 
     log.error(
+      __PRE_BUNDLED_FILENAME__,
       `Something went wrong with the '${instanceId}' instance.`,
       `Payload (everything ${ApplicationName} has):`,
       "\n" + JSON.stringify(payload, null, 2),
@@ -81,7 +83,7 @@ export async function spawnMinecraft({
     });
   });
 
-  log.info(`The '${instanceId}' successfully launched`);
+  log.info(__PRE_BUNDLED_FILENAME__, `The '${instanceId}' successfully launched`);
   statuses.current = LaunchStatus.General.Success;
 
   return { "success": true, process };

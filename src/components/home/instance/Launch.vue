@@ -52,7 +52,10 @@ const statuses = computed((): LauncherStatusesType | undefined => {
 
 function handleLaunch(): void {
   if (launchInstance === undefined) {
-    log.error("The injected 'launchInstance' function is undefined. What happened lol");
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "The injected 'launchInstance' function is undefined. What happened lol",
+    );
 
     return;
   }
@@ -61,7 +64,10 @@ function handleLaunch(): void {
 }
 async function handleClose(): Promise<void> {
   if (closeInstance === undefined) {
-    log.error("The injected 'closeInstance' function is undefined. What happened lol");
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "The injected 'closeInstance' function is undefined. What happened lol",
+    );
 
     return;
   }
@@ -69,7 +75,7 @@ async function handleClose(): Promise<void> {
   const instanceId: string | undefined = currentInstance?.value?.id;
 
   if (instanceId === undefined) {
-    log.error("The current instance id is undefined");
+    log.error(__PRE_BUNDLED_FILENAME__, "The current instance id is undefined");
 
     return;
   }
@@ -78,7 +84,11 @@ async function handleClose(): Promise<void> {
     killing.value = true;
     await closeInstance(instanceId);
   } catch (error: unknown) {
-    log.error("Could not close the instance process:", Errors.prettify(error));
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not close the instance process:",
+      Errors.prettify(error),
+    );
   }
 
   killing.value = false;

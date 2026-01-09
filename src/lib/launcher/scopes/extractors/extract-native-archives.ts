@@ -25,7 +25,7 @@ export async function extractNativeArchives({
 
   const { directories } = necessaries;
 
-  log.debug(`Extracting ${paths.length} native archives`);
+  log.debug(__PRE_BUNDLED_FILENAME__, `Extracting ${paths.length} native archives`);
   const startTime: number = performance.now();
 
   await Promise.all(
@@ -38,7 +38,10 @@ export async function extractNativeArchives({
   const endTime: number = performance.now();
   const totalTime: string = (endTime - startTime).toFixed(2);
 
-  log.info(`Successfully extracted ${paths.length} native archives in ${totalTime} ms`);
+  log.info(
+    __PRE_BUNDLED_FILENAME__,
+    `Successfully extracted ${paths.length} native archives in ${totalTime} ms`,
+  );
 
   await ExtensionsManager.catchAsyncVoidHooks({
     "scope" : "onNativesExtract",

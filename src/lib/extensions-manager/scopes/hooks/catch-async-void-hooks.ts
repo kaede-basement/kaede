@@ -21,7 +21,7 @@ export async function catchAsyncVoidHooks({
 
   const hooks = currentScopeHooks[timing] as HookReturnType<unknown, unknown>;
 
-  log.debug(log.templates.hooks.iterate.start(
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.start(
     scope,
     timing,
     hooks.length,
@@ -29,7 +29,7 @@ export async function catchAsyncVoidHooks({
   for (const [index, hook] of hooks.entries()) {
     const timeMeasurementStartHook = performance.now();
 
-    log.debug(log.templates.hooks.iterate.execution(
+    log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.execution(
       scope,
       timing,
       index,

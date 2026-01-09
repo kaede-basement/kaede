@@ -28,10 +28,13 @@ export async function getGameArguments({
     return beforeHooksResult;
   }
 
-  log.debug("Adding game arguments");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Adding game arguments");
 
   if (versionMeta?.minecraftArguments === undefined) {
-    log.error("Could not get game arguments from version meta");
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not get game arguments from version meta",
+    );
 
     throw new Error("No minecraft arguments found in the version metadata");
   }

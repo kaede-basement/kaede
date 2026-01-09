@@ -32,19 +32,22 @@ export async function getVersionMeta(
   let parsed: unknown;
 
   try {
-    log.debug("Reading the cached version metadata");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Reading the cached version metadata");
     statuses.current = LaunchStatus.Metadata.ReadingCachedVersionMeta;
     parsed = await General.handleJsonFile({
       baseDirectory,
       "path"           : [FileStructure.Folders.Cache.Path, `${version}.json`],
       "label"          : `/cache/${version}.json`,
       "getDefaultValue": async () => {
-        log.warn("No cache; fetching the version metadata");
+        log.warn(__PRE_BUNDLED_FILENAME__, "No cache; fetching the version metadata");
         statuses.current = LaunchStatus.Metadata.FetchingVersionMeta;
         const fetched: object | LaunchStatusType = await fetchVersionMeta({ version });
 
         if (typeof fetched === "string") {
-          log.error("Could not fetch the version metadata. Status:", fetched);
+          log.error(
+            __PRE_BUNDLED_FILENAME__,
+            `Could not fetch the version metadata. Status: ${fetched}`,
+          );
           statuses.current = fetched;
 
           /*
@@ -62,7 +65,7 @@ export async function getVersionMeta(
     return false;
   }
 
-  log.debug("Validating the version metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Validating the version metadata");
   statuses.current = LaunchStatus.Metadata.ValidatingVersionMeta;
   const unsafeParsed = (parsed as { "uid"?: string });
   const logId: string = unsafeParsed?.uid ?? "unknown";
@@ -75,7 +78,7 @@ export async function getVersionMeta(
   });
 
   if (minecraftVersionMeta === false) {
-    log.error("The version metadata is invalid");
+    log.error(__PRE_BUNDLED_FILENAME__, "The version metadata is invalid");
     statuses.current = LaunchStatus.Errors.MetaVersionFullValidationFailed;
 
     return false;
@@ -95,7 +98,7 @@ export async function getVersionMeta(
     return afterHooksResult;
   }
 
-  log.info("The version metadata is valid");
+  log.info(__PRE_BUNDLED_FILENAME__, "The version metadata is valid");
 
   return minecraftVersionMeta;
 }

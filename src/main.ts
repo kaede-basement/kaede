@@ -46,6 +46,7 @@ const [launchCount, portable]: [number, boolean, void, void] = await Promise.all
 
 // Show a pretty ASCII art with the launcher name :3
 log.info(
+  __PRE_BUNDLED_FILENAME__,
   getASCIIArt(portable, launchCount),
 );
 
@@ -90,28 +91,31 @@ if (config.development?.enableDebugMode) {
     config.development,
   );
 
-  log.debug(log.templates.json.contents(
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
     "Config",
     config,
   ));
-  log.debug(log.templates.json.contents(
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
     "Instances metadata",
     instances,
   ));
 }
 
-log.debug("Creating a Vue instance");
+log.debug(__PRE_BUNDLED_FILENAME__, "Creating a Vue instance");
 const AppInstance = createApp(App);
 
-log.debug("Initializing Vue Query plugin");
+log.debug(__PRE_BUNDLED_FILENAME__, "Initializing Vue Query plugin");
 AppInstance.use(VueQueryPlugin);
 
-log.debug(`Mounting an app instance to the DOM element (${ApplicationRootID})`);
+log.debug(
+  __PRE_BUNDLED_FILENAME__,
+  `Mounting an app instance to the DOM element (${ApplicationRootID})`,
+);
 AppInstance.mount(ApplicationRootID);
 
-log.debug("Initializing launcher");
+log.debug(__PRE_BUNDLED_FILENAME__, "Initializing launcher");
 await General
   .initializeLauncher({ config, baseDirectory, startTime })
   .catch((error: unknown) => {
-    log.error("Failed to initialize launcher:", Errors.prettify(error));
+    log.error(__PRE_BUNDLED_FILENAME__, "Failed to initialize launcher:", Errors.prettify(error));
   });

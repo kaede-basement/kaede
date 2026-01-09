@@ -40,7 +40,7 @@ export function replaceLaunchArguments({
   const { directories, instance } = necessaries;
   const assetIndexId: string = versionMeta?.assetIndex?.id ?? "";
 
-  log.debug("Initializing replacements (without auth)");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing replacements (without auth)");
   const replacements: ArgumentReplacementsType = {
     "assets_index_name"    : assetIndexId,
     "assets_root"          : directories.assets,
@@ -110,6 +110,7 @@ export function replaceLaunchArguments({
     });
 
   log.info(
+    __PRE_BUNDLED_FILENAME__,
     "The launching command (auth data is hidden):",
     "\n" + javaBinary + " " + commandWithoutAuth,
   );

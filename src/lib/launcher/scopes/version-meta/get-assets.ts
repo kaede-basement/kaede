@@ -36,7 +36,7 @@ export async function getAssets({
     return beforeHooksResult;
   }
 
-  log.debug("Getting the assetIndex metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Getting the assetIndex metadata");
   const { directories, statuses, instance } = necessaries;
 
   if (
@@ -44,7 +44,7 @@ export async function getAssets({
     versionMeta?.assetIndex?.id === undefined ||
     versionMeta?.assetIndex?.url === undefined
   ) {
-    log.error("The version meta is missing assetIndex metadata");
+    log.error(__PRE_BUNDLED_FILENAME__, "The version meta is missing assetIndex metadata");
     statuses.current = LaunchStatus.Errors.MetaAssetsMissingMeta;
 
     return false;
@@ -56,21 +56,24 @@ export async function getAssets({
   let parsedMeta: unknown;
 
   try {
-    log.debug("Reading the cached assets metadata");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Reading the cached assets metadata");
     statuses.current = LaunchStatus.Assets.ReadingCachedMeta;
     parsedMeta = await General.handleJsonFile({
       "baseDirectory"  : directories.base,
       "path"           : [FileStructure.Folders.Assets.Path, "indexes", metaFilename],
       "label"          : `/assets/indexes/${metaFilename}`,
       "getDefaultValue": async () => {
-        log.warn("No cache; fetching the assets metadata");
+        log.warn(__PRE_BUNDLED_FILENAME__, "No cache; fetching the assets metadata");
         statuses.current = LaunchStatus.Assets.FetchingMeta;
         const fetched: object | LaunchStatusType = await fetchAssetsMeta({
           "url": assetIndex.url,
         });
 
         if (typeof fetched !== "object") {
-          log.error("Could not fetch the assets metadata. Status:", fetched);
+          log.error(
+            __PRE_BUNDLED_FILENAME__,
+            `Could not fetch the assets metadata. Status: ${fetched}`,
+          );
           statuses.current = fetched;
 
           /*
@@ -88,13 +91,13 @@ export async function getAssets({
     return false;
   }
 
-  log.debug("Validating the assets metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Validating the assets metadata");
   const shallowlyValidMeta: AssetObjectsType | false = shallowlyValidateMeta({
     "meta": parsedMeta,
   });
 
   if (shallowlyValidMeta === false) {
-    log.error("The assets metadata is invalid");
+    log.error(__PRE_BUNDLED_FILENAME__, "The assets metadata is invalid");
     statuses.current = LaunchStatus.Errors.MetaAssetsShallowValidationFailed;
 
     return false;
@@ -128,6 +131,7 @@ export async function getAssets({
     });
 
   log.debug(
+    __PRE_BUNDLED_FILENAME__,
     `Verifying ${mappedAssetObjects.length} assets for their existence.`,
     `SHA1 checks enabled: ${instance.checksum}`,
   );
@@ -142,6 +146,7 @@ export async function getAssets({
   const totalTime: string = (endTime - startTime).toFixed(2);
 
   log.info(
+    __PRE_BUNDLED_FILENAME__,
     `Successfully verified ${mappedAssetObjects.length} assets in ${totalTime} ms.`,
     `Total mismatches: ${hashesToReDownload.size}.`,
     `SHA1 checks enabled: ${instance.checksum}`,
@@ -174,6 +179,7 @@ export async function getAssets({
   }
 
   log.info(
+    __PRE_BUNDLED_FILENAME__,
     `Successfully handled ${mappedAssetObjects.length} assets`,
     `and re-downloaded ${hashesToReDownload.size} of them`,
   );

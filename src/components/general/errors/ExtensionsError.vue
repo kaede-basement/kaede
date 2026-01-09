@@ -38,6 +38,7 @@ onMounted(async () => {
       await getCurrentWebviewWindow().show();
     } catch (error: unknown) {
       log.error(
+        __PRE_BUNDLED_FILENAME__,
         "Failed to show the webview window after extensions initialization:",
         Errors.prettify(error),
       );
