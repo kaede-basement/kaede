@@ -1,9 +1,11 @@
 <script setup lang="ts">
-const { fields, occurrences, index, colorClass, searchPosition } = defineProps<{
+import type { LogControlsType } from "@/types/logging/log-controls.type.ts";
+
+const { searching, fields, occurrences, index, colorClass } = defineProps<{
+  "searching"      : LogControlsType["searching"];
   "fields"         : Array<string>;
   "occurrences"    : Array<string>;
   "index"          : number;
-  "searchPosition"?: number | undefined;
   "colorClass"    ?: string;
 }>();
 </script>
@@ -21,7 +23,9 @@ const { fields, occurrences, index, colorClass, searchPosition } = defineProps<{
     <span
       :id="`__log-highlighter__highlighted-${index}`"
       :class="[
-        searchPosition === index ? 'bg-pink-600 text-white' : 'bg-purple-400 text-black'
+        (searching.currentIndex ?? 0) === index
+          ? 'bg-pink-600 text-white'
+          : 'bg-purple-400 text-black'
       ]"
     >
       {{ element }}

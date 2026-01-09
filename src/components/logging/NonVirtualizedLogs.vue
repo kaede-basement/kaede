@@ -2,12 +2,13 @@
 import { useTemplateRef } from "vue";
 
 import LogEntry from "@/components/logging/lines/LogEntry.vue";
+import type { LogControlsType } from "@/types/logging/log-controls.type.ts";
 
 const target = useTemplateRef("target");
 
 const { logs, searching, horizontalScroll } = defineProps<{
   "logs"            : Array<string | [number, string]>;
-  "searching"       : string;
+  "searching"       : LogControlsType["searching"];
   "horizontalScroll": boolean;
 }>();
 

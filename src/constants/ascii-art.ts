@@ -19,6 +19,7 @@ export function getASCIIArt(portable: boolean, launchCount: number): string {
     "  date   " + date +
     "\n                             " + "  launch " + (
       launchCount === 0 ? "clean" : `reloaded ${launchCount} times`
-    )
+    ) +
+    "\n"
   );
 }

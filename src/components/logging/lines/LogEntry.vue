@@ -5,6 +5,7 @@ import LogHighlighter from "@/components/logging/lines/LogHighlighter.vue";
 import Errors from "@/lib/errors";
 import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
+import type { LogControlsType } from "@/types/logging/log-controls.type.ts";
 import type { LogEntryInformationType } from "@/types/logging/log-entry-information.type.ts";
 import type { FieldTextType } from "@/types/logging/log-field-text.type.ts";
 
@@ -12,11 +13,10 @@ import type { FieldTextType } from "@/types/logging/log-field-text.type.ts";
  * 'line' format:
  * time | level | target | message
  */
-const { line, index, searching, searchPosition, selectionIndexes } = defineProps<{
+const { line, index, searching, selectionIndexes } = defineProps<{
   "line"             : string | [number, string];
   "index"            : number;
-  "searching"        : string;
-  "searchPosition"  ?: number | undefined;
+  "searching"        : LogControlsType["searching"];
   "selectionIndexes"?: [number, number] | undefined;
 }>();
 
@@ -27,10 +27,10 @@ const extractedInformation = computed((): {
   "target" : string | FieldTextType;
   "message": string | FieldTextType;
 } => {
-  let safeSearching: string = searching;
+  let safeSearching: string = searching.current;
 
   try {
-    "".matchAll(new RegExp(searching, "g"));
+    "".matchAll(new RegExp(searching.current, "g"));
   } catch (error: unknown) {
     const extractedError = Errors.extract(error);
 
@@ -94,7 +94,7 @@ const isInRange = computed((): boolean => {
         :index="index"
         :fields="extractedInformation.time.fields"
         :occurrences="extractedInformation.time.extractions"
-        :search-position="searchPosition"
+        :searching="searching"
       />
       {{ " " }}
       <span
@@ -115,7 +115,7 @@ const isInRange = computed((): boolean => {
         :index="index"
         :fields="extractedInformation.level.fields"
         :occurrences="extractedInformation.level.extractions"
-        :search-position="searchPosition"
+        :searching="searching"
       />
       {{ " " }}
       <span
@@ -131,7 +131,7 @@ const isInRange = computed((): boolean => {
         :index="index"
         :fields="extractedInformation.target.fields"
         :occurrences="extractedInformation.target.extractions"
-        :search-position="searchPosition"
+        :searching="searching"
       />
       {{ " " }}
       <span
@@ -147,7 +147,7 @@ const isInRange = computed((): boolean => {
         :index="index"
         :fields="extractedInformation.message.fields"
         :occurrences="extractedInformation.message.extractions"
-        :search-position="searchPosition"
+        :searching="searching"
       />
     </div>
   </div>

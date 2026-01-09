@@ -1,13 +1,14 @@
 export type LogControlsType = {
-  "searchPosition"       : number;
+  "searching": {
+    "current"     : string;
+    "relative"    : number;
+    "absolute"    : number | undefined;
+    "currentIndex": number | undefined;
+  };
   "setSearchPosition"    : (position: number, absolutePosition: number | undefined) => void;
-  "searching"            : string;
   "searchLogs"           : (search: string) => Array<number>;
-  "filtering"            : string;
   "scrollToIndex"        : (index: number) => void;
   "selectAllLogs"        : () => void;
-  "textIsInSelection"    : boolean;
-  "toggleTextSelection"  : () => void;
   "textSelectionRange"   : [number, number] | undefined;
   "setTextSelectionRange": (range: [number, number] | undefined) => void;
   "logsArray"            : Array<string | [number, string]>;

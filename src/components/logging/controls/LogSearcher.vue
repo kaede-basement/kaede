@@ -4,10 +4,10 @@ import { message } from "@tauri-apps/plugin-dialog";
 import CustomInput from "@/components/general/base/CustomInput.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { ApplicationName } from "@/constants/application.ts";
+import type { LogControlsType } from "@/types/logging/log-controls.type.ts";
 
 const {
   searching,
-  searchPosition,
   found,
   shouldVirtualize,
   selectAllLogs,
@@ -15,8 +15,7 @@ const {
   setSearchPosition,
   setFound,
 } = defineProps<{
-  "searching"        : string;
-  "searchPosition"   : number;
+  "searching"        : LogControlsType["searching"];
   "found"            : Array<number>;
   "shouldVirtualize" : boolean;
   "selectAllLogs"    : () => void;
@@ -26,12 +25,12 @@ const {
 }>();
 
 function incrementIndex(): void {
-  const relativePosition = Math.min(found.length, searchPosition + 1);
+  const relativePosition = Math.min(found.length, searching.relative + 1);
 
   setSearchPosition(relativePosition, found?.[relativePosition]);
 }
 function decrementIndex(): void {
-  const relativePosition = Math.max(0, searchPosition - 1);
+  const relativePosition = Math.max(0, searching.relative - 1);
 
   setSearchPosition(relativePosition, found?.[relativePosition]);
 }
@@ -58,19 +57,19 @@ function handleInput(inputValue: string): void {
   setFound(searchLogs(inputValue));
 }
 function handleEscape(): void {
-  if (searching === "") {
+  if (searching.current === "") {
     return;
   }
 
   setFound(searchLogs(""));
 }
 function handleEnter(event: KeyboardEvent): void {
-  if (event.key !== "Enter" || searching === "") {
+  if (event.key !== "Enter" || searching.current === "") {
     return;
   }
 
   if (event.shiftKey) {
-    const relativePosition = Math.max(0, searchPosition - 1);
+    const relativePosition = Math.max(0, searching.relative - 1);
 
     setSearchPosition(relativePosition, found?.[relativePosition]);
 
@@ -79,7 +78,7 @@ function handleEnter(event: KeyboardEvent): void {
 
   const relativePosition = Math.min(
     Math.max(0, found.length),
-    searchPosition + 1,
+    searching.relative + 1,
   );
 
   setSearchPosition(relativePosition, found?.[relativePosition]);
@@ -117,6 +116,7 @@ function handleTextSelection(event: KeyboardEvent): void {
     icon="i-lucide-search"
     placeholder="Search..."
     :debounce-time="200"
+    :default-value="searching.current"
     :listen-to-events="true"
     :focus-on-key-f="true"
     :ids="{
@@ -132,7 +132,7 @@ function handleTextSelection(event: KeyboardEvent): void {
   <div
     id="__log-controls__matches-wrapper"
     :class="[
-      searching === '' ? 'hidden' : 'flex',
+      searching.current === '' ? 'hidden' : 'flex',
       'h-full shrink-0 flex-nowrap items-center',
       'rounded-md bg-neutral-800 text-sm text-neutral-400',
     ]"
@@ -159,7 +159,7 @@ function handleTextSelection(event: KeyboardEvent): void {
       type="number"
       :min="1"
       :max="Math.max(0, found.length)"
-      :value="searchPosition"
+      :value="searching.relative"
       @input="handleIndex"
     />
     <p id="__log-controls__matches-text" class="hidden px-2 md:block">

@@ -17,7 +17,6 @@
   -->
 
 <script setup lang="ts">
-import { readTextFile } from "@tauri-apps/plugin-fs";
 import { computed, inject, nextTick, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
@@ -26,11 +25,8 @@ import LogControls from "@/components/logging/controls/LogControls.vue";
 import LogEntry from "@/components/logging/lines/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
-import { FileStructure } from "@/constants/file-structure.ts";
-import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
-import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
@@ -39,18 +35,28 @@ const virtualList = useTemplateRef("virtualList");
 const nonVirtualList = useTemplateRef("nonVirtualList");
 
 const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
+
 const fileData = ref<{
   "size": string | undefined;
   "time": string | undefined;
 }>({ "size": undefined, "time": undefined });
-const searching = ref<string>("");
-// Takes indexes from the relative matches array (example: [0, 1, 2, ...])
-const searchPosition = ref<number>(1);
-// Takes indexes from the logs array (example: [4, 23, 95, ...])
-const absoluteSearchPosition = ref<number | undefined>(undefined);
+const searching = ref<{
+  // Takes a searching value
+  "current"     : string;
+  // Takes indexes from the relative matches array (example: [0, 1, 2, ...])
+  "relative"    : number;
+  // Takes indexes from the logs array (example: [4, 23, 95, ...])
+  "absolute"    : number | undefined;
+  // Stores the current search index
+  "currentIndex": number | undefined;
+}>({
+  "current"     : "",
+  "relative"    : 1,
+  "absolute"    : undefined,
+  "currentIndex": undefined,
+});
 // A key that re-renders virtualized list on every log viewer reopen
 const mountedKey = ref<number>(Math.random());
-const textSelected = ref<boolean>(false);
 // Keeps track of index range text selections in virtualized mode
 const currentTextSelection = ref<[number, number] | undefined>(undefined);
 
@@ -91,20 +97,18 @@ const charactersPerLine = Math.ceil(virtualScrollContainerTextWidth / 8);
 const nodeLineSize = 20;
 
 function scrollToIndex(index: number): void {
+  searching.value.currentIndex = filteredLogs.value?.[index]?.[0];
   virtualList?.value?.scrollToIndex?.(index);
 }
 function setSearchPosition(newValue: number, newAbsoluteValue: number | undefined): void {
-  searchPosition.value = newValue;
-  absoluteSearchPosition.value = newAbsoluteValue;
+  searching.value.relative = newValue;
+  searching.value.absolute = newAbsoluteValue;
 }
 function setTextSelectionRange(newValue: [number, number] | undefined): void {
   currentTextSelection.value = newValue;
 }
-function toggleTextSelection(): void {
-  textSelected.value = !textSelected.value;
-}
-function closeLogViewer(): void {
-  GlobalStateHelpers.Logs.toggle("show", false);
+function selectAllLogs(): void {
+  Logging.selectAllText(nonVirtualList.value?.nonVirtualizedLogsTarget);
 }
 function getNodeHeight(node: string | [number, string]): number {
   const actualNodeLine = typeof node === "string" ? node : node[1];
@@ -117,10 +121,10 @@ function getNodeHeight(node: string | [number, string]): number {
 }
 function searchLogs(searchValue: string): Array<number> {
   const found: Array<number> = [];
-  const lowerCaseSearch = searchValue.toLowerCase();
-  const currentLogsArray = filteredLogs.value ?? logs.value;
+  const lowerCaseSearch: string = searchValue.toLowerCase();
+  const currentLogsArray: Array<string | [number, string]> = filteredLogs.value ?? logs.value;
 
-  searching.value = lowerCaseSearch;
+  searching.value.current = lowerCaseSearch;
 
   for (const [index, value] of currentLogsArray.entries()) {
     const actualValue = typeof value === "string" ? value : value[1];
@@ -134,49 +138,23 @@ function searchLogs(searchValue: string): Array<number> {
 }
 
 onMounted(async () => {
-  // Measuring time start
-  const t1 = performance.now();
+  const startTime = performance.now();
 
   // Notify virtualized list component that it should re-render
   mountedKey.value = Math.random();
 
-  log.debug("LogViewer.vue mounted");
-  const latestLogAbsolutePath = General.cachedJoin(
-    General.getCachedBaseDirectory(),
-    FileStructure.Folders.Logs.Path,
-    FileStructure.Folders.Logs.Files.LatestLog,
-  );
+  const { "size": filesize, "logs": existingLogs } = await Logging.readLogs({
+    globalStates,
+  });
 
-  log.debug("Reading 'latest.log' file");
-  const existingLogs: string = await readTextFile(latestLogAbsolutePath);
+  logs.value = existingLogs;
 
-  if (existingLogs === "") {
-    log.warn(__PRE_BUNDLED_FILENAME__, "Log file is empty");
-    logs.value = ["__kaede-trigger-initial"];
-
-    return;
-  }
-
-  // If the log file is big (>=32 KBs), open it with the virtualized list
-  if (existingLogs.length >= 32_768) {
-    log.debug(`Log file is too big (${existingLogs.length} bytes), using a virtualized list`);
-    GlobalStateHelpers.Logs.toggle("virtualized", true);
-  }
-
-  const filesize = (existingLogs.length / (1024 * 1024)).toFixed(3);
-
-  log.info(__PRE_BUNDLED_FILENAME__, "Log file is not empty");
-  log.debug(__PRE_BUNDLED_FILENAME__, "Adding existing logs to the 'logs' state");
-  logs.value = [
-    globalStates?.logs?.virtualized ? "__kaede-trigger-virtualized" : "__kaede-trigger-initial",
-    ...existingLogs.split("\n"),
-  ];
-  fileData.value.size = `${filesize} MB`;
-
-  const time = ((performance.now() - t1) / 1000).toFixed(2);
+  const endTime = performance.now();
+  const totalTime = ((endTime - startTime) / 1000).toFixed(2);
 
   // Measuring time end
-  fileData.value.time = `took ${time}s`;
+  fileData.value.time = `took ${totalTime}s`;
+  fileData.value.size = `${filesize} MB`;
 
   await nextTick();
   // Virtual list does not scroll to its end unless we wait two (???) Vue ticks
@@ -214,15 +192,11 @@ onMounted(async () => {
             </span>
           </p>
           <LogControls
-            :search-position="searchPosition"
-            :set-search-position="setSearchPosition"
             :searching="searching"
+            :set-search-position="setSearchPosition"
             :search-logs="searchLogs"
-            :filtering="filtering"
             :scroll-to-index="scrollToIndex"
-            :select-all-logs="() => Logging.selectAllText(nonVirtualList?.nonVirtualizedLogsTarget)"
-            :text-is-in-selection="textSelected"
-            :toggle-text-selection="toggleTextSelection"
+            :select-all-logs="selectAllLogs"
             :text-selection-range="currentTextSelection"
             :set-text-selection-range="setTextSelectionRange"
             :logs-array="filteredLogs ?? logs"
@@ -231,7 +205,7 @@ onMounted(async () => {
         <button
           id="__log-viewer__close-logs-button"
           class="relative rounded-md p-2 hover:bg-neutral-800"
-          @click="closeLogViewer"
+          @click="Logging.closeViewer"
         >
           <span id="__log-viewer__close-logs-icon" class="i-lucide-x block size-5"></span>
           <MaterialRipple />
@@ -258,7 +232,6 @@ onMounted(async () => {
                 ? slotProps.index
                 : slotProps.node[0]"
               :searching="searching"
-              :search-position="absoluteSearchPosition"
               :selection-indexes="currentTextSelection"
             />
           </template>

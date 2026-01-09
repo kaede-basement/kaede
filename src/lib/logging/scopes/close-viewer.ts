@@ -16,14 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export function selectAllText(container: HTMLDivElement | null | undefined): void {
-  if (!container) {
-    return;
-  }
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 
-  const range = document.createRange();
-
-  range.selectNode(container);
-  window.getSelection()?.removeAllRanges?.();
-  window.getSelection()?.addRange?.(range);
+export function closeViewer(): void {
+  GlobalStateHelpers.Logs.toggle("show", false);
 }

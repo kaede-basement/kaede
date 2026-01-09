@@ -16,15 +16,11 @@ import type { LogButtonType } from "@/types/logging/log-button.type.ts";
 import type { LogControlsType } from "@/types/logging/log-controls.type.ts";
 
 const {
-  searchPosition,
-  setSearchPosition,
   searching,
+  setSearchPosition,
   searchLogs,
-  filtering,
   scrollToIndex,
   selectAllLogs,
-  textIsInSelection,
-  toggleTextSelection,
   textSelectionRange,
   setTextSelectionRange,
   logsArray,
@@ -37,14 +33,18 @@ const horizontalScroll = computed((): boolean => globalStates?.logs?.lineBreaks 
 
 const found = shallowRef<Array<number>>([]);
 const copied = ref<boolean>(false);
+const textIsInSelection = ref<boolean>(false);
 
+function toggleTextSelection(): void {
+  textIsInSelection.value = !textIsInSelection.value;
+}
 function toggleShouldVirtualizeWithCursorHandling(): void {
   Logging.toggleVirtualization({
     "virtualized": shouldVirtualize.value,
     "length"     : logsArray.length,
   });
 
-  if (textIsInSelection) {
+  if (textIsInSelection.value) {
     selectTextVirtualized();
   }
 }
@@ -55,11 +55,11 @@ function selectTextVirtualized(): void {
     return;
   }
 
-  if (textIsInSelection) {
+  if (textIsInSelection.value) {
     setTextSelectionRange(undefined);
   }
 
-  container.style.cursor = textIsInSelection ? "" : "text";
+  container.style.cursor = textIsInSelection.value ? "" : "text";
 
   toggleTextSelection();
 }
@@ -132,7 +132,7 @@ const textSelectionControl = computed((): LogButtonType => ({
   },
   "tooltip": "Select a text",
   "onClick": selectTextVirtualized,
-  "invert" : textIsInSelection,
+  "invert" : textIsInSelection.value,
   "hidden" : !shouldVirtualize.value,
 }));
 const textSelectionCopyControl = computed((): LogButtonType => ({
@@ -157,24 +157,24 @@ const controlButtons = computed((): Array<LogButtonType> => [
 
 watchEffect(() => {
   // Check if the searching position exists
-  if (found.value?.[searchPosition - 1] === undefined) {
+  if (found.value?.[searching.relative - 1] === undefined) {
     return;
   }
 
-  const logsArrayPosition = found.value[searchPosition - 1];
+  const logsArrayPosition = found.value[searching.relative - 1];
 
   // Check if index overflows the logs array
   if (logsArray.length <= logsArrayPosition) {
     return;
   }
 
-  scrollToIndex(found.value[searchPosition - 1]);
+  scrollToIndex(found.value[searching.relative - 1]);
 });
 
 useEventListener("click", (event: MouseEvent) => {
   const newRange = Logging.handleVirtualListTextSelection(
     event,
-    textIsInSelection,
+    textIsInSelection.value,
     textSelectionRange,
   );
 
@@ -186,7 +186,7 @@ useEventListener("click", (event: MouseEvent) => {
 });
 useEventListener("keydown", (event: KeyboardEvent) => {
   if (
-    textIsInSelection &&
+    textIsInSelection.value &&
     textSelectionRange &&
     event.ctrlKey &&
     event.code === "KeyC"
@@ -205,7 +205,6 @@ useEventListener("keydown", (event: KeyboardEvent) => {
       <LogSearcher
         v-if="shouldVirtualize"
         :searching="searching"
-        :search-position="searchPosition"
         :found="found"
         :should-virtualize="shouldVirtualize"
         :select-all-logs="selectAllLogs"
@@ -213,7 +212,7 @@ useEventListener("keydown", (event: KeyboardEvent) => {
         :set-search-position="setSearchPosition"
         :set-found="setFound"
       />
-      <LogFilterer :filtering="filtering" />
+      <LogFilterer />
     </div>
     <div id="__log-controls__second-row" class="h-8 w-full flex flex-nowrap gap-2">
       <CustomButton
