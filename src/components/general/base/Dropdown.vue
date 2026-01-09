@@ -93,13 +93,13 @@ onClickOutside(target, close);
         >
         <span
           :id="`${item.id}-information-title`"
-          class="block font-medium"
+          class="block text-start font-medium"
         >
           {{ item.title }}
         </span>
         <span
           :id="`${item.id}-information-subtitle`"
-          class="block text-neutral-400"
+          class="block text-start text-neutral-400"
         >
           {{ item.subtitle }}
         </span>
