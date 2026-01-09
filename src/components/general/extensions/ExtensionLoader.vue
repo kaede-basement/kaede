@@ -18,15 +18,15 @@ const knownExtensions = ref<Array<ExtensionMetadataType>>([]);
 const unknownExtensions = ref<Array<ExtensionInfoType>>([]);
 
 onMounted(async () => {
-  log.debug("Getting all stored extensions");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Getting all stored extensions");
   const extensions: Array<ExtensionInfoType> = await ExtensionsManager.readAllExtensions();
 
-  log.debug("Getting extensions metadata file");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Getting extensions metadata file");
   const metadataList: Array<ExtensionMetadataType> = await ExtensionsManager.readAllMetadata();
 
   knownExtensions.value = metadataList;
 
-  log.debug("Mapping valid and known extensions metadata");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Mapping valid and known extensions metadata");
   const metadataMap = new Map<string, {
     "index"      : number;
     "type"       : ExtensionMetadataType["type"];
@@ -46,7 +46,7 @@ onMounted(async () => {
     }>
   > = { "sandbox": [], "unrestricted": [] };
 
-  log.debug("Validating stored extensions against known extensions map");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Validating stored extensions against known extensions map");
   for (const extension of extensions) {
     const mappedMetadata = metadataMap.get(extension.id);
 
@@ -65,7 +65,10 @@ onMounted(async () => {
     }
   }
 
-  log.debug("Sorting extensions to execute based on their config list index");
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    "Sorting extensions to execute based on their config list index",
+  );
   toExecute.unrestricted.sort(
     ({ "index": indexBefore }, { "index": indexAfter }) => {
       return indexBefore - indexAfter;
@@ -77,7 +80,7 @@ onMounted(async () => {
     },
   );
 
-  log.debug("Initializing all enabled unrestricted extensions");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing all enabled unrestricted extensions");
   for (const { id, code } of toExecute.unrestricted) {
     ExtensionsManager.runInUnrestricted(id, code);
   }
@@ -85,7 +88,10 @@ onMounted(async () => {
   const hasSandboxedPlugins = toExecute.sandbox.length > 0;
 
   if (!hasSandboxedPlugins) {
-    log.debug("User does not have sandboxed plugins. Environment lockdown is not needed");
+    log.debug(
+      __PRE_BUNDLED_FILENAME__,
+      "User does not have sandboxed plugins. Environment lockdown is not needed",
+    );
 
     await ExtensionsManager.showWebviewWindow(
       globalStates?.misc?.showAfterExtensionsInitialization,
@@ -98,7 +104,7 @@ onMounted(async () => {
   ExtensionsManager.lockdownEnvironment();
   log.info(__PRE_BUNDLED_FILENAME__, "The JavaScript environment was locked down");
 
-  log.debug("Initializing all enabled sandboxed extensions");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing all enabled sandboxed extensions");
   for (const { id, code, permissions } of toExecute.sandbox) {
     try {
       ExtensionsManager.grantStaticPermissions({ id, permissions });

@@ -9,6 +9,7 @@ export function handleInternetPermission(id: string): void {
     init?: RequestInit,
   ): Promise<Response> => {
     log.debug(
+      __PRE_BUNDLED_FILENAME__,
       `The '${id}' plugin made a Web fetch call with the next params:`,
       "\n" + JSON.stringify({ input, init }, null, 2),
     );
@@ -20,6 +21,7 @@ export function handleInternetPermission(id: string): void {
     init?: RequestInit & ClientOptions,
   ): Promise<Response> => {
     log.debug(
+      __PRE_BUNDLED_FILENAME__,
       `The '${id}' plugin made a Tauri fetch call with the next params:`,
       "\n" + JSON.stringify({ input, init }, null, 2),
     );

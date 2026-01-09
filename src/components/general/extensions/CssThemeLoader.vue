@@ -34,7 +34,7 @@ onMounted(async () => {
       FileStructure.Folders.Themes.Path,
     );
 
-    log.debug("Reading the 'themes' folder");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Reading the 'themes' folder");
     const storedThemes: Array<DirEntry> = await readDir(path);
     const actualThemeFiles: Array<string> = [];
     const disabledThemeFiles: Array<string> = [];
@@ -69,7 +69,7 @@ onMounted(async () => {
   }
 
   if (stylesheets.applied.length === 0) {
-    log.debug("User does not have any custom CSS themes");
+    log.debug(__PRE_BUNDLED_FILENAME__, "User does not have any custom CSS themes");
 
     return;
   }

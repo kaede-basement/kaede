@@ -11,7 +11,10 @@ export function handleNativeReloadKeyBinds(event: KeyboardEvent, ignore?: boolea
     (event.ctrlKey && event.key === "r") ||
     (event.metaKey && event.key === "r")
   ) {
-    log.debug("Prevented native behaviour when triggering reload key binds");
+    log.debug(
+      __PRE_BUNDLED_FILENAME__,
+      "Prevented native behaviour when triggering reload key binds",
+    );
     event.preventDefault();
   }
 }

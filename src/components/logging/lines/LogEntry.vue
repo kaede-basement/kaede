@@ -121,13 +121,13 @@ const isInRange = computed((): boolean => {
       <span
         :id="`__log-entry__target-${index}`"
         v-if="typeof extractedInformation.target === 'string'"
-        class="__log-entry__target text-lime-300"
+        :class="['__log-entry__target', Logging.getLogTargetColor(information.target)]"
       >
         {{ extractedInformation.target }}
       </span>
       <LogHighlighter
         v-else
-        color-class="text-lime-300"
+        :color-class="Logging.getLogTargetColor(information.target)"
         :index="index"
         :fields="extractedInformation.target.fields"
         :occurrences="extractedInformation.target.extractions"

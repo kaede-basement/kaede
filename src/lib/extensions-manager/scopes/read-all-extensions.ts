@@ -52,8 +52,12 @@ export async function readAllExtensions(): Promise<Array<ExtensionInfoType>> {
     }
   }
 
-  log.debug("Total extension files count:", extensionFiles.length.toString());
-  log.debug("Fetching the contents of all stored extensions");
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    "Total extension files count:",
+    extensionFiles.length.toString(),
+  );
+  log.debug(__PRE_BUNDLED_FILENAME__, "Fetching the contents of all stored extensions");
   const extensionCodes: Array<ExtensionInfoType> = await Promise.all(
     extensionFiles.map((filename: string) => {
       // 'Promise#all' expects pending promises, so do not await for Tauri invokes

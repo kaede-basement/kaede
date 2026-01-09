@@ -26,7 +26,10 @@ const currentGlance = computed((): AtAGlanceType => {
   };
 
   if (!configGlance.title || !configGlance.subtitle) {
-    log.debug("No custom 'At a Glance' text in the config, using defaults");
+    log.debug(
+      __PRE_BUNDLED_FILENAME__,
+      "No custom 'At a Glance' text in the config, using defaults",
+    );
     const currentTitle = window[ApplicationNamespace].__internals.atAGlance?.title;
     const newAtAGlance = General.getAtAGlance(currentTitle);
 
@@ -35,11 +38,14 @@ const currentGlance = computed((): AtAGlanceType => {
     return newAtAGlance;
   }
 
-  log.debug("Showing a custom 'At a Glance' text:" + "\n" + JSON.stringify(
-    configGlance,
-    null,
-    2,
-  ));
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    "Showing a custom 'At a Glance' text:" + "\n" + JSON.stringify(
+      configGlance,
+      null,
+      2,
+    ),
+  );
 
   return {
     "title"   : configGlance.title,

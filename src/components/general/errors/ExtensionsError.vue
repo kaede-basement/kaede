@@ -32,6 +32,7 @@ onMounted(async () => {
   if (globalStates?.misc?.showAfterExtensionsInitialization) {
     try {
       log.debug(
+        __PRE_BUNDLED_FILENAME__,
         "User has enabled 'show-after-extensions-initialization';",
         "extensions loading has failed. Showing the webview now",
       );

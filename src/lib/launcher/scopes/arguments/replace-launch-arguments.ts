@@ -92,7 +92,7 @@ export function replaceLaunchArguments({
     return beforeHooksResult;
   }
 
-  log.debug("Building a replacements regex (without auth)");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Building a replacements regex (without auth)");
   const keysRegex: RegExp = new RegExp(
     Object
       .keys(replacements)
@@ -101,7 +101,10 @@ export function replaceLaunchArguments({
     "g",
   );
 
-  log.debug("Replacing placeholders in the launch command (without auth)");
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    "Replacing placeholders in the launch command (without auth)",
+  );
   const commandWithoutAuth: string = builtLaunchArguments.toReplace
     .replace(keysRegex, matched => {
       const key = matched.slice(2, -1) as keyof ArgumentReplacementsType;
@@ -115,7 +118,7 @@ export function replaceLaunchArguments({
     "\n" + javaBinary + " " + commandWithoutAuth,
   );
 
-  log.debug("Initializing auth replacements");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing auth replacements");
   const authReplacements: ArgumentAuthReplacementsType = {
     "auth_access_token": auth.token,
     "auth_player_name" : auth.username,
@@ -147,7 +150,7 @@ export function replaceLaunchArguments({
     return afterHooksResult;
   }
 
-  log.debug("Building an auth replacements regex");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Building an auth replacements regex");
   const authKeysRegex: RegExp = new RegExp(
     Object
       .keys(authReplacements)
@@ -156,7 +159,7 @@ export function replaceLaunchArguments({
     "g",
   );
 
-  log.debug("Replacing auth placeholders in the launch command");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Replacing auth placeholders in the launch command");
 
   return commandWithoutAuth
     .replace(authKeysRegex, matched => {

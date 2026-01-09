@@ -40,7 +40,7 @@ export async function catchAsyncVoidHooks({
     const timeMeasurementEndHook = performance.now();
     const currentAfterHookTime = timeMeasurementEndHook - timeMeasurementStartHook;
 
-    log.debug(log.templates.hooks.iterate["no-response"](
+    log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate["no-response"](
       scope,
       timing,
       index,
@@ -52,7 +52,7 @@ export async function catchAsyncVoidHooks({
   const timeMeasurementEndAfter = performance.now();
   const afterHooksTime = timeMeasurementEndAfter - timeMeasurementStartAfter;
 
-  log.debug(log.templates.hooks.iterate.end(
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.end(
     scope,
     timing,
     afterHooksTime,

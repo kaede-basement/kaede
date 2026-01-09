@@ -32,14 +32,14 @@ export async function readLogs({
   "size": string;
   "logs": Array<string>;
 }> {
-  log.debug("LogViewer.vue mounted");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Mounted the component");
   const latestLogAbsolutePath = General.cachedJoin(
     General.getCachedBaseDirectory(),
     FileStructure.Folders.Logs.Path,
     FileStructure.Folders.Logs.Files.LatestLog,
   );
 
-  log.debug("Reading 'latest.log' file");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Reading 'latest.log' file");
   const existingLogs: string = await readTextFile(latestLogAbsolutePath);
 
   if (existingLogs === "") {

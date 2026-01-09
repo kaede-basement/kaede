@@ -2,6 +2,7 @@ import { closeViewer } from "@/lib/logging/scopes/close-viewer.ts";
 import { getLogEntryInformation } from "@/lib/logging/scopes/get-log-entry-information.ts";
 import { getLogFieldText } from "@/lib/logging/scopes/get-log-field-text.ts";
 import { getLogLevelColor } from "@/lib/logging/scopes/get-log-level-color.ts";
+import { getLogTargetColor } from "@/lib/logging/scopes/get-log-target-color.ts";
 import {
   handleVirtualListTextSelection,
 } from "@/lib/logging/scopes/handle-virtual-list-text-selection.ts";
@@ -16,6 +17,7 @@ export default {
   getLogEntryInformation,
   getLogFieldText,
   getLogLevelColor,
+  getLogTargetColor,
   handleVirtualListTextSelection,
   handleVirtualTextCopy,
   selectAllText,

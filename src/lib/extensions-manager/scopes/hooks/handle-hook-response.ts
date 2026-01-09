@@ -24,7 +24,7 @@ export function handleHookResponse<T>({
   const timeMeasurementEndHook = performance.now();
   const currentHookTime = timeMeasurementEndHook - times.hookStart;
 
-  log.debug(log.templates.hooks.iterate.response(
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.response(
     scope,
     { status, response },
     timing,
@@ -39,7 +39,7 @@ export function handleHookResponse<T>({
   const timeMeasurementEnd = performance.now();
   const hooksTime = timeMeasurementEnd - times.overallStart;
 
-  log.debug(log.templates.hooks.iterate.end(
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.end(
     scope,
     timing,
     hooksTime,

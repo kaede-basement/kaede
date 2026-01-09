@@ -13,19 +13,22 @@ export async function readAllMetadata(): Promise<Array<ExtensionMetadataType>> {
     FileStructure.Files.Extensions,
   );
 
-  log.debug("Checking if extensions metadata file exists");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Checking if extensions metadata file exists");
   const metadataExists = await exists(metadataPath);
 
   if (!metadataExists) {
     log.warn(__PRE_BUNDLED_FILENAME__, "Extensions metadata file does not exist");
-    log.debug("Initializing an extensions metadata file");
+    log.debug(__PRE_BUNDLED_FILENAME__, "Initializing an extensions metadata file");
     await writeTextFile(metadataPath, "[]");
   }
 
-  log.debug("Extensions metadata file exists. Reading an extensions metadata file");
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    "Extensions metadata file exists. Reading an extensions metadata file",
+  );
   const metadata = await readTextFile(metadataPath);
 
-  log.debug("Parsing the extensions metadata file");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Parsing the extensions metadata file");
   let parsedMetadata: unknown;
 
   try {

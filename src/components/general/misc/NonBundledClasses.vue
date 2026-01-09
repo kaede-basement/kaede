@@ -1,5 +1,5 @@
 <template>
-  <div id="__non-bundled-classes" v-if="false" class="i-lucide-box i-lucide-plus i-lucide-home i-lucide-boxes i-lucide-settings i-lucide-rotate-ccw i-lucide-bug i-lucide-folder bg-blue-600 bg-red-600 bg-yellow-600">
+  <div id="__non-bundled-classes" v-if="false" class="i-lucide-box i-lucide-plus i-lucide-home i-lucide-boxes i-lucide-settings i-lucide-rotate-ccw i-lucide-bug i-lucide-folder bg-blue-600 bg-red-600 bg-yellow-600 text-fuchsia-300 text-orange-300 text-lime-300 text-sky-300 text-teal-200">
     <!-- CSS classes are not included in the final bundle otherwise -->
   </div>
 </template>
