@@ -34,7 +34,6 @@ const defaultConfig: ConfigType = {
     "show"       : false,
     "lineBreaks" : false,
     "virtualized": false,
-    "dates"      : false,
     "filtering"  : "",
   },
   "minecraft": {

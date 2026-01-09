@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import CustomInput from "@/components/general/base/CustomInput.vue";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 
-const { filtering, filterLogs } = defineProps<{
-  "filtering" : string;
-  "filterLogs": (filter: string) => void;
+const { filtering } = defineProps<{
+  "filtering": string;
 }>();
 
 function handleInput(newValue: string): void {
-  filterLogs(newValue);
+  GlobalStateHelpers.Logs.filterBy(newValue);
 }
 function handleEscape(): void {
   if (filtering === "") {
     return;
   }
 
-  filterLogs("");
+  GlobalStateHelpers.Logs.filterBy("");
 }
 </script>
 

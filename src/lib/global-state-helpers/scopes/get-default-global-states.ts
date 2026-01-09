@@ -45,7 +45,6 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,
-      "dates"      : false,
       "filtering"  : "",
     },
     "sidebarItems": [

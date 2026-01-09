@@ -1,5 +1,22 @@
+<!--
+  - Kaede, a Minecraft Launcher
+  - Copyright (C) 2026  windstone <notwindstone@gmail.com> and contributors
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU General Public License as published by
+  - the Free Software Foundation, either version 3 of the License, or
+  - (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU General Public License for more details.
+  -
+  - You should have received a copy of the GNU General Public License
+  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
 <script setup lang="ts">
-import { ask } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { computed, inject, nextTick, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
@@ -8,10 +25,11 @@ import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import LogControls from "@/components/logging/controls/LogControls.vue";
 import LogEntry from "@/components/logging/lines/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
-import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
 import { FileStructure } from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
+import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 
@@ -33,6 +51,7 @@ const absoluteSearchPosition = ref<number | undefined>(undefined);
 // A key that re-renders virtualized list on every log viewer reopen
 const mountedKey = ref<number>(Math.random());
 const textSelected = ref<boolean>(false);
+// Keeps track of index range text selections in virtualized mode
 const currentTextSelection = ref<[number, number] | undefined>(undefined);
 
 const filtering = computed((): string => globalStates?.logs?.filtering ?? "");
@@ -52,7 +71,7 @@ const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
   return filteredArray;
 });
 
-// We do not care about window size changes here, since user can just reopen log viewer
+// We do not care about window size changes here, since user can just reopen the log viewer
 const windowHeight = window.innerHeight;
 
 /*
@@ -84,9 +103,6 @@ function setTextSelectionRange(newValue: [number, number] | undefined): void {
 function toggleTextSelection(): void {
   textSelected.value = !textSelected.value;
 }
-function showContextMenu(event: MouseEvent): void {
-  window[ApplicationNamespace].libs.ContextMenu.show(event);
-}
 function closeLogViewer(): void {
   GlobalStateHelpers.Logs.toggle("show", false);
 }
@@ -115,40 +131,6 @@ function searchLogs(searchValue: string): Array<number> {
   }
 
   return found;
-}
-function filterLogs(filterValue: string): void {
-  GlobalStateHelpers.Logs.filterBy(filterValue);
-}
-async function toggleVirtualization(): Promise<void> {
-  if (globalStates?.logs?.virtualized && logs.value.length >= 512) {
-    const answer = await ask(
-      "Virtualization was enabled because your log file is big. " +
-      "Disabling it may freeze your launcher for a bit. Do you want to disable virtualization?",
-      {
-        "title": "Kaede",
-        "kind" : "warning",
-      },
-    );
-
-    if (!answer) {
-      return;
-    }
-  }
-
-  GlobalStateHelpers.Logs.toggle("virtualized");
-}
-function selectAllText(): void {
-  const logsContainer = nonVirtualList.value?.nonVirtualizedLogsTarget;
-
-  if (!logsContainer) {
-    return;
-  }
-
-  const range = document.createRange();
-
-  range.selectNode(logsContainer);
-  window.getSelection()?.removeAllRanges?.();
-  window.getSelection()?.addRange?.(range);
 }
 
 onMounted(async () => {
@@ -213,7 +195,7 @@ onMounted(async () => {
     <div
       id="__log-viewer__inner"
       @contextmenu.prevent
-      @contextmenu="showContextMenu"
+      @contextmenu="GlobalStateHelpers.showContextMenu"
       class="h-fit max-h-[calc(100vh-64px)] max-w-[calc(100vw-64px)] w-fit flex flex-col gap-2 rounded-md bg-neutral-900 p-4 text-white drop-shadow-lg"
     >
       <div id="__log-viewer__information-wrapper" class="w-full flex shrink-0 flex-nowrap items-start justify-between gap-4 pb-2">
@@ -232,19 +214,13 @@ onMounted(async () => {
             </span>
           </p>
           <LogControls
-            :log-dates-shown="globalStates?.logs?.dates === true"
             :search-position="searchPosition"
             :set-search-position="setSearchPosition"
             :searching="searching"
             :search-logs="searchLogs"
             :filtering="filtering"
-            :filter-logs="filterLogs"
             :scroll-to-index="scrollToIndex"
-            :should-virtualize="globalStates?.logs?.virtualized === true"
-            :toggle-should-virtualize="toggleVirtualization"
-            :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
-            :toggle-horizontal-scroll="() => GlobalStateHelpers.Logs.toggle('lineBreaks')"
-            :select-all-logs="selectAllText"
+            :select-all-logs="() => Logging.selectAllText(nonVirtualList?.nonVirtualizedLogsTarget)"
             :text-is-in-selection="textSelected"
             :toggle-text-selection="toggleTextSelection"
             :text-selection-range="currentTextSelection"
@@ -282,7 +258,6 @@ onMounted(async () => {
                 ? slotProps.index
                 : slotProps.node[0]"
               :searching="searching"
-              :show-dates="globalStates?.logs?.dates"
               :search-position="absoluteSearchPosition"
               :selection-indexes="currentTextSelection"
             />
@@ -293,7 +268,6 @@ onMounted(async () => {
           ref="nonVirtualList"
           :logs="filteredLogs ?? logs"
           :searching="searching"
-          :show-dates="globalStates?.logs?.dates"
           :horizontal-scroll="globalStates?.logs?.lineBreaks === false"
         />
       </div>

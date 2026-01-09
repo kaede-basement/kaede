@@ -6,6 +6,8 @@ import {
 } from "@/lib/logging/scopes/handle-virtual-list-text-selection.ts";
 import { handleVirtualTextCopy } from "@/lib/logging/scopes/handle-virtual-text-copy.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
+import { selectAllText } from "@/lib/logging/scopes/select-all-text.ts";
+import { toggleVirtualization } from "@/lib/logging/scopes/toggle-virtualization.ts";
 
 export default {
   getLogEntryInformation,
@@ -13,6 +15,8 @@ export default {
   getLogLevelColor,
   handleVirtualListTextSelection,
   handleVirtualTextCopy,
+  selectAllText,
+  toggleVirtualization,
 
   /* 'log' is used separately */
   log,

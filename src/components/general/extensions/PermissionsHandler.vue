@@ -6,6 +6,7 @@ import AllowButton from "@/components/general/extensions/permissions/AllowButton
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { IgnoredExtensionPermissions } from "@/constants/permissions.ts";
 import { __requestPermissions } from "@/lib/extensions-manager/scopes/request-permissions.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 const requestedPermissionState = ref<{
@@ -14,10 +15,6 @@ const requestedPermissionState = ref<{
   "resolve"  : (state: boolean) => void;
 } | undefined>(undefined);
 const doNotAsk = ref<boolean>(false);
-
-function showContextMenu(event: MouseEvent): void {
-  window[ApplicationNamespace].libs.ContextMenu.show(event);
-}
 
 function handlePermissionRequest(
   permission?: PermissionType,
@@ -72,7 +69,7 @@ window[ApplicationNamespace].__internals.requestPermissions = requestPermissions
       v-if="requestedPermissionState"
       id="__extensions-loader__permission-request-wrapper"
       @contextmenu.prevent
-      @contextmenu="showContextMenu"
+      @contextmenu="GlobalStateHelpers.showContextMenu"
       class="absolute bottom-0 left-0 right-0 top-0 z-8000 grid place-items-center bg-[theme(colors.black/.5)]"
     >
       <div

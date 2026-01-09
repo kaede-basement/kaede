@@ -1,31 +1,27 @@
 <script setup lang="ts">
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useEventListener } from "@vueuse/core";
-import { computed, ref, shallowRef, watchEffect } from "vue";
+import { computed, inject, ref, shallowRef, watchEffect } from "vue";
 
 import CustomButton from "@/components/general/base/CustomButton.vue";
 import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
 import { FileStructure } from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { LogButtonType } from "@/types/logging/log-button.type.ts";
 import type { LogControlsType } from "@/types/logging/log-controls.type.ts";
 
 const {
-  logDatesShown,
   searchPosition,
   setSearchPosition,
   searching,
   searchLogs,
   filtering,
-  filterLogs,
   scrollToIndex,
-  shouldVirtualize,
-  toggleShouldVirtualize,
-  horizontalScroll,
-  toggleHorizontalScroll,
   selectAllLogs,
   textIsInSelection,
   toggleTextSelection,
@@ -34,11 +30,19 @@ const {
   logsArray,
 } = defineProps<LogControlsType>();
 
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+
+const shouldVirtualize = computed((): boolean => globalStates?.logs?.virtualized === true);
+const horizontalScroll = computed((): boolean => globalStates?.logs?.lineBreaks === false);
+
 const found = shallowRef<Array<number>>([]);
 const copied = ref<boolean>(false);
 
 function toggleShouldVirtualizeWithCursorHandling(): void {
-  toggleShouldVirtualize();
+  Logging.toggleVirtualization({
+    "virtualized": shouldVirtualize.value,
+    "length"     : logsArray.length,
+  });
 
   if (textIsInSelection) {
     selectTextVirtualized();
@@ -61,9 +65,6 @@ function selectTextVirtualized(): void {
 }
 function setFound(newValue: Array<number>): void {
   found.value = newValue;
-}
-function toggleLogDates(): void {
-  GlobalStateHelpers.Logs.toggle("dates");
 }
 async function copyTextSelection(): Promise<void> {
   await Logging.handleVirtualTextCopy(
@@ -105,8 +106,8 @@ const lineBreaksControl = computed((): LogButtonType => ({
     "label"  : "__log-controls__horizontal-scroll-label",
   },
   "tooltip" : "Toggle text wrapping",
-  "onClick" : toggleHorizontalScroll,
-  "invert"  : !horizontalScroll,
+  "onClick" : (): void => GlobalStateHelpers.Logs.toggle("lineBreaks"),
+  "invert"  : !horizontalScroll.value,
   "hideOnSm": true,
 }));
 const virtualizeControl = computed((): LogButtonType => ({
@@ -119,7 +120,7 @@ const virtualizeControl = computed((): LogButtonType => ({
   },
   "tooltip" : "Improve viewer performance by pre-rendering only visible lines of text",
   "onClick" : toggleShouldVirtualizeWithCursorHandling,
-  "invert"  : shouldVirtualize,
+  "invert"  : shouldVirtualize.value,
   "hideOnMd": true,
 }));
 const textSelectionControl = computed((): LogButtonType => ({
@@ -132,7 +133,7 @@ const textSelectionControl = computed((): LogButtonType => ({
   "tooltip": "Select a text",
   "onClick": selectTextVirtualized,
   "invert" : textIsInSelection,
-  "hidden" : !shouldVirtualize,
+  "hidden" : !shouldVirtualize.value,
 }));
 const textSelectionCopyControl = computed((): LogButtonType => ({
   "icon": "i-lucide-copy",
@@ -146,24 +147,12 @@ const textSelectionCopyControl = computed((): LogButtonType => ({
   "invert" : copied.value,
   "hidden" : !textSelectionRange,
 }));
-const logDatesControl = computed((): LogButtonType => ({
-  "icon": "i-lucide-calendar",
-  "ids" : {
-    "wrapper": "__log-controls__dates-button",
-    "icon"   : "__log-controls__dates-icon",
-    "label"  : "__log-controls__dates-label",
-  },
-  "tooltip": "Toggle log dates",
-  "onClick": toggleLogDates,
-  "invert" : logDatesShown,
-}));
 const controlButtons = computed((): Array<LogButtonType> => [
   explorerControl,
   lineBreaksControl.value,
   virtualizeControl.value,
   textSelectionControl.value,
   textSelectionCopyControl.value,
-  logDatesControl.value,
 ]);
 
 watchEffect(() => {
@@ -224,10 +213,7 @@ useEventListener("keydown", (event: KeyboardEvent) => {
         :set-search-position="setSearchPosition"
         :set-found="setFound"
       />
-      <LogFilterer
-        :filtering="filtering"
-        :filter-logs="filterLogs"
-      />
+      <LogFilterer :filtering="filtering" />
     </div>
     <div id="__log-controls__second-row" class="h-8 w-full flex flex-nowrap gap-2">
       <CustomButton

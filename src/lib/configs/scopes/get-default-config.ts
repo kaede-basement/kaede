@@ -45,7 +45,6 @@ export async function getDefaultConfig(): Promise<ConfigType> {
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,
-      "dates"      : false,
       "filtering"  : "",
     },
     "minecraft": {
