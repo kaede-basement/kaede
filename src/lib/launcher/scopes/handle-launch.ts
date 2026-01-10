@@ -116,10 +116,10 @@ export async function handleLaunch({
   log.info(
     __PRE_BUNDLED_FILENAME__,
     log.templates.json.contents(
-      "Finalized patch (artifacts are omitted due to being large)",
+      "Finalized patch",
       {
         ...finalizedPatch,
-        "artifacts": "[...] " + finalizedPatch.artifacts.length + " entries",
+        "artifacts": "[ ... ] (" + finalizedPatch.artifacts.length + " entries)",
       },
     ),
   );
