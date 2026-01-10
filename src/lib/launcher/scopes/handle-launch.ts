@@ -113,20 +113,12 @@ export async function handleLaunch({
     necessaries,
   });
 
-  console.log(finalizedPatch);
-  const interval = setInterval(() => {
-    console.log(statuses.current, statuses.downloads);
-  }, 500);
-
   const responses: Array<boolean> = await Promise.all([
     downloadAssets({ necessaries, finalizedPatch }),
     downloadClient({ necessaries, finalizedPatch }),
     downloadLogging({ necessaries, finalizedPatch }),
     downloadLibraries({ necessaries, finalizedPatch }),
   ]);
-
-  clearInterval(interval);
-  console.log("hi", responses);
 
   for (const status of responses) {
     if (!status) {

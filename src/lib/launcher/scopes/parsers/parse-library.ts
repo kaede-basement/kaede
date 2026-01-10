@@ -93,8 +93,6 @@ export function parseLibrary({
     ].join("/");
     const builtUrl: string = baseUrl + ensureSlash + urlPath + "/" + file;
 
-    console.log("uhee", builtUrl);
-
     return {
       "id"    : name,
       "status": isMaven ? "mavenFile" : "library",

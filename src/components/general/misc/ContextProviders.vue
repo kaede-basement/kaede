@@ -89,7 +89,8 @@ async function launchInstance(instanceId?: string): Promise<void> {
         "javaMajor" : javaMajor,
         "versions"  : {
           "net.minecraft"            : currentInstance.instance.version,
-          "net.minecraftforge"       : "36.2.42",
+          "net.minecraftforge"       : "61.0.5", // 36.2.42 for 1.16.5
+          "com.mumfrey.liteloader"   : currentInstance.instance.version,
           "net.fabricmc.intermediary": currentInstance.instance.version,
         },
       },

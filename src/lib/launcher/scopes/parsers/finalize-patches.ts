@@ -64,10 +64,15 @@ export function finalizePatches({
   // Patches might have overlapping artifacts with different versions
   const uniqueArtifacts = new Map<string, MappedArtifactType>;
   const built: FinalizedPatchType = {
-    "+traits"           : [],
-    "+tweakers"         : [],
-    "artifacts"         : [],
-    "mainClass"         : "",
+    "+traits"  : [],
+    "+tweakers": [],
+    "artifacts": [],
+
+    /*
+     * Ancient versions do not have the 'mainClass' field,
+     * so use their class as a default value
+     */
+    "mainClass"         : "net.minecraft.client.Minecraft",
     "minecraftArguments": "",
     "assetIndex"        : undefined,
     "type"              : undefined,
