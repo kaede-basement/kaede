@@ -73,6 +73,11 @@ export async function handleLaunch({
     userPreferences,
   });
 
+  log.info(
+    __PRE_BUNDLED_FILENAME__,
+    log.templates.json.contents("Pre-launch information", necessaries),
+  );
+
   if (necessaries === false) {
     log.warn(
       __PRE_BUNDLED_FILENAME__,

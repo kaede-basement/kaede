@@ -17,6 +17,7 @@
   -->
 
 <script setup lang="ts">
+import { refThrottled, useWindowSize } from "@vueuse/core";
 import { computed, inject, nextTick, onMounted, ref, shallowRef, useTemplateRef } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
@@ -60,6 +61,10 @@ const mountedKey = ref<number>(Math.random());
 // Keeps track of index range text selections in virtualized mode
 const currentTextSelection = ref<[number, number] | undefined>(undefined);
 
+const { height } = useWindowSize();
+// Throttled window height is used for the virtualized list height
+const throttledHeight = refThrottled(height, 200);
+
 const filtering = computed((): string => globalStates?.logs?.filtering ?? "");
 const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
   if (filtering.value === "") {
@@ -76,9 +81,6 @@ const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
 
   return filteredArray;
 });
-
-// We do not care about window size changes here, since user can just reopen the log viewer
-const windowHeight = window.innerHeight;
 
 /*
  * Subtract 128 to exclude the margins and paddings
@@ -217,9 +219,12 @@ onMounted(async () => {
       >
         <VirtualisedList
           v-if="globalStates?.logs?.virtualized"
-          :key="`${logs.length}-${globalStates?.logs?.lineBreaks}-${filtering}-${mountedKey}`"
+          :key="
+            `${logs.length}-${globalStates?.logs?.lineBreaks}-${filtering}-
+             ${throttledHeight}-${mountedKey}`
+          "
           :get-node-height="getNodeHeight"
-          :viewport-height="windowHeight - 248"
+          :viewport-height="throttledHeight - 248"
           :nodes="filteredLogs ?? logs"
           :id="globalStates?.logs?.lineBreaks ? '' : '__virtualized-list-logs'"
           ref="virtualList"
