@@ -25,9 +25,11 @@ export function handlePlatformRule({
     unifiedArch === "any" ||
     unifiedArch === arch;
 
+  console.log(platform, arch, rule.action, rule.os.name, isCompatiblePlatform, isCompatibleArch);
+
   // We care about the rule only if it targets the same platform and arch
   if (!isCompatiblePlatform || !isCompatibleArch) {
-    return true;
+    return rule.action === "disallow";
   }
 
   return rule.action === "allow";

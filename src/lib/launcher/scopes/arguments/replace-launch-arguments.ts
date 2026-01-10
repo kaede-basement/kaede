@@ -116,10 +116,10 @@ export function replaceLaunchArguments({
     "auth_access_token": auth.token,
     "auth_player_name" : auth.username,
     // Used in 1.6.4
-    "auth_session"     : "none",
+    "auth_session"     : auth.token,
     "auth_uuid"        : auth.uuid,
     // 'Only present in newer versions with Microsoft integration'
-    "auth_xuid"        : "",
+    "auth_xuid"        : auth.uuid,
   };
 
   const afterHooksResult: "continue" | string | undefined =

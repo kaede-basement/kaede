@@ -24,5 +24,10 @@ export async function getAdditionalStartArguments({
     return beforeHooksResult;
   }
 
-  return javaBinary === "cmd" ? "/C javaw" : "";
+  const actualJavaBinary: string = necessaries.user.javaBinary;
+  const handledJavaBinary: string = actualJavaBinary.includes("bin")
+    ? `"${actualJavaBinary}"`
+    : actualJavaBinary;
+
+  return javaBinary === "cmd" ? `/C ${handledJavaBinary}` : "";
 }

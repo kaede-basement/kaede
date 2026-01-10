@@ -85,7 +85,6 @@ async function launchInstance(instanceId?: string): Promise<void> {
     const { success, process }: LaunchResponseType = await Launcher.handleLaunch({
       "instance"       : currentInstance.instance,
       "userPreferences": {
-        // TODO
         "javaBinary": "javaw",
         "javaMajor" : javaMajor,
         "versions"  : {
