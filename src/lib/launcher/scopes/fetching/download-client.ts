@@ -5,30 +5,33 @@ import ExtensionsManager from "@/lib/extensions-manager";
 import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
 import { verifyArtifacts } from "@/lib/launcher/scopes/validators/verify-artifacts.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
-import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 export async function downloadClient({
   necessaries,
-  client,
-  versionMeta,
+  finalizedPatch,
 }: {
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
-  const beforeHooksResult: "continue" | void | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<void>({
+  const beforeHooksResult: "continue" | boolean | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<boolean>({
       "scope" : "onMinecraftClientGet",
-      "toPass": { necessaries, client, versionMeta },
+      "toPass": { necessaries, finalizedPatch },
       "timing": "before",
     });
 
-  if (beforeHooksResult !== "continue") {
-    return;
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
+  }
+
+  const client = finalizedPatch.client;
+
+  if (client === false) {
+    return false;
   }
 
   const { statuses, instance } = necessaries;
@@ -37,7 +40,7 @@ export async function downloadClient({
     __PRE_BUNDLED_FILENAME__,
     `Checking if the main jar exists. SHA1 checks enabled: ${instance.checksum}`,
   );
-  statuses.current = LaunchStatus.Client.CheckingIfPresent;
+  statuses.current = LaunchStatus.Client.Checking;
   const mismatches: Array<string> = await verifyArtifacts({
     "paths"   : [client],
     "checksum": instance.checksum,
@@ -53,9 +56,8 @@ export async function downloadClient({
     await mkdir(client.directory, { "recursive": true });
     log.debug(__PRE_BUNDLED_FILENAME__, "Downloading the main jar");
     await downloadWithProgress({
-      "statusScope": LaunchStatus.Client.DownloadingJar,
-      "path"       : client.path,
-      "url"        : client.url,
+      "path": client.path,
+      "url" : client.url,
       statuses,
     });
   } else {
@@ -67,10 +69,12 @@ export async function downloadClient({
 
   await ExtensionsManager.catchAsyncVoidHooks({
     "scope" : "onMinecraftClientGet",
-    "toPass": { necessaries, client, versionMeta },
+    "toPass": { necessaries, finalizedPatch },
     "timing": "after",
   });
 
   log.info(__PRE_BUNDLED_FILENAME__, "Successfully handled the main jar");
-  statuses.current = LaunchStatus.Client.Done;
+  statuses.current = LaunchStatus.Client.Success;
+
+  return true;
 }

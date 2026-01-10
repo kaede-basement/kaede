@@ -3,46 +3,38 @@ import { writeTextFile } from "@tauri-apps/plugin-fs";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
-import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
-import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-
-function mapPaths(artifacts: Array<MappedArtifactType>): Array<string> {
-  return artifacts
-    .map(({ path }) => path);
-}
+import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 const classPathsFileName: string = "classpaths.txt";
 
 export async function getClassPaths({
-  instanceId,
   necessaries,
-  versionMeta,
-  parsed,
+  finalizedPatch,
 }: {
-  "instanceId" : string;
-  "necessaries": PreLaunchInformationType;
-  "versionMeta": SpecificPatchMetaType;
-  "parsed"     : ParsedMetaType;
+  "necessaries"   : PreLaunchInformationType;
+  "finalizedPatch": FinalizedPatchType;
 }): Promise<{
   "argument"  : string;
   "classPaths": string;
 }> {
   log.debug(
     __PRE_BUNDLED_FILENAME__,
-    "Merging all library, native, and main jar paths for classpaths",
+    "Merging all library and client classpaths",
   );
-  const { directories, javaMajor } = necessaries;
-  const mergedPaths: Array<string> = [
-    ...mapPaths(parsed.libraries),
-    ...mapPaths(parsed.natives),
-    ...mapPaths(parsed.patches.libraries),
-    ...mapPaths(parsed.patches.natives),
-    parsed.client.path,
-  ];
+  const { directories, "user": { javaMajor } } = necessaries;
+  const mergedPaths: Array<string> = finalizedPatch
+    .artifacts
+    .filter(({ status }) => (
+      (status === "library") || (status === "empty")
+    ))
+    .map(({ path }) => path);
+
+  if (finalizedPatch.client) {
+    mergedPaths.push(finalizedPatch.client.path);
+  }
 
   const beforeHooksResult: "continue" | {
     "argument"  : string;
@@ -53,7 +45,7 @@ export async function getClassPaths({
       "classPaths": string;
     }>({
       "scope" : "onClassPathsGet",
-      "toPass": { mergedPaths, instanceId, necessaries, versionMeta, parsed },
+      "toPass": { mergedPaths, necessaries, finalizedPatch },
       "timing": "before",
     });
 

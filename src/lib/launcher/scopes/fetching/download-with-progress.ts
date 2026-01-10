@@ -5,28 +5,25 @@ import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status
 export function downloadWithProgress({
   url,
   path,
-  statusScope,
   statuses,
 }: {
-  "url"        : string;
-  "path"       : string;
-  "statusScope": string;
-  "statuses"   : LauncherStatusesType;
+  "url"     : string;
+  "path"    : string;
+  "statuses": LauncherStatusesType;
 }): Promise<void> {
-  const status: string = statusScope + "-" + url;
-  let previousStatus: string = status;
-
   return download(
     url,
     path,
     ({ progressTotal, total }) => {
       const percents: number = Math.floor(progressTotal / total * 100);
-      const progressStatus: string = status + "-" + percents + "%";
 
-      statuses.downloads.delete(previousStatus);
-      statuses.downloads.add(progressStatus);
+      if (percents === 100) {
+        statuses.downloads.success++;
 
-      previousStatus = progressStatus;
+        return statuses.downloads.current.delete(url);
+      }
+
+      statuses.downloads.current.set(url, percents);
     },
   );
 }

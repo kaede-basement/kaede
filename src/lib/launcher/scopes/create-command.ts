@@ -16,6 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import {
+  getAdditionalStartArguments,
+} from "@/lib/launcher/scopes/arguments/get-additional-start-arguments.ts";
+import { getClassPaths } from "@/lib/launcher/scopes/arguments/get-class-paths.ts";
+import { getGameArguments } from "@/lib/launcher/scopes/arguments/get-game-arguments.ts";
+import { getJavaBinary } from "@/lib/launcher/scopes/arguments/get-java-binary.ts";
+import { getJvmArguments } from "@/lib/launcher/scopes/arguments/get-jvm-arguments.ts";
+import {
+  replaceLaunchArguments,
+} from "@/lib/launcher/scopes/arguments/replace-launch-arguments.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -31,10 +41,58 @@ export async function createCommand({
   "program"  : string;
   "arguments": string;
 }> {
-  const { user } = necessaries;
+  const [
+    javaBinary,
+    jvmArguments,
+    { "argument": classPathsArgument, classPaths },
+    gameArguments,
+  ]: [
+    string,
+    string,
+    { "argument": string; "classPaths": string },
+    string,
+  ] = await Promise.all([
+    getJavaBinary({ necessaries, finalizedPatch }),
+    getJvmArguments({ necessaries, finalizedPatch }),
+    getClassPaths({ necessaries, finalizedPatch }),
+    getGameArguments({ necessaries, finalizedPatch }),
+  ]);
+
+  const additionalArguments: string = await getAdditionalStartArguments({
+    javaBinary,
+    necessaries,
+    finalizedPatch,
+  });
+
+  const toReplace: Array<string> = [
+    jvmArguments,
+    classPathsArgument,
+    finalizedPatch.mainClass,
+    gameArguments,
+  ];
+
+  if (additionalArguments !== "") {
+    toReplace.unshift(additionalArguments);
+  }
+
+  const launchArguments: string = replaceLaunchArguments({
+    "auth": {
+      "uuid"    : "3206b5f6-acd3-419e-a297-7d120f510767",
+      "token"   : "huh",
+      "username": "windstone_",
+      "type"    : "msa",
+    },
+    "builtLaunchArguments": {
+      "toReplace": toReplace.join(" "),
+      classPaths,
+    },
+    necessaries,
+    finalizedPatch,
+    javaBinary,
+  });
 
   return {
-    "program"  : user.javaBinary,
-    "arguments": "",
+    "program"  : javaBinary,
+    "arguments": launchArguments,
   };
 }

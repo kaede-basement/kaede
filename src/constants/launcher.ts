@@ -23,20 +23,26 @@ export const LaunchStatus = {
   "AssetIndex": {
     "Reading"         : "asset-index-pending-reading",
     "Fetching"        : "asset-index-pending-fetching",
+    "FailedToGet"     : "asset-index-error-get",
     "FailedToFetch"   : "asset-index-error-fetch",
     "FailedToParse"   : "asset-index-error-parse",
     "FailedToValidate": "asset-index-error-validation",
     "Success"         : "asset-index-success",
+  },
+  "AssetObjects": {
+    "Success": "asset-objects-success",
   },
   "Libraries": {
     "FailedToValidate": "libraries-error-validation",
     "Success"         : "libraries-success",
   },
   "Logging": {
+    "Checking"     : "logging-checking",
     "FailedToParse": "logging-error-parse",
     "Success"      : "logging-success",
   },
   "Client": {
+    "Checking"     : "client-checking",
     "FailedToParse": "client-error-parse",
     "Success"      : "client-success",
   },

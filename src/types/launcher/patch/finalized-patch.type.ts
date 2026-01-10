@@ -17,6 +17,7 @@
  */
 
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { PatchVersionEntryVariantType } from "@/types/launcher/meta/patch-meta.type.ts";
 import type {
   SpecificPatchAssetIndexType,
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
@@ -28,6 +29,7 @@ export type FinalizedPatchType = {
   "mainClass"         : string;
   "minecraftArguments": string;
   "assetIndex"        : SpecificPatchAssetIndexType | undefined;
+  "type"              : PatchVersionEntryVariantType | undefined;
   "client"            : MappedArtifactType | false;
   "logging"           : (MappedArtifactType & {
     "argument": string;

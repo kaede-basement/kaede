@@ -70,6 +70,7 @@ export function finalizePatches({
     "mainClass"         : "",
     "minecraftArguments": "",
     "assetIndex"        : undefined,
+    "type"              : undefined,
     "client"            : false,
     "logging"           : false,
   };
@@ -96,6 +97,10 @@ export function finalizePatches({
 
     if (patch.assetIndex) {
       built.assetIndex = patch.assetIndex;
+    }
+
+    if (patch.type) {
+      built.type = patch.type;
     }
 
     const currentLogging = parseLogging({

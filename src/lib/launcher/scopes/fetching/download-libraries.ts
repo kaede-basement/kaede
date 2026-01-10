@@ -9,44 +9,37 @@ import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artif
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
-import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 export async function downloadLibraries({
   necessaries,
-  libraries,
-  natives,
-  versionMeta,
+  finalizedPatch,
 }: {
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
-  const beforeHooksResult: "continue" | void | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<void>({
+  const beforeHooksResult: "continue" | boolean | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<boolean>({
       "scope" : "onMinecraftLibrariesGet",
-      "toPass": { necessaries, libraries, natives, versionMeta },
+      "toPass": { necessaries, finalizedPatch },
       "timing": "before",
     });
 
-  if (beforeHooksResult !== "continue") {
-    return;
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
   }
 
   const { statuses, instance } = necessaries;
-  const merged: Array<MappedArtifactType> = [
-    ...libraries,
-    ...natives,
-  ];
 
   log.debug(
     __PRE_BUNDLED_FILENAME__,
-    `Verifying ${merged.length} libraries for their existence.`,
+    `Verifying ${finalizedPatch.artifacts.length} libraries for their existence.`,
     `SHA1 checks enabled: ${instance.checksum}`,
   );
   const startTime: number = performance.now();
   const missing: Set<string> = new Set(
     await verifyArtifacts({
-      "paths"   : merged,
+      "paths"   : finalizedPatch.artifacts,
       "checksum": instance.checksum,
     }),
   );
@@ -55,12 +48,12 @@ export async function downloadLibraries({
 
   log.info(
     __PRE_BUNDLED_FILENAME__,
-    `Successfully verified ${merged.length} libraries in ${totalTime} ms.`,
+    `Successfully verified ${finalizedPatch.artifacts.length} libraries in ${totalTime} ms.`,
     `Total mismatches: ${missing.size}.`,
     `SHA1 checks enabled: ${instance.checksum}`,
   );
 
-  const missingArtifacts: Array<MappedArtifactType> = merged
+  const missingArtifacts: Array<MappedArtifactType> = finalizedPatch.artifacts
     .filter(({ path }) => {
       return missing.has(path);
     });
@@ -77,18 +70,19 @@ export async function downloadLibraries({
     statuses,
     "concurrency": ConcurrentDownloads.Libraries,
     "entries"    : missingArtifacts,
-    "statusScope": LaunchStatus.Libraries.DownloadingLibrary,
   });
   await ExtensionsManager.catchAsyncVoidHooks({
     "scope" : "onMinecraftLibrariesGet",
-    "toPass": { necessaries, libraries, natives, versionMeta },
+    "toPass": { necessaries, finalizedPatch },
     "timing": "after",
   });
 
   log.info(
     __PRE_BUNDLED_FILENAME__,
-    `Successfully handled ${merged.length} libraries`,
+    `Successfully handled ${finalizedPatch.artifacts.length} libraries`,
     `and re-downloaded ${missing.size} of them`,
   );
-  statuses.current = LaunchStatus.Libraries.Done;
+  statuses.current = LaunchStatus.Libraries.Success;
+
+  return true;
 }

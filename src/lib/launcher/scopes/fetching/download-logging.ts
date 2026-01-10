@@ -4,47 +4,46 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
-import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 export async function downloadLogging({
   necessaries,
-  logging,
-  versionMeta,
+  finalizedPatch,
 }: {
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
-  if (!logging) {
+  const logging = finalizedPatch.logging;
+
+  if (logging === false) {
     log.warn(
       __PRE_BUNDLED_FILENAME__,
       "No logging field found. Perhaps, the instance version is pre-1.7?",
     );
-    necessaries.statuses.current = LaunchStatus.Logging.Done;
+    necessaries.statuses.current = LaunchStatus.Logging.Success;
 
-    return;
+    return true;
   }
 
-  const beforeHooksResult: "continue" | void | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<void>({
+  const beforeHooksResult: "continue" | boolean | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<boolean>({
       "scope" : "onMinecraftLoggingGet",
-      "toPass": { necessaries, logging, versionMeta },
+      "toPass": { necessaries, finalizedPatch },
       "timing": "before",
     });
 
-  if (beforeHooksResult !== "continue") {
-    return;
+  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
+    return beforeHooksResult;
   }
 
   const { directories, statuses } = necessaries;
   const { url, path } = logging;
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Checking if the logging config exists");
-  statuses.current = LaunchStatus.Logging.CheckingIfPresent;
+  statuses.current = LaunchStatus.Logging.Checking;
 
   const [
     directoryExists,
@@ -65,9 +64,7 @@ export async function downloadLogging({
   if (!fileExists) {
     log.warn(__PRE_BUNDLED_FILENAME__, "The logging config file does not exist");
     log.debug(__PRE_BUNDLED_FILENAME__, "Downloading the logging config file");
-    statuses.current = LaunchStatus.Logging.DownloadingConfig;
     await downloadWithProgress({
-      "statusScope": LaunchStatus.Logging.DownloadingConfig,
       path,
       url,
       statuses,
@@ -76,10 +73,12 @@ export async function downloadLogging({
 
   await ExtensionsManager.catchAsyncVoidHooks({
     "scope" : "onMinecraftLoggingGet",
-    "toPass": { necessaries, logging, versionMeta },
+    "toPass": { necessaries, finalizedPatch },
     "timing": "after",
   });
 
   log.info(__PRE_BUNDLED_FILENAME__, "Successfully handled the logging config");
-  statuses.current = LaunchStatus.Logging.Done;
+  statuses.current = LaunchStatus.Logging.Success;
+
+  return true;
 }

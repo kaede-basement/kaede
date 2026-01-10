@@ -6,19 +6,16 @@ import type {
   ArgumentAuthReplacementsType,
   ArgumentReplacementsType,
 } from "@/types/launcher/launch/argument-replacements.type.ts";
-import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
-import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 export function replaceLaunchArguments({
   auth,
   builtLaunchArguments,
-  instanceId,
   necessaries,
-  versionMeta,
-  parsed,
+  finalizedPatch,
   javaBinary,
 }: {
   "auth": {
@@ -31,14 +28,12 @@ export function replaceLaunchArguments({
     "toReplace" : string;
     "classPaths": string;
   };
-  "instanceId" : string;
-  "necessaries": PreLaunchInformationType;
-  "versionMeta": SpecificPatchMetaType;
-  "parsed"     : ParsedMetaType;
-  "javaBinary" : string;
+  "necessaries"   : PreLaunchInformationType;
+  "finalizedPatch": FinalizedPatchType;
+  "javaBinary"    : string;
 }): string {
   const { directories, instance } = necessaries;
-  const assetIndexId: string = versionMeta?.assetIndex?.id ?? "";
+  const assetIndexId: string = finalizedPatch?.assetIndex?.id ?? "";
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing replacements (without auth)");
   const replacements: ArgumentReplacementsType = {
@@ -69,7 +64,7 @@ export function replaceLaunchArguments({
     // 'msa', 'mojang', or 'offline' (?)
     "user_type"   : auth.type,
     "version_name": instance.version,
-    "version_type": versionMeta?.type ?? "release",
+    "version_type": finalizedPatch?.type ?? "release",
   };
 
   const beforeHooksResult: "continue" | string | undefined =
@@ -79,10 +74,8 @@ export function replaceLaunchArguments({
         auth,
         replacements,
         builtLaunchArguments,
-        instanceId,
         necessaries,
-        versionMeta,
-        parsed,
+        finalizedPatch,
         javaBinary,
       },
       "timing": "before",
@@ -137,10 +130,8 @@ export function replaceLaunchArguments({
         authReplacements,
         replacements,
         builtLaunchArguments,
-        instanceId,
         necessaries,
-        versionMeta,
-        parsed,
+        finalizedPatch,
         javaBinary,
       },
       "timing": "after",

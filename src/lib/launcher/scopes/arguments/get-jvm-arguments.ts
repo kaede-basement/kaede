@@ -2,29 +2,24 @@ import { version } from "@tauri-apps/plugin-os";
 
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
-import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 export async function getJvmArguments({
-  instanceId,
   necessaries,
-  versionMeta,
-  parsed,
+  finalizedPatch,
 }: {
-  "instanceId" : string;
-  "necessaries": PreLaunchInformationType;
-  "versionMeta": SpecificPatchMetaType;
-  "parsed"     : ParsedMetaType;
+  "necessaries"   : PreLaunchInformationType;
+  "finalizedPatch": FinalizedPatchType;
 }): Promise<string> {
   const jvmArguments: Array<string> = [];
 
   const beforeHooksResult: "continue" | string | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<string>({
       "scope" : "onJVMArgumentsGet",
-      "toPass": { jvmArguments, instanceId, necessaries, versionMeta, parsed },
+      "toPass": { jvmArguments, necessaries, finalizedPatch, },
       "timing": "before",
     });
 
@@ -37,7 +32,7 @@ export async function getJvmArguments({
   log.debug(__PRE_BUNDLED_FILENAME__, "Adding default JVM arguments");
   jvmArguments.push(
     "-Xms1G",
-    "-Xmx8G",
+    "-Xmx6G",
     "-Djava.library.path=${natives_directory}",
     "-Djna.tmpdir=${natives_directory}",
     "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
@@ -61,8 +56,8 @@ export async function getJvmArguments({
         );
       }
 
-      if (parsed.logging) {
-        logFilePath = "file:///" + parsed.logging.path;
+      if (finalizedPatch.logging) {
+        logFilePath = "file:///" + finalizedPatch.logging.path;
       }
 
       jvmArguments.push(
@@ -75,8 +70,8 @@ export async function getJvmArguments({
     case "macos": {
       log.debug(__PRE_BUNDLED_FILENAME__, "Adding macOS-only JVM arguments");
 
-      if (parsed.logging) {
-        logFilePath = parsed.logging.path;
+      if (finalizedPatch.logging) {
+        logFilePath = finalizedPatch.logging.path;
       }
 
       jvmArguments.push("-XstartOnFirstThread");
@@ -86,17 +81,17 @@ export async function getJvmArguments({
     default: {
       log.debug(__PRE_BUNDLED_FILENAME__, "Adding Linux-only JVM arguments");
 
-      if (parsed.logging) {
-        logFilePath = parsed.logging.path;
+      if (finalizedPatch.logging) {
+        logFilePath = finalizedPatch.logging.path;
       }
 
       break;
     }
   }
 
-  if (parsed.logging) {
+  if (finalizedPatch.logging) {
     log.debug(__PRE_BUNDLED_FILENAME__, "Adding logging config to JVM arguments");
-    const loggingArguments = parsed
+    const loggingArguments = finalizedPatch
       .logging
       .argument
       .replace(
@@ -110,7 +105,7 @@ export async function getJvmArguments({
   const afterHooksResult: "continue" | string | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<string>({
       "scope" : "onJVMArgumentsGet",
-      "toPass": { jvmArguments, instanceId, necessaries, versionMeta, parsed },
+      "toPass": { necessaries, finalizedPatch },
       "timing": "after",
     });
 

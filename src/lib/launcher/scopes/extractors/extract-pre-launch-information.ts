@@ -150,11 +150,11 @@ export function extractPreLaunchInformation({
       "natives"     : nativesDirectory,
       "assetIndexes": General.cachedJoin(
         assetsDirectory,
-        "indexes",
+        FileStructure.Folders.Assets.Folders.Indexes.Path,
       ),
       "assetObjects": General.cachedJoin(
         assetsDirectory,
-        "objects",
+        FileStructure.Folders.Assets.Folders.Objects.Path,
       ),
     },
   };

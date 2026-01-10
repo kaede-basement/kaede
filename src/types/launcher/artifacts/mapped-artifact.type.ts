@@ -10,6 +10,7 @@ export type MappedArtifactType = {
    * 'library' should be both downloaded and included in the classpath
    * 'mavenFile' should be just downloaded
    * 'native' should be downloaded and extracted but not included in the classpath
+   * 'empty' should be just included in the classpath
    */
-  "status"  ?: "library" | "mavenFile" | "native";
+  "status"  ?: "library" | "mavenFile" | "native" | "empty";
 };

@@ -61,13 +61,26 @@ export function parseLibraries({
       continue;
     }
 
-    const isNative: boolean = checkIsNative(library);
-    const artifact: MappedArtifactType | false = isNative
-      ? parseNative({ necessaries, library })
-      : parseLibrary({ necessaries, library, isMaven });
+    const hasNative: boolean = checkIsNative(library);
+    const artifact: MappedArtifactType | false = parseLibrary({
+      necessaries,
+      library,
+      isMaven,
+    });
 
     if (artifact) {
       results.push(artifact);
+    }
+
+    if (hasNative) {
+      const nativeArtifact: MappedArtifactType | false = parseNative({
+        necessaries,
+        library,
+      });
+
+      if (nativeArtifact) {
+        results.push(nativeArtifact);
+      }
     }
   }
 

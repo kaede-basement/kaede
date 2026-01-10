@@ -3,19 +3,16 @@ import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-wi
 import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   LauncherStatusesType,
-  LaunchStatusType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 
 export function concurrentlyDownload({
   concurrency,
   entries,
   statuses,
-  statusScope,
 }: {
   "concurrency": number;
   "entries"    : Array<{ "url": string; "path": string }>;
   "statuses"   : LauncherStatusesType;
-  "statusScope": LaunchStatusType;
 }): Promise<Array<void>> {
   const indexReference: { "value": number } = {
     "value": 0,
@@ -45,7 +42,6 @@ export function concurrentlyDownload({
               url,
               path,
               statuses,
-              statusScope,
             });
           } catch (error: unknown) {
             log.error(

@@ -3,6 +3,12 @@ export const FileStructure = {
     "Assets": {
       "Path"   : "assets",
       "Folders": {
+        "Indexes": {
+          "Path": "indexes",
+        },
+        "Objects": {
+          "Path": "objects",
+        },
         "LogConfigs": {
           "Path": "log_configs",
         },
