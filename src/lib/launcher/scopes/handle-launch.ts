@@ -37,7 +37,7 @@ import {
 } from "@/lib/launcher/scopes/validators/ensure-patch-directories.ts";
 import {
   initializeAssetsDirectories,
-} from "@/lib/launcher/scopes/version-meta/assets/initialize-assets-directories.ts";
+} from "@/lib/launcher/scopes/validators/initialize-assets-directories.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";

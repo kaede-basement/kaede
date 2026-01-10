@@ -63,8 +63,8 @@ export function replaceLaunchArguments({
     }),
     // 'msa', 'mojang', or 'offline' (?)
     "user_type"          : auth.type,
-    "version_name"       : instance.version,
-    "version_type"       : finalizedPatch?.type ?? "release",
+    "version_name"       : instance.patchVersions["net.minecraft"],
+    "version_type"       : ApplicationName,
     // Introduced by Kaede
     "libraries_directory": directories.libraries,
   };

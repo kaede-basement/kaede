@@ -20,7 +20,7 @@ import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
 import {
   initializeShortHashDirectories,
-} from "@/lib/launcher/scopes/version-meta/assets/initialize-short-hash-directories.ts";
+} from "@/lib/launcher/scopes/validators/initialize-short-hash-directories.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   PreLaunchInformationType,

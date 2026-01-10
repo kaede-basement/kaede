@@ -77,8 +77,8 @@ export async function createCommand({
 
   const launchArguments: string = replaceLaunchArguments({
     "auth": {
-      "uuid"    : "3206b5f6-acd3-419e-a297-7d120f510767",
-      "token"   : "huh",
+      "uuid"    : "3206b5f6acd3419ea2977d120f510767",
+      "token"   : "none",
       "username": "windstone_",
       "type"    : "msa",
     },
@@ -90,6 +90,8 @@ export async function createCommand({
     finalizedPatch,
     javaBinary,
   });
+
+  console.log(launchArguments);
 
   return {
     "program"  : javaBinary,

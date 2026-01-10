@@ -4,10 +4,15 @@ import type { GlobalStatesType } from "@/types/application/global-states.type.ts
 import type { PatchUIDType } from "@/types/launcher/meta/patch-meta.type.ts";
 
 export type InstanceStateType = GlobalStatesType["minecraft"] & {
-  "name"    : string;
-  "version" : string;
-  "checksum": boolean;
-  "entry"   : PatchUIDType;
+  "name"         : string;
+  "checksum"     : boolean;
+  "playTime"     : number;
+  "entry"        : PatchUIDType;
+  "patchVersions": {
+    "net.minecraft": string;
+  } & Partial<
+    Record<PatchUIDType, string>
+  >;
 };
 
 /* Per-instance Minecraft settings */

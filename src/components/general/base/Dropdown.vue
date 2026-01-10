@@ -62,13 +62,20 @@ onClickOutside(target, close);
         sizeClassNames,
       ]"
     >
+      <div
+        v-if="items.length === 0"
+        :id="`${id}-no-items`"
+        class="mx-8 my-8 border-t border-neutral-600 py-4 text-center text-neutral-300"
+      >
+        Nothing here yet
+      </div>
       <button
         v-for="item in items"
         :key="item.id"
         :id="item.id"
         :disabled="item.disabled"
         @click="item.onclick"
-        class="relative flex flex-nowrap items-center gap-2 p-2 transition-[background-color] hover:bg-[theme(colors.neutral.100/.05)] disabled:bg-transparent disabled:opacity-50"
+        class="relative flex flex-nowrap items-center gap-2 p-2 transition-[background-color] disabled:bg-transparent disabled:opacity-50 hover:bg-[theme(colors.neutral.100/.05)]"
       >
         <Image
           v-if="item.image"

@@ -19,7 +19,7 @@ export async function getJvmArguments({
   const beforeHooksResult: "continue" | string | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<string>({
       "scope" : "onJVMArgumentsGet",
-      "toPass": { jvmArguments, necessaries, finalizedPatch, },
+      "toPass": { jvmArguments, necessaries, finalizedPatch },
       "timing": "before",
     });
 
@@ -31,8 +31,10 @@ export async function getJvmArguments({
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Adding default JVM arguments");
   jvmArguments.push(
-    "-Xms1G",
-    "-Xmx4G",
+    "-Xmx4096m",
+    "-Djava.net.useSystemProxiestrue",
+    "-Dfml.ignoreInvalidMinecraftCertificates=true",
+    "-Dfml.ignorePatchDiscrepancies=true",
     "-DlibraryDirectory=${libraries_directory}",
     "-Djava.library.path=${natives_directory}",
     "-Djna.tmpdir=${natives_directory}",

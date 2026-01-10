@@ -58,14 +58,12 @@ import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
-import type { LibraryArtifactsType } from "@/types/launcher/artifacts/library-artifacts.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   ArgumentAuthReplacementsType,
   ArgumentReplacementsType,
 } from "@/types/launcher/launch/argument-replacements.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
-import type { ParsedMetaType } from "@/types/launcher/meta/parsed-meta.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -834,7 +832,7 @@ declare global {
               "necessaries": PreLaunchInformationType;
               "libraries"  : Array<SpecificPatchLibraryType>;
             },
-            LibraryArtifactsType,
+            Array<MappedArtifactType>,
             "non-promise"
           >;
 
@@ -857,9 +855,9 @@ declare global {
             {
               "necessaries": PreLaunchInformationType;
               "unparsed"   : Array<SpecificPatchLibraryType>;
-              "parsed"     : LibraryArtifactsType;
+              "parsed"     : Array<MappedArtifactType>;
             },
-            LibraryArtifactsType,
+            Array<MappedArtifactType>,
             "non-promise"
           >;
         };
@@ -988,7 +986,7 @@ declare global {
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
             },
-            LibraryArtifactsType | false
+            Array<MappedArtifactType> | false
           >;
 
           /**
@@ -1011,10 +1009,10 @@ declare global {
           "after": HookReturnType<
             {
               "necessaries": PreLaunchInformationType;
-              "results"    : LibraryArtifactsType;
+              "results"    : Array<MappedArtifactType>;
               "versionMeta": SpecificPatchMetaType;
             },
-            LibraryArtifactsType | false
+            Array<MappedArtifactType> | false
           >;
         };
 
@@ -1271,7 +1269,7 @@ declare global {
               "instanceId"  : string;
               "necessaries" : PreLaunchInformationType;
               "versionMeta" : SpecificPatchMetaType;
-              "parsed"      : ParsedMetaType;
+              "parsed"      : Array<MappedArtifactType>;
             },
             string
           >;
@@ -1297,7 +1295,7 @@ declare global {
               "instanceId"  : string;
               "necessaries" : PreLaunchInformationType;
               "versionMeta" : SpecificPatchMetaType;
-              "parsed"      : ParsedMetaType;
+              "parsed"      : Array<MappedArtifactType>;
             },
             string
           >;
@@ -1330,7 +1328,7 @@ declare global {
               "instanceId" : string;
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
-              "parsed"     : ParsedMetaType;
+              "parsed"     : Array<MappedArtifactType>;
             },
             {
               "argument"  : string;
@@ -1364,7 +1362,7 @@ declare global {
               "instanceId" : string;
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
-              "parsed"     : ParsedMetaType;
+              "parsed"     : Array<MappedArtifactType>;
             },
             string
           >;
@@ -1390,7 +1388,7 @@ declare global {
               "instanceId"           : string;
               "necessaries"          : PreLaunchInformationType;
               "versionMeta"          : SpecificPatchMetaType;
-              "parsed"               : ParsedMetaType;
+              "parsed"               : Array<MappedArtifactType>;
             },
             string
           >;
@@ -1423,7 +1421,7 @@ declare global {
               "instanceId"  : string;
               "necessaries" : PreLaunchInformationType;
               "versionMeta" : SpecificPatchMetaType;
-              "parsed"      : ParsedMetaType;
+              "parsed"      : Array<MappedArtifactType>;
             },
             string
           >;
@@ -1469,7 +1467,7 @@ declare global {
               "instanceId" : string;
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
-              "parsed"     : ParsedMetaType;
+              "parsed"     : Array<MappedArtifactType>;
               "javaBinary" : string;
             },
             string,
@@ -1514,7 +1512,7 @@ declare global {
               "instanceId" : string;
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
-              "parsed"     : ParsedMetaType;
+              "parsed"     : Array<MappedArtifactType>;
               "javaBinary" : string;
             },
             string,
@@ -1564,7 +1562,7 @@ declare global {
               "instanceId" : string;
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
-              "parsed"     : ParsedMetaType;
+              "parsed"     : Array<MappedArtifactType>;
               "javaBinary" : string;
             },
             void
@@ -1602,7 +1600,7 @@ declare global {
               "instanceId" : string;
               "necessaries": PreLaunchInformationType;
               "versionMeta": SpecificPatchMetaType;
-              "parsed"     : ParsedMetaType;
+              "parsed"     : Array<MappedArtifactType>;
               "javaBinary" : string;
             },
             "nothing"

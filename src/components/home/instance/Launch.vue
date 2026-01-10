@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useIntervalFn } from "@vueuse/core";
 import { computed, inject, ref, watchEffect } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
@@ -13,7 +14,10 @@ import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
-import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import type {
+  InstanceStatesType,
+  InstanceStateType,
+} from "@/types/application/instance-states.type.ts";
 import type {
   LauncherStatusesType,
   WrappedInstanceLauncherStatusesType,
@@ -102,6 +106,36 @@ watchEffect((): void => {
     ? "progress"
     : "";
 });
+
+const previousIntervalTime = ref<number>(Date.now());
+
+useIntervalFn((): void => {
+  if (statuses.value?.launching === 2) {
+    const currentId: string | undefined = currentInstance.value?.id;
+    const currentInstanceContent: InstanceStateType | undefined = currentInstance.value?.instance;
+    const currentPlayTime: number | undefined = currentInstanceContent?.playTime;
+
+    // 'currentTime' might be zero
+    if (!currentId || !currentInstanceContent || currentPlayTime === undefined) {
+      return;
+    }
+
+    const currentAbsoluteTime: number = Date.now();
+    const previousAbsoluteTime: number = previousIntervalTime.value;
+    const timeToAdd: number = currentAbsoluteTime - previousAbsoluteTime;
+
+    Instances.change(currentId, {
+      ...currentInstanceContent,
+      "playTime": currentPlayTime + timeToAdd,
+    });
+
+    previousIntervalTime.value = currentAbsoluteTime;
+
+    if (instanceStates) {
+      Instances.syncMetadata(instanceStates);
+    }
+  }
+}, 2000);
 </script>
 
 <template>

@@ -172,6 +172,17 @@ button[data-tooltip] {
   opacity: 0;
 }
 
+/* 'fade-both-long' transition */
+.fade-both-long-enter-active,
+.fade-both-long-leave-active {
+  transition: opacity 500ms ease-in-out;
+}
+
+.fade-both-long-enter-from,
+.fade-both-long-leave-to {
+  opacity: 0;
+}
+
 /* 'expand' transition */
 .expand-enter-active {
   transition: opacity 150ms ease-in-out, transform 300ms cubic-bezier(.25,.85,.25,.85);

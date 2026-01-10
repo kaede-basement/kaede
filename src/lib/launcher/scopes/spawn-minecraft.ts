@@ -23,6 +23,8 @@ export async function spawnMinecraft({
   "necessaries": PreLaunchInformationType;
   "onClose"    : (instanceId: string) => void;
 }): Promise<LaunchResponseType> {
+  console.log(command);
+
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<LaunchResponseType>({
       "scope" : "onMinecraftLaunch",

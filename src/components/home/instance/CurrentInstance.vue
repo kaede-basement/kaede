@@ -60,7 +60,7 @@ async function selectInstance(id: string, layout: GlobalStatesType["layout"]): P
   syncing.value = false;
 }
 
-const dropdown = computed((): Array<DropdownItemType> => {
+const dropdownItems = computed((): Array<DropdownItemType> => {
   if (instanceStates === undefined || globalStates === undefined) {
     return [];
   }
@@ -74,7 +74,7 @@ const dropdown = computed((): Array<DropdownItemType> => {
       "image"   : instance.icon,
       "onclick" : (): Promise<void> => selectInstance(id, globalStates.layout),
       "title"   : instance.name,
-      "subtitle": instance.version,
+      "subtitle": instance.patchVersions["net.minecraft"],
       "disabled": id === currentId,
     };
   });
@@ -88,10 +88,9 @@ const dropdown = computed((): Array<DropdownItemType> => {
     size-class-names="h-85 w-full"
     :shown="selector"
     :close="closeInstancesSelector"
-    :items="dropdown"
+    :items="dropdownItems"
   />
   <button
-    v-if="currentInstance"
     :disabled="syncing"
     @mousedown="openInstancesSelector"
     @click="openInstancesSelector"
@@ -99,11 +98,17 @@ const dropdown = computed((): Array<DropdownItemType> => {
     class="relative flex flex-nowrap items-center gap-2 rounded-md p-2 transition-[background-color,opacity] active:cursor-default hover:bg-[theme(colors.neutral.100/.05)]"
   >
     <Image
+      v-if="currentInstance"
       id="__home-page__current-instance-logo"
       class-names="rounded-md size-12 p-1"
       :src="currentInstance.instance.icon"
       :alt="`${currentInstance.instance.name}'s icon`"
     />
+    <span
+      v-else
+      id="__home-page__current-instance-missing-logo"
+      class="m-1 block size-10 rounded-md bg-neutral-500"
+    ></span>
     <span
       id="__home-page__current-instance-information-wrapper"
       class="flex flex-col items-start pr-1"
@@ -112,13 +117,16 @@ const dropdown = computed((): Array<DropdownItemType> => {
         id="__home-page__current-instance-information-title"
         class="block font-medium"
       >
-        {{ currentInstance.instance.name }}
+        {{ currentInstance?.instance?.name ?? "Unknown" }}
       </span>
       <span
         id="__home-page__current-instance-information-version"
         class="block text-neutral-400"
       >
-        {{ currentInstance.instance.version }}
+        {{
+          currentInstance?.instance?.patchVersions?.["net.minecraft"]
+            ?? "Click here to select an instance"
+        }}
       </span>
     </span>
     <MaterialRipple />

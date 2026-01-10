@@ -1,5 +1,45 @@
 <script setup lang="ts">
+import { computed, inject } from "vue";
+
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import { GlobalStatesContextKey, InstanceStatesContextKey } from "@/constants/application.ts";
+import Instances from "@/lib/instances";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
+
+const currentInstance = computed((): CurrentInstanceType => (
+  Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
+));
+const playTime = computed((): string => {
+  const currentMillisecondsTime: number | undefined = currentInstance.value?.instance?.playTime;
+
+  if (!currentMillisecondsTime) {
+    return "0 seconds";
+  }
+
+  const currentTime: number = currentMillisecondsTime / 1000;
+  const totalMinutes: number = currentTime / 60;
+  const totalHours: number = totalMinutes / 60;
+
+  const milliseconds: number = currentMillisecondsTime % 1000;
+  const seconds: number = Math.floor(currentTime % 60);
+  const minutes: number = Math.floor(totalMinutes % 60);
+  const hours: number = Math.floor(totalHours);
+
+  if (minutes <= 0) {
+    return `${seconds}.${milliseconds} seconds`;
+  }
+
+  if (hours <= 0) {
+    return `${minutes} minutes, ${seconds}.${milliseconds} seconds`;
+  }
+
+  return `${hours} hours, ${minutes} minutes, ${seconds}.${milliseconds} seconds`;
+});
 </script>
 
 <template>
@@ -28,9 +68,18 @@ import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
       </span>
       <span
         id="__home-page__current-playtime-information-time"
-        class="block text-sm text-neutral-400"
+        class="relative block w-full whitespace-pre-wrap text-sm text-neutral-400"
       >
-        73 hours, 8 minutes, 56 seconds
+        {{ " " }}
+        <Transition name="fade-both-long">
+          <span
+            id="__home-page__current-playtime-information-time-text"
+            :key="playTime"
+            class="absolute left-0 w-full text-nowrap"
+          >
+            {{ playTime }}
+          </span>
+        </Transition>
       </span>
     </span>
     <MaterialRipple />
