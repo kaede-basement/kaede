@@ -17,7 +17,7 @@ import LaunchOptions from "@/components/home/instance/LaunchOptions.vue";
       >
         <div
           id="__home-page__instance-section-wrapper"
-          class="relative flex flex-col items-stretch gap-0"
+          class="relative w-88 flex flex-col items-stretch gap-0"
         >
           <CurrentInstance />
           <CurrentPlaytime />
