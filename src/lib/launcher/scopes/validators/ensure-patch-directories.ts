@@ -60,6 +60,10 @@ export async function ensurePatchDirectories(
     );
   }
 
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Missing patch directories: ${toCreate.join(", ")}`,
+  );
   await Promise.all(
     toCreate.map(path => mkdir(path)),
   );

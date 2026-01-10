@@ -62,9 +62,11 @@ export function replaceLaunchArguments({
       "kaede": ["unknown"],
     }),
     // 'msa', 'mojang', or 'offline' (?)
-    "user_type"   : auth.type,
-    "version_name": instance.version,
-    "version_type": finalizedPatch?.type ?? "release",
+    "user_type"          : auth.type,
+    "version_name"       : instance.version,
+    "version_type"       : finalizedPatch?.type ?? "release",
+    // Introduced by Kaede
+    "libraries_directory": directories.libraries,
   };
 
   const beforeHooksResult: "continue" | string | undefined =

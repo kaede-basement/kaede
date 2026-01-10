@@ -47,6 +47,25 @@ function addArtifactsToMap(
 
   for (const artifact of artifacts) {
     const id = artifact.id;
+    const stored: MappedArtifactType | undefined = map.get(id);
+
+    // The 'library' and 'empty' ones should be included into classpaths
+    if (stored?.status === "library" || stored?.status === "empty") {
+      map.set(id, {
+        ...artifact,
+
+        /*
+         * Preserve the already stored status.
+         *
+         * Seems like the 49.2.0 version of 'net.minecraftforge' has 'com.google.code.gson:gson'
+         * in the 'mavenFiles' section, while 'net.minecraft' specifies that library
+         * in the 'libraries' section, thus requiring it to be in the classpaths
+         */
+        "status": stored.status,
+      });
+
+      continue;
+    }
 
     map.set(id, artifact);
   }

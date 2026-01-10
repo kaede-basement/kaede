@@ -33,7 +33,7 @@ import {
   ensureMinecraftDirectory,
 } from "@/lib/launcher/scopes/validators/ensure-minecraft-directory.ts";
 import {
-  ensurePatchDirectories
+  ensurePatchDirectories,
 } from "@/lib/launcher/scopes/validators/ensure-patch-directories.ts";
 import {
   initializeAssetsDirectories,
@@ -112,6 +112,17 @@ export async function handleLaunch({
     "patches": allPatches,
     necessaries,
   });
+
+  log.info(
+    __PRE_BUNDLED_FILENAME__,
+    log.templates.json.contents(
+      "Finalized patch (artifacts are omitted due to being large)",
+      {
+        ...finalizedPatch,
+        "artifacts": "[...] " + finalizedPatch.artifacts.length + " entries",
+      },
+    ),
+  );
 
   const responses: Array<boolean> = await Promise.all([
     downloadAssets({ necessaries, finalizedPatch }),

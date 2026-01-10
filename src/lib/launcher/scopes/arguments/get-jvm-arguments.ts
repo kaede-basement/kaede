@@ -32,7 +32,8 @@ export async function getJvmArguments({
   log.debug(__PRE_BUNDLED_FILENAME__, "Adding default JVM arguments");
   jvmArguments.push(
     "-Xms1G",
-    "-Xmx6G",
+    "-Xmx4G",
+    "-DlibraryDirectory=${libraries_directory}",
     "-Djava.library.path=${natives_directory}",
     "-Djna.tmpdir=${natives_directory}",
     "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",

@@ -85,11 +85,15 @@ async function launchInstance(instanceId?: string): Promise<void> {
     const { success, process }: LaunchResponseType = await Launcher.handleLaunch({
       "instance"       : currentInstance.instance,
       "userPreferences": {
-        "javaBinary": "javaw",
+        "javaBinary": "java",
         "javaMajor" : javaMajor,
         "versions"  : {
-          "net.minecraft"            : currentInstance.instance.version,
-          "net.minecraftforge"       : "61.0.5", // 36.2.42 for 1.16.5
+          "net.minecraft": currentInstance.instance.version,
+          "net.neoforged": "20.4.2-beta",
+          // 36.2.42 for 1.16.5, 61.0.5 for 1.21.11
+          "net.minecraftforge": currentInstance.instance.version === "1.20.4"
+            ? "49.2.0"
+            : "36.2.42",
           "com.mumfrey.liteloader"   : currentInstance.instance.version,
           "net.fabricmc.intermediary": currentInstance.instance.version,
         },

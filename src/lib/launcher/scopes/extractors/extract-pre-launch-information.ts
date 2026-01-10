@@ -158,6 +158,12 @@ export function extractPreLaunchInformation({
       ),
     },
   };
+
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    log.templates.json.contents("Pre-launch information", preLaunchInformation),
+  );
+
   const afterHooksResult: "continue" | PreLaunchInformationType | false | undefined =
     ExtensionsManager.catchSyncResponseHooks<PreLaunchInformationType | false>({
       "scope" : "onPreLaunchInformation",

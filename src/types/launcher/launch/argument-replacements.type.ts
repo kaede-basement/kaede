@@ -18,6 +18,8 @@ export type ArgumentReplacementsType = {
   "user_type"            : string;
   "version_name"         : string;
   "version_type"         : string;
+  // Introduced by Kaede
+  "libraries_directory"  : string;
 };
 export type ArgumentAuthReplacementsType = {
   "auth_access_token": string;
