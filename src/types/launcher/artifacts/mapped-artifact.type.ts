@@ -4,7 +4,8 @@ export type MappedArtifactType = {
   "file"     : string;
   "directory": string;
   "url"      : string;
-  "hash"     : string;
+  // 'ignore' is used only when the hash is unknown
+  "hash"     : string | "ignore";
 
   /**
    * 'library' should be both downloaded and included in the classpath

@@ -48,7 +48,14 @@ export function parseNative({
     }
 
     const artifact: Required<MappedArtifactType> = {
-      "id"    : name,
+
+      /*
+       * The 'id' field is used to filter out unique artifacts,
+       * but the 'name' field is taken by the library already.
+       *
+       * Example: text2speech and text2speech-natives share the same 'name' field
+       */
+      "id"    : `${name}-natives`,
       "url"   : newFormattedUrl,
       "status": "native",
       directory,
@@ -105,7 +112,14 @@ export function parseNative({
     const updatedPath: string = General.cachedJoin(directory, requiredName);
 
     return {
-      "id"       : name,
+
+      /*
+       * The 'id' field is used to filter out unique artifacts,
+       * but the 'name' field is taken by the library already.
+       *
+       * Example: text2speech and text2speech-natives share the same 'name' field
+       */
+      "id"       : `${name}-natives`,
       "directory": directory,
       "file"     : requiredName,
       "path"     : updatedPath,

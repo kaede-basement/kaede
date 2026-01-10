@@ -18,11 +18,12 @@ export function parseLibrary({
 }): Required<MappedArtifactType> | false {
   const { directories } = necessaries;
   const name: string | undefined = library?.name;
+  const baseUrl: string | undefined = library?.url;
   const url: string | undefined = library?.downloads?.artifact?.url;
   const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
-  if (name === undefined || url === undefined || hash === undefined) {
-    log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' library is invalid`);
+  if (name === undefined) {
+    log.warn(__PRE_BUNDLED_FILENAME__, `The '${JSON.stringify(library)}' library is invalid`);
 
     return false;
   }
@@ -36,6 +37,80 @@ export function parseLibrary({
     directory,
     file,
   );
+
+  // The 'com.mumfrey.liteloader' patch libraries only have the 'name' fields sometimes
+  const isEmpty = baseUrl === undefined && library?.downloads === undefined;
+
+  if (isEmpty) {
+    log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' library is empty`);
+
+    return {
+      "id"    : name,
+      "status": "empty",
+      "url"   : "",
+      "hash"  : "ignore",
+      directory,
+      file,
+      path,
+    };
+  }
+
+  // The 'net.fabricmc.fabric-loader' patch libraries only have the 'name' and 'url' fields
+  if (baseUrl !== undefined) {
+    /*
+     * For some reason, sometimes 'url' fields lack the '/' character at the end of the string
+     *
+     * Example:
+     * {
+     *   "name": "net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7",
+     *   "url": "https://maven.fabricmc.net/"
+     * },
+     * {
+     *   "name": "net.fabricmc:fabric-loader:0.18.4",
+     *   "url": "https://maven.fabricmc.net"
+     * }
+     */
+    const ensureSlash: string = baseUrl.endsWith("/") ? "" : "/";
+    // 'net.fabricmc:fabric-loader:0.18.4'
+    const urlPaths: Array<string> = name
+      // '["net.fabricmc", "fabric-loader", "0.18.4"]'
+      .split(":");
+    // 'net.fabricmc'
+    const groupPart: string | undefined = urlPaths.shift();
+
+    if (!groupPart) {
+      log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' library name is invalid`);
+
+      return false;
+    }
+
+    // 'net/fabricmc/fabric-loader/0.18.4'
+    const urlPath: string = [
+      // 'net/fabricmc'
+      groupPart.split(".").join("/"),
+      // '["fabric-loader", "0.18.4"]'
+      ...urlPaths,
+    ].join("/");
+    const builtUrl: string = baseUrl + ensureSlash + urlPath + "/" + file;
+
+    console.log("uhee", builtUrl);
+
+    return {
+      "id"    : name,
+      "status": isMaven ? "mavenFile" : "library",
+      "url"   : builtUrl,
+      "hash"  : "ignore",
+      directory,
+      file,
+      path,
+    };
+  }
+
+  if (url === undefined || hash === undefined) {
+    log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' library is invalid`);
+
+    return false;
+  }
 
   return {
     "id"    : name,

@@ -30,16 +30,19 @@ export async function downloadLibraries({
   }
 
   const { statuses, instance } = necessaries;
+  const artifacts: Array<MappedArtifactType> = finalizedPatch
+    .artifacts
+    .filter(({ status }) => status !== "empty");
 
   log.debug(
     __PRE_BUNDLED_FILENAME__,
-    `Verifying ${finalizedPatch.artifacts.length} libraries for their existence.`,
+    `Verifying ${artifacts.length} libraries for their existence.`,
     `SHA1 checks enabled: ${instance.checksum}`,
   );
   const startTime: number = performance.now();
   const missing: Set<string> = new Set(
     await verifyArtifacts({
-      "paths"   : finalizedPatch.artifacts,
+      "paths"   : artifacts,
       "checksum": instance.checksum,
     }),
   );
@@ -48,12 +51,12 @@ export async function downloadLibraries({
 
   log.info(
     __PRE_BUNDLED_FILENAME__,
-    `Successfully verified ${finalizedPatch.artifacts.length} libraries in ${totalTime} ms.`,
+    `Successfully verified ${artifacts.length} libraries in ${totalTime} ms.`,
     `Total mismatches: ${missing.size}.`,
     `SHA1 checks enabled: ${instance.checksum}`,
   );
 
-  const missingArtifacts: Array<MappedArtifactType> = finalizedPatch.artifacts
+  const missingArtifacts: Array<MappedArtifactType> = artifacts
     .filter(({ path }) => {
       return missing.has(path);
     });
@@ -79,7 +82,7 @@ export async function downloadLibraries({
 
   log.info(
     __PRE_BUNDLED_FILENAME__,
-    `Successfully handled ${finalizedPatch.artifacts.length} libraries`,
+    `Successfully handled ${artifacts.length} libraries`,
     `and re-downloaded ${missing.size} of them`,
   );
   statuses.current = LaunchStatus.Libraries.Success;
