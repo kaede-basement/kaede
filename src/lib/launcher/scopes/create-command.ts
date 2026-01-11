@@ -16,6 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { resolveResource } from "@tauri-apps/api/path";
+
+import { ResourceLauncher } from "@/constants/application.ts";
 import {
   getAdditionalStartArguments,
 } from "@/lib/launcher/scopes/arguments/get-additional-start-arguments.ts";
@@ -39,43 +42,42 @@ export async function createCommand({
   "finalizedPatch": FinalizedPatchType;
 }): Promise<{
   "program"  : string;
-  "arguments": string;
+  "java"     : string;
+  "arguments": Array<string>;
 }> {
   const [
+    // Minecraft will be launched inside a Java applet
+    launcherJar,
     javaBinary,
     jvmArguments,
     { "argument": classPathsArgument, classPaths },
     gameArguments,
+    additionalArguments,
   ]: [
     string,
     string,
+    Array<string>,
     { "argument": string; "classPaths": string },
-    string,
+    Array<string>,
+    Array<string>,
   ] = await Promise.all([
+    resolveResource(ResourceLauncher),
     getJavaBinary({ necessaries, finalizedPatch }),
     getJvmArguments({ necessaries, finalizedPatch }),
     getClassPaths({ necessaries, finalizedPatch }),
     getGameArguments({ necessaries, finalizedPatch }),
+    getAdditionalStartArguments({ necessaries, finalizedPatch }),
   ]);
 
-  const additionalArguments: string = await getAdditionalStartArguments({
-    javaBinary,
-    necessaries,
-    finalizedPatch,
-  });
-
   const toReplace: Array<string> = [
-    jvmArguments,
+    ...additionalArguments,
+    ...jvmArguments,
     classPathsArgument,
     finalizedPatch.mainClass,
-    gameArguments,
+    ...gameArguments,
   ];
 
-  if (additionalArguments !== "") {
-    toReplace.unshift(additionalArguments);
-  }
-
-  const launchArguments: string = replaceLaunchArguments({
+  const launchArguments: Array<string> = replaceLaunchArguments({
     "auth": {
       "uuid"    : "3206b5f6acd3419ea2977d120f510767",
       "token"   : "none",
@@ -83,7 +85,7 @@ export async function createCommand({
       "type"    : "msa",
     },
     "builtLaunchArguments": {
-      "toReplace": toReplace.join(" "),
+      toReplace,
       classPaths,
     },
     necessaries,
@@ -94,7 +96,8 @@ export async function createCommand({
   console.log(launchArguments);
 
   return {
-    "program"  : javaBinary,
+    "program"  : launcherJar,
+    "java"     : javaBinary,
     "arguments": launchArguments,
   };
 }

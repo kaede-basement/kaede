@@ -13,11 +13,11 @@ export async function getJvmArguments({
 }: {
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
-}): Promise<string> {
+}): Promise<Array<string>> {
   const jvmArguments: Array<string> = [];
 
-  const beforeHooksResult: "continue" | string | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<string>({
+  const beforeHooksResult: "continue" | Array<string> | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<Array<string>>({
       "scope" : "onJVMArgumentsGet",
       "toPass": { jvmArguments, necessaries, finalizedPatch },
       "timing": "before",
@@ -54,7 +54,7 @@ export async function getJvmArguments({
       if (version().slice(0, 2) === "10") {
         log.debug(__PRE_BUNDLED_FILENAME__, "Adding Windows 10 specific JVM arguments");
         jvmArguments.push(
-          // "-Dos.name=\"Windows 10\"", // broken even with quotes around command instead value
+          "-Dos.name=Windows 10",
           "-Dos.version=10.0",
         );
       }
@@ -105,8 +105,8 @@ export async function getJvmArguments({
     jvmArguments.push(loggingArguments);
   }
 
-  const afterHooksResult: "continue" | string | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<string>({
+  const afterHooksResult: "continue" | Array<string> | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<Array<string>>({
       "scope" : "onJVMArgumentsGet",
       "toPass": { necessaries, finalizedPatch },
       "timing": "after",
@@ -116,5 +116,5 @@ export async function getJvmArguments({
     return afterHooksResult;
   }
 
-  return jvmArguments.join(" ");
+  return jvmArguments;
 }

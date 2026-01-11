@@ -25,15 +25,16 @@ export function replaceLaunchArguments({
     "type"    : string;
   };
   "builtLaunchArguments": {
-    "toReplace" : string;
+    "toReplace" : Array<string>;
     "classPaths": string;
   };
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
   "javaBinary"    : string;
-}): string {
+}): Array<string> {
   const { directories, instance } = necessaries;
   const assetIndexId: string = finalizedPatch?.assetIndex?.id ?? "";
+  const toReplace: Array<string> = builtLaunchArguments.toReplace;
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing replacements (without auth)");
   const replacements: ArgumentReplacementsType = {
@@ -69,8 +70,8 @@ export function replaceLaunchArguments({
     "libraries_directory": directories.libraries,
   };
 
-  const beforeHooksResult: "continue" | string | undefined =
-    ExtensionsManager.catchSyncResponseHooks<string>({
+  const beforeHooksResult: "continue" | Array<string> | undefined =
+    ExtensionsManager.catchSyncResponseHooks<Array<string>>({
       "scope" : "onLaunchArgumentsReplace",
       "toPass": {
         auth,
@@ -100,17 +101,17 @@ export function replaceLaunchArguments({
     __PRE_BUNDLED_FILENAME__,
     "Replacing placeholders in the launch command (without auth)",
   );
-  const commandWithoutAuth: string = builtLaunchArguments.toReplace
-    .replace(keysRegex, matched => {
-      const key = matched.slice(2, -1) as keyof ArgumentReplacementsType;
+  toReplace.map(argument => argument.replace(keysRegex, matched => {
+    // 'matched' is in the '${text}' format, but we need 'text'
+    const key = matched.slice(2, -1) as keyof ArgumentReplacementsType;
 
-      return replacements[key];
-    });
+    return replacements[key];
+  }));
 
   log.info(
     __PRE_BUNDLED_FILENAME__,
     "The launching command (auth data is hidden):",
-    "\n" + javaBinary + " " + commandWithoutAuth,
+    "\n" + javaBinary + " " + toReplace.join(" "),
   );
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing auth replacements");
@@ -124,8 +125,8 @@ export function replaceLaunchArguments({
     "auth_xuid"        : auth.uuid,
   };
 
-  const afterHooksResult: "continue" | string | undefined =
-    ExtensionsManager.catchSyncResponseHooks<string>({
+  const afterHooksResult: "continue" | Array<string> | undefined =
+    ExtensionsManager.catchSyncResponseHooks<Array<string>>({
       "scope" : "onLaunchArgumentsReplace",
       "toPass": {
         auth,
@@ -154,10 +155,10 @@ export function replaceLaunchArguments({
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Replacing auth placeholders in the launch command");
 
-  return commandWithoutAuth
-    .replace(authKeysRegex, matched => {
-      const key = matched.slice(2, -1) as keyof ArgumentAuthReplacementsType;
+  return toReplace.map(argument => argument.replace(authKeysRegex, matched => {
+    // 'matched' is in the '${text}' format, but we need 'text'
+    const key = matched.slice(2, -1) as keyof ArgumentAuthReplacementsType;
 
-      return authReplacements[key];
-    });
+    return authReplacements[key];
+  }));
 }

@@ -23,19 +23,7 @@ export async function getJavaBinary({
     return beforeHooksResult;
   }
 
-  const { platform } = necessaries;
-  let javaBinary: string;
-
-  switch (platform) {
-    case "windows": {
-      javaBinary = "cmd";
-
-      break;
-    }
-    default: {
-      javaBinary = "java";
-    }
-  }
+  const javaBinary: string = necessaries.user.javaBinary;
 
   log.debug(
     __PRE_BUNDLED_FILENAME__,

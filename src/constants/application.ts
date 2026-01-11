@@ -11,6 +11,8 @@ export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
 export const ApplicationRootID = "#app";
 
+export const ResourceLauncher = "jarfiles/launcher.jar";
+
 export const GlobalStatesContextKey = Symbol();
 export const TranslationsContextKey = Symbol();
 export const InstanceStatesContextKey = Symbol();

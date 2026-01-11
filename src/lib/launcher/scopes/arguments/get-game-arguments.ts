@@ -11,9 +11,9 @@ export async function getGameArguments({
 }: {
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
-}): Promise<string> {
-  const beforeHooksResult: "continue" | string | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<string>({
+}): Promise<Array<string>> {
+  const beforeHooksResult: "continue" | Array<string> | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<Array<string>>({
       "scope" : "onGameArgumentsGet",
       "toPass": { necessaries, finalizedPatch },
       "timing": "before",
@@ -35,14 +35,14 @@ export async function getGameArguments({
   }
 
   const tweakersList: Array<string> = finalizedPatch["+tweakers"] ?? [];
-  const argumentsWithTweakers: Array<string> = [finalizedPatch.minecraftArguments];
+  const argumentsWithTweakers: Array<string> = finalizedPatch.minecraftArguments.split(" ");
 
   for (const tweaker of tweakersList) {
     argumentsWithTweakers.push(`--tweakClass ${tweaker}`);
   }
 
-  const afterHooksResult: "continue" | string | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<string>({
+  const afterHooksResult: "continue" | Array<string> | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<Array<string>>({
       "scope" : "onGameArgumentsGet",
       "toPass": { argumentsWithTweakers, necessaries, finalizedPatch },
       "timing": "after",
@@ -52,5 +52,5 @@ export async function getGameArguments({
     return afterHooksResult;
   }
 
-  return argumentsWithTweakers.join(" ");
+  return argumentsWithTweakers;
 }

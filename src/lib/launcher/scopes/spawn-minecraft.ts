@@ -1,6 +1,7 @@
+import { resolveResource } from "@tauri-apps/api/path";
 import { Child, Command } from "tauri-plugin-shellx-api";
 
-import { ApplicationName } from "@/constants/application.ts";
+import { ApplicationName, ResourceLauncher } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -17,14 +18,13 @@ export async function spawnMinecraft({
 }: {
   "command": {
     "program"  : string;
-    "arguments": string;
+    "java"     : string;
+    "arguments": Array<string>;
   };
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
   "onClose"    : (instanceId: string) => void;
 }): Promise<LaunchResponseType> {
-  console.log(command);
-
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<LaunchResponseType>({
       "scope" : "onMinecraftLaunch",
@@ -42,10 +42,14 @@ export async function spawnMinecraft({
     __PRE_BUNDLED_FILENAME__,
     `Creating a launch command with the '${directories.instance}' working directory`,
   );
+
+  console.log(`/C java -jar "${command.program}" "${directories.instance}" "${command.java}" "${command.arguments.join("\" \"")}"`);
+
+  return;
+
   const launchTask = Command.create(
-    command.program,
-    command.arguments,
-    { "cwd": directories.instance },
+    "cmd",
+    `/C java -jar ${launcherJar} "${directories.instance}" "java" "${command.arguments.join("\" \"")}"`,
   );
 
   log.debug(__PRE_BUNDLED_FILENAME__, `Launching the '${instanceId}' instance`);
@@ -58,6 +62,12 @@ export async function spawnMinecraft({
   });
 
   log.debug(__PRE_BUNDLED_FILENAME__, `Adding listeners to the '${instanceId}' instance process`);
+  launchTask.stdout.on("data", data => {
+    console.log(data);
+  });
+  launchTask.stderr.on("data", data => {
+    console.log(data);
+  });
   launchTask.on("close", payload => {
     onClose(instanceId);
     log.info(

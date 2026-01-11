@@ -5,18 +5,17 @@ import type {
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 export async function getAdditionalStartArguments({
-  javaBinary,
   necessaries,
   finalizedPatch,
 }: {
-  "javaBinary"    : string;
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
-}): Promise<string> {
-  const beforeHooksResult: "continue" | string | undefined =
-    await ExtensionsManager.catchAsyncResponseHooks<string>({
+}): Promise<Array<string>> {
+  const additional: Array<string> = [];
+  const beforeHooksResult: "continue" | Array<string> | undefined =
+    await ExtensionsManager.catchAsyncResponseHooks<Array<string>>({
       "scope" : "onAdditionalStartArgumentsGet",
-      "toPass": { javaBinary, necessaries, finalizedPatch },
+      "toPass": { additional, necessaries, finalizedPatch },
       "timing": "before",
     });
 
@@ -24,10 +23,5 @@ export async function getAdditionalStartArguments({
     return beforeHooksResult;
   }
 
-  const actualJavaBinary: string = necessaries.user.javaBinary;
-  const handledJavaBinary: string = actualJavaBinary.includes("bin")
-    ? `"${actualJavaBinary}"`
-    : actualJavaBinary;
-
-  return javaBinary === "cmd" ? `/C ${handledJavaBinary}` : "";
+  return additional;
 }

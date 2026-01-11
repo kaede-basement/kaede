@@ -149,7 +149,8 @@ export async function handleLaunch({
 
   const [command]: [{
     "program"  : string;
-    "arguments": string;
+    "java"     : string;
+    "arguments": Array<string>;
   }, void] = await Promise.all([
     createCommand({ necessaries, finalizedPatch }),
     extractNativeArchives({
