@@ -42,6 +42,14 @@ export async function spawnMinecraft({
     `Creating a launch command with the '${directories.instance}' working directory`,
   );
 
+  /*
+   * Every argument or word should be escaped with double quotes.
+   * The java applet input arguments divide argument elements not only for spaces,
+   * but for dots too (possibly other characters).
+   *
+   * The powershell or the provided system shell
+   * might also do something with these arguments unless escaped
+   */
   const escapedApplet: string = `"${command.program}" "${directories.instance}" "${command.java}"`;
   const escapedArguments: string = `"${command.arguments.join("\" \"")}"`;
   const launchTask: Command<string> = necessaries.platform === "windows"

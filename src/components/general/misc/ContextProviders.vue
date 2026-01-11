@@ -85,7 +85,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
     const { success, process }: LaunchResponseType = await Launcher.handleLaunch({
       "instance"       : currentInstance.instance,
       "userPreferences": {
-        "javaBinary": "javaw",
+        "javaBinary": String.raw`C:\\Program Files\\Eclipse Adoptium\\jdk-25.0.1.8-hotspot\\bin\\javaw.exe`,
         "javaMajor" : javaMajor,
         "versions"  : currentInstance.instance.patchVersions,
       },
