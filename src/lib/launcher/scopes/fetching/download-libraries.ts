@@ -1,6 +1,6 @@
 import { mkdir } from "@tauri-apps/plugin-fs";
 
-import { ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
+import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { verifyArtifacts } from "@/lib/launcher/scopes/validators/verify-artifacts.ts";
@@ -71,7 +71,7 @@ export async function downloadLibraries({
 
   await General.concurrentlyDownload({
     statuses,
-    "concurrency": ConcurrentDownloads.Libraries,
+    "concurrency": GeneralSettings.ConcurrentDownloads.Libraries,
     "entries"    : missingArtifacts,
   });
   await ExtensionsManager.catchAsyncVoidHooks({

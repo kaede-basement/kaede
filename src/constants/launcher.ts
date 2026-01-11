@@ -132,7 +132,13 @@ export const APIEndpoints = {
    * "ManifestV2": "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
    */
 } as const;
-export const ConcurrentDownloads = {
-  "Assets"   : 64,
-  "Libraries": 8,
+export const GeneralSettings = {
+  "ConcurrentDownloads": {
+    "Assets"   : 64,
+    "Libraries": 8,
+  },
+  "Logs": {
+    // 65536 lines
+    "LineLimit": 8 // 1024 * 64,
+  },
 } as const;

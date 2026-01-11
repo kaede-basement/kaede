@@ -59,12 +59,14 @@ export async function handleLaunch({
   statuses,
   userPreferences,
   onClose,
+  onInput,
 }: {
   "instanceId"     : string;
   "instance"       : InstanceStateType;
   "statuses"       : LauncherStatusesType;
   "userPreferences": PreLaunchInformationType["user"];
   "onClose"        : (instanceId: string) => void;
+  "onInput"        : (line: string) => void;
 }): Promise<LaunchResponseType> {
   const necessaries: PreLaunchInformationType | false = extractPreLaunchInformation({
     instanceId,
@@ -167,5 +169,6 @@ export async function handleLaunch({
     instanceId,
     necessaries,
     onClose,
+    onInput,
   });
 }

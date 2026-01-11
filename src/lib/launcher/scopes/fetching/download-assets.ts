@@ -17,7 +17,7 @@
  */
 
 import { FileStructure } from "@/constants/file-structure.ts";
-import { APIEndpoints, ConcurrentDownloads, LaunchStatus } from "@/constants/launcher.ts";
+import { APIEndpoints, GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import { fetchMetadata } from "@/lib/launcher/scopes/fetching/fetch-metadata.ts";
@@ -180,7 +180,7 @@ export async function downloadAssets({
 
   await General.concurrentlyDownload({
     statuses,
-    "concurrency": ConcurrentDownloads.Assets,
+    "concurrency": GeneralSettings.ConcurrentDownloads.Assets,
     "entries"    : missingAssetObjects,
   });
 

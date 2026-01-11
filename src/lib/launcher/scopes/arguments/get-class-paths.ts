@@ -1,14 +1,9 @@
-import { writeTextFile } from "@tauri-apps/plugin-fs";
-
 import ExtensionsManager from "@/lib/extensions-manager";
-import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
-
-const classPathsFileName: string = "classpaths.txt";
 
 export async function getClassPaths({
   necessaries,
@@ -17,14 +12,13 @@ export async function getClassPaths({
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<{
-  "argument"  : string;
+  "argument"  : [string, string];
   "classPaths": string;
 }> {
   log.debug(
     __PRE_BUNDLED_FILENAME__,
     "Merging all library and client classpaths",
   );
-  const { directories, "user": { javaMajor } } = necessaries;
   const mergedPaths: Array<string> = finalizedPatch
     .artifacts
     .filter(({ status }) => (
@@ -37,11 +31,11 @@ export async function getClassPaths({
   }
 
   const beforeHooksResult: "continue" | {
-    "argument"  : string;
+    "argument"  : [string, string];
     "classPaths": string;
   } | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<{
-      "argument"  : string;
+      "argument"  : [string, string];
       "classPaths": string;
     }>({
       "scope" : "onClassPathsGet",
@@ -58,38 +52,13 @@ export async function getClassPaths({
   const uniquePaths: Set<string> = new Set(mergedPaths);
   const classPaths: string = [...uniquePaths].join(";");
 
-  if (javaMajor <= 8) {
-    log.info(
-      __PRE_BUNDLED_FILENAME__,
-      "The Java major version is equal to or below 8; using direct classpaths",
-    );
-
-    return {
-      "argument"  : "-cp ${classpath}",
-      "classPaths": classPaths,
-    };
-  }
-
   log.info(
     __PRE_BUNDLED_FILENAME__,
-    "The Java major version is higher than 8; using @argfile argument",
-  );
-  const classPathsFilePath: string = General.cachedJoin(
-    directories.instance,
-    classPathsFileName,
-  );
-
-  log.debug(__PRE_BUNDLED_FILENAME__, `Writing @argfile classpaths to '${classPathsFilePath}'`);
-  await writeTextFile(
-    classPathsFilePath,
-    [
-      "-cp",
-      classPaths,
-    ].join("\n"),
+    `Removed ${mergedPaths.length - uniquePaths.size} duplicated classpaths`,
   );
 
   return {
-    "argument"  : `@${classPathsFileName}`,
+    "argument"  : ["-cp", "${classpath}"],
     "classPaths": classPaths,
   };
 }

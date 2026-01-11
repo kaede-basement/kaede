@@ -14,6 +14,7 @@ export async function spawnMinecraft({
   instanceId,
   necessaries,
   onClose,
+  onInput,
 }: {
   "command": {
     "program"  : string;
@@ -23,6 +24,7 @@ export async function spawnMinecraft({
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
   "onClose"    : (instanceId: string) => void;
+  "onInput"    : (line: string) => void;
 }): Promise<LaunchResponseType> {
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<LaunchResponseType>({
@@ -70,10 +72,71 @@ export async function spawnMinecraft({
     "timing": "after",
   });
 
+  log.debug(__PRE_BUNDLED_FILENAME__, "Creating a function to handle actual PID extraction");
+  const handlePID = (line: string): void => {
+    /*
+     * TODO: handle the Minecraft instance killing more properly
+     *
+     * For some reason, the 'INFO'-leveled log messages in the Java applet
+     * go into the 'stderr'. Another thing to note is that the provided by Tauri PID points
+     * to what seems to be an intermediate process that no longer exists.
+     *
+     * To provide a way to kill the Minecraft instance, we need to handle these limitations,
+     * so in the Java applet I used a workaround to get the actual PID:
+     * refer to https://stackoverflow.com/a/7690178
+     *
+     * I also thought about writing to the process stdin with the keyword
+     * for killing the Minecraft process, but it seems like only the 'stderr' and 'stdout'
+     * are properly working here.
+     */
+    if (line.includes("__java_applet_pid_workaround_")) {
+      log.debug(
+        `${__PRE_BUNDLED_FILENAME__}:${instanceId}`,
+        "Trying to extract an actual process PID",
+      );
+      const elements: Array<string> = line.split("_");
+      const pidString: string | undefined = elements.pop();
+
+      if (!pidString) {
+        log.error(
+          __PRE_BUNDLED_FILENAME__,
+          "The workaround for the java applet was found, but no PID was extracted.",
+          `The actual line: ${line}`,
+        );
+
+        return;
+      }
+
+      const pid: number = Number(pidString);
+
+      if (Number.isNaN(pid)) {
+        log.error(
+          __PRE_BUNDLED_FILENAME__,
+          "The workaround for the java applet was found, but the extracted PID is not a number.",
+          `The extracted PID: ${pidString}; the actual line: ${line}`,
+        );
+
+        return;
+      }
+
+      log.info(__PRE_BUNDLED_FILENAME__, `Extracted the actual PID: ${pid}`);
+
+      // Overwrite the stored PID to the actual PID
+      process.pid = pid;
+
+      /*
+       * Calling 'includes' on every string line is expensive;
+       * that is why we unregister a function aimed at getting PID
+       * and instead register a specialized function that handles error logs
+       */
+      launchTask.stderr.off("data", handlePID);
+      launchTask.stderr.on("data", onInput);
+    }
+  };
+
   log.debug(__PRE_BUNDLED_FILENAME__, `Adding listeners to the '${instanceId}' instance process`);
-  launchTask.stderr.on("data", line => {
-    log.error(`minecraft:${instanceId}`, line);
-  });
+  launchTask.stdout.on("data", onInput);
+  launchTask.stderr.on("data", handlePID);
   launchTask.on("close", payload => {
     onClose(instanceId);
     log.info(
@@ -104,7 +167,11 @@ export async function spawnMinecraft({
     });
   });
 
-  log.info(__PRE_BUNDLED_FILENAME__, `The '${instanceId}' successfully launched`);
+  log.info(
+    __PRE_BUNDLED_FILENAME__,
+    `The '${instanceId}' successfully launched.`,
+    `PID: ${process.pid}`,
+  );
   statuses.current = LaunchStatus.General.Success;
 
   return { "success": true, process };

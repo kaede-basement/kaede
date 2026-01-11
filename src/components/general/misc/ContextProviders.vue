@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { platform } from "@tauri-apps/plugin-os";
 import { type Child, Command } from "tauri-plugin-shellx-api";
-import { markRaw, provide, reactive, ref } from "vue";
+import { markRaw, provide, reactive, ref, shallowReactive } from "vue";
 
 import {
   ApplicationNamespace,
@@ -9,7 +9,7 @@ import {
   LaunchInstanceContextKey,
   LaunchStatesContextKey,
 } from "@/constants/application.ts";
-import { LaunchStatus } from "@/constants/launcher.ts";
+import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
@@ -24,11 +24,17 @@ import type {
   WrappedInstanceLauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
+import { useIntervalFn } from "@vueuse/core";
 
 const accounts = ref<Array<AccountType>>(
   window[ApplicationNamespace].__internals.temporaryAccounts,
 );
 const launches = reactive<Record<string, LauncherStatusesType>>({});
+const logs = shallowReactive<Record<string, Array<string>>>({});
+
+useIntervalFn(() => {
+  console.log(logs["old-quilt"]);
+}, 100);
 
 const childProcesses: Record<string, Child> = {};
 
@@ -80,18 +86,39 @@ async function launchInstance(instanceId?: string): Promise<void> {
   statuses.current = LaunchStatus.General.Starting;
 
   try {
+    // Retrieving a reference to the logs array by using computed properties is quite expensive
+    const currentLogsArray: Array<string> | undefined = logs[instanceId];
+    // Avoid checking three references in a row just to get the line count limit
+    const lineLimit: number = GeneralSettings.Logs.LineLimit;
+
+    if (!currentLogsArray) {
+      logs[instanceId] = [];
+    }
+
+    const onInput = (line: string): void => {
+      if (currentLogsArray.length > lineLimit) {
+        // Clear the array if the line count exceeded the limit
+        currentLogsArray.length = 0;
+      }
+
+      currentLogsArray.push(line);
+    };
+    const javaBinary: string =
+      String.raw`C:\\Program Files\\Eclipse Adoptium\\jdk-25.0.1.8-hotspot\\bin\\javaw.exe`;
     const javaMajor: number = window[ApplicationNamespace].__internals.javaMajor
       ?? await General.getJavaMajor();
+
     const { success, process }: LaunchResponseType = await Launcher.handleLaunch({
       "instance"       : currentInstance.instance,
       "userPreferences": {
-        "javaBinary": String.raw`C:\\Program Files\\Eclipse Adoptium\\jdk-25.0.1.8-hotspot\\bin\\javaw.exe`,
+        "javaBinary": javaBinary,
         "javaMajor" : javaMajor,
         "versions"  : currentInstance.instance.patchVersions,
       },
       instanceId,
       statuses,
       onClose,
+      onInput,
     });
 
     statuses.launching = success ? 2 : 0;
@@ -148,9 +175,9 @@ async function closeInstance(instanceId: string): Promise<void> {
 
   // Refer to https://github.com/tauri-apps/tauri/issues/4949
   if (platform() === "windows") {
-    // await Command.create("cmd", `/C taskkill /pid ${process.pid} /f /t`).execute();
+    await Command.create("cmd", `/C taskkill /pid ${process.pid} /f /t`).execute();
 
-    // return;
+    return;
   }
 
   await process.kill();

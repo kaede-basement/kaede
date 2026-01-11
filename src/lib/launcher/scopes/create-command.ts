@@ -57,7 +57,7 @@ export async function createCommand({
     string,
     string,
     Array<string>,
-    { "argument": string; "classPaths": string },
+    { "argument": [string, string]; "classPaths": string },
     Array<string>,
     Array<string>,
   ] = await Promise.all([
@@ -72,7 +72,7 @@ export async function createCommand({
   const toReplace: Array<string> = [
     ...additionalArguments,
     ...jvmArguments,
-    classPathsArgument,
+    ...classPathsArgument,
     finalizedPatch.mainClass,
     ...gameArguments,
   ];
