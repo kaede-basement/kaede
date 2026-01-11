@@ -1,7 +1,6 @@
-import { resolveResource } from "@tauri-apps/api/path";
-import { Child, Command } from "tauri-plugin-shellx-api";
+import { Child, Command, makePowershellScript } from "tauri-plugin-shellx-api";
 
-import { ApplicationName, ResourceLauncher } from "@/constants/application.ts";
+import { ApplicationName } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -43,14 +42,16 @@ export async function spawnMinecraft({
     `Creating a launch command with the '${directories.instance}' working directory`,
   );
 
-  console.log(`/C java -jar "${command.program}" "${directories.instance}" "${command.java}" "${command.arguments.join("\" \"")}"`);
-
-  return;
-
-  const launchTask = Command.create(
-    "cmd",
-    `/C java -jar ${launcherJar} "${directories.instance}" "java" "${command.arguments.join("\" \"")}"`,
-  );
+  const escapedApplet: string = `"${command.program}" "${directories.instance}" "${command.java}"`;
+  const escapedArguments: string = `"${command.arguments.join("\" \"")}"`;
+  const launchTask: Command<string> = necessaries.platform === "windows"
+    ? makePowershellScript(
+      `javaw -jar ${escapedApplet} ${escapedArguments}`,
+    )
+    : Command.create(
+      "javaw",
+      `-jar ${escapedApplet} ${escapedArguments}`,
+    );
 
   log.debug(__PRE_BUNDLED_FILENAME__, `Launching the '${instanceId}' instance`);
   const process: Child = await launchTask.spawn();
@@ -62,11 +63,8 @@ export async function spawnMinecraft({
   });
 
   log.debug(__PRE_BUNDLED_FILENAME__, `Adding listeners to the '${instanceId}' instance process`);
-  launchTask.stdout.on("data", data => {
-    console.log(data);
-  });
-  launchTask.stderr.on("data", data => {
-    console.log(data);
+  launchTask.stderr.on("data", line => {
+    log.error(`minecraft:${instanceId}`, line);
   });
   launchTask.on("close", payload => {
     onClose(instanceId);

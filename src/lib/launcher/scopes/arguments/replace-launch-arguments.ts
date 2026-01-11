@@ -35,6 +35,7 @@ export function replaceLaunchArguments({
   const { directories, instance } = necessaries;
   const assetIndexId: string = finalizedPatch?.assetIndex?.id ?? "";
   const toReplace: Array<string> = builtLaunchArguments.toReplace;
+  const applicationVersion: string = General.getLauncherVersion();
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing replacements (without auth)");
   const replacements: ArgumentReplacementsType = {
@@ -46,7 +47,7 @@ export function replaceLaunchArguments({
     "game_assets"          : directories.assets,
     "game_directory"       : directories.instance,
     "launcher_name"        : ApplicationName,
-    "launcher_version"     : General.getLauncherVersion(),
+    "launcher_version"     : applicationVersion,
     "natives_directory"    : directories.natives,
     // 'The host of the multiplayer server'
     "quickPlayMultiplayer" : "",
@@ -65,7 +66,7 @@ export function replaceLaunchArguments({
     // 'msa', 'mojang', or 'offline' (?)
     "user_type"          : auth.type,
     "version_name"       : instance.patchVersions["net.minecraft"],
-    "version_type"       : ApplicationName,
+    "version_type"       : `${ApplicationName} ${applicationVersion}`,
     // Introduced by Kaede
     "libraries_directory": directories.libraries,
   };
@@ -101,17 +102,20 @@ export function replaceLaunchArguments({
     __PRE_BUNDLED_FILENAME__,
     "Replacing placeholders in the launch command (without auth)",
   );
-  toReplace.map(argument => argument.replace(keysRegex, matched => {
-    // 'matched' is in the '${text}' format, but we need 'text'
-    const key = matched.slice(2, -1) as keyof ArgumentReplacementsType;
+  const handledReplaces: Array<string> = toReplace.map(argument => (
+    argument.replace(keysRegex, matched => {
+      console.log(matched);
+      // 'matched' is in the '${text}' format, but we need 'text'
+      const key = matched.slice(2, -1) as keyof ArgumentReplacementsType;
 
-    return replacements[key];
-  }));
+      return replacements[key];
+    })
+  ));
 
   log.info(
     __PRE_BUNDLED_FILENAME__,
     "The launching command (auth data is hidden):",
-    "\n" + javaBinary + " " + toReplace.join(" "),
+    "\n" + javaBinary + " " + handledReplaces.join(" "),
   );
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing auth replacements");
@@ -155,7 +159,8 @@ export function replaceLaunchArguments({
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Replacing auth placeholders in the launch command");
 
-  return toReplace.map(argument => argument.replace(authKeysRegex, matched => {
+  return handledReplaces.map(argument => argument.replace(authKeysRegex, matched => {
+    console.log(matched);
     // 'matched' is in the '${text}' format, but we need 'text'
     const key = matched.slice(2, -1) as keyof ArgumentAuthReplacementsType;
 

@@ -148,9 +148,9 @@ async function closeInstance(instanceId: string): Promise<void> {
 
   // Refer to https://github.com/tauri-apps/tauri/issues/4949
   if (platform() === "windows") {
-    await Command.create("cmd", `/C taskkill /pid ${process.pid} /f /t`).execute();
+    // await Command.create("cmd", `/C taskkill /pid ${process.pid} /f /t`).execute();
 
-    return;
+    // return;
   }
 
   await process.kill();
