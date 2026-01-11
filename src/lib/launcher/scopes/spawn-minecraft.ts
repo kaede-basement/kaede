@@ -93,11 +93,11 @@ export async function spawnMinecraft({
     onInput,
   };
 
-  const { launchTask, process } = true
+  const shellHelper = false
     ? await useShell(passToHelpers)
     : await useApplet(passToHelpers);
 
-  launchTask.on("close", payload => {
+  shellHelper.launchTask.on("close", payload => {
     onClose(instanceId);
     log.info(
       __PRE_BUNDLED_FILENAME__,
@@ -107,11 +107,11 @@ export async function spawnMinecraft({
     );
     ExtensionsManager.catchAsyncVoidHooks({
       "scope" : "onMinecraftKill",
-      "toPass": process.pid,
+      "toPass": shellHelper.process.pid,
       "timing": "after",
     });
   });
-  launchTask.on("error", payload => {
+  shellHelper.launchTask.on("error", payload => {
     statuses.current = LaunchStatus.Errors.UnhandledError;
 
     log.error(
@@ -122,23 +122,23 @@ export async function spawnMinecraft({
     );
     ExtensionsManager.catchAsyncVoidHooks({
       "scope" : "onMinecraftKill",
-      "toPass": process.pid,
+      "toPass": shellHelper.process.pid,
       "timing": "after",
     });
   });
 
   await ExtensionsManager.catchAsyncVoidHooks({
     "scope" : "onMinecraftLaunch",
-    "toPass": { process, command, instanceId, necessaries },
+    "toPass": { "process": shellHelper.process, command, instanceId, necessaries },
     "timing": "after",
   });
 
   log.info(
     __PRE_BUNDLED_FILENAME__,
     `The '${instanceId}' successfully launched.`,
-    `PID: ${process.pid}`,
+    `PID: ${shellHelper.process.pid}`,
   );
   statuses.current = LaunchStatus.General.Success;
 
-  return { "success": true, process };
+  return { "success": true, "process": shellHelper.process };
 }

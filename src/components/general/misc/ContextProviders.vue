@@ -104,7 +104,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
       currentLogsArray.push(line);
     };
     const javaBinary: string =
-      String.raw`C:\\Program Files\\Eclipse Adoptium\\jdk-25.0.1.8-hotspot\\bin\\javaw.exe`;
+      String.raw`java`;
     const javaMajor: number = window[ApplicationNamespace].__internals.javaMajor
       ?? await General.getJavaMajor();
 

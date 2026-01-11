@@ -114,8 +114,8 @@ export function replaceLaunchArguments({
 
   log.info(
     __PRE_BUNDLED_FILENAME__,
-    "The launching command (auth data is hidden):",
-    "\n" + javaBinary + " " + handledReplaces.join(" "),
+    "The launching arguments (auth data is hidden):",
+    "\n" + handledReplaces.join(" "),
   );
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing auth replacements");

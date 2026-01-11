@@ -48,10 +48,13 @@ export async function useShell({
     : Command.create(
       actualCommand.java,
       actualCommand.arguments,
+      { "cwd": necessaries.directories.instance },
     );
 
   log.debug(__PRE_BUNDLED_FILENAME__, `Launching the '${instanceId}' instance`);
   const process: Child = await launchTask.spawn();
+
+  console.log(launchTask);
 
   log.debug(__PRE_BUNDLED_FILENAME__, `Adding listeners to the '${instanceId}' instance process`);
   launchTask.stdout.on("data", onInput);
