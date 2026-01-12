@@ -138,7 +138,7 @@ export const GeneralSettings = {
     "Libraries": 8,
   },
   "Logs": {
-    // 65536 lines
-    "LineLimit": 8 // 1024 * 64,
+    // Used only for Minecraft logs. Launcher logs stay uncut
+    "LineLimit": 65_536,
   },
 } as const;

@@ -85,14 +85,14 @@ async function launchInstance(instanceId?: string): Promise<void> {
   statuses.current = LaunchStatus.General.Starting;
 
   try {
+    if (!logs[instanceId]) {
+      logs[instanceId] = [];
+    }
+
     // Retrieving a reference to the logs array by using computed properties is quite expensive
     const currentLogsArray: Array<string> | undefined = logs[instanceId];
     // Avoid checking three references in a row just to get the line count limit
     const lineLimit: number = GeneralSettings.Logs.LineLimit;
-
-    if (!currentLogsArray) {
-      logs[instanceId] = [];
-    }
 
     const onInput = (line: string): void => {
       if (currentLogsArray.length > lineLimit) {
