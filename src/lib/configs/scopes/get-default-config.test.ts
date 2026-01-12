@@ -40,6 +40,7 @@ test(testName, async () => {
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,
+      "mode"       : "launcher",
       "filtering"  : "",
     },
     "minecraft": {

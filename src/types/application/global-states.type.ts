@@ -53,6 +53,7 @@ export type GlobalStatesLogsType = {
   "show"       : boolean;
   "lineBreaks" : boolean;
   "virtualized": boolean;
+  "mode"       : "launcher" | string;
   "filtering"  : string;
 };
 export type GlobalStatesSidebarItemsType = Array<"divider" | {

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useIntervalFn } from "@vueuse/core";
+import * as htmlparser2 from "htmlparser2";
 import { type Child } from "tauri-plugin-shellx-api";
-import { markRaw, provide, reactive, ref, shallowReactive } from "vue";
+import { markRaw, provide, reactive, ref, type ShallowReactive, shallowReactive } from "vue";
 
 import {
   ApplicationNamespace,
-  AuthStatesContextKey, CloseInstanceContextKey,
+  AuthStatesContextKey, CloseInstanceContextKey, InstanceLogsContextKey,
   LaunchInstanceContextKey,
   LaunchStatesContextKey,
 } from "@/constants/application.ts";
@@ -31,9 +32,35 @@ const accounts = ref<Array<AccountType>>(
 const launches = reactive<Record<string, LauncherStatusesType>>({});
 const logs = shallowReactive<Record<string, Array<string>>>({});
 
+const parser = new htmlparser2.Parser({
+  oncomment(data: string): void {
+    const trimmed: string = data.trim();
+
+    if (trimmed === "") {
+      return;
+    }
+
+    if (trimmed.startsWith("[CDATA")) {
+      return console.log("cdata -->", trimmed.slice(7, -2));
+    }
+
+    console.log("comment -->", trimmed);
+  },
+  ontext(text: string): void {
+    if (text.trim() === "") {
+      return;
+    }
+
+    console.log("text -->", text);
+  },
+});
+
 useIntervalFn(() => {
-  console.log(logs["relevant-fabric"]);
-}, 100);
+  const currentLogs: Array<string> = logs["relevant-fabric"] ?? [];
+
+  parser.write(currentLogs.join(""));
+  currentLogs.length = 0;
+}, 1000);
 
 const childProcesses: Record<string, Child> = {};
 
@@ -191,6 +218,8 @@ provide<WrappedAccountsType>(AuthStatesContextKey, accounts);
  * Provide multiple instance launch statuses
  */
 provide<WrappedInstanceLauncherStatusesType>(LaunchStatesContextKey, launches);
+
+provide<ShallowReactive<Record<string, string[]>>>(InstanceLogsContextKey, logs);
 provide<(instanceId?: string) => Promise<void>>(LaunchInstanceContextKey, launchInstance);
 provide<(instanceId: string) => Promise<void>>(CloseInstanceContextKey, closeInstance);
 </script>

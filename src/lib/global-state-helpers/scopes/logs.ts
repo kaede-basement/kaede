@@ -26,8 +26,17 @@ function filterBy(newValue: string): void {
     "filtering": newValue,
   });
 }
+function selectMode(newValue: string): void {
+  const logs = GlobalStateHelpers.get().logs;
+
+  GlobalStateHelpers.change("logs", {
+    ...logs,
+    "mode": newValue,
+  });
+}
 
 export const Logs = {
   toggle,
   filterBy,
+  selectMode,
 };

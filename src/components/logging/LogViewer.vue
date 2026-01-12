@@ -18,19 +18,33 @@
 
 <script setup lang="ts">
 import { refThrottled, useWindowSize } from "@vueuse/core";
-import { computed, inject, nextTick, onMounted, ref, shallowRef, useTemplateRef } from "vue";
+import {
+  computed,
+  inject,
+  nextTick,
+  onMounted,
+  ref,
+  type ShallowReactive,
+  shallowRef,
+  useTemplateRef,
+} from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import LogControls from "@/components/logging/controls/LogControls.vue";
+import LogHeader from "@/components/logging/header/LogHeader.vue";
 import LogEntry from "@/components/logging/lines/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
+import {
+  GlobalStatesContextKey,
+  InstanceLogsContextKey,
+} from "@/constants/application.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+const instanceLogs = inject<ShallowReactive<Record<string, string[]>>>(InstanceLogsContextKey);
 
 const virtualList = useTemplateRef("virtualList");
 const nonVirtualList = useTemplateRef("nonVirtualList");
@@ -147,6 +161,7 @@ onMounted(async () => {
 
   const { "size": filesize, "logs": existingLogs } = await Logging.readLogs({
     globalStates,
+    instanceLogs,
   });
 
   logs.value = existingLogs;
@@ -184,7 +199,7 @@ onMounted(async () => {
             Logs
           </p>
           <p id="__log-viewer__information-subtitle" class="text-neutral-300">
-            <span id="__log-viewer__information-subtitle-static">View Kaede logs</span>
+            <LogHeader />
             <span
               v-if="fileData?.size !== undefined && fileData?.time !== undefined"
               id="__log-viewer__information-subtitle-file-data"

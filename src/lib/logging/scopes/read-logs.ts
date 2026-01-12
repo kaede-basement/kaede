@@ -17,6 +17,7 @@
  */
 
 import { readTextFile } from "@tauri-apps/plugin-fs";
+import type { ShallowReactive } from "vue";
 
 import { FileStructure } from "@/constants/file-structure.ts";
 import General from "@/lib/general";
@@ -26,23 +27,40 @@ import type { GlobalStatesType } from "@/types/application/global-states.type.ts
 
 export async function readLogs({
   globalStates,
+  instanceLogs,
 }: {
   "globalStates": GlobalStatesType | undefined;
+  "instanceLogs": ShallowReactive<Record<string, string[]>> | undefined;
 }): Promise<{
   "size": string;
   "logs": Array<string>;
 }> {
   log.debug(__PRE_BUNDLED_FILENAME__, "Mounted the component");
+  const currentMode: "launcher" | string = globalStates?.logs?.mode ?? "launcher";
   const latestLogAbsolutePath = General.cachedJoin(
     General.getCachedBaseDirectory(),
     FileStructure.Folders.Logs.Path,
     FileStructure.Folders.Logs.Files.LatestLog,
   );
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Reading 'latest.log' file");
-  const existingLogs: string = await readTextFile(latestLogAbsolutePath);
+  let storedLogs: string = "none";
+  let existingLogs: Array<string>;
 
-  if (existingLogs === "") {
+  if (currentMode === "launcher") {
+    log.debug(__PRE_BUNDLED_FILENAME__, "Reading 'latest.log' file");
+
+    /*
+     * If the stored logs are actually empty,
+     * the 'storedLogs' variable will be overwritten to an empty string
+     */
+    storedLogs = await readTextFile(latestLogAbsolutePath);
+    existingLogs = storedLogs.split("\n");
+  } else {
+    log.debug(__PRE_BUNDLED_FILENAME__, `Reading the '${currentMode}' instance logs`);
+    existingLogs = instanceLogs?.[currentMode] ?? [];
+  }
+
+  if (storedLogs === "") {
     log.warn(__PRE_BUNDLED_FILENAME__, "Log file is empty");
 
     return {
@@ -52,24 +70,27 @@ export async function readLogs({
   }
 
   // If the log file is big (>=32 KBs), open it with the virtualized list
-  if (existingLogs.length >= 32_768) {
+  if (storedLogs.length >= 32_768) {
     log.debug(
       __PRE_BUNDLED_FILENAME__,
-      `Log file is too big (${existingLogs.length} bytes), using a virtualized list`,
+      `Log file is too big (${storedLogs.length} bytes), using a virtualized list`,
     );
     GlobalStateHelpers.Logs.toggle("virtualized", true);
   }
 
-  const filesize = (existingLogs.length / (1024 * 1024)).toFixed(3);
+  const filesize = (storedLogs.length / (1024 * 1024)).toFixed(3);
 
   log.info(__PRE_BUNDLED_FILENAME__, "Log file is not empty");
   log.debug(__PRE_BUNDLED_FILENAME__, "Adding existing logs to the 'logs' state");
 
+  existingLogs.unshift(
+    globalStates?.logs?.virtualized
+      ? "__kaede-trigger-virtualized"
+      : "__kaede-trigger-initial",
+  );
+
   return {
     "size": filesize,
-    "logs": [
-      globalStates?.logs?.virtualized ? "__kaede-trigger-virtualized" : "__kaede-trigger-initial",
-      ...existingLogs.split("\n"),
-    ],
+    "logs": existingLogs,
   };
 }

@@ -46,6 +46,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
       "show"       : false,
       "lineBreaks" : false,
       "virtualized": false,
+      "mode"       : "launcher",
       "filtering"  : "",
     },
     "sidebarItems": [
