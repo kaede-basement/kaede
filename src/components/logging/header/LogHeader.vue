@@ -24,6 +24,7 @@ import {
   GlobalStatesContextKey,
   InstanceLogsContextKey,
 } from "@/constants/application.ts";
+import Configs from "@/lib/configs";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
@@ -43,6 +44,7 @@ function handleModeSelect(event: Event): void {
   Logging.closeViewer();
 
   nextTick().then(() => {
+    Configs.sync();
     Logging.openViewer();
   });
 }

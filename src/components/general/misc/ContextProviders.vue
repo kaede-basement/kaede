@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { useIntervalFn } from "@vueuse/core";
-import * as htmlparser2 from "htmlparser2";
 import { type Child } from "tauri-plugin-shellx-api";
 import { markRaw, provide, reactive, ref, type ShallowReactive, shallowReactive } from "vue";
 
@@ -31,36 +29,6 @@ const accounts = ref<Array<AccountType>>(
 );
 const launches = reactive<Record<string, LauncherStatusesType>>({});
 const logs = shallowReactive<Record<string, Array<string>>>({});
-
-const parser = new htmlparser2.Parser({
-  oncomment(data: string): void {
-    const trimmed: string = data.trim();
-
-    if (trimmed === "") {
-      return;
-    }
-
-    if (trimmed.startsWith("[CDATA")) {
-      return console.log("cdata -->", trimmed.slice(7, -2));
-    }
-
-    console.log("comment -->", trimmed);
-  },
-  ontext(text: string): void {
-    if (text.trim() === "") {
-      return;
-    }
-
-    console.log("text -->", text);
-  },
-});
-
-useIntervalFn(() => {
-  const currentLogs: Array<string> = logs["relevant-fabric"] ?? [];
-
-  parser.write(currentLogs.join(""));
-  currentLogs.length = 0;
-}, 1000);
 
 const childProcesses: Record<string, Child> = {};
 
@@ -112,9 +80,8 @@ async function launchInstance(instanceId?: string): Promise<void> {
   statuses.current = LaunchStatus.General.Starting;
 
   try {
-    if (!logs[instanceId]) {
-      logs[instanceId] = [];
-    }
+    // Overwrite the previous launch logs
+    logs[instanceId] = [];
 
     // Retrieving a reference to the logs array by using computed properties is quite expensive
     const currentLogsArray: Array<string> | undefined = logs[instanceId];

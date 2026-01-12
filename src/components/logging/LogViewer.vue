@@ -97,19 +97,20 @@ const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
 });
 
 /*
+ * The 1280 is just the maximum width of the container
+ *
  * Subtract 128 to exclude the margins and paddings
- *          16 to exclude the approximate scrollbar width
- *          64 to exclude the line number width
+ *          18  to exclude the approximate scrollbar width
+ *          56  to exclude the line number width
+ *          12  to exclude the paddings (px-1 & gap-1)
  */
-const virtualScrollContainerTextWidth = Math.min(800, window.innerWidth - 128) - 16 - 64;
+const virtualScrollContainerTextWidth = Math.min(1280, window.innerWidth - 128) - 18 - 56 - 12;
 
 /*
- * ~7.6 is a magical number that was obtained by dividing one line of a mono text
+ * ~7.65 is a magical number that was obtained by dividing one line of a mono text
  * by the count of its characters.
- * We are using 'Math#ceil' instead of 'Math#floor'
- * because we left some room for characters when we rounded ~7.6 to 8
  */
-const charactersPerLine = Math.ceil(virtualScrollContainerTextWidth / 8);
+const charactersPerLine = Math.floor(virtualScrollContainerTextWidth / 7.65);
 const nodeLineSize = 20;
 
 function scrollToIndex(index: number): void {
@@ -169,7 +170,6 @@ onMounted(async () => {
   const endTime = performance.now();
   const totalTime = ((endTime - startTime) / 1000).toFixed(2);
 
-  // Measuring time end
   fileData.value.time = `took ${totalTime}s`;
   fileData.value.size = `${filesize} MB`;
 

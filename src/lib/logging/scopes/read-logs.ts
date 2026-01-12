@@ -83,11 +83,18 @@ export async function readLogs({
   log.info(__PRE_BUNDLED_FILENAME__, "Log file is not empty");
   log.debug(__PRE_BUNDLED_FILENAME__, "Adding existing logs to the 'logs' state");
 
-  existingLogs.unshift(
-    globalStates?.logs?.virtualized
-      ? "__kaede-trigger-virtualized"
-      : "__kaede-trigger-initial",
-  );
+  /*
+   * Only add the placeholder if the logs array does not have it.
+   * The reason for this is that in case with the instance logs,
+   * we manipulate an existing array without cloning it.
+   */
+  if (!existingLogs?.[0]?.startsWith?.("__kaede")) {
+    existingLogs.unshift(
+      globalStates?.logs?.virtualized
+        ? "__kaede-trigger-virtualized"
+        : "__kaede-trigger-initial",
+    );
+  }
 
   return {
     "size": filesize,

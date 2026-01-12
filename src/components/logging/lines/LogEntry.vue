@@ -84,7 +84,7 @@ const isInRange = computed((): boolean => {
       <span
         :id="`__log-entry__time-${index}`"
         v-if="typeof extractedInformation.time === 'string'"
-        class="__log-entry__time whitespace-pre text-neutral-400"
+        class="__log-entry__time whitespace-pre-wrap text-neutral-400"
       >
         {{ extractedInformation.time }}
       </span>
