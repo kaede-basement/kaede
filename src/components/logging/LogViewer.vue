@@ -27,6 +27,7 @@ import {
   type ShallowReactive,
   shallowRef,
   useTemplateRef,
+  watchEffect,
 } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
@@ -35,12 +36,10 @@ import LogControls from "@/components/logging/controls/LogControls.vue";
 import LogHeader from "@/components/logging/header/LogHeader.vue";
 import LogEntry from "@/components/logging/lines/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
-import {
-  GlobalStatesContextKey,
-  InstanceLogsContextKey,
-} from "@/constants/application.ts";
+import { GlobalStatesContextKey, InstanceLogsContextKey } from "@/constants/application.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
@@ -50,6 +49,8 @@ const virtualList = useTemplateRef("virtualList");
 const nonVirtualList = useTemplateRef("nonVirtualList");
 
 const logs = shallowRef<Array<string>>(["__kaede-trigger-loading"]);
+// References the launcher logs even if user is viewing instance logs
+let launcherLogsReference: Array<string> = logs.value;
 
 const fileData = ref<{
   "size": string | undefined;
@@ -107,10 +108,10 @@ const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
 const virtualScrollContainerTextWidth = Math.min(1280, window.innerWidth - 128) - 18 - 56 - 12;
 
 /*
- * ~7.65 is a magical number that was obtained by dividing one line of a mono text
+ * ~7.66 is a magical number that was obtained by dividing one line of a mono text
  * by the count of its characters.
  */
-const charactersPerLine = Math.floor(virtualScrollContainerTextWidth / 7.65);
+const charactersPerLine = Math.floor(virtualScrollContainerTextWidth / 7.66);
 const nodeLineSize = 20;
 
 function scrollToIndex(index: number): void {
@@ -154,18 +155,57 @@ function searchLogs(searchValue: string): Array<number> {
   return found;
 }
 
+watchEffect(() => {
+  const currentLogsMode: "launcher" | string | undefined = globalStates?.logs?.mode;
+
+  if (currentLogsMode === undefined) {
+    return log.error(__PRE_BUNDLED_FILENAME__, `The selected logs mode is '${currentLogsMode}'`);
+  }
+
+  log.debug(__PRE_BUNDLED_FILENAME__, `The selected logs mode is '${currentLogsMode}'`);
+  if (currentLogsMode === "launcher") {
+    const logsLength: number = launcherLogsReference.length;
+
+    log.debug(
+      __PRE_BUNDLED_FILENAME__,
+      `Using a previously saved reference to the launcher logs (length: ${logsLength})`,
+    );
+    logs.value = launcherLogsReference;
+  } else {
+    const currentInstanceLogs: Array<string> | undefined = instanceLogs?.[currentLogsMode];
+    let needsReassignment: boolean = true;
+
+    log.debug(
+      __PRE_BUNDLED_FILENAME__,
+      `Using an instance logs (length: ${currentInstanceLogs?.length})`,
+    );
+    for (const instanceLogsReference of Object.values(instanceLogs ?? {})) {
+      if (logs.value === instanceLogsReference) {
+        needsReassignment = false;
+      }
+    }
+
+    if (needsReassignment) {
+      // Re-assign the launcher logs reference only if the current logs are actually launcher logs
+      launcherLogsReference = logs.value;
+    }
+
+    logs.value = currentInstanceLogs ?? [];
+  }
+});
+
 onMounted(async () => {
   const startTime = performance.now();
 
   // Notify virtualized list component that it should re-render
   mountedKey.value = Math.random();
 
-  const { "size": filesize, "logs": existingLogs } = await Logging.readLogs({
-    globalStates,
-    instanceLogs,
-  });
+  const { "size": filesize, "logs": existingLogs, currentInstanceLogs } =
+    await Logging.readLogs({ globalStates, instanceLogs });
 
-  logs.value = existingLogs;
+  logs.value = globalStates?.logs?.mode === "launcher" ? existingLogs : currentInstanceLogs;
+  // Update the reference to the launcher logs
+  launcherLogsReference = existingLogs;
 
   const endTime = performance.now();
   const totalTime = ((endTime - startTime) / 1000).toFixed(2);
@@ -236,7 +276,7 @@ onMounted(async () => {
           v-if="globalStates?.logs?.virtualized"
           :key="
             `${logs.length}-${globalStates?.logs?.lineBreaks}-${filtering}-
-             ${throttledHeight}-${mountedKey}`
+             ${throttledHeight}-${globalStates?.logs?.mode}-${mountedKey}`
           "
           :get-node-height="getNodeHeight"
           :viewport-height="throttledHeight - 248"

@@ -91,8 +91,15 @@ button[data-tooltip] {
   }
 }
 
+.__log-entry__time {
+  white-space: pre-wrap;
+}
+
 /* Allow log viewer to have a horizontal scroll */
 #__non-virtualized-list-logs {
+  .__log-entry__time {
+    white-space: pre;
+  }
   .__log-entry__text-wrapper {
     white-space: nowrap;
   }
@@ -107,6 +114,9 @@ button[data-tooltip] {
   overflow: visible !important;
 }
 #__virtualized-list-logs {
+  .__log-entry__time {
+    white-space: pre;
+  }
   .__log-entry__text-wrapper {
     white-space: nowrap;
   }

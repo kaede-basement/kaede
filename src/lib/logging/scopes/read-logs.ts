@@ -32,8 +32,9 @@ export async function readLogs({
   "globalStates": GlobalStatesType | undefined;
   "instanceLogs": ShallowReactive<Record<string, string[]>> | undefined;
 }): Promise<{
-  "size": string;
-  "logs": Array<string>;
+  "size"               : string;
+  "logs"               : Array<string>;
+  "currentInstanceLogs": Array<string>;
 }> {
   log.debug(__PRE_BUNDLED_FILENAME__, "Mounted the component");
   const currentMode: "launcher" | string = globalStates?.logs?.mode ?? "launcher";
@@ -43,42 +44,32 @@ export async function readLogs({
     FileStructure.Folders.Logs.Files.LatestLog,
   );
 
-  let storedLogs: string = "none";
-  let existingLogs: Array<string>;
+  log.debug(__PRE_BUNDLED_FILENAME__, "Reading 'latest.log' file");
+  const existingLauncherLogs: string = await readTextFile(latestLogAbsolutePath);
 
-  if (currentMode === "launcher") {
-    log.debug(__PRE_BUNDLED_FILENAME__, "Reading 'latest.log' file");
+  log.debug(__PRE_BUNDLED_FILENAME__, `Reading the '${currentMode}' instance logs`);
+  const currentInstanceLogs: Array<string> = instanceLogs?.[currentMode] ?? [];
 
-    /*
-     * If the stored logs are actually empty,
-     * the 'storedLogs' variable will be overwritten to an empty string
-     */
-    storedLogs = await readTextFile(latestLogAbsolutePath);
-    existingLogs = storedLogs.split("\n");
-  } else {
-    log.debug(__PRE_BUNDLED_FILENAME__, `Reading the '${currentMode}' instance logs`);
-    existingLogs = instanceLogs?.[currentMode] ?? [];
-  }
-
-  if (storedLogs === "") {
+  if (existingLauncherLogs === "") {
     log.warn(__PRE_BUNDLED_FILENAME__, "Log file is empty");
 
     return {
       "size": "0",
       "logs": ["__kaede-trigger-initial"],
+      currentInstanceLogs,
     };
   }
 
   // If the log file is big (>=32 KBs), open it with the virtualized list
-  if (storedLogs.length >= 32_768) {
+  if (existingLauncherLogs.length >= 32_768) {
     log.debug(
       __PRE_BUNDLED_FILENAME__,
-      `Log file is too big (${storedLogs.length} bytes), using a virtualized list`,
+      `Log file is too big (${existingLauncherLogs.length} bytes), using a virtualized list`,
     );
     GlobalStateHelpers.Logs.toggle("virtualized", true);
   }
 
-  const filesize = (storedLogs.length / (1024 * 1024)).toFixed(3);
+  const filesize = (existingLauncherLogs.length / (1024 * 1024)).toFixed(3);
 
   log.info(__PRE_BUNDLED_FILENAME__, "Log file is not empty");
   log.debug(__PRE_BUNDLED_FILENAME__, "Adding existing logs to the 'logs' state");
@@ -86,10 +77,10 @@ export async function readLogs({
   /*
    * Only add the placeholder if the logs array does not have it.
    * The reason for this is that in case with the instance logs,
-   * we manipulate an existing array without cloning it.
+   * we manipulate an existing array without cloning it
    */
-  if (!existingLogs?.[0]?.startsWith?.("__kaede")) {
-    existingLogs.unshift(
+  if (!currentInstanceLogs?.[0]?.startsWith?.("__kaede")) {
+    currentInstanceLogs.unshift(
       globalStates?.logs?.virtualized
         ? "__kaede-trigger-virtualized"
         : "__kaede-trigger-initial",
@@ -98,6 +89,7 @@ export async function readLogs({
 
   return {
     "size": filesize,
-    "logs": existingLogs,
+    "logs": existingLauncherLogs.split("\n"),
+    currentInstanceLogs,
   };
 }

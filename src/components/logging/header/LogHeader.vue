@@ -17,7 +17,7 @@
   -->
 
 <script setup lang="ts">
-import { inject, nextTick, type ShallowReactive } from "vue";
+import { inject, type ShallowReactive } from "vue";
 
 import {
   ApplicationName,
@@ -26,13 +26,12 @@ import {
 } from "@/constants/application.ts";
 import Configs from "@/lib/configs";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
-import Logging from "@/lib/logging";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceLogs = inject<ShallowReactive<Record<string, string[]>>>(InstanceLogsContextKey);
 
-function handleModeSelect(event: Event): void {
+async function handleModeSelect(event: Event): Promise<void> {
   const target = event.target as HTMLSelectElement | null;
   const newValue: string | undefined = target?.value;
 
@@ -41,12 +40,8 @@ function handleModeSelect(event: Event): void {
   }
 
   GlobalStateHelpers.Logs.selectMode(newValue);
-  Logging.closeViewer();
 
-  nextTick().then(() => {
-    Configs.sync();
-    Logging.openViewer();
-  });
+  return Configs.sync();
 }
 </script>
 
