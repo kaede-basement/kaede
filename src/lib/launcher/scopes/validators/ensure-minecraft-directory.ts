@@ -26,17 +26,18 @@ import type {
 export async function ensureMinecraftDirectory(
   necessaries: PreLaunchInformationType,
 ): Promise<void> {
+  const logPrefix: string = necessaries.logPrefix;
   const directory: string = necessaries.directories.instance;
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Checking if the minecraft directory exists (${directory})`,
   );
   const directoryExists: boolean = await exists(directory);
 
   if (!directoryExists) {
     log.warn(
-      __PRE_BUNDLED_FILENAME__,
+      logPrefix,
       `The minecraft directory does not exist; creating it (${directory})`,
     );
     await mkdir(directory, {

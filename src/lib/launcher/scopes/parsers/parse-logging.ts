@@ -9,16 +9,18 @@ import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch
 
 export function parseLogging({
   necessaries,
-  logging,
+  patch,
 }: {
   "necessaries": PreLaunchInformationType;
-  "logging"    : SpecificPatchMetaType["logging"];
+  "patch"      : SpecificPatchMetaType;
 }): (MappedArtifactType & {
   "argument": string;
 }) | false {
-  log.debug(__PRE_BUNDLED_FILENAME__, "Parsing the logging metadata");
-  const { directories, statuses } = necessaries;
+  const { directories, statuses, logPrefix } = necessaries;
+  const descriptiveLogPrefix: string = patch.uid + ":" + logPrefix;
+  const logging: SpecificPatchMetaType["logging"] = patch?.logging;
 
+  log.debug(descriptiveLogPrefix, "Parsing the logging metadata");
   if (
     logging === undefined ||
     logging?.type === undefined ||
@@ -26,7 +28,7 @@ export function parseLogging({
     logging?.argument === undefined
   ) {
     log.warn(
-      __PRE_BUNDLED_FILENAME__,
+      descriptiveLogPrefix,
       "The 'logging' field is invalid. Contents:",
       "\n" + JSON.stringify(logging, null, 2),
     );
@@ -41,7 +43,7 @@ export function parseLogging({
   const hash: string | undefined = logging.file?.sha1;
 
   if (!name || !url || !hash) {
-    log.warn(__PRE_BUNDLED_FILENAME__, "Missing the logging config file metadata");
+    log.warn(descriptiveLogPrefix, "Missing the logging config file metadata");
     statuses.current = LaunchStatus.Logging.FailedToParse;
 
     return false;
@@ -52,7 +54,7 @@ export function parseLogging({
     name,
   );
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Parsed the logging metadata");
+  log.debug(descriptiveLogPrefix, "Parsed the logging metadata");
 
   return {
     "id"       : name,

@@ -35,7 +35,7 @@ export async function resolvePatchVersion({
   "necessaries": PreLaunchInformationType;
   "metadata"   : PatchRequiresType;
 }): Promise<string | false> {
-  const { "user": { versions } } = necessaries;
+  const { "user": { versions }, logPrefix } = necessaries;
   const selected: string | undefined = versions?.[metadata.uid];
 
   // Return the user selected version
@@ -55,7 +55,7 @@ export async function resolvePatchVersion({
   const fileName: string = metadata.uid + ".json";
   let parsedPatchIndex: unknown;
 
-  log.debug(__PRE_BUNDLED_FILENAME__, `${metadata.uid} | Reading the cached index manifest`);
+  log.debug(logPrefix, "Reading the cached index manifest");
   statuses.current = LaunchStatus.PatchIndex.Reading;
   try {
     parsedPatchIndex = await General.handleJsonFile({
@@ -64,8 +64,8 @@ export async function resolvePatchVersion({
       "label"          : `/cache/${fileName}`,
       "getDefaultValue": async () => {
         log.warn(
-          __PRE_BUNDLED_FILENAME__,
-          `${metadata.uid} | No cache; fetching the index manifest`,
+          logPrefix,
+          "No cache; fetching the index manifest",
         );
         statuses.current = LaunchStatus.PatchIndex.Fetching;
         const fetched: { "data": unknown } | LaunchStatusType = await fetchMetadata({
@@ -81,8 +81,8 @@ export async function resolvePatchVersion({
         }
 
         log.error(
-          __PRE_BUNDLED_FILENAME__,
-          `${metadata.uid} | Could not fetch the index manifest. Status: ${fetched}`,
+          logPrefix,
+          `Could not fetch the index manifest. Status: ${fetched}`,
         );
         statuses.current = fetched;
 
@@ -97,15 +97,15 @@ export async function resolvePatchVersion({
     });
   } catch (error: unknown) {
     log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `${metadata.uid} | Caught an error while getting the index manifest:`,
+      logPrefix,
+      "Caught an error while getting the index manifest:",
       Errors.prettify(error),
     );
 
     return false;
   }
 
-  log.debug(__PRE_BUNDLED_FILENAME__, `${metadata.uid} | Validating the index manifest`);
+  log.debug(logPrefix, "Validating the index manifest");
 
   if (
     // Ensure the index manifest is an object
@@ -122,8 +122,8 @@ export async function resolvePatchVersion({
     typeof parsedPatchIndex.versions[0].version !== "string"
   ) {
     log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `${metadata.uid} | Failed to shallowly validate the index manifest. Contents:`,
+      logPrefix,
+      "Failed to shallowly validate the index manifest. Contents:",
       "\n" + JSON.stringify(parsedPatchIndex, null, 2),
     );
     statuses.current = LaunchStatus.PatchIndex.FailedToValidate;

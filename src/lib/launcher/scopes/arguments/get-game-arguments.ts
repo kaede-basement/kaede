@@ -23,11 +23,13 @@ export async function getGameArguments({
     return beforeHooksResult;
   }
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Adding game arguments");
+  const logPrefix = necessaries.logPrefix;
+
+  log.debug(logPrefix, "Adding game arguments");
 
   if (finalizedPatch.minecraftArguments === undefined) {
     log.error(
-      __PRE_BUNDLED_FILENAME__,
+      logPrefix,
       "Could not get game arguments from version meta",
     );
 

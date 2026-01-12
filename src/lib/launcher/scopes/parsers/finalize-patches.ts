@@ -31,6 +31,7 @@ import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.
 
 function addArtifactsToMap(
   necessaries: PreLaunchInformationType,
+  patchUid: string,
   libraries: Array<SpecificPatchLibraryType> | undefined,
   map: Map<string, MappedArtifactType>,
   isMaven: boolean,
@@ -40,6 +41,7 @@ function addArtifactsToMap(
   }
 
   const artifacts = parseLibraries({
+    patchUid,
     necessaries,
     libraries,
     isMaven,
@@ -108,8 +110,8 @@ export function finalizePatches({
       built["+tweakers"].push(...patch["+tweakers"]);
     }
 
-    addArtifactsToMap(necessaries, patch.mavenFiles, uniqueArtifacts, true);
-    addArtifactsToMap(necessaries, patch.libraries, uniqueArtifacts, false);
+    addArtifactsToMap(necessaries, patch.uid, patch.mavenFiles, uniqueArtifacts, true);
+    addArtifactsToMap(necessaries, patch.uid, patch.libraries, uniqueArtifacts, false);
 
     if (patch.mainClass) {
       built.mainClass = patch.mainClass;
@@ -128,11 +130,11 @@ export function finalizePatches({
     }
 
     const currentLogging = parseLogging({
-      "logging": patch?.logging,
+      patch,
       necessaries,
     });
     const currentClient = parseMainJar({
-      "client": patch?.mainJar,
+      patch,
       necessaries,
     });
 

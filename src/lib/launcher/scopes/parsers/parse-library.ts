@@ -11,19 +11,22 @@ export function parseLibrary({
   necessaries,
   library,
   isMaven,
+  patchUid,
 }: {
   "necessaries": PreLaunchInformationType;
   "library"    : SpecificPatchLibraryType;
   "isMaven"    : boolean;
+  "patchUid"   : string;
 }): Required<MappedArtifactType> | false {
-  const { directories } = necessaries;
+  const { directories, logPrefix } = necessaries;
+  const descriptiveLogPrefix: string = patchUid + ":" + library?.name + ":" + logPrefix;
   const name: string | undefined = library?.name;
   const baseUrl: string | undefined = library?.url;
   const url: string | undefined = library?.downloads?.artifact?.url;
   const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
   if (name === undefined) {
-    log.warn(__PRE_BUNDLED_FILENAME__, `The '${JSON.stringify(library)}' library is invalid`);
+    log.warn(descriptiveLogPrefix, `The '${JSON.stringify(library)}' library is invalid`);
 
     return false;
   }
@@ -42,7 +45,7 @@ export function parseLibrary({
   const isEmpty = baseUrl === undefined && library?.downloads === undefined;
 
   if (isEmpty) {
-    log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' library is empty`);
+    log.warn(descriptiveLogPrefix, "The library is empty");
 
     return {
       "id"    : name,
@@ -79,7 +82,7 @@ export function parseLibrary({
     const groupPart: string | undefined = urlPaths.shift();
 
     if (!groupPart) {
-      log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' library name is invalid`);
+      log.warn(descriptiveLogPrefix, "The library name is invalid");
 
       return false;
     }
@@ -105,7 +108,7 @@ export function parseLibrary({
   }
 
   if (url === undefined || hash === undefined) {
-    log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' library is invalid`);
+    log.warn(descriptiveLogPrefix, "The library is invalid");
 
     return false;
   }

@@ -15,8 +15,10 @@ export async function getClassPaths({
   "argument"  : [string, string];
   "classPaths": string;
 }> {
+  const logPrefix = necessaries.logPrefix;
+
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     "Merging all library and client classpaths",
   );
   const mergedPaths: Array<string> = finalizedPatch
@@ -48,12 +50,12 @@ export async function getClassPaths({
   }
 
   // The library paths may have duplicates because of the natives
-  log.debug(__PRE_BUNDLED_FILENAME__, "Removing duplicated classpaths");
+  log.debug(logPrefix, "Removing duplicated classpaths");
   const uniquePaths: Set<string> = new Set(mergedPaths);
   const classPaths: string = [...uniquePaths].join(";");
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Removed ${mergedPaths.length - uniquePaths.size} duplicated classpaths`,
   );
 

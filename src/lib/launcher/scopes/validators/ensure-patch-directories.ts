@@ -29,10 +29,10 @@ import type {
 export async function ensurePatchDirectories(
   necessaries: PreLaunchInformationType,
 ): Promise<void> {
-  const { directories } = necessaries;
+  const { directories, logPrefix } = necessaries;
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Checking if ${PatchUIDs.length} patch directories exist`,
   );
   const existStatuses: Array<boolean> = await Promise.all(
@@ -61,7 +61,7 @@ export async function ensurePatchDirectories(
   }
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Missing patch directories: ${toCreate.join(", ")}`,
   );
   await Promise.all(

@@ -35,11 +35,13 @@ export function extractPreLaunchInformation({
   instance,
   instanceId,
   userPreferences,
+  logPrefix,
 }: {
   "statuses"       : LauncherStatusesType;
   "instance"       : InstanceStateType;
   "instanceId"     : string;
   "userPreferences": PreLaunchInformationType["user"];
+  "logPrefix"      : string;
 }): PreLaunchInformationType | false {
   const beforeHooksResult: "continue" | PreLaunchInformationType | false | undefined =
     ExtensionsManager.catchSyncResponseHooks<PreLaunchInformationType | false>({
@@ -136,6 +138,7 @@ export function extractPreLaunchInformation({
   }
 
   const preLaunchInformation: PreLaunchInformationType = {
+    "logPrefix"  : logPrefix,
     "statuses"   : statuses,
     "platform"   : compatiblePlatform,
     "arch"       : compatibleArch,

@@ -29,10 +29,10 @@ import type {
 export async function initializeAssetsDirectories(
   necessaries: PreLaunchInformationType,
 ): Promise<void> {
-  const { directories } = necessaries;
+  const { directories, logPrefix } = necessaries;
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     "Checking if '/assets/indexes/' and '/assets/objects/' exist",
   );
   const [indexesExists, objectsExists]: [boolean, boolean] = await Promise.all([
@@ -42,7 +42,7 @@ export async function initializeAssetsDirectories(
 
   if (!indexesExists && !objectsExists) {
     log.debug(
-      __PRE_BUNDLED_FILENAME__,
+      logPrefix,
       "Initializing the '/assets/indexes/' and '/assets/objects/' directories",
     );
     await Promise.all([
@@ -55,7 +55,7 @@ export async function initializeAssetsDirectories(
 
   if (!indexesExists) {
     log.debug(
-      __PRE_BUNDLED_FILENAME__,
+      logPrefix,
       "Initializing the '/assets/indexes/' directory",
     );
     await mkdir(directories.assetIndexes);
@@ -64,14 +64,14 @@ export async function initializeAssetsDirectories(
   }
 
   if (!objectsExists) {
-    log.debug(__PRE_BUNDLED_FILENAME__, "Initializing the '/assets/objects/' directory");
+    log.debug(logPrefix, "Initializing the '/assets/objects/' directory");
     await mkdir(directories.assetObjects);
 
     return initializeShortHashDirectories(necessaries);
   }
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     "The '/assets/indexes/' and '/assets/objects/' directories exist",
   );
 

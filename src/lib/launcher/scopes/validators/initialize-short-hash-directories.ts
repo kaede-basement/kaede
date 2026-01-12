@@ -32,8 +32,9 @@ const shortHashes: Array<string> = Array
 
 export async function initializeShortHashDirectories({
   directories,
+  logPrefix,
 }: PreLaunchInformationType): Promise<void> {
-  log.debug(__PRE_BUNDLED_FILENAME__, "Reading the '/assets/objects' directory");
+  log.debug(logPrefix, "Reading the '/assets/objects' directory");
   const objects: Array<DirEntry> = await readDir(directories.assetObjects);
   const existingFolders: Set<string> = new Set(
     objects.map(({ name }) => name),
@@ -47,7 +48,7 @@ export async function initializeShortHashDirectories({
   }
 
   log.warn(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Missing ${missingPaths.length} short hash directories; creating them`,
   );
   await Promise.all(

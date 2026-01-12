@@ -29,13 +29,13 @@ export async function downloadLibraries({
     return beforeHooksResult;
   }
 
-  const { statuses, instance } = necessaries;
+  const { statuses, instance, logPrefix } = necessaries;
   const artifacts: Array<MappedArtifactType> = finalizedPatch
     .artifacts
     .filter(({ status }) => status !== "empty");
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Verifying ${artifacts.length} libraries for their existence.`,
     `SHA1 checks enabled: ${instance.checksum}`,
   );
@@ -50,7 +50,7 @@ export async function downloadLibraries({
   const totalTime: string = (endTime - startTime).toFixed(2);
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Successfully verified ${artifacts.length} libraries in ${totalTime} ms.`,
     `Total mismatches: ${missing.size}.`,
     `SHA1 checks enabled: ${instance.checksum}`,
@@ -61,7 +61,7 @@ export async function downloadLibraries({
       return missing.has(path);
     });
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing missing library and native directories");
+  log.debug(logPrefix, "Initializing missing library and native directories");
   await Promise.all(
     missingArtifacts.map(({ directory }) => mkdir(
       directory,
@@ -81,7 +81,7 @@ export async function downloadLibraries({
   });
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Successfully handled ${artifacts.length} libraries`,
     `and re-downloaded ${missing.size} of them`,
   );

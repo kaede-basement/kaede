@@ -52,13 +52,13 @@ export async function resolvePatch({
     return beforeHooksResult;
   }
 
-  const { directories, statuses } = necessaries;
+  const { directories, statuses, logPrefix } = necessaries;
   const version: string | false = await resolvePatchVersion({ necessaries, metadata });
   const fileName: string = version + ".json";
-  const logPrefix: string = metadata.uid + fileName;
+  const descriptiveLogPrefix: string = metadata.uid + ":" + fileName + ":" + logPrefix;
   let parsedPatch: unknown;
 
-  log.debug(__PRE_BUNDLED_FILENAME__, `${logPrefix} | Reading the cached patch metadata`);
+  log.debug(descriptiveLogPrefix, "Reading the cached patch metadata");
   statuses.current = LaunchStatus.PatchMetadata.Reading;
   try {
     parsedPatch = await General.handleJsonFile({
@@ -67,15 +67,15 @@ export async function resolvePatch({
       "label"          : `/cache/${metadata.uid}/${fileName}`,
       "getDefaultValue": async () => {
         log.warn(
-          __PRE_BUNDLED_FILENAME__,
-          `${logPrefix} | No cache; fetching the patch metadata`,
+          descriptiveLogPrefix,
+          "No cache; fetching the patch metadata",
         );
         statuses.current = LaunchStatus.PatchMetadata.Fetching;
         const fetched: { "data": unknown } | LaunchStatusType = await fetchMetadata({
           "url"   : APIEndpoints.Meta.Base + metadata.uid + "/" + fileName,
           "label" : "patch metadata",
           "scope" : "PatchMetadata",
-          "prefix": logPrefix,
+          "prefix": descriptiveLogPrefix,
         });
 
         // Just return the patch metadata
@@ -84,8 +84,8 @@ export async function resolvePatch({
         }
 
         log.error(
-          __PRE_BUNDLED_FILENAME__,
-          `${logPrefix} | Could not fetch the patch metadata. Status: ${fetched}`,
+          descriptiveLogPrefix,
+          `Could not fetch the patch metadata. Status: ${fetched}`,
         );
         statuses.current = fetched;
 
@@ -100,15 +100,15 @@ export async function resolvePatch({
     });
   } catch (error: unknown) {
     log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `${logPrefix} | Caught an error while getting the patch metadata:`,
+      descriptiveLogPrefix,
+      "Caught an error while getting the patch metadata:",
       Errors.prettify(error),
     );
 
     return false;
   }
 
-  log.debug(__PRE_BUNDLED_FILENAME__, `${logPrefix} | Validating the patch metadata`);
+  log.debug(descriptiveLogPrefix, "Validating the patch metadata");
   const validPatch: SpecificPatchMetaType | false = Schemas.validate.patchMeta({
     "value": parsedPatch,
     "label": "patch metadata",
@@ -118,7 +118,7 @@ export async function resolvePatch({
   });
 
   if (validPatch === false) {
-    log.error(__PRE_BUNDLED_FILENAME__, `${logPrefix} | Invalid metadata`);
+    log.error(descriptiveLogPrefix, "Invalid metadata");
 
     return false;
   }
@@ -134,7 +134,7 @@ export async function resolvePatch({
     return afterHooksResult;
   }
 
-  log.info(__PRE_BUNDLED_FILENAME__, `${logPrefix} | Successful validation`);
+  log.info(descriptiveLogPrefix, "Successful validation");
 
   return validPatch;
 }

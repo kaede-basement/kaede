@@ -32,12 +32,12 @@ export function replaceLaunchArguments({
   "finalizedPatch": FinalizedPatchType;
   "javaBinary"    : string;
 }): Array<string> {
-  const { directories, instance } = necessaries;
+  const { directories, instance, logPrefix } = necessaries;
   const assetIndexId: string = finalizedPatch?.assetIndex?.id ?? "";
   const toReplace: Array<string> = builtLaunchArguments.toReplace;
   const applicationVersion: string = General.getLauncherVersion();
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing replacements (without auth)");
+  log.debug(logPrefix, "Initializing replacements (without auth)");
   const replacements: ArgumentReplacementsType = {
     "assets_index_name"    : assetIndexId,
     "assets_root"          : directories.assets,
@@ -89,7 +89,7 @@ export function replaceLaunchArguments({
     return beforeHooksResult;
   }
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Building a replacements regex (without auth)");
+  log.debug(logPrefix, "Building a replacements regex (without auth)");
   const keysRegex: RegExp = new RegExp(
     Object
       .keys(replacements)
@@ -99,12 +99,11 @@ export function replaceLaunchArguments({
   );
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     "Replacing placeholders in the launch command (without auth)",
   );
   const handledReplaces: Array<string> = toReplace.map(argument => (
     argument.replace(keysRegex, matched => {
-      console.log(matched);
       // 'matched' is in the '${text}' format, but we need 'text'
       const key = matched.slice(2, -1) as keyof ArgumentReplacementsType;
 
@@ -113,12 +112,12 @@ export function replaceLaunchArguments({
   ));
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     "The launching arguments (auth data is hidden):",
     "\n" + handledReplaces.join(" "),
   );
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing auth replacements");
+  log.debug(logPrefix, "Initializing auth replacements");
   const authReplacements: ArgumentAuthReplacementsType = {
     "auth_access_token": auth.token,
     "auth_player_name" : auth.username,
@@ -148,7 +147,7 @@ export function replaceLaunchArguments({
     return afterHooksResult;
   }
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Building an auth replacements regex");
+  log.debug(logPrefix, "Building an auth replacements regex");
   const authKeysRegex: RegExp = new RegExp(
     Object
       .keys(authReplacements)
@@ -157,10 +156,9 @@ export function replaceLaunchArguments({
     "g",
   );
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Replacing auth placeholders in the launch command");
+  log.debug(logPrefix, "Replacing auth placeholders in the launch command");
 
   return handledReplaces.map(argument => argument.replace(authKeysRegex, matched => {
-    console.log(matched);
     // 'matched' is in the '${text}' format, but we need 'text'
     const key = matched.slice(2, -1) as keyof ArgumentAuthReplacementsType;
 

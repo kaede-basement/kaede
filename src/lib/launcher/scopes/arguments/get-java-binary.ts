@@ -26,7 +26,7 @@ export async function getJavaBinary({
   const javaBinary: string = necessaries.user.javaBinary;
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    necessaries.logPrefix,
     `The '${javaBinary}' command name will be used for launching`,
   );
 

@@ -68,21 +68,25 @@ export async function handleLaunch({
   "onClose"        : (instanceId: string) => void;
   "onInput"        : (line: string) => void;
 }): Promise<LaunchResponseType> {
+  const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
   const necessaries: PreLaunchInformationType | false = extractPreLaunchInformation({
     instanceId,
     instance,
     statuses,
     userPreferences,
+    logPrefix,
   });
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    // Same as 'necessaries.logPrefix'
+    logPrefix,
     log.templates.json.contents("Pre-launch information", necessaries),
   );
 
   if (necessaries === false) {
     log.warn(
-      __PRE_BUNDLED_FILENAME__,
+      // Same as 'necessaries.logPrefix'
+      logPrefix,
       "Aborting the launch process due to an error in pre-launch information extraction",
     );
 
@@ -104,7 +108,7 @@ export async function handleLaunch({
 
   if (entryPatch === false) {
     log.warn(
-      __PRE_BUNDLED_FILENAME__,
+      necessaries.logPrefix,
       "Aborting the launch process due to an error in entry patch resolving",
     );
 
@@ -121,7 +125,7 @@ export async function handleLaunch({
   });
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    necessaries.logPrefix,
     log.templates.json.contents(
       "Finalized patch",
       {
@@ -141,7 +145,7 @@ export async function handleLaunch({
   for (const status of responses) {
     if (!status) {
       log.warn(
-        __PRE_BUNDLED_FILENAME__,
+        necessaries.logPrefix,
         "Aborting the launch process due to an error in artifact downloads",
       );
 

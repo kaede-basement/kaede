@@ -10,13 +10,15 @@ import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch
 
 export function parseMainJar({
   necessaries,
-  client,
+  patch,
 }: {
   "necessaries": PreLaunchInformationType;
-  "client"     : SpecificPatchMetaType["mainJar"];
+  "patch"      : SpecificPatchMetaType;
 }): MappedArtifactType | false {
   log.debug(__PRE_BUNDLED_FILENAME__, "Parsing the main jar metadata");
-  const { directories, statuses } = necessaries;
+  const { directories, statuses, logPrefix } = necessaries;
+  const descriptiveLogPrefix: string = patch.uid + ":" + logPrefix;
+  const client: SpecificPatchMetaType["mainJar"] = patch?.mainJar;
   const name: string | undefined = client?.name;
   const url: string | undefined = client?.downloads?.artifact?.url;
   const hash: string | undefined = client?.downloads?.artifact?.sha1;
@@ -28,7 +30,7 @@ export function parseMainJar({
     hash === undefined
   ) {
     log.error(
-      __PRE_BUNDLED_FILENAME__,
+      descriptiveLogPrefix,
       "The main jar metadata is invalid",
     );
     statuses.current = LaunchStatus.Client.FailedToParse;
@@ -46,7 +48,7 @@ export function parseMainJar({
     file,
   );
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Parsed the main jar metadata");
+  log.debug(descriptiveLogPrefix, "Parsed the main jar metadata");
 
   return {
     "id": name,

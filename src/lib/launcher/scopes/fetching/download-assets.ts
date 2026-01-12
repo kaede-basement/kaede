@@ -41,15 +41,15 @@ export async function downloadAssets({
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
-  log.debug(__PRE_BUNDLED_FILENAME__, "Getting the assetIndex metadata");
-  const { directories, statuses, instance } = necessaries;
+  const { directories, statuses, instance, logPrefix } = necessaries;
 
+  log.debug(logPrefix, "Getting the assetIndex metadata");
   if (
     finalizedPatch.assetIndex === undefined ||
     finalizedPatch.assetIndex?.id === undefined ||
     finalizedPatch.assetIndex?.url === undefined
   ) {
-    log.error(__PRE_BUNDLED_FILENAME__, "The finalized patch is missing assetIndex metadata");
+    log.error(logPrefix, "The finalized patch is missing assetIndex metadata");
     statuses.current = LaunchStatus.AssetIndex.FailedToGet;
 
     return false;
@@ -59,7 +59,7 @@ export async function downloadAssets({
   const metaFilename = assetIndex.id + ".json";
   let parsedIndex: unknown;
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Reading the cached assets metadata");
+  log.debug(logPrefix, "Reading the cached assets metadata");
   statuses.current = LaunchStatus.AssetIndex.Reading;
   try {
     parsedIndex = await General.handleJsonFile({
@@ -71,7 +71,7 @@ export async function downloadAssets({
       ],
       "label"          : `/assets/indexes/${metaFilename}`,
       "getDefaultValue": async () => {
-        log.warn(__PRE_BUNDLED_FILENAME__, "No cache; fetching the assets metadata");
+        log.warn(logPrefix, "No cache; fetching the assets metadata");
         statuses.current = LaunchStatus.AssetIndex.Fetching;
         const fetched: { "data": unknown } | LaunchStatusType = await fetchMetadata({
           "url"   : assetIndex.url,
@@ -86,7 +86,7 @@ export async function downloadAssets({
         }
 
         log.error(
-          __PRE_BUNDLED_FILENAME__,
+          logPrefix,
           `Could not fetch the asset index. Status: ${fetched}`,
         );
         statuses.current = fetched;
@@ -101,7 +101,7 @@ export async function downloadAssets({
     });
   } catch (error: unknown) {
     log.error(
-      __PRE_BUNDLED_FILENAME__,
+      logPrefix,
       `${metaFilename} | Caught an error while getting the asset index:`,
       Errors.prettify(error),
     );
@@ -109,7 +109,7 @@ export async function downloadAssets({
     return false;
   }
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Validating the assets metadata");
+  log.debug(logPrefix, "Validating the assets metadata");
   const shallowlyValidIndex: AssetObjectsType | false = shallowlyValidateMeta({
     "meta": parsedIndex,
   });
@@ -149,7 +149,7 @@ export async function downloadAssets({
     });
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Verifying ${mappedAssetObjects.length} assets for their existence.`,
     `SHA1 checks enabled: ${instance.checksum}`,
   );
@@ -164,7 +164,7 @@ export async function downloadAssets({
   const totalTime: string = (endTime - startTime).toFixed(2);
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Successfully verified ${mappedAssetObjects.length} assets in ${totalTime} ms.`,
     `Total mismatches: ${hashesToReDownload.size}.`,
     `SHA1 checks enabled: ${instance.checksum}`,
@@ -185,7 +185,7 @@ export async function downloadAssets({
   });
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Successfully handled ${mappedAssetObjects.length} assets`,
     `and re-downloaded ${hashesToReDownload.size} of them`,
   );

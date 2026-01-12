@@ -23,9 +23,9 @@ export async function extractNativeArchives({
     return;
   }
 
-  const { directories } = necessaries;
+  const { directories, logPrefix } = necessaries;
 
-  log.debug(__PRE_BUNDLED_FILENAME__, `Extracting ${paths.length} native archives`);
+  log.debug(logPrefix, `Extracting ${paths.length} native archives`);
   const startTime: number = performance.now();
 
   await Promise.all(
@@ -39,7 +39,7 @@ export async function extractNativeArchives({
   const totalTime: string = (endTime - startTime).toFixed(2);
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Successfully extracted ${paths.length} native archives in ${totalTime} ms`,
   );
 

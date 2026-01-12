@@ -14,10 +14,12 @@ import type {
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export function parseLibraries({
+  patchUid,
   necessaries,
   libraries,
   isMaven,
 }: {
+  "patchUid"   : string;
   "necessaries": PreLaunchInformationType;
   "libraries"  : Array<SpecificPatchLibraryType>;
   "isMaven"    : boolean;
@@ -33,19 +35,21 @@ export function parseLibraries({
     return beforeHooksResult;
   }
 
-  const { statuses } = necessaries;
+  const { statuses, logPrefix } = necessaries;
+  const descriptiveLogPrefix: string = patchUid + ":" + logPrefix;
   const results: Array<MappedArtifactType> = [];
 
-  log.debug(__PRE_BUNDLED_FILENAME__, `Parsing ${libraries.length} libraries`);
+  log.debug(descriptiveLogPrefix, `Parsing ${libraries.length} libraries`);
   for (const entry of libraries) {
     const library: SpecificPatchLibraryType | false = shallowlyValidateLibrary({
       "library": entry,
       statuses,
+      descriptiveLogPrefix,
     });
 
     if (library === false) {
       log.warn(
-        __PRE_BUNDLED_FILENAME__,
+        descriptiveLogPrefix,
         `The '${JSON.stringify(entry)}' library is completely invalid`,
       );
 
@@ -66,6 +70,7 @@ export function parseLibraries({
       necessaries,
       library,
       isMaven,
+      patchUid,
     });
 
     if (artifact) {
@@ -76,6 +81,7 @@ export function parseLibraries({
       const nativeArtifact: MappedArtifactType | false = parseNative({
         necessaries,
         library,
+        patchUid,
       });
 
       if (nativeArtifact) {
@@ -100,7 +106,7 @@ export function parseLibraries({
   }
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    descriptiveLogPrefix,
     `Got ${results.length}/${libraries.length} libraries`,
   );
 

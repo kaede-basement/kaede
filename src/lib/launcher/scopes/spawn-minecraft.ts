@@ -16,11 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ApplicationName } from "@/constants/application.ts";
+import { type Child, Command } from "tauri-plugin-shellx-api";
+
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
-import { useApplet } from "@/lib/launcher/scopes/use-applet.ts";
-import { useShell } from "@/lib/launcher/scopes/use-shell.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type {
@@ -55,90 +54,61 @@ export async function spawnMinecraft({
     return beforeHooksResult;
   }
 
-  const { directories, statuses } = necessaries;
+  const { directories, statuses, logPrefix } = necessaries;
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Creating a launch command with the '${directories.instance}' working directory`,
   );
+  const launchTask: Command<string> = Command.create(command.java, command.arguments, {
+    "cwd": directories.instance,
+  });
 
-  /*
-   * Every argument or word should be escaped with double quotes.
-   * The java applet input arguments divide argument elements not only for spaces,
-   * but for dots too (possibly other characters).
-   *
-   * The powershell or the provided system shell
-   * might also do something with these arguments unless escaped
-   */
-  const escapedApplet: string = `"${command.program}" "${directories.instance}"`;
-  const escapedJavaBinary: string = `"${command.java}"`;
-  const escapedArguments: string = `"${command.arguments.join("\" \"")}"`;
-  const passToHelpers: {
-    "actualCommand": {
-      "applet"   : string;
-      "java"     : string;
-      "arguments": string;
-    };
-    "instanceId" : string;
-    "necessaries": PreLaunchInformationType;
-    "onInput"    : (line: string) => void;
-  } = {
-    "actualCommand": {
-      "applet"   : escapedApplet,
-      "java"     : escapedJavaBinary,
-      "arguments": escapedArguments,
-    },
-    instanceId,
-    necessaries,
-    onInput,
-  };
+  log.debug(logPrefix, "Spawning a process");
+  const process: Child = await launchTask.spawn();
 
-  const shellHelper = false
-    ? await useShell(passToHelpers)
-    : await useApplet(passToHelpers);
-
-  shellHelper.launchTask.on("close", payload => {
+  log.debug(logPrefix, "Adding listeners to the process");
+  launchTask.stdout.on("data", onInput);
+  launchTask.stderr.on("data", onInput);
+  launchTask.on("close", payload => {
     onClose(instanceId);
-    log.info(
-      __PRE_BUNDLED_FILENAME__,
-      `The '${instanceId}' was closed.`,
-      `Payload (everything ${ApplicationName} has):`,
+    log.warn(
+      logPrefix,
+      "Successfully closed. Payload:",
       "\n" + JSON.stringify(payload, null, 2),
     );
     ExtensionsManager.catchAsyncVoidHooks({
       "scope" : "onMinecraftKill",
-      "toPass": shellHelper.process.pid,
+      "toPass": process.pid,
       "timing": "after",
     });
   });
-  shellHelper.launchTask.on("error", payload => {
+  launchTask.on("error", payload => {
     statuses.current = LaunchStatus.Errors.UnhandledError;
 
     log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `Something went wrong with the '${instanceId}' instance.`,
-      `Payload (everything ${ApplicationName} has):`,
+      logPrefix,
+      "Something went wrong. Payload:",
       "\n" + JSON.stringify(payload, null, 2),
     );
     ExtensionsManager.catchAsyncVoidHooks({
       "scope" : "onMinecraftKill",
-      "toPass": shellHelper.process.pid,
+      "toPass": process.pid,
       "timing": "after",
     });
   });
 
   await ExtensionsManager.catchAsyncVoidHooks({
     "scope" : "onMinecraftLaunch",
-    "toPass": { "process": shellHelper.process, command, instanceId, necessaries },
+    "toPass": { process, command, instanceId, necessaries },
     "timing": "after",
   });
 
   log.info(
-    __PRE_BUNDLED_FILENAME__,
-    `The '${instanceId}' successfully launched.`,
-    `PID: ${shellHelper.process.pid}`,
+    logPrefix,
+    `Successfully launched with the ${process.pid} PID`,
   );
   statuses.current = LaunchStatus.General.Success;
 
-  return { "success": true, "process": shellHelper.process };
+  return { "success": true, process };
 }

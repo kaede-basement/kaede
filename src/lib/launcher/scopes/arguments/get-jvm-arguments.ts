@@ -27,9 +27,9 @@ export async function getJvmArguments({
     return beforeHooksResult;
   }
 
-  const { platform } = necessaries;
+  const { platform, logPrefix } = necessaries;
 
-  log.debug(__PRE_BUNDLED_FILENAME__, "Adding default JVM arguments");
+  log.debug(logPrefix, "Adding default JVM arguments");
   jvmArguments.push(
     "-Xmx4096m",
     "-Djava.net.useSystemProxiestrue",
@@ -49,10 +49,10 @@ export async function getJvmArguments({
 
   switch (platform) {
     case "windows": {
-      log.debug(__PRE_BUNDLED_FILENAME__, "Adding Windows-only JVM arguments");
+      log.debug(logPrefix, "Adding Windows-only JVM arguments");
 
       if (version().slice(0, 2) === "10") {
-        log.debug(__PRE_BUNDLED_FILENAME__, "Adding Windows 10 specific JVM arguments");
+        log.debug(logPrefix, "Adding Windows 10 specific JVM arguments");
         jvmArguments.push(
           "-Dos.name=Windows 10",
           "-Dos.version=10.0",
@@ -71,7 +71,7 @@ export async function getJvmArguments({
       break;
     }
     case "macos": {
-      log.debug(__PRE_BUNDLED_FILENAME__, "Adding macOS-only JVM arguments");
+      log.debug(logPrefix, "Adding macOS-only JVM arguments");
 
       if (finalizedPatch.logging) {
         logFilePath = finalizedPatch.logging.path;
@@ -82,7 +82,7 @@ export async function getJvmArguments({
       break;
     }
     default: {
-      log.debug(__PRE_BUNDLED_FILENAME__, "Adding Linux-only JVM arguments");
+      log.debug(logPrefix, "Adding Linux-only JVM arguments");
 
       if (finalizedPatch.logging) {
         logFilePath = finalizedPatch.logging.path;
@@ -93,7 +93,7 @@ export async function getJvmArguments({
   }
 
   if (finalizedPatch.logging) {
-    log.debug(__PRE_BUNDLED_FILENAME__, "Adding logging config to JVM arguments");
+    log.debug(logPrefix, "Adding logging config to JVM arguments");
     const loggingArguments = finalizedPatch
       .logging
       .argument

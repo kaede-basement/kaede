@@ -23,6 +23,9 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
+/**
+ * Unused as of now
+ */
 export async function useApplet({
   actualCommand,
   instanceId,

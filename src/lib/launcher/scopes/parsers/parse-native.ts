@@ -15,17 +15,20 @@ import type {
 export function parseNative({
   necessaries,
   library,
+  patchUid,
 }: {
   "necessaries": PreLaunchInformationType;
   "library"    : SpecificPatchLibraryType;
+  "patchUid"   : string;
 }): Required<MappedArtifactType> | false {
-  const { directories, platform, arch } = necessaries;
+  const { directories, platform, arch, logPrefix } = necessaries;
+  const descriptiveLogPrefix: string = patchUid + ":" + library?.name + ":" + logPrefix;
   const classifiers: SpecificPatchClassifiersType | undefined = library?.downloads?.classifiers;
   const name: string | undefined = library?.name;
   const newFormattedUrl: string | undefined = library?.downloads?.artifact?.url;
 
   if (name === undefined) {
-    log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' native is invalid`);
+    log.warn(descriptiveLogPrefix, "The native is invalid");
 
     return false;
   }
@@ -42,7 +45,7 @@ export function parseNative({
     const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
     if (newFormattedUrl === undefined || hash === undefined) {
-      log.warn(__PRE_BUNDLED_FILENAME__, `The '${name}' native is invalid`);
+      log.warn(descriptiveLogPrefix, "The native is invalid");
 
       return false;
     }
@@ -81,7 +84,7 @@ export function parseNative({
       return artifact;
     }
 
-    log.debug(__PRE_BUNDLED_FILENAME__, `The '${name}' native is not compatible`);
+    log.debug(descriptiveLogPrefix, "The native is not compatible");
 
     return false;
   }
@@ -129,7 +132,7 @@ export function parseNative({
     };
   }
 
-  log.debug(__PRE_BUNDLED_FILENAME__, `The '${name}' native is not compatible`);
+  log.debug(descriptiveLogPrefix, "The native is not compatible");
 
   return false;
 }

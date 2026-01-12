@@ -6,9 +6,11 @@ import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-pa
 export function shallowlyValidateLibrary({
   statuses,
   library,
+  descriptiveLogPrefix,
 }: {
-  "statuses": LauncherStatusesType;
-  "library" : unknown;
+  "statuses"            : LauncherStatusesType;
+  "library"             : unknown;
+  "descriptiveLogPrefix": string;
 }): SpecificPatchLibraryType | false {
   if (
     typeof library !== "object" ||
@@ -16,8 +18,8 @@ export function shallowlyValidateLibrary({
     !("name" in library)
   ) {
     log.debug(
-      __PRE_BUNDLED_FILENAME__,
-      `The '${JSON.stringify(library)}' is completely incompatible`,
+      descriptiveLogPrefix,
+      `The '${JSON.stringify(library)}' is completely invalid`,
     );
     statuses.current = LaunchStatus.Libraries.FailedToValidate;
 

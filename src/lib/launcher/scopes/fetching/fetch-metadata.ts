@@ -41,13 +41,13 @@ export async function fetchMetadata({
   let data: unknown;
 
   try {
-    log.debug(__PRE_BUNDLED_FILENAME__, `${prefix} | Fetching the ${label} from '${url}'`);
+    log.debug(`${prefix}:${__PRE_BUNDLED_FILENAME__}`, `Fetching the ${label} from '${url}'`);
 
     response = await fetch(url);
   } catch (error: unknown) {
     log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `${prefix} | Could not fetch '${url}':`,
+      `${prefix}:${__PRE_BUNDLED_FILENAME__}`,
+      `Could not fetch '${url}':`,
       Errors.prettify(error),
     );
 
@@ -58,8 +58,8 @@ export async function fetchMetadata({
     data = await response.json();
   } catch (error: unknown) {
     log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `${prefix} | Could not parse the ${label} from '${url}':`,
+      `${prefix}:${__PRE_BUNDLED_FILENAME__}`,
+      `Could not parse the ${label} from '${url}':`,
       Errors.prettify(error),
     );
 

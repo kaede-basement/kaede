@@ -93,8 +93,6 @@ export async function createCommand({
     javaBinary,
   });
 
-  console.log(launchArguments);
-
   return {
     "program"  : launcherJar,
     "java"     : javaBinary,

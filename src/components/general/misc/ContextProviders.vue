@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { platform } from "@tauri-apps/plugin-os";
-import { type Child, Command } from "tauri-plugin-shellx-api";
+import { useIntervalFn } from "@vueuse/core";
+import { type Child } from "tauri-plugin-shellx-api";
 import { markRaw, provide, reactive, ref, shallowReactive } from "vue";
 
 import {
@@ -24,7 +24,6 @@ import type {
   WrappedInstanceLauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
-import { useIntervalFn } from "@vueuse/core";
 
 const accounts = ref<Array<AccountType>>(
   window[ApplicationNamespace].__internals.temporaryAccounts,
@@ -33,7 +32,7 @@ const launches = reactive<Record<string, LauncherStatusesType>>({});
 const logs = shallowReactive<Record<string, Array<string>>>({});
 
 useIntervalFn(() => {
-  console.log(logs["old-quilt"]);
+  console.log(logs["relevant-fabric"]);
 }, 100);
 
 const childProcesses: Record<string, Child> = {};
@@ -104,7 +103,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
       currentLogsArray.push(line);
     };
     const javaBinary: string =
-      String.raw`java`;
+      String.raw`javaw`;
     const javaMajor: number = window[ApplicationNamespace].__internals.javaMajor
       ?? await General.getJavaMajor();
 
@@ -170,13 +169,6 @@ async function closeInstance(instanceId: string): Promise<void> {
     });
 
   if (beforeHooksResult !== "continue") {
-    return;
-  }
-
-  // Refer to https://github.com/tauri-apps/tauri/issues/4949
-  if (platform() === "windows") {
-    await Command.create("cmd", `/C taskkill /pid ${process.pid} /f /t`).execute();
-
     return;
   }
 
