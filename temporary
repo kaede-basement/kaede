@@ -1,0 +1,34 @@
+*A human-generated slop that follows IMRaD structure to help me prepare for my Academic Writing and Argumentation classes*
+
+## Abstract 
+As new Minecraft launchers keep being made by enthusiastic developers,
+
+## Introduction
+In the last couple of years, the MultiMC-based launchers, such as PolyMC* and Prism Launcher, attracted the majority of the Minecraft player base. Various Reddit and forum posts seem to show that the use of a latter one is widespread [1]. The comparison of the GitHub stars history between the most popular open sourced Minecraft launchers reveals that the Prism Launcher has the fastest grow [2]. Despite a significant popularity, the underlying launching part does not appear to be well-documented. This post aims to shed light on the use of MultiMC patches in Minecraft launching.
+
+\*Not recommended due to questionable actions of the lead developer
+
+## Methods
+The list of the used technology stack, tools, and systems includes but is not limited to: TypeScript, Rust, Tauri v2, Temurin JDK 8/16/17/21, Windows 10, and NixOS. To examine the MultiMC patch system, I proceeded in several steps. First, I collected all available at the moment of writing patch index files (i.e. `net.minecraft`, `net.minecraftforge`) and built an approximate representation of the response type. I did the same action for specific versions of each patch using the latest version. Next, I reviewed the blog posts about Minecraft launching from Lin [3] and Ryan [4]. I then tried to make a mental model of a Minecraft launching process while finding similarities between Mojang API and Prism Launcher meta API. Finally, I started the development where many horrifying things beyond my comprehension awaited me.
+
+## Results and Discussion
+The MultiMC patch system is a complex, yet convenient way to manage Minecraft launch with various mod loaders support. If one manages the MultiMC patch system in their code in a proper way, they will not need to write a code to handle each patch separately since patches are standardized.
+### How to think of MultiMC patches
+Before we start coding, we should understand what to expect from patches.
+
+As stated by Ryan [4], the Prism Launcher meta server is generating JSON patches from multiple sources. Those sources can have completely different formats of library and asset structures. Bringing such inconsistencies to one consistent response format is challenging. Thus, we will stumble upon many minor inconveniences when handling MultiMC patches.
+
+First, let's look at the response type:
+```ts
+type PatchType = {
+  // Currently, equals to 1
+  "formatVersion": number;
+};
+```
+
+
+
+### Implementing the launch part
+
+## References
+[1] 
