@@ -16,15 +16,16 @@
     - [ ] Downloading from the repository
     - [ ] UI to manage plugins
 - [x] Minecraft launching
-  - [x] MultiMC meta
+  - [x] Uses MultiMC meta
   - [x] Caching
   - [x] Precise missing assets/libraries/jars re-download
-  - [x] Precise SHA1 mismatched assets/libraries/jars re-download (with the option to disable them)
+  - [x] Precise SHA1 mismatched assets/libraries/jars re-download (with the option to disable this)
   - [x] Plugin hooks for every launch step
   - [x] Launching process with the same launch features as Prism Launcher takes up the same amount of time
-  - [x] 1.0-1.21.11 works (snapshots should work too)
+  - [x] All new (1.13.2+) release versions work
+  - [x] All old release versions work
+  - [x] All snapshots, beta, and alpha versions work
   - [ ] Launch wrapper for old versions of minecraft
-  - [ ] Handle indev, alpha, and beta versions
 - [ ] Authentication
     - [ ] Microsoft authentication
     - [ ] Offline accounts if user has a Microsoft account with the game
@@ -42,10 +43,10 @@
     - [ ] Legacy FTB
     - [ ] Technic
 - [ ] Mod loaders
-    - [ ] Fabric
-    - [ ] Forge
-    - [ ] NeoForge
-    - [ ] Quilt
+    - [x] Fabric
+    - [x] Forge
+    - [x] NeoForge
+    - [x] Quilt
     - [ ] Legacy Fabric
     - [ ] LiteLoader
     - [ ] Kaolin

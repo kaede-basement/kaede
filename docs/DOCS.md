@@ -1,6 +1,6 @@
 *A human-generated slop that follows IMRaD structure to help me prepare for my Academic Writing and Argumentation classes*
 
-## Abstract 
+## Abstract
 As new Minecraft launchers keep being made by enthusiastic developers,
 
 ## Introduction
