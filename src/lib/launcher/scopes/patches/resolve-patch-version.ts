@@ -23,7 +23,7 @@ import General from "@/lib/general";
 import { fetchMetadata } from "@/lib/launcher/scopes/fetching/fetch-metadata.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
-import type { PatchRequiresType } from "@/types/launcher/meta/patch-meta.type.ts";
+import type { PatchDependencyType } from "@/types/launcher/meta/patch-index.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -33,7 +33,7 @@ export async function resolvePatchVersion({
   metadata,
 }: {
   "necessaries": PreLaunchInformationType;
-  "metadata"   : PatchRequiresType;
+  "metadata"   : PatchDependencyType;
 }): Promise<string | false> {
   const { "user": { versions }, logPrefix } = necessaries;
   const selected: string | undefined = versions?.[metadata.uid];

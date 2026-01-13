@@ -8,7 +8,7 @@ import { InstanceStatesContextKey } from "@/constants/application.ts";
 import { APIEndpoints } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
-import type { PatchMetaType } from "@/types/launcher/meta/patch-meta.type.ts";
+import type { PatchIndexType } from "@/types/launcher/meta/patch-index.type.ts";
 
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 
@@ -16,7 +16,7 @@ const minecraftUID: string = "net.minecraft";
 
 const { data, status } = useQuery({
   "queryKey": ["meta", minecraftUID, "versions"],
-  "queryFn" : async (): Promise<PatchMetaType["versions"]> => {
+  "queryFn" : async (): Promise<PatchIndexType["versions"]> => {
     const response: Response = await fetch(APIEndpoints.Meta.Base + minecraftUID);
     const parsed: unknown = await response.json();
 

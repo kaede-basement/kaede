@@ -1,6 +1,6 @@
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
-import type { PatchUIDType } from "@/types/launcher/meta/patch-meta.type.ts";
+import type { PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
 export type PreLaunchInformationType = {
   "logPrefix": string;

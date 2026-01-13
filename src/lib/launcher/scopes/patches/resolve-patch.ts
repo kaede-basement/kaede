@@ -26,7 +26,7 @@ import { resolvePatchVersion } from "@/lib/launcher/scopes/patches/resolve-patch
 import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
-import type { PatchRequiresType } from "@/types/launcher/meta/patch-meta.type.ts";
+import type { PatchDependencyType } from "@/types/launcher/meta/patch-index.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -38,7 +38,7 @@ export async function resolvePatch({
   patchMeta,
 }: {
   "necessaries": PreLaunchInformationType;
-  "metadata"   : PatchRequiresType;
+  "metadata"   : PatchDependencyType;
   "patchMeta" ?: SpecificPatchMetaType;
 }): Promise<SpecificPatchMetaType | false> {
   const beforeHooksResult: "continue" | SpecificPatchMetaType | false | undefined =

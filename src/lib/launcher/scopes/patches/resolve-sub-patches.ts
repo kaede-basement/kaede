@@ -17,7 +17,7 @@
  */
 
 import { resolvePatch } from "@/lib/launcher/scopes/patches/resolve-patch.ts";
-import type { PatchRequiresType } from "@/types/launcher/meta/patch-meta.type.ts";
+import type { PatchDependencyType } from "@/types/launcher/meta/patch-index.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -30,7 +30,7 @@ export async function resolveSubPatches({
   "necessaries": PreLaunchInformationType;
   "patchMeta"  : SpecificPatchMetaType;
 }): Promise<Array<SpecificPatchMetaType>> {
-  const toResolve: Array<Array<PatchRequiresType> | undefined> = [patchMeta?.requires];
+  const toResolve: Array<Array<PatchDependencyType> | undefined> = [patchMeta?.requires];
   const patches: Array<SpecificPatchMetaType> = [patchMeta];
 
   for (const currentGroup of toResolve) {

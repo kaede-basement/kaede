@@ -92,22 +92,101 @@ Due to this section being a short explanation, I omitted the majority of importa
 
 ## An in-depth structure of the MultiMC patch system
 
-Since now one should have at least the surface-level understanding of MultiMC patch system, they can dive deeper.
+Since now one should have a surface-level understanding of the MultiMC patch system, they can dive deeper.
 
-Now, let us start with the actual response types. This is a TypeScript type schema for the patch index files:
+### Patch index files
+
+Now, let us start with the actual response types. This is a TypeScript type schema for the patch index files, the JSON files that contain available versions of the patch:
 
 ```ts
 type PatchIndexType = {
   // Currently, equals to one
   "formatVersion": number;
+
   // A human-readable name of the patch
-  "name"         : string;
+  "name": string;
+
   // A unique identifier of the patch. As of now, can be 12 different string literals
-  "uid"          : PatchUIDType;
+  "uid": PatchUIDType;
+
   // An array of available patches that are sorted from latest to oldest versions
-  "versions"     : Array<PatchIndexVersionType>;
+  "versions": Array<PatchIndexVersionType>;
 };
 ```
+
+The patch index type appears to always have this format.
+
+The `PatchUIDType` looks like this:
+
+```ts
+type PatchUIDType =
+  "com.azul.java" |
+  "com.mumfrey.liteloader" |
+  "net.adoptium.java" |
+  "net.fabricmc.fabric-loader" |
+  "net.fabricmc.intermediary" |
+  "net.minecraft" |
+  "net.minecraft.java" |
+  "net.minecraftforge" |
+  "net.neoforged" |
+  "org.lwjgl" |
+  "org.lwjgl3" |
+  "org.quiltmc.quilt-loader";
+```
+
+Finally, the patch index version entries have the next type schema:
+
+```ts
+type PatchIndexVersionType = {
+  // Whether this version is a recommended one.
+  // In Prism Launcher, stars in the version select menu represent this field
+  "recommended": boolean;
+
+  // The version release time in the ISO 8601 string format
+  "releaseTime": string;
+
+  // A hash value that the provided JSON file for this patch version should have
+  "sha256": string;
+
+  // A version string, e.g. '26.1-snapshot-2'
+  "version": string;
+
+  // An array of conflicted patches. Might be missing
+  "conflicts"?: Array<PatchDependencyType>;
+
+  // An array of required patches, i.e. dependencies. Might be missing
+  "requires" ?: Array<PatchDependencyType>;
+
+  // Used not only in the 'net.minecraft' patches, but in others too. Might be missing
+  "type"?: PatchVariantType;
+
+  // No clue. Might be missing, but present in 'net.fabricmc.intermediary'
+  "volatile"?: boolean;
+};
+```
+
+Where the `PatchVariantType` can be `"release" | "snapshot" | "experiment" | "old_alpha" | "old_beta" | "old_snapshot"` and `PatchDependencyType` looks like this:
+
+```ts
+type PatchDependencyType = {
+  // A unique identifier of the dependency
+  "uid": PatchUIDType;
+
+  // A version of the dependency that should be selected. Might be missing
+  "equals"?: string;
+
+  // A version of the dependency that is recommended. Might be missing
+  "suggests"?: string;
+};
+```
+
+The patch index files are usually used on Minecraft instance creation. They are not used in the installation and launching parts.
+
+### Version-specific patches
+
+Now begins the longest part of the entire post :3
+
+
 
 ## Implementing the launch part
 
@@ -120,6 +199,10 @@ https://github.com/MultiMC/Launcher/issues/1138
 uhh...
 
 Prism Launcher seems to pick up other mods too, those mods will just not have any metadata unless used in other instances.
+
+# Improvements / Future works
+
+- Re-phrase the sentences that use first-person pronouns to not have them (not academically effective lol).
 
 # References
 

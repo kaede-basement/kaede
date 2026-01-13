@@ -1,8 +1,8 @@
 import type {
-  PatchRequiresType,
+  PatchDependencyType,
   PatchUIDType,
-  PatchVersionEntryVariantType,
-} from "@/types/launcher/meta/patch-meta.type.ts";
+  PatchVariantType,
+} from "@/types/launcher/meta/patch-index.type.ts";
 
 export type SpecificPatchRuntimeChecksumType = {
   "hash": string;
@@ -151,7 +151,7 @@ export type SpecificPatchMetaType = {
   "assetIndex"          ?: SpecificPatchAssetIndexType;
   "compatibleJavaMajors"?: Array<number>;
   "compatibleJavaName"  ?: string;
-  "conflicts"           ?: Array<PatchRequiresType>;
+  "conflicts"           ?: Array<PatchDependencyType>;
   "libraries"           ?: Array<SpecificPatchLibraryType>;
   "logging"             ?: SpecificPatchLoggingType;
   "mainClass"           ?: string;
@@ -159,8 +159,8 @@ export type SpecificPatchMetaType = {
   "mavenFiles"          ?: Array<SpecificPatchLibraryType>;
   "minecraftArguments"  ?: string;
   "order"               ?: number;
-  "requires"            ?: Array<PatchRequiresType>;
+  "requires"            ?: Array<PatchDependencyType>;
   "runtimes"            ?: Array<SpecificPatchRuntimeType>;
-  "type"                ?: PatchVersionEntryVariantType;
+  "type"                ?: PatchVariantType;
   "volatile"            ?: boolean;
 };
