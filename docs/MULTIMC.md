@@ -1,3 +1,5 @@
+[README for TypeScript-related code](../src/README.md) | [README for Rust-related code](../src-tauri/README.md) | [Contributing Guidelines](./CONTRIBUTING.md)
+
 *A human-generated slop that follows IMRaD structure to help me prepare for my Academic Writing and Argumentation classes*
 
 # Abstract
@@ -96,6 +98,8 @@ Since now one should have a surface-level understanding of the MultiMC patch sys
 
 ### Patch index files
 
+> URL format: `https://meta.prismlauncher.org/v1/${uid}`
+
 Now, let us start with the actual response types. This is a TypeScript type schema for the patch index files, the JSON files that contain available versions of the patch:
 
 ```ts
@@ -180,13 +184,106 @@ type PatchDependencyType = {
 };
 ```
 
-The patch index files are usually used on Minecraft instance creation. They are not used in the installation and launching parts.
+The patch index files are usually used on Minecraft instance creation. They are not needed in the installation and launching parts.
 
 ### Version-specific patches
 
+> URL format: `https://meta.prismlauncher.org/v1/${uid}/${version}.json`
+
 Now begins the longest part of the entire post :3
 
+The JSON files for version-specific patches diverse with each patch. This is what the final type looks like:
 
+```ts
+type SpecificPatchMetaType = {
+  // Currently, equals to one
+  "formatVersion": number;
+
+  // A human-readable name of the patch
+  "name": string;
+
+  // The version release time in the ISO 8601 string format
+  "releaseTime": string;
+
+  // A unique identifier of the patch. As of now, can be 12 different string literals
+  "uid": PatchUIDType;
+
+  // A version string, e.g. '26.1-snapshot-2'
+  "version": string;
+
+  // All the next fields could be missing.
+  //
+  // Perhaps, these are Java agents.
+  // Specified at https://github.com/PrismLauncher/meta/blob/main/meta/model/__init__.py#L342
+  "+agents"?: Array<Partial<{ "argument": string }>>;
+
+  // This field contains a list of unique flags Prism Launcher uses when launching.
+  //
+  // So far, I have encountered next values:
+  // - 'legacyLaunch'       // Appears to indicate the use of a legacy Java applet launcher in Prism
+  // - 'XR:Initial'         // Related to the Mojang compliance level
+  // - 'FirstThreadOnMacOS' // Tells to use the '-XstartOnFirstThread' JVM argument on macOS
+  // - 'legacyServices'     // Perhaps, it is related to auth (?)
+  // - 'texturepacks'       // Shows that the version supports texture packs (?)
+  // - 'no-texturepacks'    // Shows that the version does not support texture packs (?)
+  //
+  // There is also another format of traits, i.e. 'feature:*'.
+  // They are usually present in newer versions. For example:
+  // - 'feature:is_quick_play_singleplayer'
+  // - 'feature:is_quick_play_multiplayer'
+  //
+  // Other possible values that I have not encountered:
+  // - 'legacyFML'
+  "+traits"?: Array<string>;
+
+  // An array of tweak classes to pass to the game arguments.
+  // For example, the ['com.mumfrey.liteloader.launch.LiteLoaderTweaker', 'another_tweaker']
+  // will be passed as
+  // '--tweakClass com.mumfrey.liteloader.launch.LiteLoaderTweaker --tweakClass another_tweaker'
+  "+tweakers"?: Array<string>;
+
+  // An array of JVM arguments to pass to your JVM arguments.
+  // So far, I have encountered next values:
+  // - '-Djava.util.Arrays.useLegacyMergeSort=true' // Present in really old versions of Minecraft
+  "+jvmArgs"?: Array<string>;
+
+  // Seem to equal to the Mojan API response format. Points to the Minecraft assets index JSON file
+  "assetIndex"?: SpecificPatchAssetIndexType;
+
+  // An array of Java major versions that are compatible with the patch
+  "compatibleJavaMajors"?: Array<number>;
+
+  // I do not remember where I saw this field.
+  // However, it looks like it might represent the compatible Java vendor name
+  "compatibleJavaName"?: string;
+
+  // An array of conflicting patches. Usually present in 'org.lwjgl' and 'org.lwjgl3'
+  "conflicts"?: Array<PatchDependencyType>;
+
+  // An array of needed libraries for this patch.
+  // Seems to be the most complex part of Minecraft launching
+  "libraries"?: Array<SpecificPatchLibraryType>;
+
+  // "The logging configuration file to provide to log4j" [5].
+  // Stored in '/assets/log_configs/', alongside with '/assets/indexes/' and '/assets/objects/'
+  "logging"?: SpecificPatchLoggingType;
+
+  // "The main class to call in the execution of java" [5]
+  "mainClass"?: string;
+
+  // 
+  "mainJar"             ?: SpecificPatchMainJarType;
+  "mavenFiles"          ?: Array<SpecificPatchLibraryType>;
+  "minecraftArguments"  ?: string;
+  "order"               ?: number;
+  "requires"            ?: Array<PatchDependencyType>;
+  "runtimes"            ?: Array<SpecificPatchRuntimeType>;
+  "type"                ?: PatchVariantType;
+  "volatile"            ?: boolean;
+};
+```
+
+It should be noted that as per MultiMC documentation [7], the `+agents`, `+traits`, `+tweakers`, and `+jvmArgs` should have their equivalent fields with the `-` sign or without the `+` sign. However, I never found such cases.
 
 ## Implementing the launch part
 

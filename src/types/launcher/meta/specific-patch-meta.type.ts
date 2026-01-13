@@ -146,8 +146,10 @@ export type SpecificPatchMetaType = {
   "releaseTime"          : string;
   "uid"                  : PatchUIDType;
   "version"              : string;
+  "+agents"             ?: Array<Partial<{ "argument": string }>>;
   "+traits"             ?: Array<string>;
   "+tweakers"           ?: Array<string>;
+  "+jvmArgs"            ?: Array<string>;
   "assetIndex"          ?: SpecificPatchAssetIndexType;
   "compatibleJavaMajors"?: Array<number>;
   "compatibleJavaName"  ?: string;
