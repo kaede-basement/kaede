@@ -137,8 +137,14 @@ export type SpecificPatchLoggingType = {
   "type"    : string;
 };
 export type SpecificPatchMainJarType = {
-  "downloads": SpecificPatchLibraryDownloadsType;
-  "name"     : string;
+  "downloads": {
+    "artifact": {
+      "sha1": string;
+      "size": number;
+      "url" : string;
+    };
+  };
+  "name": string;
 };
 export type SpecificPatchMetaType = {
   // Currently, equals to one

@@ -349,7 +349,7 @@ type SpecificPatchLoggingType = {
   // A JVM argument that should be used (contains a placeholder to replace)
   "argument": string;
 
-  // Turns out, the provided config file download format uses the same schema as the 'assetIndex' field
+  // Turns out, the config file download format uses the same schema as the 'assetIndex' field
   "file": SpecificPatchAssetIndexType;
 
   // Usually equals to 'log4j2-xml'.
@@ -361,6 +361,66 @@ type SpecificPatchLoggingType = {
   "type": string;
 };
 ```
+
+The `SpecificPatchMainJarType` type schema is equal to:
+
+```ts
+type SpecificPatchMainJarType = {
+  "downloads": {
+    "artifact": {
+      // An SHA-1 hash that the downloaded jar file should have
+      "sha1": string;
+
+      // The size of a jar file in bytes
+      "size": number;
+
+      // Points to the main jar downloads
+      "url": string;
+    };
+  };
+  // This is where it gets tricky* (see explanations at the end of the section)
+  "name": string;
+};
+```
+
+Finally, the `SpecificPatchLibraryType` type schema is equal to:
+
+```ts
+type SpecificPatchLibraryType = {
+  "name": string;
+  "downloads"?: {
+    "artifact"?: {
+      "sha1": string;
+      "size": number;
+      "url": string;
+      "id"?: string;
+      "path"?: string;
+    };
+    "classifiers"?: {
+      [key: SpecificPatchClassifierKeyType]: {
+        "sha1": string;
+        "size": number;
+        "url": string;
+        "id"?: string;
+        "path"?: string;
+      };
+    };
+  };
+  "extract"?: {
+    // Directories to exclude extracting for.
+    // For example, ["META-INF/"] means not to extract the 'META-INF' folder for this native
+    "exclude": Array<string>;
+  };
+  "natives"?: Partial<{
+    [key: SpecificPatchLibraryOSNameType]: string;
+  }>;
+  "rules"?: Array<SpecificPatchLibraryRuleType>;
+  "url"?: string;
+  "MMC-hint" ?: string;
+};
+```
+
+\* `<group>:<name>:<version>[:classifier][@extension]`
 
 ## Implementing the launch part
 
