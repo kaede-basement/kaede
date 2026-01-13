@@ -29,7 +29,7 @@ export type PatchIndexVersionType = {
   // The version release time in the ISO 8601 string format
   "releaseTime": string;
 
-  // A hash value that the provided JSON file for this patch version should have
+  // An SHA-256 hash that the provided JSON file for this patch version should have
   "sha256": string;
 
   // A version string, e.g. '26.1-snapshot-2'

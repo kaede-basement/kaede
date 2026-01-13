@@ -12,7 +12,7 @@ In the last couple of years, the MultiMC-based launchers, such as Prism Launcher
 
 # Methods
 
-The list of the used technology stack, tools, and systems includes but is not limited to: TypeScript, Rust, Tauri v2, Temurin JDK 8/16/17/21, Windows 10, and NixOS. To examine the MultiMC patch system, I proceeded in several steps. First, I collected all available at the moment of writing patch index files (e.g. `net.minecraft` and `net.adoptium.java`) and built an approximate representation of the response type. I took the same measures for specific versions of each patch using the latest version. Next, I reviewed the blog posts about Minecraft launching from Lin [4] and Ryan [5]. I then tried to make a mental model of a Minecraft launching process while finding similarities between Mojang API and Prism Launcher meta API. Finally, I started the development where many horrifying things beyond my comprehension awaited me.
+The list of the used technology stack, tools, and systems includes but is not limited to: TypeScript, Rust, Tauri v2, Temurin JDK 8/16/17/21, Windows 10, and NixOS. To examine the MultiMC patch system, I proceeded in several steps. First, I collected all available at the moment of writing patch index files (e.g. `net.minecraft` and `net.adoptium.java`) and built an approximate representation of the response type. I took the same measures for specific versions of each patch using the latest version. Next, I reviewed the blog posts about Minecraft launching from Lin [4] and Ryan [5]. I then tried to find similarities between Mojang API and Prism Launcher meta API. Finally, I started the development where many horrifying things beyond my comprehension awaited me.
 
 # Results and Discussion
 
@@ -149,7 +149,7 @@ type PatchIndexVersionType = {
   // The version release time in the ISO 8601 string format
   "releaseTime": string;
 
-  // A hash value that the provided JSON file for this patch version should have
+  // An SHA-256 hash that the provided JSON file for this patch version should have
   "sha256": string;
 
   // A version string, e.g. '26.1-snapshot-2'
@@ -287,10 +287,10 @@ type SpecificPatchMetaType = {
   // that is unknown, yet requires to be a stringified version of a JSON object with... random values?
   "minecraftArguments"?: string;
 
-  // Deprecated. Used to help sort patches, apparently
+  // Deprecated. Used to help to sort patches, apparently
   "order"?: number;
 
-  // An array of dependencies of this patch. As was shown, can go three levels deep
+  // An array of dependencies of this patch. As was shown with the Fabric example, can go three levels deep
   "requires"?: Array<PatchDependencyType>;
 
   // An array of runtimes to download. Used by Java patches, i.e. 'com.azul.java'
@@ -305,6 +305,62 @@ type SpecificPatchMetaType = {
 ```
 
 It should be noted that as per MultiMC documentation [7], the `+agents`, `+traits`, `+tweakers`, and `+jvmArgs` should have their equivalent fields with the `-` sign or without the `+` sign. However, I never found such cases.
+
+The `SpecificPatchAssetIndexType` type schema is equal to:
+
+```ts
+type SpecificPatchAssetIndexType = {
+  // Used for storing the index JSON file. Can be "27" or "pre-1.6"
+  "id": string;
+
+  // An SHA-1 hash that the downloaded JSON file should have
+  "sha1": string;
+
+  // The size of a JSON file in bytes
+  "size": number;
+
+  // Points to the assets index JSON file
+  "url": string;
+
+  // The total size of all asset objects in bytes. Might be missing
+  "totalSize"?: number;
+};
+```
+
+The `PatchDependencyType` type schema was defined previously, but let us define it again:
+
+```ts
+type PatchDependencyType = {
+  // A unique identifier of the dependency
+  "uid": PatchUIDType;
+
+  // A version of the dependency that should be selected. Might be missing
+  "equals"?: string;
+
+  // A version of the dependency that is recommended. Might be missing
+  "suggests"?: string;
+};
+```
+
+The `SpecificPatchLoggingType` type schema is equal to:
+
+```ts
+type SpecificPatchLoggingType = {
+  // A JVM argument that should be used (contains a placeholder to replace)
+  "argument": string;
+
+  // Turns out, the provided config file download format uses the same schema as the 'assetIndex' field
+  "file": SpecificPatchAssetIndexType;
+
+  // Usually equals to 'log4j2-xml'.
+  // Perhaps, it could be used to parse Minecraft logs that are sent to console?
+  // For example, old versions do not have the 'logging' field, thus their console output
+  // is just raw lines of logs. But Minecraft versions that specify the 'logging' field
+  // send to the 'stdout' and 'stderr' the XML-formatted logs (due to '<XMLLayout />')
+  // (if we use the configuration file provided in the 'logging' field, of course).
+  "type": string;
+};
+```
 
 ## Implementing the launch part
 

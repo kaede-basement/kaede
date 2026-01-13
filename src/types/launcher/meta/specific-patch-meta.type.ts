@@ -251,10 +251,10 @@ export type SpecificPatchMetaType = {
    */
   "minecraftArguments"?: string;
 
-  // Deprecated. Used to help sort patches, apparently
+  // Deprecated. Used to help to sort patches, apparently
   "order"?: number;
 
-  // An array of dependencies of this patch. As was shown, can go three levels deep
+  // An array of dependencies of this patch. Can go three levels deep
   "requires"?: Array<PatchDependencyType>;
 
   // An array of runtimes to download. Used by Java patches, i.e. 'com.azul.java'
