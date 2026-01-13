@@ -244,10 +244,10 @@ type SpecificPatchMetaType = {
 
   // An array of JVM arguments to pass to your JVM arguments.
   // So far, I have encountered next values:
-  // - '-Djava.util.Arrays.useLegacyMergeSort=true' // Present in really old versions of Minecraft
+  // - '-Djava.util.Arrays.useLegacyMergeSort=true' // Present in ancient versions of Minecraft
   "+jvmArgs"?: Array<string>;
 
-  // Seem to equal to the Mojan API response format. Points to the Minecraft assets index JSON file
+  // Seem to equal to the Mojang API response format. Points to the Minecraft assets index JSON file
   "assetIndex"?: SpecificPatchAssetIndexType;
 
   // An array of Java major versions that are compatible with the patch
@@ -271,15 +271,36 @@ type SpecificPatchMetaType = {
   // "The main class to call in the execution of java" [5]
   "mainClass"?: string;
 
-  // 
-  "mainJar"             ?: SpecificPatchMainJarType;
-  "mavenFiles"          ?: Array<SpecificPatchLibraryType>;
-  "minecraftArguments"  ?: string;
-  "order"               ?: number;
-  "requires"            ?: Array<PatchDependencyType>;
-  "runtimes"            ?: Array<SpecificPatchRuntimeType>;
-  "type"                ?: PatchVariantType;
-  "volatile"            ?: boolean;
+  // Points to the Minecraft client jar
+  "mainJar"?: SpecificPatchMainJarType;
+
+  // An array of needed libraries for this patch that should not be included in classpaths.
+  // However, if a library is specified both in 'mavenFiles' and 'libraries',
+  // it should be included in classpaths
+  "mavenFiles"?: Array<SpecificPatchLibraryType>;
+
+  // A string with the game arguments. These arguments have placeholders that should be replaced,
+  // such as '--username ${auth_player_name}', where '${auth_player_name}' is the player name.
+  //
+  // Some placeholders might not be replaced, and Minecraft will still launch.
+  // Others always require to be replaced. One such case is the '${user_properties}' placeholder
+  // that is unknown, yet requires to be a stringified version of a JSON object with... random values?
+  "minecraftArguments"?: string;
+
+  // Deprecated. Used to help sort patches, apparently
+  "order"?: number;
+
+  // An array of dependencies of this patch. As was shown, can go three levels deep
+  "requires"?: Array<PatchDependencyType>;
+
+  // An array of runtimes to download. Used by Java patches, i.e. 'com.azul.java'
+  "runtimes"?: Array<SpecificPatchRuntimeType>;
+
+  // Used not only in the 'net.minecraft' patches, but in others too
+  "type"?: PatchVariantType;
+
+  // No clue. Present in 'net.fabricmc.intermediary'
+  "volatile"?: boolean;
 };
 ```
 

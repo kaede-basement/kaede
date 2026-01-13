@@ -141,28 +141,128 @@ export type SpecificPatchMainJarType = {
   "name"     : string;
 };
 export type SpecificPatchMetaType = {
-  "formatVersion"        : number;
-  "name"                 : string;
-  "releaseTime"          : string;
-  "uid"                  : PatchUIDType;
-  "version"              : string;
-  "+agents"             ?: Array<Partial<{ "argument": string }>>;
-  "+traits"             ?: Array<string>;
-  "+tweakers"           ?: Array<string>;
-  "+jvmArgs"            ?: Array<string>;
-  "assetIndex"          ?: SpecificPatchAssetIndexType;
+  // Currently, equals to one
+  "formatVersion": number;
+
+  // A human-readable name of the patch
+  "name": string;
+
+  // The version release time in the ISO 8601 string format
+  "releaseTime": string;
+
+  // A unique identifier of the patch. As of now, can be 12 different string literals
+  "uid": PatchUIDType;
+
+  // A version string, e.g. '26.1-snapshot-2'
+  "version": string;
+
+  /*
+   * All the next fields could be missing.
+   *
+   * Perhaps, these are Java agents.
+   * Specified at https://github.com/PrismLauncher/meta/blob/main/meta/model/__init__.py#L342
+   */
+  "+agents"?: Array<Partial<{ "argument": string }>>;
+
+  /*
+   * This field contains a list of unique flags Prism Launcher uses when launching.
+   *
+   * So far, I have encountered next values:
+   * - 'legacyLaunch'       // Appears to indicate the use of a legacy Java applet launcher in Prism
+   * - 'XR:Initial'         // Related to the Mojang compliance level
+   * - 'FirstThreadOnMacOS' // Tells to use the '-XstartOnFirstThread' JVM argument on macOS
+   * - 'legacyServices'     // Perhaps, it is related to auth (?)
+   * - 'texturepacks'       // Shows that the version supports texture packs (?)
+   * - 'no-texturepacks'    // Shows that the version does not support texture packs (?)
+   *
+   * There is also another format of traits, i.e. 'feature:*'.
+   * They are usually present in newer versions. For example:
+   * - 'feature:is_quick_play_singleplayer'
+   * - 'feature:is_quick_play_multiplayer'
+   *
+   * Other possible values that I have not encountered:
+   * - 'legacyFML'
+   */
+  "+traits"?: Array<string>;
+
+  /*
+   * An array of tweak classes to pass to the game arguments.
+   * For example, the ['com.mumfrey.liteloader.launch.LiteLoaderTweaker', 'another_tweaker']
+   * will be passed as
+   * '--tweakClass com.mumfrey.liteloader.launch.LiteLoaderTweaker --tweakClass another_tweaker'
+   */
+  "+tweakers"?: Array<string>;
+
+  /*
+   * An array of JVM arguments to pass to your JVM arguments.
+   * So far, I have encountered next values:
+   * - '-Djava.util.Arrays.useLegacyMergeSort=true' // Present in ancient versions of Minecraft
+   */
+  "+jvmArgs"?: Array<string>;
+
+  // Seem to equal to the Mojang API response format. Points to the Minecraft assets index JSON file
+  "assetIndex"?: SpecificPatchAssetIndexType;
+
+  // An array of Java major versions that are compatible with the patch
   "compatibleJavaMajors"?: Array<number>;
-  "compatibleJavaName"  ?: string;
-  "conflicts"           ?: Array<PatchDependencyType>;
-  "libraries"           ?: Array<SpecificPatchLibraryType>;
-  "logging"             ?: SpecificPatchLoggingType;
-  "mainClass"           ?: string;
-  "mainJar"             ?: SpecificPatchMainJarType;
-  "mavenFiles"          ?: Array<SpecificPatchLibraryType>;
-  "minecraftArguments"  ?: string;
-  "order"               ?: number;
-  "requires"            ?: Array<PatchDependencyType>;
-  "runtimes"            ?: Array<SpecificPatchRuntimeType>;
-  "type"                ?: PatchVariantType;
-  "volatile"            ?: boolean;
+
+  /*
+   * I do not remember where I saw this field.
+   * However, it looks like it might represent the compatible Java vendor name
+   */
+  "compatibleJavaName"?: string;
+
+  // An array of conflicting patches. Usually present in 'org.lwjgl' and 'org.lwjgl3'
+  "conflicts"?: Array<PatchDependencyType>;
+
+  /*
+   * An array of needed libraries for this patch.
+   * Seems to be the most complex part of Minecraft launching
+   */
+  "libraries"?: Array<SpecificPatchLibraryType>;
+
+  /*
+   * The logging configuration file to provide to log4j.
+   * Stored in '/assets/log_configs/', alongside with '/assets/indexes/' and '/assets/objects/'
+   */
+  "logging"?: SpecificPatchLoggingType;
+
+  // The main class to call in the execution of java
+  "mainClass"?: string;
+
+  // Points to the Minecraft client jar
+  "mainJar"?: SpecificPatchMainJarType;
+
+  /*
+   * An array of needed libraries for this patch that should not be included in classpaths.
+   * However, if a library is specified both in 'mavenFiles' and 'libraries',
+   * it should be included in classpaths
+   */
+  "mavenFiles"?: Array<SpecificPatchLibraryType>;
+
+  /*
+   * A string with the game arguments. These arguments have placeholders that should be replaced,
+   * such as '--username ${auth_player_name}', where '${auth_player_name}' is the player name.
+   *
+   * Some placeholders might not be replaced, and Minecraft will still launch.
+   * Others always require to be replaced. One such case is the '${user_properties}' placeholder
+   * that is unknown, yet requires to be a stringified version
+   * of a JSON object with... random values?
+   */
+  "minecraftArguments"?: string;
+
+  // Deprecated. Used to help sort patches, apparently
+  "order"?: number;
+
+  // An array of dependencies of this patch. As was shown, can go three levels deep
+  "requires"?: Array<PatchDependencyType>;
+
+  // An array of runtimes to download. Used by Java patches, i.e. 'com.azul.java'
+  "runtimes"?: Array<SpecificPatchRuntimeType>;
+
+  // Used not only in the 'net.minecraft' patches, but in others too
+  "type"?: PatchVariantType;
+
+  // No clue. Present in 'net.fabricmc.intermediary'
+  "volatile"?: boolean;
 };
