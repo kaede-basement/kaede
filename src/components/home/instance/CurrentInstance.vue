@@ -74,7 +74,7 @@ const dropdownItems = computed((): Array<DropdownItemType> => {
       "image"   : instance.icon,
       "onclick" : (): Promise<void> => selectInstance(id, globalStates.layout),
       "title"   : instance.name,
-      "subtitle": instance.patchVersions["net.minecraft"],
+      "subtitle": instance.patchVersions?.["net.minecraft"] ?? "unknown version",
       "disabled": id === currentId,
     };
   });
@@ -85,7 +85,7 @@ const dropdownItems = computed((): Array<DropdownItemType> => {
   <Dropdown
     id="__home-page__current-instance-dropdown"
     add-class-names="absolute bottom-16 z-50"
-    size-class-names="h-85 w-full"
+    size-class-names="max-h-85 w-full"
     :shown="selector"
     :close="closeInstancesSelector"
     :items="dropdownItems"

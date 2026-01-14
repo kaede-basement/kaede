@@ -193,24 +193,24 @@ button[data-tooltip] {
   opacity: 0;
 }
 
-/* 'expand' transition */
-.expand-enter-active {
-  transition: opacity 150ms ease-in-out, transform 300ms cubic-bezier(.25,.85,.25,.85);
-}
-
-.expand-enter-from,
-.expand-leave-to {
-  opacity: 0;
-  transform: scaleY(96%) translateY(4%);
-}
-
 /* 'slide-up' transition */
 .slide-up-enter-active {
-  transition: opacity 150ms ease-in-out, transform 300ms cubic-bezier(.25,.85,.25,.85);
+  transition: opacity 150ms ease-in-out, transform 400ms cubic-bezier(.25,.85,.25,.85);
 }
 
 .slide-up-enter-from,
 .slide-up-leave-to {
   opacity: 0;
-  transform: translateY(20%);
+  transform: translateY(24px);
+}
+
+/* 'slide-up-extra' transition */
+.slide-up-extra-enter-active {
+  transition: opacity 150ms ease-in-out, transform 400ms cubic-bezier(.25,.85,.25,.85);
+}
+
+.slide-up-extra-enter-from,
+.slide-up-extra-leave-to {
+  opacity: 0;
+  transform: translateY(36px);
 }
