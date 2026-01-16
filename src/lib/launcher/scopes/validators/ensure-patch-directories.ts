@@ -18,7 +18,7 @@
 
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import { PatchUIDs } from "@/constants/meta.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";

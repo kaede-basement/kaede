@@ -1,14 +1,22 @@
 import EnglishTranslations from "@/constants/english.json";
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
-export async function getTranslations(baseDirectory: string): Promise<TranslationsType> {
+export async function getTranslations(
+  baseDirectory: string,
+  selected: string | undefined,
+  isDefault?: boolean,
+): Promise<TranslationsType> {
+  if (isDefault) {
+    return EnglishTranslations;
+  }
+
   const parsedTranslations: unknown = await General.handleJsonFile({
     baseDirectory,
-    "path"           : [FileStructure.Files.Translations],
-    "label"          : FileStructure.Files.Translations,
+    "path"           : [FileStructure.Folders.Translations.Path, selected + ".json"],
+    "label"          : `/cache/${selected}.json`,
     "getDefaultValue": async (): Promise<TranslationsType> => (EnglishTranslations),
   });
 

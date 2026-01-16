@@ -1,6 +1,6 @@
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";

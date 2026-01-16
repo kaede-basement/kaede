@@ -19,15 +19,9 @@
 <script setup lang="ts">
 import { refThrottled, useWindowSize } from "@vueuse/core";
 import {
-  computed,
-  inject,
-  nextTick,
-  onMounted,
-  ref,
-  type ShallowReactive,
-  shallowRef,
-  useTemplateRef,
-  watchEffect,
+  computed, inject, nextTick,
+  onMounted, ref, type ShallowReactive,
+  shallowRef, useTemplateRef, watchEffect,
 } from "vue";
 import { VirtualisedList } from "vue-virtualised";
 
@@ -195,6 +189,11 @@ watchEffect(() => {
 });
 
 onMounted(async () => {
+  if (globalStates?.logs?.mode && instanceLogs?.[globalStates.logs.mode] === undefined) {
+    // Reset to launcher logs if the instance logs do not exist (if just empty, then do not reset)
+    GlobalStateHelpers.Logs.selectMode("launcher");
+  }
+
   const startTime = performance.now();
 
   // Notify virtualized list component that it should re-render

@@ -1,4 +1,4 @@
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 
 export function getMinecraftDirectory({

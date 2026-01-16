@@ -29,7 +29,7 @@ import { VueQueryPlugin } from "@tanstack/vue-query";
 import { createApp } from "vue";
 
 import App from "@/App.vue";
-import { ApplicationNamespace, ApplicationRootID } from "@/constants/application";
+import { ApplicationNamespace, ApplicationRootID, DefaultLocale } from "@/constants/application";
 import { getASCIIArt } from "@/constants/ascii-art.ts";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
@@ -71,7 +71,7 @@ log.info(
 // Get the launcher base directory to share it between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
-// Concurrent promise resolving saves us around 60 ms
+log.debug(__PRE_BUNDLED_FILENAME__, "Resolving config file, accounts, and instances");
 const [
   config,
   accounts,
@@ -85,10 +85,11 @@ const [
 ] = await Promise.all([
   Configs.getSafe(baseDirectory),
   Configs.getAccounts(baseDirectory),
-  Configs.getTranslations(baseDirectory),
+  Configs.getTranslations(baseDirectory, DefaultLocale, true),
   Instances.readStored(baseDirectory),
 ]);
 
+log.debug(__PRE_BUNDLED_FILENAME__, "Caching internals");
 const __internals = window[ApplicationNamespace].__internals;
 
 // Define launcher's initial values at globals to make them accessible from anywhere

@@ -20,6 +20,7 @@ export async function getDefaultConfig(): Promise<ConfigType> {
       "allowUnrestrictedUntrusted": true,
     },
     "layout": {
+      "locale"                 : "en",
       "currentInstance"        : null,
       "enableMaterialYouRipple": true,
       "custom"                 : false,

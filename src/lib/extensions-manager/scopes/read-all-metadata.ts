@@ -1,6 +1,6 @@
 import { exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";

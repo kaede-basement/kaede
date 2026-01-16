@@ -61,6 +61,7 @@ export function parseNative({
       "id"    : `${name}-natives`,
       "url"   : newFormattedUrl,
       "status": "native",
+      "first" : false,
       directory,
       file,
       path,
@@ -129,6 +130,7 @@ export function parseNative({
       "url"      : nativesUrl,
       "hash"     : sha1,
       "status"   : "native",
+      "first"    : false,
     };
   }
 

@@ -8,6 +8,12 @@
   "Messages": {
     "general.errors.global-error.emoji": ":c",
     "general.errors.global-error.message": "Kaede ran into a problem and needs to restart.\nYou can do it by closing this window and then opening Kaede again.",
-    "general.errors.page-error.message": "Something went wrong."
+    "general.errors.page-error.message": "Something went wrong.",
+    "general.sidebar.add-instance": "Add Instance",
+    "general.sidebar.home": "Home",
+    "general.sidebar.library": "Library",
+    "general.sidebar.settings": "Settings",
+    "general.sidebar.profile": "Profile",
+    "general.sidebar.none": "Custom"
   }
 }

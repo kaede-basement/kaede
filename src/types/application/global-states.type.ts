@@ -4,6 +4,7 @@ import type { RouteType } from "@/types/application/route.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 export type GlobalStatesLayoutType = {
+  "locale"                 : string;
   "currentInstance"        : string | null;
   "enableMaterialYouRipple": boolean;
   "custom"                 : boolean | Array<"sidebar" | "contextMenu">;

@@ -3,7 +3,7 @@ import { type DirEntry, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import { onMounted, shallowReactive } from "vue";
 
 import { CSSThemeExtensions } from "@/constants/application.ts";
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";

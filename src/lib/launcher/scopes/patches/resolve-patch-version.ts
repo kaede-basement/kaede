@@ -16,11 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import { APIEndpoints, LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
-import { fetchMetadata } from "@/lib/launcher/scopes/fetching/fetch-metadata.ts";
+import Fetching from "@/lib/launcher/scopes/fetching";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { PatchDependencyType } from "@/types/launcher/meta/patch-index.type.ts";
@@ -68,7 +68,7 @@ export async function resolvePatchVersion({
           "No cache; fetching the index manifest",
         );
         statuses.current = LaunchStatus.PatchIndex.Fetching;
-        const fetched: { "data": unknown } | LaunchStatusType = await fetchMetadata({
+        const fetched: { "data": unknown } | LaunchStatusType = await Fetching.fetchMetadata({
           "url"   : APIEndpoints.Meta.Base + metadata.uid,
           "label" : "index manifest",
           "scope" : "PatchIndex",

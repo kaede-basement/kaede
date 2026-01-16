@@ -52,6 +52,7 @@ export function parseLibrary({
       "status": "empty",
       "url"   : "",
       "hash"  : "ignore",
+      "first" : false,
       directory,
       file,
       path,
@@ -101,6 +102,7 @@ export function parseLibrary({
       "status": isMaven ? "mavenFile" : "library",
       "url"   : builtUrl,
       "hash"  : "ignore",
+      "first" : false,
       directory,
       file,
       path,
@@ -116,6 +118,7 @@ export function parseLibrary({
   return {
     "id"    : name,
     "status": isMaven ? "mavenFile" : "library",
+    "first" : false,
     directory,
     file,
     url,

@@ -4,7 +4,7 @@ import { useIntervalFn } from "@vueuse/core";
 import { inject, ref, watchEffect } from "vue";
 
 import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";

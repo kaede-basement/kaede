@@ -31,7 +31,7 @@ import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 import type { Child } from "tauri-plugin-shellx-api";
 
-import type { FileStructure } from "@/constants/file-structure.ts";
+import type FileStructure from "@/constants/file-structure.ts";
 import type { APIEndpoints } from "@/constants/launcher.ts";
 import type Configs from "@/lib/configs";
 import type DevelopmentModeHelpers from "@/lib/development-mode-helpers";

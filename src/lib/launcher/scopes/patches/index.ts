@@ -16,12 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { extractNativeArchives } from "@/lib/launcher/scopes/extractors/extract-native-archives.ts";
-import {
-  extractPreLaunchInformation,
-} from "@/lib/launcher/scopes/extractors/extract-pre-launch-information.ts";
+import { resolvePatch } from "@/lib/launcher/scopes/patches/resolve-patch.ts";
+import { resolvePatchVersion } from "@/lib/launcher/scopes/patches/resolve-patch-version.ts";
+import { resolveSubPatches } from "@/lib/launcher/scopes/patches/resolve-sub-patches.ts";
 
 export default {
-  "unzipNatives"  : extractNativeArchives,
-  "getNecessaries": extractPreLaunchInformation,
+  resolvePatch,
+  resolvePatchVersion,
+  resolveSubPatches,
 } as const;

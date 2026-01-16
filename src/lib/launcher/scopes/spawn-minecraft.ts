@@ -34,7 +34,6 @@ export async function spawnMinecraft({
   onInput,
 }: {
   "command": {
-    "program"  : string;
     "java"     : string;
     "arguments": Array<string>;
   };

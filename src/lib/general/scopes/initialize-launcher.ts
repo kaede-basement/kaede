@@ -2,10 +2,21 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
+import Configs from "@/lib/configs";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
+import type { TranslationsType } from "@/types/translations/translations.type.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+
+async function updateTranslationStates(baseDirectory: string, locale: string): Promise<void> {
+  log.debug(__PRE_BUNDLED_FILENAME__, `Overriding default translations to '${locale}'`);
+  const translations: TranslationsType =
+    await Configs.getTranslations(baseDirectory, locale);
+
+  GlobalStateHelpers.change("translations", translations);
+}
 
 export async function initializeLauncher({
   config,
@@ -67,6 +78,8 @@ export async function initializeLauncher({
     }
   }
 
+  const locale: string = config.layout.locale;
+
   if (toCreate.length === 0) {
     log.info(
       __PRE_BUNDLED_FILENAME__,
@@ -75,7 +88,7 @@ export async function initializeLauncher({
       "ms",
     );
 
-    return;
+    return updateTranslationStates(baseDirectory, locale);
   }
 
   await Promise.all(
@@ -88,4 +101,6 @@ export async function initializeLauncher({
     (performance.now() - directoriesStartTime).toFixed(1),
     "ms",
   );
+
+  return updateTranslationStates(baseDirectory, locale);
 }

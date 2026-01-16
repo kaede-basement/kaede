@@ -19,7 +19,7 @@
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import type { ShallowReactive } from "vue";
 
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";

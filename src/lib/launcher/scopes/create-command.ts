@@ -16,19 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { resolveResource } from "@tauri-apps/api/path";
-
-import { ResourceLauncher } from "@/constants/application.ts";
-import {
-  getAdditionalStartArguments,
-} from "@/lib/launcher/scopes/arguments/get-additional-start-arguments.ts";
-import { getClassPaths } from "@/lib/launcher/scopes/arguments/get-class-paths.ts";
-import { getGameArguments } from "@/lib/launcher/scopes/arguments/get-game-arguments.ts";
-import { getJavaBinary } from "@/lib/launcher/scopes/arguments/get-java-binary.ts";
-import { getJvmArguments } from "@/lib/launcher/scopes/arguments/get-jvm-arguments.ts";
-import {
-  replaceLaunchArguments,
-} from "@/lib/launcher/scopes/arguments/replace-launch-arguments.ts";
+import Arguments from "@/lib/launcher/scopes/arguments";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -41,13 +29,11 @@ export async function createCommand({
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<{
-  "program"  : string;
   "java"     : string;
   "arguments": Array<string>;
 }> {
   const [
-    // Minecraft will be launched inside a Java applet
-    launcherJar,
+    // Java applet, unused: launcherJar,
     javaBinary,
     jvmArguments,
     { "argument": classPathsArgument, classPaths },
@@ -55,18 +41,17 @@ export async function createCommand({
     additionalArguments,
   ]: [
     string,
-    string,
     Array<string>,
     { "argument": [string, string]; "classPaths": string },
     Array<string>,
     Array<string>,
   ] = await Promise.all([
-    resolveResource(ResourceLauncher),
-    getJavaBinary({ necessaries, finalizedPatch }),
-    getJvmArguments({ necessaries, finalizedPatch }),
-    getClassPaths({ necessaries, finalizedPatch }),
-    getGameArguments({ necessaries, finalizedPatch }),
-    getAdditionalStartArguments({ necessaries, finalizedPatch }),
+    // Java applet, unused: resolveResource(ResourceLauncher),
+    Arguments.getJavaBinary({ necessaries, finalizedPatch }),
+    Arguments.getJvmArguments({ necessaries, finalizedPatch }),
+    Arguments.getClassPaths({ necessaries, finalizedPatch }),
+    Arguments.getGameArguments({ necessaries, finalizedPatch }),
+    Arguments.getAdditionalStartArguments({ necessaries, finalizedPatch }),
   ]);
 
   const toReplace: Array<string> = [
@@ -77,7 +62,7 @@ export async function createCommand({
     ...gameArguments,
   ];
 
-  const launchArguments: Array<string> = replaceLaunchArguments({
+  const launchArguments: Array<string> = Arguments.replaceLaunchArguments({
     "auth": {
       "uuid"    : "3206b5f6acd3419ea2977d120f510767",
       "token"   : "none",
@@ -94,7 +79,7 @@ export async function createCommand({
   });
 
   return {
-    "program"  : launcherJar,
+    // Unused: "program": launcherJar
     "java"     : javaBinary,
     "arguments": launchArguments,
   };

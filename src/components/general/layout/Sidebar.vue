@@ -4,14 +4,16 @@ import { computed, inject, ref, shallowRef } from "vue";
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import SidebarProfile from "@/components/general/layout/SidebarProfile.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
+import { GlobalStatesContextKey, TranslationsContextKey } from "@/constants/application.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type {
   ContextGlobalStatesType,
 } from "@/types/application/global-states.type.ts";
+import type { TranslationKey, TranslationsType } from "@/types/translations/translations.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+const Translations = inject<TranslationsType>(TranslationsContextKey);
 
 const innerStyles = computed(
   (): ReturnType<typeof General.getSidebarInnerStyles> => (
@@ -72,7 +74,7 @@ function handleMouseOver(event: MouseEvent): void {
 
   const newTooltipInfo = {
     "top" : offsetTop,
-    "text": textContent,
+    "text": Translations?.Messages?.[`general.sidebar.${textContent}` as TranslationKey],
     "show": true,
   };
 

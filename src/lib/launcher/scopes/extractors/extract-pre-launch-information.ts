@@ -18,7 +18,7 @@
 
 import { type Arch, arch, type Platform, platform } from "@tauri-apps/plugin-os";
 
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";

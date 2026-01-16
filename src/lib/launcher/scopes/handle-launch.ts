@@ -16,28 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { createCommand } from "@/lib/launcher/scopes/create-command.ts";
-import { extractNativeArchives } from "@/lib/launcher/scopes/extractors/extract-native-archives.ts";
-import {
-  extractPreLaunchInformation,
-} from "@/lib/launcher/scopes/extractors/extract-pre-launch-information.ts";
-import { downloadAssets } from "@/lib/launcher/scopes/fetching/download-assets.ts";
-import { downloadClient } from "@/lib/launcher/scopes/fetching/download-client.ts";
-import { downloadLibraries } from "@/lib/launcher/scopes/fetching/download-libraries.ts";
-import { downloadLogging } from "@/lib/launcher/scopes/fetching/download-logging.ts";
-import { finalizePatches } from "@/lib/launcher/scopes/parsers/finalize-patches.ts";
-import { resolvePatch } from "@/lib/launcher/scopes/patches/resolve-patch.ts";
-import { resolveSubPatches } from "@/lib/launcher/scopes/patches/resolve-sub-patches.ts";
-import { spawnMinecraft } from "@/lib/launcher/scopes/spawn-minecraft.ts";
-import {
-  ensureMinecraftDirectory,
-} from "@/lib/launcher/scopes/validators/ensure-minecraft-directory.ts";
-import {
-  ensurePatchDirectories,
-} from "@/lib/launcher/scopes/validators/ensure-patch-directories.ts";
-import {
-  initializeAssetsDirectories,
-} from "@/lib/launcher/scopes/validators/initialize-assets-directories.ts";
+import Launcher from "@/lib/launcher";
+import Extractors from "@/lib/launcher/scopes/extractors";
+import Fetching from "@/lib/launcher/scopes/fetching";
+import Parsers from "@/lib/launcher/scopes/parsers";
+import Patches from "@/lib/launcher/scopes/patches";
+import Validators from "@/lib/launcher/scopes/validators";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
@@ -69,7 +53,7 @@ export async function handleLaunch({
   "onInput"        : (line: string) => void;
 }): Promise<LaunchResponseType> {
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
-  const necessaries: PreLaunchInformationType | false = extractPreLaunchInformation({
+  const necessaries: PreLaunchInformationType | false = Extractors.getNecessaries({
     instanceId,
     instance,
     statuses,
@@ -94,12 +78,12 @@ export async function handleLaunch({
   }
 
   await Promise.all([
-    ensurePatchDirectories(necessaries),
-    ensureMinecraftDirectory(necessaries),
-    initializeAssetsDirectories(necessaries),
+    Validators.ensurePatchDirectories(necessaries),
+    Validators.ensureMinecraftDirectory(necessaries),
+    Validators.initializeAssetsDirectories(necessaries),
   ]);
 
-  const entryPatch: SpecificPatchMetaType | false = await resolvePatch({
+  const entryPatch: SpecificPatchMetaType | false = await Patches.resolvePatch({
     necessaries,
     "metadata": {
       "uid": instance.entry,
@@ -115,11 +99,11 @@ export async function handleLaunch({
     return failed;
   }
 
-  const allPatches: Array<SpecificPatchMetaType> = await resolveSubPatches({
+  const allPatches: Array<SpecificPatchMetaType> = await Patches.resolveSubPatches({
     "patchMeta": entryPatch,
     necessaries,
   });
-  const finalizedPatch: FinalizedPatchType = finalizePatches({
+  const finalizedPatch: FinalizedPatchType = Parsers.finalizePatches({
     "patches": allPatches,
     necessaries,
   });
@@ -136,10 +120,10 @@ export async function handleLaunch({
   );
 
   const responses: Array<boolean> = await Promise.all([
-    downloadAssets({ necessaries, finalizedPatch }),
-    downloadClient({ necessaries, finalizedPatch }),
-    downloadLogging({ necessaries, finalizedPatch }),
-    downloadLibraries({ necessaries, finalizedPatch }),
+    Fetching.downloadAssets({ necessaries, finalizedPatch }),
+    Fetching.downloadClient({ necessaries, finalizedPatch }),
+    Fetching.downloadLogging({ necessaries, finalizedPatch }),
+    Fetching.downloadLibraries({ necessaries, finalizedPatch }),
   ]);
 
   for (const status of responses) {
@@ -154,12 +138,11 @@ export async function handleLaunch({
   }
 
   const [command]: [{
-    "program"  : string;
     "java"     : string;
     "arguments": Array<string>;
   }, void] = await Promise.all([
-    createCommand({ necessaries, finalizedPatch }),
-    extractNativeArchives({
+    Launcher.createCommand({ necessaries, finalizedPatch }),
+    Extractors.unzipNatives({
       necessaries,
       "paths": finalizedPatch
         .artifacts
@@ -168,7 +151,7 @@ export async function handleLaunch({
     }),
   ]);
 
-  return spawnMinecraft({
+  return Launcher.spawnMinecraft({
     command,
     instanceId,
     necessaries,

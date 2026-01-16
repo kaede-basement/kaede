@@ -1,4 +1,4 @@
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { regenerateConfigFile } from "@/lib/configs/scopes/regenerate-config-file.ts";
 import ExtensionsManager from "@/lib/extensions-manager";

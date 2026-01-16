@@ -1,4 +1,4 @@
-export const FileStructure = {
+export default {
   "Folders": {
     "Assets": {
       "Path"   : "assets",
@@ -29,6 +29,9 @@ export const FileStructure = {
     "Themes": {
       "Path": "themes",
     },
+    "Translations": {
+      "Path": "translations",
+    },
     "Extensions": {
       "Path": "extensions",
     },
@@ -55,10 +58,9 @@ export const FileStructure = {
     },
   },
   "Files": {
-    "Accounts"    : "accounts.json",
-    "Translations": "translations.json",
-    "Metadata"    : "instances.json",
-    "Config"      : "config.json",
-    "Extensions"  : "extensions.json",
+    "Accounts"  : "accounts.json",
+    "Metadata"  : "instances.json",
+    "Config"    : "config.json",
+    "Extensions": "extensions.json",
   },
 } as const;

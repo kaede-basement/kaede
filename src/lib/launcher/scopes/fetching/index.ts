@@ -16,12 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { extractNativeArchives } from "@/lib/launcher/scopes/extractors/extract-native-archives.ts";
-import {
-  extractPreLaunchInformation,
-} from "@/lib/launcher/scopes/extractors/extract-pre-launch-information.ts";
+import { downloadAssets } from "@/lib/launcher/scopes/fetching/download-assets.ts";
+import { downloadClient } from "@/lib/launcher/scopes/fetching/download-client.ts";
+import { downloadLibraries } from "@/lib/launcher/scopes/fetching/download-libraries.ts";
+import { downloadLogging } from "@/lib/launcher/scopes/fetching/download-logging.ts";
+import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
+import { fetchMetadata } from "@/lib/launcher/scopes/fetching/fetch-metadata.ts";
 
 export default {
-  "unzipNatives"  : extractNativeArchives,
-  "getNecessaries": extractPreLaunchInformation,
+  downloadAssets,
+  downloadClient,
+  downloadLibraries,
+  downloadLogging,
+  downloadWithProgress,
+  fetchMetadata,
 } as const;

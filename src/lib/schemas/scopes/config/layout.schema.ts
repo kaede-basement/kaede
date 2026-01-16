@@ -1,6 +1,7 @@
 import { Type } from "typebox";
 
 export const LayoutSchema = Type.Object({
+  "locale"         : Type.String(),
   "currentInstance": Type.Union([
     Type.String(),
     Type.Null(),

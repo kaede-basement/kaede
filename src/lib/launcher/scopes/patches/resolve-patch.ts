@@ -16,13 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import { APIEndpoints, LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
-import { fetchMetadata } from "@/lib/launcher/scopes/fetching/fetch-metadata.ts";
-import { resolvePatchVersion } from "@/lib/launcher/scopes/patches/resolve-patch-version.ts";
+import Fetching from "@/lib/launcher/scopes/fetching";
+import Patches from "@/lib/launcher/scopes/patches/index.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import Schemas from "@/lib/schemas";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -53,7 +53,7 @@ export async function resolvePatch({
   }
 
   const { directories, statuses, logPrefix } = necessaries;
-  const version: string | false = await resolvePatchVersion({ necessaries, metadata });
+  const version: string | false = await Patches.resolvePatchVersion({ necessaries, metadata });
   const fileName: string = version + ".json";
   const descriptiveLogPrefix: string = metadata.uid + ":" + fileName + ":" + logPrefix;
   let parsedPatch: unknown;
@@ -71,7 +71,7 @@ export async function resolvePatch({
           "No cache; fetching the patch metadata",
         );
         statuses.current = LaunchStatus.PatchMetadata.Fetching;
-        const fetched: { "data": unknown } | LaunchStatusType = await fetchMetadata({
+        const fetched: { "data": unknown } | LaunchStatusType = await Fetching.fetchMetadata({
           "url"   : APIEndpoints.Meta.Base + metadata.uid + "/" + fileName,
           "label" : "patch metadata",
           "scope" : "PatchMetadata",

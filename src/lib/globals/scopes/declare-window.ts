@@ -4,7 +4,7 @@ import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 import * as ShellXPlugin from "tauri-plugin-shellx-api";
 
 import { ApplicationNamespace } from "@/constants/application.ts";
-import { FileStructure } from "@/constants/file-structure.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import { APIEndpoints } from "@/constants/launcher.ts";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
