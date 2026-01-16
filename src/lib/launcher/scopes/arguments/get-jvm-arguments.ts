@@ -32,11 +32,13 @@ export async function getJvmArguments({
   log.debug(logPrefix, "Adding default JVM arguments");
   jvmArguments.push(
     "-Xmx4096m",
+    "-Dlog4j2.formatMsgNoLookups=true",
     "-Djava.net.useSystemProxiestrue",
     "-Dfml.ignoreInvalidMinecraftCertificates=true",
     "-Dfml.ignorePatchDiscrepancies=true",
     "-DlibraryDirectory=${libraries_directory}",
     "-Djava.library.path=${natives_directory}",
+    "-Dminecraft.client.jar=${main_jar_directory}",
     "-Djna.tmpdir=${natives_directory}",
     "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
     "-Dio.netty.native.workdir=${natives_directory}",

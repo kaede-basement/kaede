@@ -69,6 +69,7 @@ export function replaceLaunchArguments({
     "version_type"       : `${ApplicationName} ${applicationVersion}`,
     // Introduced by Kaede
     "libraries_directory": directories.libraries,
+    "main_jar_directory" : (finalizedPatch.client || { "path": "none" }).path,
   };
 
   const beforeHooksResult: "continue" | Array<string> | undefined =

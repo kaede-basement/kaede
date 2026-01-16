@@ -9,7 +9,8 @@ export const InstanceMetadataSchema = Type.Intersect([
     "name"         : Type.String(),
     "checksum"     : Type.Boolean(),
     "playTime"     : Type.Number(),
-    "entry"        : PatchUidSchema,
+    // Initially used 'PatchUidSchema', but custom patches were not possible because of this
+    "entry"        : Type.String(),
     "patchVersions": Type.Intersect([
       Type.Record(
         Type.Literal("net.minecraft"),

@@ -1,6 +1,5 @@
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
-import type { PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
 export type PreLaunchInformationType = {
   "logPrefix": string;
@@ -12,7 +11,7 @@ export type PreLaunchInformationType = {
     "javaBinary": string;
     "javaMajor" : number;
     // Selected patch versions
-    "versions"  : Partial<Record<PatchUIDType, string>>;
+    "versions"  : InstanceStateType["patchVersions"];
   };
   "directories": {
     "base"        : string;

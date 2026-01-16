@@ -50,64 +50,68 @@ onClickOutside(target, close);
         sizeClassNames,
       ]"
     >
-      <Transition appear name="slide-up-extra">
-        <div
-          :id="`${id}-items-wrapper`"
-          class="h-full flex flex-col gap-1"
-        >
+      <template v-if="items.length > 0">
+        <Transition appear name="slide-up-extra">
           <div
-            v-if="items.length === 0"
-            :id="`${id}-no-items`"
-            class="mx-8 my-8 border-t border-neutral-600 py-4 text-center text-neutral-300"
+            :id="`${id}-items-wrapper`"
+            class="h-full flex flex-col gap-1"
           >
-            Nothing here yet
+            <button
+              v-for="item in items"
+              :key="item.id"
+              :id="item.id"
+              :disabled="item.disabled"
+              @click="item.onclick"
+              class="relative flex flex-nowrap items-center gap-2 p-2 transition-[background-color] disabled:bg-transparent disabled:opacity-50 hover:bg-[theme(colors.neutral.100/.05)]"
+            >
+              <Image
+                v-if="item.image"
+                :id="`${item.id}-image`"
+                class-names="block rounded-md size-12 p-1"
+                :src="item.image"
+                :alt="`${item.title}'s image logo`"
+              />
+              <span
+                v-else-if="item.icon"
+                :id="`${item.id}-icon-wrapper`"
+                class="grid size-12 shrink-0 place-items-center"
+              >
+                <span
+                  :id="`${item.id}-icon-inner`"
+                  :class="['block size-8', item.icon]"
+                ></span>
+              </span>
+              <span
+                :id="`${item.id}-information-wrapper`"
+                class="flex flex-col items-start pr-1"
+              >
+                <span
+                  :id="`${item.id}-information-title`"
+                  class="block text-start font-medium"
+                >
+                  {{ item.title }}
+                </span>
+                <span
+                  :id="`${item.id}-information-subtitle`"
+                  class="block text-start text-neutral-400"
+                >
+                  {{ item.subtitle }}
+                </span>
+              </span>
+              <MaterialRipple :disabled="item.disabled" />
+            </button>
           </div>
-          <button
-            v-for="item in items"
-            :key="item.id"
-            :id="item.id"
-            :disabled="item.disabled"
-            @click="item.onclick"
-            class="relative flex flex-nowrap items-center gap-2 p-2 transition-[background-color] disabled:bg-transparent disabled:opacity-50 hover:bg-[theme(colors.neutral.100/.05)]"
-          >
-            <Image
-              v-if="item.image"
-              :id="`${item.id}-image`"
-              class-names="block rounded-md size-12 p-1"
-              :src="item.image"
-              :alt="`${item.title}'s image logo`"
-            />
-            <span
-              v-else-if="item.icon"
-              :id="`${item.id}-icon-wrapper`"
-              class="grid size-12 shrink-0 place-items-center"
-            >
-              <span
-                :id="`${item.id}-icon-inner`"
-                :class="['block size-8', item.icon]"
-              ></span>
-            </span>
-            <span
-              :id="`${item.id}-information-wrapper`"
-              class="flex flex-col items-start pr-1"
-            >
-              <span
-                :id="`${item.id}-information-title`"
-                class="block text-start font-medium"
-              >
-                {{ item.title }}
-              </span>
-              <span
-                :id="`${item.id}-information-subtitle`"
-                class="block text-start text-neutral-400"
-              >
-                {{ item.subtitle }}
-              </span>
-            </span>
-            <MaterialRipple :disabled="item.disabled" />
-          </button>
+        </Transition>
+      </template>
+      <template v-else>
+        <div
+          v-if="items.length === 0"
+          :id="`${id}-no-items`"
+          class="mx-8 my-8 border-t border-neutral-600 py-4 text-center text-neutral-300"
+        >
+          Nothing here yet
         </div>
-      </Transition>
+      </template>
     </div>
   </Transition>
 </template>

@@ -20,6 +20,7 @@ export type ArgumentReplacementsType = {
   "version_type"         : string;
   // Introduced by Kaede
   "libraries_directory"  : string;
+  "main_jar_directory"   : string;
 };
 export type ArgumentAuthReplacementsType = {
   "auth_access_token": string;

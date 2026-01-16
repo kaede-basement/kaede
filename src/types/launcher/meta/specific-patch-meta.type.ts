@@ -153,8 +153,11 @@ export type SpecificPatchMetaType = {
   // A human-readable name of the patch
   "name": string;
 
-  // The version release time in the ISO 8601 string format
-  "releaseTime": string;
+  /*
+   * The version release time in the ISO 8601 string format.
+   * Missing in custom patches, i.e. 'org.mcphackers.launchwrapper'
+   */
+  "releaseTime"?: string;
 
   // A unique identifier of the patch. As of now, can be 12 different string literals
   "uid": PatchUIDType;
@@ -169,6 +172,12 @@ export type SpecificPatchMetaType = {
    * Specified at https://github.com/PrismLauncher/meta/blob/main/meta/model/__init__.py#L342
    */
   "+agents"?: Array<Partial<{ "argument": string }>>;
+
+  /*
+   * Should be an array of needed libraries for this patch.
+   * However, there is no way to surely tell the differences between the 'libraries' field
+   */
+  "+libraries"?: Array<SpecificPatchLibraryType>;
 
   /*
    * This field contains a list of unique flags Prism Launcher uses when launching.
@@ -252,7 +261,7 @@ export type SpecificPatchMetaType = {
    *
    * Some placeholders might not be replaced, and Minecraft will still launch.
    * Others always require to be replaced. One such case is the '${user_properties}' placeholder
-   * that is unknown, yet requires to be a stringified version
+   * that has an unknown purpose, yet requires to be a stringified version
    * of a JSON object with... random values?
    */
   "minecraftArguments"?: string;

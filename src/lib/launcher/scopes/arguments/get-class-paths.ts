@@ -21,15 +21,25 @@ export async function getClassPaths({
     logPrefix,
     "Merging all library and client classpaths",
   );
-  const mergedPaths: Array<string> = finalizedPatch
-    .artifacts
-    .filter(({ status }) => (
-      (status === "library") || (status === "empty")
-    ))
-    .map(({ path }) => path);
+  const classPathsArray: Array<string> = [];
+
+  for (const library of finalizedPatch.artifacts) {
+    const shouldBeIncluded: boolean = library.status === "library" || library.status === "empty";
+
+    if (!shouldBeIncluded) {
+      continue;
+    }
+
+    if (library?.first) {
+      console.log(classPathsArray);
+      classPathsArray.unshift(library.path);
+    } else {
+      classPathsArray.push(library.path);
+    }
+  }
 
   if (finalizedPatch.client) {
-    mergedPaths.push(finalizedPatch.client.path);
+    classPathsArray.push(finalizedPatch.client.path);
   }
 
   const beforeHooksResult: "continue" | {
@@ -41,7 +51,7 @@ export async function getClassPaths({
       "classPaths": string;
     }>({
       "scope" : "onClassPathsGet",
-      "toPass": { mergedPaths, necessaries, finalizedPatch },
+      "toPass": { classPathsArray, necessaries, finalizedPatch },
       "timing": "before",
     });
 
@@ -51,12 +61,12 @@ export async function getClassPaths({
 
   // The library paths may have duplicates because of the natives
   log.debug(logPrefix, "Removing duplicated classpaths");
-  const uniquePaths: Set<string> = new Set(mergedPaths);
+  const uniquePaths: Set<string> = new Set(classPathsArray);
   const classPaths: string = [...uniquePaths].join(";");
 
   log.info(
     logPrefix,
-    `Removed ${mergedPaths.length - uniquePaths.size} duplicated classpaths`,
+    `Removed ${classPathsArray.length - uniquePaths.size} duplicated classpaths`,
   );
 
   return {

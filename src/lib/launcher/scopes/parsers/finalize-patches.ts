@@ -35,6 +35,7 @@ function addArtifactsToMap(
   libraries: Array<SpecificPatchLibraryType> | undefined,
   map: Map<string, MappedArtifactType>,
   isMaven: boolean,
+  isFirst?: boolean,
 ): void {
   if (!libraries) {
     return;
@@ -48,6 +49,8 @@ function addArtifactsToMap(
   });
 
   for (const artifact of artifacts) {
+    artifact.first = isFirst;
+
     const id = artifact.id;
     const stored: MappedArtifactType | undefined = map.get(id);
 
@@ -112,6 +115,7 @@ export function finalizePatches({
 
     addArtifactsToMap(necessaries, patch.uid, patch.mavenFiles, uniqueArtifacts, true);
     addArtifactsToMap(necessaries, patch.uid, patch.libraries, uniqueArtifacts, false);
+    addArtifactsToMap(necessaries, patch.uid, patch["+libraries"], uniqueArtifacts, false, true);
 
     if (patch.mainClass) {
       built.mainClass = patch.mainClass;

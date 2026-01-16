@@ -13,5 +13,11 @@ export type MappedArtifactType = {
    * 'native' should be downloaded and extracted but not included in the classpath
    * 'empty' should be just included in the classpath
    */
-  "status"  ?: "library" | "mavenFile" | "native" | "empty";
+  "status"?: "library" | "mavenFile" | "native" | "empty";
+
+  /*
+   * Indicates the '+libraries' field in MultiMC patches.
+   * Should be specified the first in classpaths
+   */
+  "first"?: boolean;
 };

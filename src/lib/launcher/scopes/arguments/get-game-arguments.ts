@@ -40,7 +40,7 @@ export async function getGameArguments({
   const argumentsWithTweakers: Array<string> = finalizedPatch.minecraftArguments.split(" ");
 
   for (const tweaker of tweakersList) {
-    argumentsWithTweakers.push(`--tweakClass ${tweaker}`);
+    argumentsWithTweakers.push("--tweakClass", tweaker);
   }
 
   const afterHooksResult: "continue" | Array<string> | undefined =

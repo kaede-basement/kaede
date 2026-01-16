@@ -1,38 +1,22 @@
-[README for TypeScript-related code](../src/README.md) | [README for Rust-related code](../src-tauri/README.md) | [Contributing Guidelines](./CONTRIBUTING.md)
+[Back](../src/README.md)
 
-*A human-generated slop that follows IMRaD structure to help me prepare for my Academic Writing and Argumentation classes*
+# MultiMC Patch System
 
-# Abstract
-
-As new Minecraft launchers keep being made by enthusiastic developers,
-
-# Introduction
-
-In the last couple of years, the MultiMC-based launchers, such as Prism Launcher, attracted the majority of the Minecraft player base. Various Reddit and forum posts seem to show that the use of a latter one is widespread [1], [2]. The comparison of the GitHub stars history between the most popular open sourced Minecraft launchers reveals that the Prism Launcher has the fastest grow [3]. Despite a significant popularity, the underlying launching part does not appear to be well-documented. This post aims to shed light on the use of MultiMC patches in Minecraft launching.
-
-# Methods
-
-The list of the used technology stack, tools, and systems includes but is not limited to: TypeScript, Rust, Tauri v2, Temurin JDK 8/16/17/21, Windows 10, and NixOS. To examine the MultiMC patch system, I proceeded in several steps. First, I collected all available at the moment of writing patch index files (e.g. `net.minecraft` and `net.adoptium.java`) and built an approximate representation of the response type. I took the same measures for specific versions of each patch using the latest version. Next, I reviewed the blog posts about Minecraft launching from Lin [4] and Ryan [5]. I then tried to find similarities between Mojang API and Prism Launcher meta API. Finally, I started the development where many horrifying things beyond my comprehension awaited me.
-
-# Results and Discussion
-
-The MultiMC patch system is a complex, yet convenient way to manage Minecraft launching with various mod loaders. If one implements the use of MultiMC patch system in their code properly, they will not need to write a code to handle each patch in their own way since patches are standardized.
+The MultiMC patch system is a complex, yet convenient way to manage Minecraft launching with various mod loaders.
 
 ## How to think of MultiMC patches
 
 Before one starts coding, they should understand what to expect from patches.
 
-As stated by Ryan [5], the Prism Launcher meta server is generating JSON patches from multiple sources. These sources can have completely different formats of library and asset structures. Bringing such mismatches to one consistent response format is challenging. Thus, one will stumble upon many minor inconsistencies when handling MultiMC patches.
+As stated by Ryan [5], the Prism Launcher meta server is generating JSON patches from multiple sources. These sources can have completely different library and asset structures. Bringing such format mismatches to one consistent response type is challenging. Thus, one will stumble upon many inconsistencies when handling MultiMC patches.
 
-The MultiMC patch is a JSON file that represents the data needed to handle the package that is specified in the `uid` field. The patch system was made to simplify the installation and launching parts of Minecraft. Each patch can have dependencies or conflicts field (although the latter one seems to be rare). Dependencies are just another patches, so each dependency can have its own dependencies field too.
+The MultiMC patch is a JSON file that represents the information needed to handle the current patch. The patch system aims to simplify the installation and launching parts of Minecraft. Each patch can specify dependency or conflicting patches (although the latter one seems to be rare). Dependencies are just another patches, so each dependency can have its own dependencies too.
 
 It is possible that the correct way to navigate these patches is to:
  
-- resolve the entry patch and its dependencies and all sub-dependencies;
+- resolve the entry patch, patch dependencies, and all sub-dependencies;
 - collect the resolved patches in the array;
-- build the final and single patch, starting from the sub-dependencies and ending with the entry patch.
-
-RyRy [6] suggests to "1. collect the json for a minecraft version from mojang's piston-meta -> transform it a bit for the one-six format; 2. stack patches", where the second step apparently resembles the process of building the final patch. Although the first step is... not how I managed Minecraft installation and launching parts?
+- build the final and single patch, starting from sub-dependencies and ending with the entry patch.
 
 Following the defined way to navigate MultiMC patches, let us briefly understand how to apply this knowledge. For example, consider the Minecraft patch version to be `1.21.11` and the Fabric loader patch version to be `0.18.4`. The entry patch UID for Fabric is `net.fabricmc.fabric-loader`. It depends on a `net.fabricmc.intermediary` patch:
 
@@ -61,7 +45,7 @@ For now, consider the `net.fabricmc.intermediary` patch version to equal the Min
 }
 ```
 
-This is a Minecraft patch. When we resolve its metadata, we get another dependencies:
+This is a Minecraft patch. When we resolve its metadata, we get another dependency:
 
 ```json
 {
@@ -77,20 +61,20 @@ This is a Minecraft patch. When we resolve its metadata, we get another dependen
 
 Luckily, the `org.lwjgl3` patch does not have any dependencies. Now these resolved patches should be assembled into one final patch as was previously defined:
 
-- Use the sub-dependency fields from `org.lwjgl3:3.3.3`.
-- Use the sub-dependency fields from `net.minecraft:1.21.11`.
+- Use the data from `org.lwjgl3:3.3.3` (dependency of `net.minecraft:1.21.11`).
+- Use the data from `net.minecraft:1.21.11` (dependency of `net.fabricmc.intermediary`).
   - In case of array-typed conflicting fields, merge them.
   - In case of other types of conflicting fields, overwrite them.
-- Use the dependency fields from `net.fabricmc.intermediary`.
+- Use the data from `net.fabricmc.intermediary` (dependency of `net.fabricmc.fabric-loader`).
   - In case of array-typed conflicting fields, merge them.
   - In case of other types of conflicting fields, overwrite them.
-- Use the entry patch fields from `net.fabricmc.fabric-loader`.
+- Use the data from `net.fabricmc.fabric-loader` (entry patch).
   - In case of array-typed conflicting fields, merge them.
   - In case of other types of conflicting fields, overwrite them.
 
-The final patch was built and can be used to download artifacts and launch the game.
+The final patch was built and can be used to download artifacts and launch the game. Actually, the final patch should not have necessarily the MultiMC format. One could implement their own format and parse all patches data into that format.
 
-Due to this section being a short explanation, I omitted the majority of important information. The actual final patch assemble is way more complex. For example, entry and dependency patches could specify the same library twice, where only the version might differ. In other cases, the entry patch could specify the library in `mavenFiles` field, but the entry patch dependencies might specify that library in the `libraries` field.
+Due to this section being a short explanation, I omitted the majority of important information. The actual final patch assemble is explained in the next sections.
 
 ## An in-depth structure of the MultiMC patch system
 
@@ -169,7 +153,7 @@ type PatchIndexVersionType = {
 };
 ```
 
-Where the `PatchVariantType` can be `"release" | "snapshot" | "experiment" | "old_alpha" | "old_beta" | "old_snapshot"` and `PatchDependencyType` looks like this:
+Where the `PatchVariantType` can be `"release" | "snapshot" | "experiment" | "old_alpha" | "old_beta" | "old_snapshot"`, and `PatchDependencyType` looks like this:
 
 ```ts
 type PatchDependencyType = {
@@ -190,7 +174,7 @@ The patch index files are usually used on Minecraft instance creation. They are 
 
 > URL format: `https://meta.prismlauncher.org/v1/${uid}/${version}.json`
 
-Now begins the longest part of the entire post :3
+Now begins the longest part of the entire post ^^
 
 The JSON files for version-specific patches diverse with each patch. This is what the final type looks like:
 
@@ -202,7 +186,9 @@ type SpecificPatchMetaType = {
   // A human-readable name of the patch
   "name": string;
 
-  // The version release time in the ISO 8601 string format
+  // The version release time in the ISO 8601 string format.
+  // However, it should be noted that release time could be missing in custom patches,
+  // i.e. 'org.mcphackers.launchwrapper'
   "releaseTime": string;
 
   // A unique identifier of the patch. As of now, can be 12 different string literals
@@ -211,11 +197,14 @@ type SpecificPatchMetaType = {
   // A version string, e.g. '26.1-snapshot-2'
   "version": string;
 
-  // All the next fields could be missing.
-  //
+  /** All the next fields could be missing. */
   // Perhaps, these are Java agents.
   // Specified at https://github.com/PrismLauncher/meta/blob/main/meta/model/__init__.py#L342
   "+agents"?: Array<Partial<{ "argument": string }>>;
+
+  // Should be an array of needed libraries for this patch.
+  // However, there is no way to surely tell the differences between the 'libraries' field
+  "+libraries"?: Array<SpecificPatchLibraryType>;
 
   // This field contains a list of unique flags Prism Launcher uses when launching.
   //
@@ -242,7 +231,7 @@ type SpecificPatchMetaType = {
   // '--tweakClass com.mumfrey.liteloader.launch.LiteLoaderTweaker --tweakClass another_tweaker'
   "+tweakers"?: Array<string>;
 
-  // An array of JVM arguments to pass to your JVM arguments.
+  // An array of JVM arguments to add.
   // So far, I have encountered next values:
   // - '-Djava.util.Arrays.useLegacyMergeSort=true' // Present in ancient versions of Minecraft
   "+jvmArgs"?: Array<string>;
@@ -284,7 +273,7 @@ type SpecificPatchMetaType = {
   //
   // Some placeholders might not be replaced, and Minecraft will still launch.
   // Others always require to be replaced. One such case is the '${user_properties}' placeholder
-  // that is unknown, yet requires to be a stringified version of a JSON object with... random values?
+  // that has an unknown purpose, yet requires to be a stringified version of a JSON object with... random values?
   "minecraftArguments"?: string;
 
   // Deprecated. Used to help to sort patches, apparently
