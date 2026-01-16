@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { defineAsyncComponent, provide, shallowReactive } from "vue";
+import { computed, defineAsyncComponent, provide, shallowReactive } from "vue";
 
 import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
 import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
@@ -48,7 +48,10 @@ import type {
   ContextInstanceStatesType,
   InstanceStatesType,
 } from "@/types/application/instance-states.type.ts";
-import type { TranslationsType } from "@/types/translations/translations.type.ts";
+import type {
+  TranslationsStateType,
+  TranslationsType,
+} from "@/types/translations/translations.type.ts";
 
 /**
  * These components will load only when needed.
@@ -72,6 +75,11 @@ const globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getFro
  * Contains all Minecraft instance states.
  */
 const instanceStates = shallowReactive<InstanceStatesType>(Instances.getFromConfig());
+
+/**
+ * Contains translation states
+ */
+const translations = computed((): TranslationsType => globalStates.translations);
 
 /**
  * Returns a reference to the proxied object of global states.
@@ -142,7 +150,7 @@ provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
  * Provides a reference to the instance-level reactive translations state
  * for all component children.
  */
-provide<TranslationsType>(TranslationsContextKey, globalStates.translations);
+provide<TranslationsStateType>(TranslationsContextKey, translations);
 
 /**
  * Provides a reference to the instance-level reactive Minecraft instance states

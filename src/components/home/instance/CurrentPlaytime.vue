@@ -2,14 +2,20 @@
 import { computed, inject } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
-import { GlobalStatesContextKey, InstanceStatesContextKey } from "@/constants/application.ts";
+import {
+  GlobalStatesContextKey,
+  InstanceStatesContextKey,
+  TranslationsContextKey,
+} from "@/constants/application.ts";
 import Instances from "@/lib/instances";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
+import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
+const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
@@ -64,7 +70,7 @@ const playTime = computed((): string => {
         id="__home-page__current-playtime-information-label"
         class="block font-medium"
       >
-        Playtime
+        {{ Translations?.Messages?.["general.sidebar.home"] }}
       </span>
       <span
         id="__home-page__current-playtime-information-time"

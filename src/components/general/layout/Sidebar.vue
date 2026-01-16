@@ -10,10 +10,13 @@ import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type {
   ContextGlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import type { TranslationKey, TranslationsType } from "@/types/translations/translations.type.ts";
+import type {
+  TranslationKey,
+  TranslationsStateType,
+} from "@/types/translations/translations.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
-const Translations = inject<TranslationsType>(TranslationsContextKey);
+const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 
 const innerStyles = computed(
   (): ReturnType<typeof General.getSidebarInnerStyles> => (
@@ -74,7 +77,7 @@ function handleMouseOver(event: MouseEvent): void {
 
   const newTooltipInfo = {
     "top" : offsetTop,
-    "text": Translations?.Messages?.[`general.sidebar.${textContent}` as TranslationKey],
+    "text": Translations?.value?.Messages?.[`general.sidebar.${textContent}` as TranslationKey],
     "show": true,
   };
 
