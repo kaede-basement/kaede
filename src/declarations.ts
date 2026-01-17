@@ -294,12 +294,12 @@ declare global {
            * Executes 'async' or 'sync' functions before the config was read.
            *
            * @param input - a string that represents absolute pathname of the config file
-           * is passed as the argument.
+           *                is passed as the argument.
            *
            * If the hook returns a 'stop' status,
            * it should also return:
            * @param output - an object that has the 'ConfigType' type
-           * in the 'response' field.
+           *                 in the 'response' field.
            *
            * If the hook returns a 'continue' status,
            * code execution will continue as if that hook did not exist.

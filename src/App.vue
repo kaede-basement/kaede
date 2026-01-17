@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { computed, defineAsyncComponent, provide, shallowReactive } from "vue";
+import { computed, defineAsyncComponent, provide, shallowReactive, watchEffect } from "vue";
 
 import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
 import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
@@ -35,11 +35,14 @@ import {
   InstanceStatesContextKey,
   TranslationsContextKey,
 } from "@/constants/application.ts";
+import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
+import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
 import Instances from "@/lib/instances";
 import { __changeInstanceState } from "@/lib/instances/scopes/change-instance-state.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
@@ -54,7 +57,7 @@ import type {
 } from "@/types/translations/translations.type.ts";
 
 /**
- * These components will load only when needed.
+ * These components will load only when needed. Each page is defined as async component too.
  */
 const LogViewer = defineAsyncComponent(
   () => import("@/components/logging/LogViewer.vue"),
@@ -77,7 +80,7 @@ const globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getFro
 const instanceStates = shallowReactive<InstanceStatesType>(Instances.getFromConfig());
 
 /**
- * Contains translation states
+ * Contains a computed translation state to pass down with the 'inject'.
  */
 const translations = computed((): TranslationsType => globalStates.translations);
 
@@ -97,6 +100,10 @@ function getInstanceStates(): InstanceStatesType {
 
 /**
  * Replaces a specified field in the global states with the provided value.
+ *
+ * @param key   - A one-level deep key of a global states object,
+ *                e.g. 'development', 'extensions', or 'layout'.
+ * @param value - A value that is stored in a field with the provided key.
  */
 function __setGlobalState<Key extends keyof GlobalStatesType>(
   key: Key,
@@ -107,6 +114,10 @@ function __setGlobalState<Key extends keyof GlobalStatesType>(
 
 /**
  * Replaces a specified field in the instance states with the provided value.
+ *
+ * @param key   - A one-level deep key of an instance states object,
+ *                i.e. an instance id.
+ * @param value - A value that is stored in a field with the provided key.
  */
 function __setInstanceState<Key extends keyof InstanceStatesType>(
   key: Key,
@@ -119,8 +130,9 @@ function __setInstanceState<Key extends keyof InstanceStatesType>(
  * Changes a specified field in the global states with the provided value
  * while handling all attached hooks.
  *
- * @param key   - the array of input numbers
- * @param value - the array of input numbers
+ * @param key   - A one-level deep key of a global states object,
+ *                e.g. 'development', 'extensions', or 'layout'.
+ * @param value - A value that is stored in a field with the provided key.
  */
 function scopedChangeGlobalStates<Key extends keyof GlobalStatesType>(
   key: Key,
@@ -132,6 +144,10 @@ function scopedChangeGlobalStates<Key extends keyof GlobalStatesType>(
 /**
  * Changes a specified field in the instance states with the provided value
  * while handling all attached hooks.
+ *
+ * @param key   - A one-level deep key of an instance states object,
+ *                i.e. an instance id.
+ * @param value - A value that is stored in a field with the provided key.
  */
 function scopedChangeInstanceStates<Key extends keyof InstanceStatesType>(
   key: Key,
@@ -179,7 +195,7 @@ window[ApplicationNamespace].__internals.getInstanceStates = getInstanceStates;
 window[ApplicationNamespace].__internals.changeInstanceStates = scopedChangeInstanceStates;
 
 /**
- * Handles 'F5', 'Ctrl+R', and 'Command+R' key binds that reload the launcher
+ * Handles 'F5', 'Ctrl+R', and 'Command+R' key binds that reload the launcher.
  */
 useEventListener("keydown", (event: KeyboardEvent) => (
   DevelopmentModeHelpers.handleNativeReloadKeyBinds(
@@ -187,6 +203,20 @@ useEventListener("keydown", (event: KeyboardEvent) => (
     globalStates.development?.enableNativeReloadKeyBinds,
   )
 ));
+
+/**
+ * Updates translations on locale change.
+ */
+watchEffect(() => {
+  const baseDirectory: string = General.getCachedBaseDirectory();
+  const locale: string = globalStates.layout.locale;
+
+  log.debug(__PRE_BUNDLED_FILENAME__, `Overriding default translations to '${locale}'`);
+  Configs.getTranslations(baseDirectory, locale).then(translations => {
+    GlobalStateHelpers.change("translations", translations);
+    log.info(__PRE_BUNDLED_FILENAME__, `Successfully set translations to '${locale}'`);
+  });
+});
 </script>
 
 <template>
@@ -225,20 +255,18 @@ useEventListener("keydown", (event: KeyboardEvent) => (
       <ConfigSyncer />
     </template>
 
-    <!-- In case of an error, show this template -->
     <template #error="{ currentError }">
       <GlobalError :error="currentError" />
     </template>
   </ErrorBoundary>
 
-  <!-- Extensions-level error boundary -->
+  <!-- Extension-level error boundary -->
   <ErrorBoundary>
     <template #default>
       <CssThemeLoader />
       <ExtensionLoader v-if="globalStates.extensions.enabled" />
     </template>
 
-    <!-- In case of an error, show this template -->
     <template #error="{ currentError }">
       <ExtensionsError :error="currentError" />
     </template>

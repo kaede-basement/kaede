@@ -97,7 +97,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
       currentLogsArray.push(line);
     };
     const javaBinary: string =
-      String.raw`javaw`;
+      "java";
     const javaMajor: number = window[ApplicationNamespace].__internals.javaMajor
       ?? await General.getJavaMajor();
 

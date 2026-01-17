@@ -31,7 +31,6 @@ export async function getClassPaths({
     }
 
     if (library?.first) {
-      console.log(classPathsArray);
       classPathsArray.unshift(library.path);
     } else {
       classPathsArray.push(library.path);

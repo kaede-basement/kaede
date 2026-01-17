@@ -85,8 +85,10 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     "minecraft": {
       "windowHeight": 480,
       "windowWidth" : 854,
-      "jvmArgs"     : "",
       "icon"        : "",
+      "javaBinary"  : "java",
+      "add"         : {},
+      "remove"      : {},
     },
   };
 }

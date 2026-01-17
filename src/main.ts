@@ -48,7 +48,6 @@ const startTime = performance.now();
 // 'window[ApplicationNamespace]' is accessed not only by extensions but by the application itself
 Globals.declareWindow();
 
-// Concurrent promise resolving saves us around 20 ms
 const [launchCount, portable]: [number, boolean, void, void] = await Promise.all([
   // Get application UI reloads count
   Globals.getLaunchCount(),
@@ -71,7 +70,10 @@ log.info(
 // Get the launcher base directory to share it between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
-log.debug(__PRE_BUNDLED_FILENAME__, "Resolving config file, accounts, and instances");
+log.debug(
+  __PRE_BUNDLED_FILENAME__,
+  "Resolving configs, accounts, default translations, and instances",
+);
 const [
   config,
   accounts,
@@ -112,6 +114,10 @@ if (config.development?.enableDebugMode) {
     config.development,
   );
 
+  /*
+   * 'JSON#stringify' is a bit expensive, so use it only when
+   * we are sure that the debug messages will be logged
+   */
   log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
     "Config",
     config,

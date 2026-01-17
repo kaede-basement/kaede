@@ -70,7 +70,7 @@ const playTime = computed((): string => {
         id="__home-page__current-playtime-information-label"
         class="block font-medium"
       >
-        {{ Translations?.Messages?.["general.sidebar.home"] }}
+        {{ Translations?.Messages?.["home.instance.current-playtime.label"] }}
       </span>
       <span
         id="__home-page__current-playtime-information-time"

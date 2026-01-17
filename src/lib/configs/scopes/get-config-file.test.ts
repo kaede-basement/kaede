@@ -42,8 +42,10 @@ const defaultConfig: ConfigType = {
   "minecraft": {
     "windowHeight": 480,
     "windowWidth" : 854,
-    "jvmArgs"     : "",
     "icon"        : "",
+    "javaBinary"  : "java",
+    "add"         : {},
+    "remove"      : {},
   },
   "misc": {
     "showAfterExtensionsInitialization": false,

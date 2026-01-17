@@ -84,8 +84,16 @@ export type GlobalStatesMiscType = {
 export type GlobalStatesMinecraftType = {
   "windowHeight": number;
   "windowWidth" : number;
-  "jvmArgs"     : string;
   "icon"        : string;
+  "javaBinary"  : string;
+  "add"         : Partial<{
+    "jvmArguments" : Array<string>;
+    "gameArguments": Array<string>;
+  }>;
+  "remove": Partial<{
+    "jvmArguments" : Array<string>;
+    "gameArguments": Array<string>;
+  }>;
 };
 export type GlobalStatesExtensionsType = {
   "enabled"                   : boolean;

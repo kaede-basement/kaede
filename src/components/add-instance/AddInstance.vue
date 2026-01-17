@@ -40,7 +40,7 @@ const { data, status } = useQuery({
 
     return parsed
       .versions
-      .filter(({ type }) => type === "release");
+      .filter(({ type }) => type === "asfd");
   },
 });
 
@@ -48,11 +48,13 @@ async function addInstance(version: string): Promise<void> {
   Instances.change(`custom-${version}`, {
     "name"         : "Minecraft (bruh)",
     "icon"         : "https://forums.terraria.org/index.php?attachments/icon-png.280655/",
-    "jvmArgs"      : "",
     "windowHeight" : 480,
     "windowWidth"  : 854,
     "checksum"     : true,
     "entry"        : "net.minecraft",
+    "javaBinary"   : "java",
+    "add"          : {},
+    "remove"       : {},
     "playTime"     : 0,
     "patchVersions": {
       "net.minecraft": version,
