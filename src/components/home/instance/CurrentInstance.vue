@@ -5,6 +5,7 @@ import Dropdown from "@/components/general/base/Dropdown.vue";
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey, InstanceStatesContextKey } from "@/constants/application.ts";
+import { Patches } from "@/constants/meta.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -74,7 +75,7 @@ const dropdownItems = computed((): Array<DropdownItemType> => {
       "image"   : instance.icon,
       "onclick" : (): Promise<void> => selectInstance(id, globalStates.layout),
       "title"   : instance.name,
-      "subtitle": instance.patchVersions?.["net.minecraft"] ?? "unknown version",
+      "subtitle": instance.patchVersions?.[Patches.Minecraft] ?? "unknown version",
       "disabled": id === currentId,
     };
   });
@@ -124,7 +125,7 @@ const dropdownItems = computed((): Array<DropdownItemType> => {
         class="block text-neutral-400"
       >
         {{
-          currentInstance?.instance?.patchVersions?.["net.minecraft"]
+          currentInstance?.instance?.patchVersions?.[Patches.Minecraft]
             ?? "Click here to select an instance"
         }}
       </span>

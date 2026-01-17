@@ -1,5 +1,6 @@
 import { Type } from "typebox";
 
+import { Patches } from "@/constants/meta.ts";
 import { MinecraftSchema } from "@/lib/schemas/scopes/config/minecraft.schema.ts";
 import { PatchUidSchema } from "@/lib/schemas/scopes/meta/patch-uid.schema.ts";
 
@@ -13,7 +14,7 @@ export const InstanceMetadataSchema = Type.Intersect([
     "entry"        : Type.String(),
     "patchVersions": Type.Intersect([
       Type.Record(
-        Type.Literal("net.minecraft"),
+        Type.Literal(Patches.Minecraft),
         Type.String(),
       ),
       Type.Partial(

@@ -1,3 +1,19 @@
+import { Patches } from "@/constants/meta.ts";
+import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
+
+export const DefaultInstanceIcon = "https://minecraft.wiki/images/Minecraft_Preview_App_Store_icon_2.png";
+export const DefaultInstanceSettings: Omit<InstanceStateType, "patchVersions"> = {
+  "name"        : "Minecraft",
+  "icon"        : DefaultInstanceIcon,
+  "windowHeight": 480,
+  "windowWidth" : 854,
+  "checksum"    : true,
+  "entry"       : Patches.Minecraft,
+  "javaBinary"  : "java",
+  "add"         : {},
+  "remove"      : {},
+  "playTime"    : 0,
+};
 export const LaunchStatus = {
   "General": {
     "Starting": "general-pending-starting",
@@ -118,8 +134,8 @@ export const APIEndpoints = {
     "Base" : "https://meta.prismlauncher.org/v1/",
     "Paths": {
       "Minecraft": {
-        "Id"  : "net.minecraft",
-        "Base": "net.minecraft/",
+        "Id"  : Patches.Minecraft,
+        "Base": `${Patches.Minecraft}/`,
       },
     },
   },

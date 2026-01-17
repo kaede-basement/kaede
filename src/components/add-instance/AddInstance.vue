@@ -1,23 +1,37 @@
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
 import { fetch } from "@tauri-apps/plugin-http";
-import { inject } from "vue";
+import { computed, inject } from "vue";
 
+import Image from "@/components/general/base/Image.vue";
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
-import { InstanceStatesContextKey } from "@/constants/application.ts";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
 import { APIEndpoints } from "@/constants/launcher.ts";
-import Instances from "@/lib/instances";
-import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import { InstallablePatches } from "@/constants/meta.ts";
+import General from "@/lib/general";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { PatchIndexType } from "@/types/launcher/meta/patch-index.type.ts";
 
-const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
-const minecraftUID: string = "net.minecraft";
+const cardStyles = computed(
+  (): ReturnType<typeof General.getSidebarInnerStyles> => (
+    General.getSidebarInnerStyles(
+      globalStates?.layout?.sidebar?.background,
+      globalStates?.layout?.sidebar?.color,
+      globalStates?.layout?.sidebar?.blur,
+    )
+  ),
+);
 
 const { data, status } = useQuery({
-  "queryKey": ["meta", minecraftUID, "versions"],
+  "queryKey": ["meta", APIEndpoints.Meta.Paths.Minecraft.Id, "versions"],
   "queryFn" : async (): Promise<PatchIndexType["versions"]> => {
-    const response: Response = await fetch(APIEndpoints.Meta.Base + minecraftUID);
+    const response: Response = await fetch(
+      APIEndpoints.Meta.Base +
+      APIEndpoints.Meta.Paths.Minecraft.Id,
+    );
     const parsed: unknown = await response.json();
 
     if (typeof parsed !== "object" || parsed === null) {
@@ -44,56 +58,39 @@ const { data, status } = useQuery({
   },
 });
 
-async function addInstance(version: string): Promise<void> {
-  Instances.change(`custom-${version}`, {
-    "name"         : "Minecraft (bruh)",
-    "icon"         : "https://forums.terraria.org/index.php?attachments/icon-png.280655/",
-    "windowHeight" : 480,
-    "windowWidth"  : 854,
-    "checksum"     : true,
-    "entry"        : "net.minecraft",
-    "javaBinary"   : "java",
-    "add"          : {},
-    "remove"       : {},
-    "playTime"     : 0,
-    "patchVersions": {
-      "net.minecraft": version,
-    },
-  });
-
-  if (instanceStates === undefined) {
-    return;
-  }
-
-  return Instances.syncMetadata(instanceStates);
+function handlePatch(uid: string): void {
+  console.log(uid);
 }
 </script>
 
 <template>
   <PageWrapper>
-    <div id="__add-instance-page__wrapper" class="h-full flex flex-col gap-2">
-      <div id="__add-instance-page__status">
-        {{ status }}
-      </div>
-      <div id="__add-instance-page__versions-wrapper" class="grid cols-6 gap-2">
-        <template v-if="data">
-          <button
-            v-for="entry in data"
-            :key="entry.version"
-            :disabled="instanceStates?.[`custom-${entry.version}`] !== undefined"
-            @click="() => addInstance(entry.version)"
-            :id="`__add-instance-page__version-entry-${entry.version}`"
-            class="h-fit flex flex-col gap-1 overflow-hidden rounded-md bg-neutral-950 p-2 text-nowrap text-xs leading-none transition-[background-color] disabled:bg-transparent hover:bg-neutral-900"
-          >
-            <span :id="`__add-instance-page__version-entry-type-${entry.version}`" class="text-neutral-400">
-              {{ entry.type }}
-            </span>
-            <span :id="`__add-instance-page__version-entry-version-${entry.version}`">
-              {{ entry.version }}
-            </span>
-          </button>
-        </template>
-      </div>
+    <div id="__add-instance-page__wrapper" class="grid cols-2 h-fit w-full gap-4 py-2 pr-2 lg:cols-6 md:cols-4 sm:cols-3">
+      <button
+        v-for="patch in InstallablePatches"
+        :key="patch.uid"
+        @click="() => patch?.action?.(patch.uid) ?? handlePatch(patch.uid)"
+        :id="`__add-instance-page__item-${patch.id}`"
+        class="__add-instance-page__item rounded-md p-2 hover:bg-neutral-800"
+        :style="cardStyles"
+      >
+        <span
+          :id="`__add-instance-page__item-inner-${patch.id}`"
+          class="relative h-full flex flex-col items-center justify-center gap-4 rounded-md p-4 transition-[background-color] duration-150 hover:bg-[theme(colors.neutral.100/.05)]"
+        >
+           <Image
+             v-if="patch.icon"
+             :id="`__add-instance-page__item-icon-${patch.id}`"
+             :src="patch.icon"
+             :alt="`An icon of the '${patch.uid}' patch`"
+             class-names="rounded-md size-12"
+           />
+          <span :id="`__add-instance-page__item-${patch.id}`" class="block break-all">
+            {{ patch.name }}
+          </span>
+          <MaterialRipple />
+        </span>
+      </button>
     </div>
   </PageWrapper>
 </template>
