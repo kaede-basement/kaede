@@ -45,6 +45,21 @@ export const InstanceCreationSections: Array<{
     "name" : "Modrinth",
     "image": ModrinthIcon,
   },
+  {
+    "id"   : "ftb-legacy",
+    "name" : "FTB Legacy",
+    "image": ModrinthIcon,
+  },
+  {
+    "id"   : "curseforge",
+    "name" : "CurseForge",
+    "image": ModrinthIcon,
+  },
+  {
+    "id"   : "atlauncher",
+    "name" : "ATLauncher",
+    "image": ModrinthIcon,
+  },
 ];
 export const ContextMenuItems = [
   {
