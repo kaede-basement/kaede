@@ -75,6 +75,7 @@ export type SpecificPatchClassifierKeyType =
   // I am tired of seeing absolutely random shit, so the next ones are made up by me
   "natives-windows-64" |
   "natives-windows-arm32" |
+  "natives-windows-arm64" |
   "natives-windows-x64" |
   "natives-windows-x86" |
   "natives-windows-x86_64" |
@@ -85,10 +86,14 @@ export type SpecificPatchClassifierKeyType =
   "natives-linux-x86_64" |
   "natives-osx-32" |
   "natives-osx-64" |
-  "natives-osx-arm32" |
   "natives-osx-x64" |
   "natives-osx-x86" |
-  "natives-osx-x86_64";
+  "natives-osx-x86_64" |
+  "natives-macos-32" |
+  "natives-macos-64" |
+  "natives-macos-x64" |
+  "natives-macos-x86" |
+  "natives-macos-x86_64";
 export type SpecificPatchClassifiersType = Record<
   SpecificPatchClassifierKeyType,
   SpecificPatchArtifactType

@@ -128,53 +128,41 @@ export function unifyPlatformWithArch(
       return { "platform": "windows", "arch": "x86" };
     }
     // Made up by me; may not exist
-    case "natives-windows-64": {
-      return { "platform": "windows", "arch": "x64" };
-    }
     case "natives-windows-arm32": {
       return { "platform": "windows", "arch": "arm32" };
     }
-    case "natives-windows-x64": {
-      return { "platform": "windows", "arch": "x64" };
+    case "natives-windows-arm64": {
+      return { "platform": "windows", "arch": "arm64" };
     }
     case "natives-windows-x86": {
       return { "platform": "windows", "arch": "x86" };
     }
+    case "natives-windows-64":
+    case "natives-windows-x64":
     case "natives-windows-x86_64": {
       return { "platform": "windows", "arch": "x64" };
     }
-    case "natives-linux-32": {
-      return { "platform": "linux", "arch": "x86" };
-    }
-    case "natives-linux-64": {
-      return { "platform": "linux", "arch": "x64" };
-    }
-    case "natives-linux-x64": {
-      return { "platform": "linux", "arch": "x64" };
-    }
+    case "natives-linux-32":
     case "natives-linux-x86": {
       return { "platform": "linux", "arch": "x86" };
     }
+    case "natives-linux-64":
+    case "natives-linux-x64":
     case "natives-linux-x86_64": {
       return { "platform": "linux", "arch": "x64" };
     }
-    case "natives-osx-32": {
+    case "natives-osx-32":
+    case "natives-osx-x86":
+    case "natives-macos-32":
+    case "natives-macos-x86": {
       return { "platform": "macos", "arch": "x86" };
     }
-    case "natives-osx-64": {
-      return { "platform": "macos", "arch": "x64" };
-    }
-    // Technically shouldn't exist, but whatever
-    case "natives-osx-arm32": {
-      return { "platform": "macos", "arch": "arm32" };
-    }
-    case "natives-osx-x64": {
-      return { "platform": "macos", "arch": "x64" };
-    }
-    case "natives-osx-x86": {
-      return { "platform": "macos", "arch": "x86" };
-    }
-    case "natives-osx-x86_64": {
+    case "natives-osx-64":
+    case "natives-osx-x64":
+    case "natives-osx-x86_64":
+    case "natives-macos-64":
+    case "natives-macos-x64":
+    case "natives-macos-x86_64": {
       return { "platform": "macos", "arch": "x64" };
     }
     default: {
