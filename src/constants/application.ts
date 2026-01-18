@@ -6,6 +6,8 @@ import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
+import CraftingTableIcon from "@/resources/CraftingTableIcon.webp";
+import ModrinthIcon from "@/resources/ModrinthIcon.webp";
 
 export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
@@ -27,6 +29,23 @@ export const CSSThemeExtensions = {
   "Disabled": ".css.disabled",
 } as const;
 
+export const InstanceCreationSections: Array<{
+  "id"     : string;
+  "name"   : string;
+  "image"  : string;
+  "action"?: (id: string) => Promise<void>;
+}> = [
+  {
+    "id"   : "clean-minecraft",
+    "name" : "Clean",
+    "image": CraftingTableIcon,
+  },
+  {
+    "id"   : "modrinth",
+    "name" : "Modrinth",
+    "image": ModrinthIcon,
+  },
+];
 export const ContextMenuItems = [
   {
     "name"  : "Restart UI",

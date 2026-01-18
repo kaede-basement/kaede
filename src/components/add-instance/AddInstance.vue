@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
 import { fetch } from "@tauri-apps/plugin-http";
-import { computed, inject } from "vue";
+import { computed, inject, ref } from "vue";
 
+import CleanInstance from "@/components/add-instance/sections/CleanInstance.vue";
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
+import { GlobalStatesContextKey, InstanceCreationSections } from "@/constants/application.ts";
 import { APIEndpoints } from "@/constants/launcher.ts";
-import { InstallablePatches } from "@/constants/meta.ts";
 import General from "@/lib/general";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { PatchIndexType } from "@/types/launcher/meta/patch-index.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+
+const selected = ref<string>(InstanceCreationSections[0].id);
 
 const cardStyles = computed(
   (): ReturnType<typeof General.getSidebarInnerStyles> => (
@@ -25,7 +27,7 @@ const cardStyles = computed(
   ),
 );
 
-const { data, status } = useQuery({
+useQuery({
   "queryKey": ["meta", APIEndpoints.Meta.Paths.Minecraft.Id, "versions"],
   "queryFn" : async (): Promise<PatchIndexType["versions"]> => {
     const response: Response = await fetch(
@@ -54,43 +56,49 @@ const { data, status } = useQuery({
 
     return parsed
       .versions
-      .filter(({ type }) => type === "asfd");
+      .filter(({ type }) => type === "release");
   },
 });
 
-function handlePatch(uid: string): void {
-  console.log(uid);
+function handleModeSelect(id: string): void {
+  selected.value = id;
 }
 </script>
 
 <template>
   <PageWrapper>
-    <div id="__add-instance-page__wrapper" class="grid cols-2 h-fit w-full gap-4 py-2 pr-2 lg:cols-6 md:cols-4 sm:cols-3">
-      <button
-        v-for="patch in InstallablePatches"
-        :key="patch.uid"
-        @click="() => patch?.action?.(patch.uid) ?? handlePatch(patch.uid)"
-        :id="`__add-instance-page__item-${patch.id}`"
-        class="__add-instance-page__item rounded-md p-2 hover:bg-neutral-800"
+    <div
+      id="__add-instance-page__wrapper"
+      class="h-full w-full flex flex-wrap gap-2 py-2 pr-2 sm:flex-nowrap"
+    >
+      <div
+        id="__add-instance-page__type-selector"
+        class="h-fit w-full flex flex-col gap-2 rounded-md p-2 sm:w-fit"
         :style="cardStyles"
       >
-        <span
-          :id="`__add-instance-page__item-inner-${patch.id}`"
-          class="relative h-full flex flex-col items-center justify-center gap-4 rounded-md p-4 transition-[background-color] duration-150 hover:bg-[theme(colors.neutral.100/.05)]"
+        <button
+          v-for="mode in InstanceCreationSections"
+          :key="mode.id"
+          :disabled="selected === mode.id"
+          @click="() => mode?.action?.(mode.id) ?? handleModeSelect(mode.id)"
+          :id="`__add-instance-page__type-selector-item-${mode.id}`"
+          class="__add-instance-page__type-selector-item relative flex flex-nowrap items-center gap-2 rounded-md p-2 transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
         >
-           <Image
-             v-if="patch.icon"
-             :id="`__add-instance-page__item-icon-${patch.id}`"
-             :src="patch.icon"
-             :alt="`An icon of the '${patch.uid}' patch`"
-             class-names="rounded-md size-12"
-           />
-          <span :id="`__add-instance-page__item-${patch.id}`" class="block break-all">
-            {{ patch.name }}
+          <Image
+            :id="`__add-instance-page__type-selector-image-${mode.id}`"
+            :src="mode.image"
+            :alt="`An icon of the '${mode.name}' instance mode selector`"
+            class-names="size-6"
+          />
+          <span
+            :id="`__add-instance-page__type-selector-item-label-${mode.id}`"
+          >
+            {{ mode.name }}
           </span>
           <MaterialRipple />
-        </span>
-      </button>
+        </button>
+      </div>
+      <CleanInstance v-if="selected === 'clean-minecraft'" />
     </div>
   </PageWrapper>
 </template>
