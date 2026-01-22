@@ -7,6 +7,7 @@ export function normalizeArtifactPath(artifact: string): {
   "directory" : string;
   "file"      : string;
   "classifier": SpecificPatchClassifierOSType | undefined;
+  "id"        : string;
 } {
   const prepared: Array<string> = artifact.split("@");
   const cleaned = prepared?.[0] ?? "";
@@ -40,5 +41,7 @@ export function normalizeArtifactPath(artifact: string): {
       ? `${name}-${version}.${extension}`
       : `${name}-${version}-${classifier}.${extension}`,
     "classifier": classifier as SpecificPatchClassifierOSType | undefined,
+    // 'org.ow2.asm:asm-tree'
+    "id"        : `${group}:${name}`,
   };
 }

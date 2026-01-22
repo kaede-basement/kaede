@@ -43,6 +43,13 @@ export async function getGameArguments({
     argumentsWithTweakers.push("--tweakClass", tweaker);
   }
 
+  argumentsWithTweakers.push(
+    "--height",
+    necessaries.instance.windowHeight.toString(),
+    "--width",
+    necessaries.instance.windowWidth.toString(),
+  );
+
   const afterHooksResult: "continue" | Array<string> | undefined =
     await ExtensionsManager.catchAsyncResponseHooks<Array<string>>({
       "scope" : "onGameArgumentsGet",

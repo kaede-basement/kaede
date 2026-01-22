@@ -31,7 +31,7 @@ export function parseLibrary({
     return false;
   }
 
-  const { "directory": relativeDirectory, file } = normalizeArtifactPath(name);
+  const { "directory": relativeDirectory, file, "id": artifactID } = normalizeArtifactPath(name);
   const directory: string = General.cachedJoin(
     directories.libraries,
     relativeDirectory,
@@ -48,7 +48,7 @@ export function parseLibrary({
     log.warn(descriptiveLogPrefix, "The library is empty");
 
     return {
-      "id"    : name,
+      "id"    : artifactID,
       "status": "empty",
       "url"   : "",
       "hash"  : "ignore",
@@ -98,7 +98,7 @@ export function parseLibrary({
     const builtUrl: string = baseUrl + ensureSlash + urlPath + "/" + file;
 
     return {
-      "id"    : name,
+      "id"    : artifactID,
       "status": isMaven ? "mavenFile" : "library",
       "url"   : builtUrl,
       "hash"  : "ignore",
@@ -116,7 +116,7 @@ export function parseLibrary({
   }
 
   return {
-    "id"    : name,
+    "id"    : artifactID,
     "status": isMaven ? "mavenFile" : "library",
     "first" : false,
     directory,

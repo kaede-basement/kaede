@@ -29,12 +29,31 @@ import type {
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
+function addMavenFiles(
+  necessaries: PreLaunchInformationType,
+  patchUid: string,
+  mavenFiles: Array<SpecificPatchLibraryType> | undefined,
+  allMavenFiles: Array<MappedArtifactType>,
+): void {
+  if (!mavenFiles) {
+    return;
+  }
+
+  const artifacts = parseLibraries({
+    patchUid,
+    necessaries,
+    "libraries": mavenFiles,
+    "isMaven"  : true,
+  });
+
+  allMavenFiles.push(...artifacts);
+}
+
 function addArtifactsToMap(
   necessaries: PreLaunchInformationType,
   patchUid: string,
   libraries: Array<SpecificPatchLibraryType> | undefined,
   map: Map<string, MappedArtifactType>,
-  isMaven: boolean,
   isFirst?: boolean,
 ): void {
   if (!libraries) {
@@ -45,7 +64,7 @@ function addArtifactsToMap(
     patchUid,
     necessaries,
     libraries,
-    isMaven,
+    "isMaven": false,
   });
 
   for (const artifact of artifacts) {
@@ -85,6 +104,16 @@ export function finalizePatches({
 }): FinalizedPatchType {
   // The last ones are the main patches; thus, they should overwrite what was previously written
   const reversed: Array<SpecificPatchMetaType> = patches.reverse();
+
+  /*
+   * Previously, maven files and libraries shared the same unique artifacts map...
+   * Turns out, NeoForge 1.21.2 does not work well with this approach
+   * since it specifies 'asm' library both in 'mavenFiles' and 'libraries' with different versions.
+   *
+   * It also seems like we do not even need to check for ID duplicates of maven files;
+   * instead, just download every maven file.
+   */
+  const foundMavenFiles: Array<MappedArtifactType> = [];
   // Patches might have overlapping artifacts with different versions
   const uniqueArtifacts = new Map<string, MappedArtifactType>;
   const built: FinalizedPatchType = {
@@ -113,9 +142,9 @@ export function finalizePatches({
       built["+tweakers"].push(...patch["+tweakers"]);
     }
 
-    addArtifactsToMap(necessaries, patch.uid, patch.mavenFiles, uniqueArtifacts, true);
-    addArtifactsToMap(necessaries, patch.uid, patch.libraries, uniqueArtifacts, false);
-    addArtifactsToMap(necessaries, patch.uid, patch["+libraries"], uniqueArtifacts, false, true);
+    addMavenFiles(necessaries, patch.uid, patch.mavenFiles, foundMavenFiles);
+    addArtifactsToMap(necessaries, patch.uid, patch.libraries, uniqueArtifacts);
+    addArtifactsToMap(necessaries, patch.uid, patch["+libraries"], uniqueArtifacts, true);
 
     if (patch.mainClass) {
       built.mainClass = patch.mainClass;
@@ -153,7 +182,12 @@ export function finalizePatches({
     }
   }
 
-  built.artifacts = [...uniqueArtifacts.values()];
+  built.artifacts = [
+    ...foundMavenFiles.values(),
+    ...uniqueArtifacts.values(),
+  ];
+
+  console.log(uniqueArtifacts, built.artifacts);
 
   return built;
 }

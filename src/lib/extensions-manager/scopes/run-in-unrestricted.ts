@@ -6,7 +6,7 @@ import { log } from "@/lib/logging/scopes/log.ts";
  */
 const AsyncFunction = async function (): Promise<void> {}.constructor as FunctionConstructor;
 
-export async function runInUnrestricted(id: string, code: string): void {
+export async function runInUnrestricted(id: string, code: string): Promise<void> {
   const startTime = performance.now();
 
   log.debug(__PRE_BUNDLED_FILENAME__, `Initializing the '${id}' extension code`);
