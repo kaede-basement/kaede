@@ -32,7 +32,9 @@ export async function downloadLibraries({
   const { statuses, instance, logPrefix } = necessaries;
   const artifacts: Array<MappedArtifactType> = finalizedPatch
     .artifacts
-    .filter(({ status }) => status !== "empty");
+    .filter(({ status, hash }) => (
+      status !== "empty" && hash !== "ignore"
+    ));
 
   log.debug(
     logPrefix,

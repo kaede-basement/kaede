@@ -66,12 +66,12 @@ async function launchInstance(instanceId?: string): Promise<void> {
   launches[instanceId] = {
     "launching": 1,
     "current"  : undefined,
-    "downloads": markRaw({
-      "current": new Map<string, number>,
+    "downloads": {
+      "current": markRaw(new Map<string, number>),
       "success": 0,
       "failed" : 0,
       "total"  : 0,
-    }),
+    },
   };
 
   const statuses: LauncherStatusesType = launches[instanceId];
@@ -96,15 +96,13 @@ async function launchInstance(instanceId?: string): Promise<void> {
 
       currentLogsArray.push(line);
     };
-    const javaBinary: string =
-      "java";
     const javaMajor: number = window[ApplicationNamespace].__internals.javaMajor
       ?? await General.getJavaMajor();
 
     const { success, process }: LaunchResponseType = await Launcher.handleLaunch({
       "instance"       : currentInstance.instance,
       "userPreferences": {
-        "javaBinary": javaBinary,
+        "javaBinary": currentInstance.instance.javaBinary,
         "javaMajor" : javaMajor,
         "versions"  : currentInstance.instance.patchVersions,
       },

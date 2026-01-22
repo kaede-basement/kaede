@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { useIntervalFn } from "@vueuse/core";
-import { computed, inject, ref } from "vue";
+import { computed, inject } from "vue";
 
 import {
   GlobalStatesContextKey,
@@ -17,15 +16,13 @@ import type {
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
-const progressLimit: number = 88;
+const progressLimit: number = 90;
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );
-
-const downloadsAmount = ref<number>(0);
 
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
@@ -49,45 +46,23 @@ const progress = computed<number>((oldValue: number | undefined): number => {
 
   if (!oldValue) {
     return statuses.value.current === LaunchStatus.General.Starting
-      ? 4
+      ? 10
       : 0;
   }
 
-  console.log(progressLimit);
-
   switch (statuses.value.current) {
-    /*
-     * | case LaunchStatus.Metadata.ReadingCachedVersionMeta: {
-     *       return Math.min(oldValue + 2, progressLimit);
-     *     }
-     *     case LaunchStatus.Metadata.ValidatingVersionMeta: {
-     *       return Math.min(oldValue + 4, progressLimit);
-     *     }
-     *     case LaunchStatus.Assets.ReadingCachedMeta: {
-     *       return Math.min(oldValue + 2, progressLimit);
-     *     }
-     *     case LaunchStatus.Logging.DownloadingConfig: {
-     *       return Math.min(oldValue + 2, progressLimit);
-     *     }
-     *     case LaunchStatus.Client.DownloadingJar: {
-     *       return Math.min(oldValue + 2, progressLimit);
-     *     }
-     *     case LaunchStatus.Assets.Done: {
-     *       return Math.min(oldValue + 12, progressLimit);
-     *     }
-     *     case LaunchStatus.Client.Done: {
-     *       return Math.min(oldValue + 12, progressLimit);
-     *     }
-     *     case LaunchStatus.Logging.Done: {
-     *       return Math.min(oldValue + 12, progressLimit);
-     *     }
-     *     case LaunchStatus.Libraries.Done: {
-     *       return Math.min(oldValue + 12, progressLimit);
-     *     }
-     *     case LaunchStatus.Patches.Done: {
-     *       return Math.min(oldValue + 12, progressLimit);
-     *     }
-     */
+    case LaunchStatus.General.Starting: {
+      return 10;
+    }
+    case LaunchStatus.PatchIndex.Success:
+    case LaunchStatus.PatchMetadata.Success:
+    case LaunchStatus.AssetIndex.Success:
+    case LaunchStatus.AssetObjects.Success:
+    case LaunchStatus.Libraries.Success:
+    case LaunchStatus.Logging.Success:
+    case LaunchStatus.Client.Success: {
+      return Math.min(oldValue + 15, progressLimit);
+    }
     case LaunchStatus.General.Success: {
       return 100;
     }
@@ -96,17 +71,20 @@ const progress = computed<number>((oldValue: number | undefined): number => {
     }
   }
 });
-
-useIntervalFn(() => {
-  if (statuses.value === undefined) {
-    return;
-  }
-
-  downloadsAmount.value = statuses.value.downloads.total;
-}, 50);
 </script>
 
 <template>
+  <div
+    v-if="statuses?.downloads"
+    id="__layout__launch-progress-downloads-count"
+    class="absolute bottom-1 left-0 text-sm"
+  >
+    {{ statuses.downloads.current.size }}
+    <div></div>
+    {{ statuses.downloads.success }}/{{ statuses.downloads.total }}/{{ statuses.downloads.failed }}
+    <div></div>
+    {{ statuses.current }}
+  </div>
   <div
     v-if="progress > 0"
     id="__layout__launch-progress-bar-text"

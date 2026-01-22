@@ -45,6 +45,7 @@ export async function getJvmArguments({
     "-Dminecraft.launcher.brand=${launcher_name}",
     "-Dminecraft.launcher.version=${launcher_version}",
     "-Duser.language=en",
+    ...finalizedPatch["+jvmArgs"],
   );
 
   let logFilePath: string = "";

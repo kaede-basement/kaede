@@ -139,6 +139,9 @@ export const APIEndpoints = {
       },
     },
   },
+  "Libraries": {
+    "Base": "https://libraries.minecraft.net/",
+  },
   "Resources": {
     "Base": "https://resources.download.minecraft.net/",
   },

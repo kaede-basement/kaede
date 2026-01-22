@@ -10,7 +10,7 @@ export type LaunchStatusType = {
 }[LaunchKeyType];
 
 export type LauncherStatusesDownloadsType = {
-  "current": Map<string, number>;
+  "current": Raw<Map<string, number>>;
   "success": number;
   "failed" : number;
   "total"  : number;
@@ -26,7 +26,7 @@ export type WrappedInstanceLauncherStatusesType = Reactive<
     {
       "launching": LauncherStatusesType["launching"];
       "current"  : LauncherStatusesType["current"];
-      "downloads": Raw<LauncherStatusesDownloadsType>;
+      "downloads": LauncherStatusesDownloadsType;
     }
   >
 >;

@@ -117,6 +117,7 @@ export function finalizePatches({
   // Patches might have overlapping artifacts with different versions
   const uniqueArtifacts = new Map<string, MappedArtifactType>;
   const built: FinalizedPatchType = {
+    "+jvmArgs" : [],
     "+traits"  : [],
     "+tweakers": [],
     "artifacts": [],
@@ -134,6 +135,10 @@ export function finalizePatches({
   };
 
   for (const patch of reversed) {
+    if (patch?.["+jvmArgs"]) {
+      built["+jvmArgs"].push(...patch["+jvmArgs"]);
+    }
+
     if (patch?.["+traits"]) {
       built["+traits"].push(...patch["+traits"]);
     }
@@ -186,8 +191,6 @@ export function finalizePatches({
     ...foundMavenFiles.values(),
     ...uniqueArtifacts.values(),
   ];
-
-  console.log(uniqueArtifacts, built.artifacts);
 
   return built;
 }

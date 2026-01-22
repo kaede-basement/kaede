@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { buildUrlFromBase } from "@/lib/launcher/scopes/parsers/build-url-from-base.ts";
 import { checkIsNative } from "@/lib/launcher/scopes/parsers/check-is-native.ts";
 import { finalizePatches } from "@/lib/launcher/scopes/parsers/finalize-patches.ts";
 import { handlePlatformRule } from "@/lib/launcher/scopes/parsers/handle-platform-rule.ts";
@@ -29,6 +30,7 @@ import { shouldIncludeLibrary } from "@/lib/launcher/scopes/parsers/should-inclu
 import { unifyPlatformWithArch } from "@/lib/launcher/scopes/parsers/unify-platform-with-arch.ts";
 
 export default {
+  buildUrlFromBase,
   checkIsNative,
   finalizePatches,
   handlePlatformRule,

@@ -23,6 +23,7 @@ import type {
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
 export type FinalizedPatchType = {
+  "+jvmArgs"          : Array<string>;
   "+traits"           : Array<string>;
   "+tweakers"         : Array<string>;
   "artifacts"         : Array<MappedArtifactType>;

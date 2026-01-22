@@ -1,6 +1,7 @@
 import { mkdir } from "@tauri-apps/plugin-fs";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
+import Errors from "@/lib/errors";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
 import { verifyArtifacts } from "@/lib/launcher/scopes/validators/verify-artifacts.ts";
@@ -45,7 +46,9 @@ export async function downloadClient({
     "paths"   : [client],
     "checksum": instance.checksum,
   });
-  const isMismatch: boolean = mismatches.length > 0;
+  const isMismatch: boolean =
+    mismatches.length > 0 &&
+    client.hash !== "ignore";
 
   if (isMismatch) {
     log.warn(
@@ -56,11 +59,20 @@ export async function downloadClient({
     await mkdir(client.directory, { "recursive": true });
 
     log.debug(logPrefix, "Downloading the main jar");
-    await downloadWithProgress({
-      "path": client.path,
-      "url" : client.url,
-      statuses,
-    });
+    try {
+      await downloadWithProgress({
+        "path": client.path,
+        "url" : client.url,
+        statuses,
+      });
+    } catch (error: unknown) {
+      log.error(
+        logPrefix,
+        "Could not download the main jar:",
+        Errors.prettify(error),
+      );
+      statuses.downloads.failed++;
+    }
   } else {
     log.info(
       logPrefix,

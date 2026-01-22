@@ -50,6 +50,7 @@ export function concurrentlyDownload({
               `could not download the ${entryOutOfTotal} object:`,
               Errors.prettify(error),
             );
+            statuses.downloads.failed++;
           }
         }
       }),

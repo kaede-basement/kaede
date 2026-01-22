@@ -1,3 +1,4 @@
+import { APIEndpoints } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -6,6 +7,7 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+import Parsers from "@/lib/launcher/scopes/parsers/index.ts";
 
 export function parseLibrary({
   necessaries,
@@ -45,12 +47,35 @@ export function parseLibrary({
   const isEmpty = baseUrl === undefined && library?.downloads === undefined;
 
   if (isEmpty) {
-    log.warn(descriptiveLogPrefix, "The library is empty");
+    log.warn(
+      descriptiveLogPrefix,
+      "The library is empty, falling back to:",
+      APIEndpoints.Libraries.Base,
+    );
+
+    const builtUrl: string | false = Parsers.buildUrlFromBase({
+      "baseUrl": APIEndpoints.Libraries.Base,
+      name,
+      file,
+      descriptiveLogPrefix,
+    });
+
+    if (builtUrl === false) {
+      return false;
+    }
 
     return {
-      "id"    : artifactID,
-      "status": "empty",
-      "url"   : "",
+      "id": artifactID,
+
+      /*
+       * Turns out, the empty fields should be filled by yourself.
+       * Seems like other launchers, e.g. HMCL and Prism Launcher,
+       * use the 'https://libraries.minecraft.net/' URL as the base URL
+       * for empty libraries
+       */
+      // "status": "empty",
+      "status": "library",
+      "url"   : builtUrl,
       "hash"  : "ignore",
       "first" : false,
       directory,
@@ -61,41 +86,16 @@ export function parseLibrary({
 
   // The 'net.fabricmc.fabric-loader' patch libraries only have the 'name' and 'url' fields
   if (baseUrl !== undefined) {
-    /*
-     * For some reason, sometimes 'url' fields lack the '/' character at the end of the string
-     *
-     * Example:
-     * {
-     *   "name": "net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7",
-     *   "url": "https://maven.fabricmc.net/"
-     * },
-     * {
-     *   "name": "net.fabricmc:fabric-loader:0.18.4",
-     *   "url": "https://maven.fabricmc.net"
-     * }
-     */
-    const ensureSlash: string = baseUrl.endsWith("/") ? "" : "/";
-    // 'net.fabricmc:fabric-loader:0.18.4'
-    const urlPaths: Array<string> = name
-      // '["net.fabricmc", "fabric-loader", "0.18.4"]'
-      .split(":");
-    // 'net.fabricmc'
-    const groupPart: string | undefined = urlPaths.shift();
+    const builtUrl: string | false = Parsers.buildUrlFromBase({
+      baseUrl,
+      name,
+      file,
+      descriptiveLogPrefix,
+    });
 
-    if (!groupPart) {
-      log.warn(descriptiveLogPrefix, "The library name is invalid");
-
+    if (builtUrl === false) {
       return false;
     }
-
-    // 'net/fabricmc/fabric-loader/0.18.4'
-    const urlPath: string = [
-      // 'net/fabricmc'
-      groupPart.split(".").join("/"),
-      // '["fabric-loader", "0.18.4"]'
-      ...urlPaths,
-    ].join("/");
-    const builtUrl: string = baseUrl + ensureSlash + urlPath + "/" + file;
 
     return {
       "id"    : artifactID,

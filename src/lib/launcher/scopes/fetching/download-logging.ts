@@ -8,6 +8,7 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
+import Errors from "@/lib/errors";
 
 export async function downloadLogging({
   necessaries,
@@ -65,11 +66,20 @@ export async function downloadLogging({
   if (!fileExists) {
     log.warn(logPrefix, "The logging config file does not exist");
     log.debug(logPrefix, "Downloading the logging config file");
-    await downloadWithProgress({
-      path,
-      url,
-      statuses,
-    });
+    try {
+      await downloadWithProgress({
+        path,
+        url,
+        statuses,
+      });
+    } catch (error: unknown) {
+      log.error(
+        logPrefix,
+        "Could not download the logging config file:",
+        Errors.prettify(error),
+      );
+      statuses.downloads.failed++;
+    }
   }
 
   await ExtensionsManager.catchAsyncVoidHooks({
