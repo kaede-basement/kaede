@@ -26,7 +26,7 @@ function handlePatch(uid: string): void {
 </script>
 
 <template>
-  <div id="__add-instance-page__wrapper" class="grid cols-2 h-fit w-full gap-4 lg:cols-5 md:cols-4 sm:cols-3 xl:cols-6">
+  <div id="__add-instance-page__wrapper" class="grid cols-2 h-fit w-full gap-2 lg:cols-5 md:cols-4 sm:cols-3 xl:cols-6">
     <button
       v-for="patch in InstallablePatches"
       :key="patch.uid"

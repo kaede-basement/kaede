@@ -35,7 +35,17 @@ const currentInstance = computed((): CurrentInstanceType => (
 function openInstancesSelector(): void {
   selector.value = true;
 }
-function closeInstancesSelector(): void {
+function closeInstancesSelector(event?: Event): void {
+  const target: EventTarget | null | undefined = event?.target;
+
+  if (
+    target &&
+    ("id" in target) &&
+    target.id === "__home-page__instance-section-wrapper"
+  ) {
+    return;
+  }
+
   selector.value = false;
 }
 
@@ -93,8 +103,7 @@ const dropdownItems = computed((): Array<DropdownItemType> => {
   />
   <button
     :disabled="syncing"
-    @mousedown="openInstancesSelector"
-    @click="openInstancesSelector"
+    @pointerdown="openInstancesSelector"
     id="__home-page__current-instance-button"
     class="relative flex flex-nowrap items-center gap-2 rounded-md p-2 transition-[background-color,opacity] active:cursor-default hover:bg-[theme(colors.neutral.100/.05)]"
   >

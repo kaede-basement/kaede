@@ -26,7 +26,7 @@ import type { DropdownItemType } from "@/types/application/dropdown-item.type.ts
 
 const { shown, close, id, sizeClassNames, addClassNames, items } = defineProps<{
   "shown"         : boolean;
-  "close"         : () => void;
+  "close"         : (event?: Event) => void;
   "id"            : string;
   "addClassNames" : string;
   "sizeClassNames": string;
@@ -39,10 +39,10 @@ onClickOutside(target, close);
 </script>
 
 <template>
-  <Transition name="slide-up">
+  <!-- The ref target should probably be always rendered, so it points to <Transition /> -->
+  <Transition name="slide-up" ref="target">
     <div
       v-if="shown"
-      ref="target"
       :id="id"
       :class="[
         'overflow-y-auto rounded-md bg-neutral-900 py-1',
