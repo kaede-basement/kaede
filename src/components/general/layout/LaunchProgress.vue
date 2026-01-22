@@ -77,7 +77,7 @@ const progress = computed<number>((oldValue: number | undefined): number => {
   <div
     v-if="statuses?.downloads"
     id="__layout__launch-progress-downloads-count"
-    class="absolute bottom-1 left-0 text-sm"
+    class="absolute bottom-1 left-0 z-10 text-sm"
   >
     {{ statuses.downloads.current.size }}
     <div></div>

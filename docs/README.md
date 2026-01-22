@@ -46,20 +46,44 @@ Pull requests are welcome. AI code is not welcome. For major changes, please ope
 
 ## Demonstration
 
-<div align="center" style="display: grid;grid-template-columns: repeat(2, 1fr); gap: 10px">
+<div align="center">
 
-<img src="./demos/home-page__blue-archive-bg.png" alt="Home page with the Morizuki Suzumi L2D background image">
-<img src="./demos/multi-window__blue-archive-different-bgs.jpg" alt="Multi-Window navigation with different Blue Archive background images">
-<img src="./demos/log-viewer__logs.png" alt="Log Viewer">
-<img src="./demos/home-page__blank-with-fps-counter.png" alt="Home page with FPS counter">
+<img src="./demos/kaede_home-page_minecraft.webp" alt="Home page with launched Minecraft">
+<img src="./demos/kaede_home-page_no-minecraft.webp" alt="Home page without launched Minecraft">
 
 </div>
 
 <details>
 
-<div align="center" style="display: grid;grid-template-columns: repeat(3, 1fr); gap: 10px">
+<div align="center">
 
-nothing here yet
+Default state of the launcher with no plugins or themes
+
+<img src="./demos/kaede_home-page_default.webp" alt="Home page with the default config and no plugins or themes">
+
+---
+
+LiteLoader 1.10.2 launched through Kaede
+
+<img src="./demos/kaede_home-page_minecraft-liteloader.webp" alt="LiteLoader 1.10.2">
+
+---
+
+The log viewer
+
+<img src="./demos/kaede_logging-screen_launcher-logs.webp" alt="Logging screen">
+
+---
+
+Filters & Searching
+
+<img src="./demos/kaede_logging-screen_minecraft-logs.webp" alt="Logging screen with active filters and searching">
+
+---
+
+A custom plugin for the Multi-Window experience
+
+<img src="./demos/multi-window__blue-archive-different-bgs.jpg" alt="Multi-Window navigation with different Blue Archive background images">
 
 </div>
 

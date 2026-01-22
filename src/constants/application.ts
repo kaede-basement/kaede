@@ -6,7 +6,10 @@ import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
+import ATLauncherIcon from "@/resources/ATLauncherIcon.svg";
 import CraftingTableIcon from "@/resources/CraftingTableIcon.webp";
+import CurseForgeIcon from "@/resources/CurseForgeIcon.webp";
+import FTBIcon from "@/resources/FTBIcon.svg";
 import ModrinthIcon from "@/resources/ModrinthIcon.webp";
 
 export const ApplicationName = "Kaede";
@@ -48,17 +51,17 @@ export const InstanceCreationSections: Array<{
   {
     "id"   : "ftb-legacy",
     "name" : "FTB Legacy",
-    "image": ModrinthIcon,
+    "image": FTBIcon,
   },
   {
     "id"   : "curseforge",
     "name" : "CurseForge",
-    "image": ModrinthIcon,
+    "image": CurseForgeIcon,
   },
   {
     "id"   : "atlauncher",
     "name" : "ATLauncher",
-    "image": ModrinthIcon,
+    "image": ATLauncherIcon,
   },
 ];
 export const ContextMenuItems = [
