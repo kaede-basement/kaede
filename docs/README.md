@@ -81,7 +81,7 @@ Filters & Searching
 
 ---
 
-A custom plugin for the Multi-Window experience
+A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM usage)
 
 <img src="./demos/multi-window__blue-archive-different-bgs.jpg" alt="Multi-Window navigation with different Blue Archive background images">
 
