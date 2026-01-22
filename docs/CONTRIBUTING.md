@@ -1,4 +1,9 @@
-[README for TypeScript-related code](../src/README.md) | [README for Rust-related code](../src-tauri/README.md) | Contributing Guidelines | [MultiMC Patch System](./MULTIMC.md)
+[<<< Back](../docs/README.md#contributing)
+
+- [README for TypeScript-related code](../src/README.md)
+- [README for Rust-related code](../src-tauri/README.md)
+- Viewing Contributing Guidelines
+- [MultiMC Patch System](../docs/MULTIMC.md)
 
 # Contributions Guidelines
 

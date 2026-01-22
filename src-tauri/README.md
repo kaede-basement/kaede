@@ -1,4 +1,9 @@
-[README for TypeScript-related code](../src/README.md) | README for Rust-related code | [Contributing Guidelines](../docs/CONTRIBUTING.md) | [MultiMC Patch System](../docs/MULTIMC.md)
+[<<< Back](../docs/README.md#contributing)
+
+- [README for TypeScript-related code](../src/README.md)
+- Viewing README for Rust-related code
+- [Contributing Guidelines](../docs/CONTRIBUTING.md)
+- [MultiMC Patch System](../docs/MULTIMC.md)
 
 # Rust code
 
@@ -15,7 +20,6 @@ Tauri API permissions are located in `./capabilities/`. Each permission scope ha
 
 The `./src` directory includes (but is not limited to) custom Tauri commands to:
 
-- Re-create the `latest.log` file.
 - Get the executable file directory.
 - Extract the `.zip` archive contents.
 - Keep track of how many times the application was reloaded.
@@ -26,4 +30,4 @@ The `./src` directory includes (but is not limited to) custom Tauri commands to:
 - Current `Portable` mode checks suck.
 - Counting the launcher UI reloads is done with `unsafe` keyword.
 - The process memory values returned by `get_process_memory` in [system.rs](./src/system.rs) are incorrect on Windows (might be true for other platforms as well).
-- Feel free to do something else :3
+- Feel free to do anything else :3

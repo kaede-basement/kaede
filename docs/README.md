@@ -1,10 +1,3 @@
-The development of the app was put on hold for a while due to exams
-
-// temporary: declarative approach to launcher configurations, extensions and instances,
-// i.e. each instance will specify its libraries, mods, resource packs, shader packs, and other things
-// in the `.json` file, and the launcher will build symlinks to these files (multimc meta can be used)
-// on instance launch (either ahead-of-time or on the fly)
-
 <div align="center">
 
 <a target="_blank" href="https://bluearchive.wiki/wiki/Arisu">
@@ -30,7 +23,7 @@ A Tauri-based Minecraft launcher written in TypeScript with a permission-based p
 
 ## Plans
 
-Kaede is in really early stages of development. Look at the [plan](./PLAN.md) to see more about this launcher >.<
+Kaede is in early stages of development. Look at the [plan](./PLAN.md) to see more about this launcher >.<
 
 ## Contributing
 
@@ -39,6 +32,7 @@ No prior Rust knowledge is needed to contribute to this project. Most of the cod
 - [README for TypeScript-related code](../src/README.md) (the most important one)
 - [README for Rust-related code](../src-tauri/README.md)
 - [Contributing Guidelines](./CONTRIBUTING.md)
+- [MultiMC Patch System](./MULTIMC.md)
 - [Building from Source](#building-from-source)
 
 I also leave comments in the code.
@@ -76,8 +70,8 @@ nothing here yet
 - Plugin system
 - Cross-platform
 - Fast startup
-- Uses just 140 MBs of RAM (without plugins)
-- MultiMC-like instance management
+- Uses just 150 MBs of RAM (without plugins)
+- MultiMC patch system
 - Available as Non-Portable/Portable
 - Open Source, GPL-3.0
 - Written in TypeScript

@@ -1,4 +1,9 @@
-README for TypeScript-related code | [README for Rust-related code](../src-tauri/README.md) | [Contributing Guidelines](../docs/CONTRIBUTING.md) | [MultiMC Patch System](../docs/MULTIMC.md)
+[<<< Back](../docs/README.md#contributing)
+
+- Viewing README for TypeScript-related code
+- [README for Rust-related code](../src-tauri/README.md)
+- [Contributing Guidelines](../docs/CONTRIBUTING.md)
+- [MultiMC Patch System](../docs/MULTIMC.md)
 
 # Frontend & backend code
 
@@ -13,9 +18,11 @@ This folder contains frontend-specific and backend-specific code. The frontend u
 > [!IMPORTANT]
 > Gathering application states in one place is discouraged and considered to be amateurish. Not only this practice goes against all software developing principles, but it also introduces less manageable state structure in the whole application.
 >
-> **However**, this practice allows Kaede to have global states that are easily accessible and extensible by user plugins. For example, creating a new **reactive** field in the global `shallowReactive` object will automatically implement all the needed field hooks, handle the configuration file syncing, and allow other plugins to use that field for their needs.
+> **However**, this practice allows Kaede to have global states that are easily accessible and extensible by user plugins. For example, creating a new **reactive** field in the global `shallowReactive` object will (almost*) automatically implement all the needed field hooks, handle the configuration file syncing, and allow other plugins to use that field for their needs.
 >
 > Moreover, this approach allows extension hooks to have a well-defined behaviour, since all global states are stored in `App.vue` and do not disappear with the component unmount. One can suggest `Pinia` to manage global stores, but according to [Pinia docs [1]](#references), "you cannot add a new state property if you don't define it in `state()`."
+> 
+> *The globally-accessible `HookMappings` object should be changed to contain a `key: value` mapping for the custom reactive field.
 
 - `declarations.ts` contain the `window` type definitions. Without those definitions, TypeScript does not know about the custom `window.__KAEDE__` namespace. Note: the second argument of the `HookReturnType` type accepts `"nothing"` and any other type (including `void`). However, `void` and `"nothing"` values serve different purposes:
   - `void` means that the hook returns `{ "status": "stop" | "continue", "response": void }`. Hooks with this type can control whether to continue caller's code execution or not (caller is the function that executes these hooks).
