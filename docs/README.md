@@ -11,7 +11,7 @@
 A Tauri-based Minecraft launcher written in TypeScript with a permission-based plugin system
 
 <p align="center">
-<strong>English</strong> | <a style="color:#a1fee4" href="./README.ru.md">Русский</a>
+<strong>English</strong> | <a style="color:#a1fee4" href="./README.ru.md">Русский</a> | Other languages?..
 </p>
 
 [![star-count]](https://github.com/kaede-basement/kaede/stargazers)

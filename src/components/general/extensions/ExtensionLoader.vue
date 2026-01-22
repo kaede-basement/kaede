@@ -82,7 +82,7 @@ onMounted(async () => {
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing all enabled unrestricted extensions");
   for (const { id, code } of toExecute.unrestricted) {
-    ExtensionsManager.runInUnrestricted(id, code);
+    await ExtensionsManager.runInUnrestricted(id, code);
   }
 
   const hasSandboxedPlugins = toExecute.sandbox.length > 0;

@@ -1,12 +1,10 @@
-- IMPORTANT!!! use Promise#all to execute async extension hooks
-- plugin/extension packs
 - a development option to enable native context menu alongside the default one
 - `${plugin-id}/${key}` for custom global states from plugins are quite cool (`GlobalStateHelpers.change("shitPlugin/cache", { ... });`)
 
 // temporary
 - [ ] Plugin system
     - [x] Custom CSS themes
-    - [x] Permission-system (need to add more permissions)
+    - [x] Permission-system (need to add more permissions, though)
     - [ ] Dependencies handling (?)
     - [x] Application hooks
     - [x] Sandboxed environment using Secure ECMAScript
@@ -15,6 +13,7 @@
     - [ ] Repository fetching
     - [ ] Downloading from the repository
     - [ ] UI to manage plugins
+    - [ ] Plugin packs (?)
 - [x] Minecraft launching
   - [x] Uses MultiMC meta
   - [x] Caching
@@ -22,10 +21,11 @@
   - [x] Precise SHA1 mismatched assets/libraries/jars re-download (with the option to disable this)
   - [x] Plugin hooks for every launch step
   - [x] Launching process with the same launch features as Prism Launcher takes up the same amount of time
-  - [x] All new (1.13.2+) release versions work
-  - [x] All old release versions work
+  - [x] All new release (1.13+) versions work
+  - [x] All old release (1.0-1.12.2) versions work
   - [x] All snapshots, beta, and alpha versions work
-  - [ ] Launch wrapper for old versions of minecraft
+  - [x] [Custom launch wrapper](https://github.com/MCPHackers/LaunchWrapper) for alpha & beta versions of minecraft
+  - [x] Built-in OptiFine patch support
 - [ ] Authentication
     - [ ] Microsoft authentication
     - [ ] Offline accounts if user has a Microsoft account with the game
@@ -47,8 +47,8 @@
     - [x] Forge
     - [x] NeoForge
     - [x] Quilt
-    - [ ] Legacy Fabric
-    - [ ] LiteLoader
+    - [x] Legacy Fabric
+    - [x] LiteLoader (kind of)
     - [ ] Kaolin
 - [ ] Resource management
     - [ ] Mods
@@ -70,7 +70,7 @@
 tbd (https://mc-launcher.tayou.org/)
 // temporary
 
-# Design
+# UI/UX Design
 
 Whatever my mind thinks is good
 
@@ -183,7 +183,7 @@ Unfortunately, if VSCode, Obsidian, Vencord and other apps can't implement a sec
 
 Btw, Figma chose security over functionality with their `iframe` approach
 
-**Latest implementation details (19.09.2025)**
+**Newer implementation details (19.09.2025)**
 
 Microfrontends supremacy >.<
 
@@ -248,6 +248,12 @@ Update: it works, somehow. I tested it both ways: firstly, I made a Svelte plugi
 
 ___
 about security: what if i introduce a permission-based plugin system? plugins will be able to use only those things (`window.__TAURI__` object scopes, localStorage, WASM, .dll/.so, etc.) that user has allowed
+
+**Latest implementation details (22.01.2026)**
+
+Secure ECMAScript for sandboxing plugins
+
+A regular `new AsyncFunction` for unrestricted plugins
 
 </details>
 
