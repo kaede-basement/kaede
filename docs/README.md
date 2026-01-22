@@ -55,7 +55,9 @@ Pull requests are welcome. AI code is not welcome. For major changes, please ope
 
 <details>
 
-<div align="center">
+<div align="center">.
+
+---
 
 Default state of the launcher with no plugins or themes
 
@@ -92,7 +94,7 @@ A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM u
 ## Features
 
 - Plugin system
-- Cross-platform
+- Cross-platform (launching part is not tested on Linux and macOS yet)
 - Fast startup
 - Uses just 150 MBs of RAM (without plugins)
 - MultiMC patch system
