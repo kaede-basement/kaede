@@ -55,7 +55,7 @@ Pull requests are welcome. AI code is not welcome. For major changes, please ope
 
 <details>
 
-<div align="center">.
+<div align="center">
 
 ---
 
