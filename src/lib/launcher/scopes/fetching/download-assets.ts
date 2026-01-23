@@ -156,7 +156,7 @@ export async function downloadAssets({
   const startTime: number = performance.now();
   const hashesToReDownload: Set<string> = new Set(
     await verifyArtifacts({
-      "paths"   : mappedAssetObjects.filter(({ hash }) => hash !== "ignore"),
+      "paths"   : mappedAssetObjects,
       "checksum": instance.checksum,
     }),
   );

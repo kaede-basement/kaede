@@ -39,6 +39,7 @@ function onClose(instanceId: string): void {
   const statuses: LauncherStatusesType = launches[instanceId];
 
   statuses.launching = 0;
+  statuses.current = LaunchStatus.General.Aborted;
 }
 
 async function launchInstance(instanceId?: string): Promise<void> {

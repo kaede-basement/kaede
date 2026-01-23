@@ -67,6 +67,7 @@ export async function downloadLogging({
     log.warn(logPrefix, "The logging config file does not exist");
     log.debug(logPrefix, "Downloading the logging config file");
     try {
+      statuses.downloads.total++;
       await downloadWithProgress({
         path,
         url,

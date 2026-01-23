@@ -60,6 +60,7 @@ export async function downloadClient({
 
     log.debug(logPrefix, "Downloading the main jar");
     try {
+      statuses.downloads.total++;
       await downloadWithProgress({
         "path": client.path,
         "url" : client.url,

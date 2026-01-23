@@ -4,7 +4,7 @@ import { computed, inject } from "vue";
 import {
   GlobalStatesContextKey,
   InstanceStatesContextKey,
-  LaunchStatesContextKey,
+  LaunchStatesContextKey, TranslationsContextKey,
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances";
@@ -15,6 +15,7 @@ import type {
   WrappedInstanceLauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
+import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
 const progressLimit: number = 90;
 
@@ -23,6 +24,7 @@ const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );
+const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
@@ -47,7 +49,11 @@ const progress = computed<number>((oldValue: number | undefined): number => {
   if (!oldValue) {
     return statuses.value.current === LaunchStatus.General.Starting
       ? 10
-      : 0;
+      : (
+        statuses.value.current === LaunchStatus.General.Success
+          ? 100
+          : 0
+      );
   }
 
   switch (statuses.value.current) {
@@ -77,13 +83,35 @@ const progress = computed<number>((oldValue: number | undefined): number => {
   <div
     v-if="statuses?.downloads"
     id="__layout__launch-progress-downloads-count"
-    class="absolute bottom-1 left-0 z-10 text-sm"
+    class="absolute right-2 top-2 z-10 flex flex-col items-end gap-1 leading-none opacity-50"
   >
-    {{ statuses.downloads.current.size }}
-    <div></div>
-    {{ statuses.downloads.success }}/{{ statuses.downloads.total }}/{{ statuses.downloads.failed }}
-    <div></div>
-    {{ statuses.current }}
+    <div
+      v-if="statuses.downloads.current.size > 0"
+      id="__layout__launch-progress-current-downloads"
+      class="text-sm"
+    >
+      Downloading {{ statuses.downloads.current.size }} objects
+    </div>
+    <div
+      v-if="statuses.downloads.total > 0"
+      id="__layout__launch-progress-downloads-info"
+      class="text-sm"
+    >
+      Finished {{ statuses.downloads.success }} out of {{ statuses.downloads.total }}
+    </div>
+    <div
+      v-if="statuses.downloads.failed > 0"
+      id="__layout__launch-progress-failed-downloads"
+      class="text-sm text-red-300"
+    >
+      Failed to download {{ statuses.downloads.failed }} objects
+    </div>
+    <div
+      v-if="statuses.current"
+      id="__layout__launch-progress-current-status"
+    >
+      {{ Translations?.Messages?.[`general.launch-status.${statuses.current}`] }}
+    </div>
   </div>
   <div
     v-if="progress > 0"

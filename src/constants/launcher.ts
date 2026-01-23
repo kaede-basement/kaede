@@ -13,6 +13,7 @@ export const DefaultInstanceSettings: Omit<InstanceStateType, "patchVersions"> =
   "add"         : {},
   "remove"      : {},
   "playTime"    : 0,
+  "lastLaunch"  : 0,
 };
 export const LaunchStatus = {
   "General": {

@@ -19,6 +19,7 @@ export function concurrentlyDownload({
   };
 
   log.debug(__PRE_BUNDLED_FILENAME__, `Starting to download ${entries.length} objects`);
+  statuses.downloads.total = statuses.downloads.total + entries.length;
 
   return Promise.all(
     Array

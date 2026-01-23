@@ -11,8 +11,6 @@ export function downloadWithProgress({
   "path"    : string;
   "statuses": LauncherStatusesType;
 }): Promise<void> {
-  statuses.downloads.total++;
-
   return download(
     url,
     path,
