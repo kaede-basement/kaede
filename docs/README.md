@@ -109,10 +109,10 @@ A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM u
 ---
 
 > [!NOTE]
-> Assets from Blue Archive are not included in the launcher and are used here to merely demonstrate high customizability of Kaede.
-> 
+> Assets from Blue Archive are not included in the launcher and are used here to merely demonstrate customizability of Kaede.
+>
 > This application is not affiliated with Yostar & NEXON Games.
-> 
+>
 > All information and assets used are the property and copyright of the respective authors.
 
 
