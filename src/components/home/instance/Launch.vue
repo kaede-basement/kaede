@@ -64,7 +64,26 @@ function handleLaunch(): void {
     return;
   }
 
-  launchInstance(currentInstance?.value?.id);
+  const instanceId: string | undefined = currentInstance?.value?.id;
+  const instanceContent: InstanceStateType | undefined = currentInstance?.value?.instance;
+
+  launchInstance(instanceId)
+    .then(() => {
+      if (!instanceId || !instanceContent) {
+        return log.error(
+          __PRE_BUNDLED_FILENAME__,
+          log.templates.json.contents(
+            "The instance ID or data is invalid. Provided",
+            { instanceId, instanceContent },
+          ),
+        );
+      }
+
+      Instances.change(instanceId, {
+        ...instanceContent,
+        "lastLaunch": Date.now(),
+      });
+    });
 }
 async function handleClose(): Promise<void> {
   if (closeInstance === undefined) {

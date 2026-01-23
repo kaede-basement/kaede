@@ -50,7 +50,7 @@ const lastLaunch = computed(() => {
 
   const date: Date = new Date(currentMillisecondsTime);
 
-  return date.toLocaleDateString();
+  return date.toDateString();
 });
 
 function handleSwitch(): void {
@@ -92,7 +92,7 @@ function handleSwitch(): void {
       </span>
       <span
         id="__home-page__current-instance-information-version"
-        class="block text-neutral-400 text-sm"
+        class="block text-sm text-neutral-400"
       >
         {{ lastLaunch }}
       </span>
