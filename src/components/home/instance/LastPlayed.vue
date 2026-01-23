@@ -1,3 +1,21 @@
+<!--
+  - Kaede, a Minecraft Launcher
+  - Copyright (C) 2026  windstone <notwindstone@gmail.com> and contributors
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU General Public License as published by
+  - the Free Software Foundation, either version 3 of the License, or
+  - (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU General Public License for more details.
+  -
+  - You should have received a copy of the GNU General Public License
+  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
 <script setup lang="ts">
 import { computed, inject } from "vue";
 
@@ -21,32 +39,18 @@ const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
 ));
-const playTime = computed((): string => {
+const lastLaunch = computed(() => {
   const currentMillisecondsTime: number | undefined =
-    currentInstance.value?.instance?.playTime;
+    currentInstance?.value?.instance?.lastLaunch;
 
+  // Treat falsy values equally (e.g. zero, null, or undefined)
   if (!currentMillisecondsTime) {
-    return "0 seconds";
+    return "Never";
   }
 
-  const currentTime: number = currentMillisecondsTime / 1000;
-  const totalMinutes: number = currentTime / 60;
-  const totalHours: number = totalMinutes / 60;
+  const date: Date = new Date(currentMillisecondsTime);
 
-  const milliseconds: number = currentMillisecondsTime % 1000;
-  const seconds: number = Math.floor(currentTime % 60);
-  const minutes: number = Math.floor(totalMinutes % 60);
-  const hours: number = Math.floor(totalHours);
-
-  if (minutes <= 0) {
-    return `${seconds}.${milliseconds} seconds`;
-  }
-
-  if (hours <= 0) {
-    return `${minutes} minutes, ${seconds}.${milliseconds} seconds`;
-  }
-
-  return `${hours} hours, ${minutes} minutes, ${seconds}.${milliseconds} seconds`;
+  return date.toLocaleDateString();
 });
 
 function handleSwitch(): void {
@@ -56,24 +60,24 @@ function handleSwitch(): void {
 
   GlobalStateHelpers.change("layout", {
     ...globalStates.layout,
-    "stats": "last-launch",
+    "stats": "playtime",
   });
 }
 </script>
 
 <template>
   <button
-    id="__home-page__current-playtime-button"
+    id="__home-page__last-launch-button"
     @click="handleSwitch"
     class="relative flex flex-nowrap items-center gap-2 rounded-md p-2 transition-[background-color] hover:bg-[theme(colors.neutral.100/.05)]"
   >
     <span
-      id="__home-page__current-playtime-icon-wrapper"
+      id="__home-page__last-launch-icon-wrapper"
       class="grid size-12 shrink-0 place-items-center"
     >
       <span
-        id="__home-page__current-playtime-icon"
-        class="i-lucide-clock block size-8"
+        id="__home-page__last-launch-icon"
+        class="i-lucide-clock-fading block size-8"
       ></span>
     </span>
     <span
@@ -84,22 +88,13 @@ function handleSwitch(): void {
         id="__home-page__current-playtime-information-label"
         class="block font-medium"
       >
-        {{ Translations?.Messages?.["home.instance.current-playtime.label"] }}
+        {{ Translations?.Messages?.["home.instance.last-launch.label"] }}
       </span>
       <span
-        id="__home-page__current-playtime-information-time"
-        class="relative block w-full whitespace-pre-wrap text-sm text-neutral-400"
+        id="__home-page__current-instance-information-version"
+        class="block text-neutral-400 text-sm"
       >
-        {{ " " }}
-        <Transition name="fade-both-long">
-          <span
-            id="__home-page__current-playtime-information-time-text"
-            :key="playTime"
-            class="absolute left-0 w-full text-nowrap"
-          >
-            {{ playTime }}
-          </span>
-        </Transition>
+        {{ lastLaunch }}
       </span>
     </span>
     <MaterialRipple />

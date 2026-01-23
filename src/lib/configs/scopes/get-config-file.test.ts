@@ -10,6 +10,7 @@ const defaultConfig: ConfigType = {
   },
   "layout": {
     "locale"                 : "en",
+    "stats"                  : "playtime",
     "currentInstance"        : null,
     "enableMaterialYouRipple": true,
     "custom"                 : false,

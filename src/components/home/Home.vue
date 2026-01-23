@@ -1,10 +1,17 @@
 <script setup lang="ts">
+import { inject } from "vue";
+
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
 import AtAGlance from "@/components/home/glance/AtAGlance.vue";
 import CurrentInstance from "@/components/home/instance/CurrentInstance.vue";
 import CurrentPlaytime from "@/components/home/instance/CurrentPlaytime.vue";
+import LastPlayed from "@/components/home/instance/LastPlayed.vue";
 import Launch from "@/components/home/instance/Launch.vue";
 import LaunchOptions from "@/components/home/instance/LaunchOptions.vue";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 </script>
 
 <template>
@@ -20,7 +27,8 @@ import LaunchOptions from "@/components/home/instance/LaunchOptions.vue";
           class="relative w-88 flex flex-col items-stretch gap-0"
         >
           <CurrentInstance />
-          <CurrentPlaytime />
+          <CurrentPlaytime v-if="globalStates?.layout?.stats === 'playtime'" />
+          <LastPlayed v-else-if="globalStates?.layout?.stats === 'last-launch'" />
         </div>
         <div id="__home-page__launch-section-wrapper" class="flex flex-nowrap gap-1 p-2">
           <Launch />

@@ -5,6 +5,7 @@ import type { TranslationsType } from "@/types/translations/translations.type.ts
 
 export type GlobalStatesLayoutType = {
   "locale"                 : string;
+  "stats"                  : "playtime" | "last-launch";
   "currentInstance"        : string | null;
   "enableMaterialYouRipple": boolean;
   "custom"                 : boolean | Array<"sidebar" | "contextMenu">;
@@ -31,7 +32,7 @@ export type GlobalStatesPagesType = {
   "current": RouteType;
   "states" : {
     "home": Partial<{
-      // TODO: none / short / detailed
+      // TODO: something
       "stats": unknown;
     }>;
     "library": Partial<{

@@ -9,6 +9,7 @@ export const InstanceMetadataSchema = Type.Intersect([
   Type.Object({
     "name"         : Type.String(),
     "checksum"     : Type.Boolean(),
+    "lastLaunch"   : Type.Number(),
     "playTime"     : Type.Number(),
     // Initially used 'PatchUidSchema', but custom patches were not possible because of this
     "entry"        : Type.String(),

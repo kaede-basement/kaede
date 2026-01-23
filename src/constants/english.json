@@ -15,6 +15,7 @@
     "general.sidebar.settings": "Settings",
     "general.sidebar.profile": "Profile",
     "general.sidebar.none": "Custom",
-    "home.instance.current-playtime.label": "Playtime"
+    "home.instance.current-playtime.label": "Playtime",
+    "home.instance.last-launch.label": "Last Played"
   }
 }

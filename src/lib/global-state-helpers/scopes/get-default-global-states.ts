@@ -11,6 +11,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     "translations": EnglishTranslations,
     "layout"      : {
       "locale"                 : "en",
+      "stats"                  : "playtime",
       "currentInstance"        : null,
       "enableMaterialYouRipple": true,
       "custom"                 : false,

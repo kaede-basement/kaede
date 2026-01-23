@@ -1,7 +1,11 @@
 import { Type } from "typebox";
 
 export const LayoutSchema = Type.Object({
-  "locale"         : Type.String(),
+  "locale": Type.String(),
+  "stats" : Type.Union([
+    Type.Literal("playtime"),
+    Type.Literal("last-launch"),
+  ]),
   "currentInstance": Type.Union([
     Type.String(),
     Type.Null(),
