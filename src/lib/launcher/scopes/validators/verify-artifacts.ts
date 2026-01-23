@@ -1,6 +1,6 @@
 import General from "@/lib/general";
 
-export async function verifyArtifacts({
+export function verifyArtifacts({
   paths,
   checksum,
 }: {

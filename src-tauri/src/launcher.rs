@@ -134,6 +134,11 @@ pub async fn verify_file_paths(artifacts: Vec<Artifact>) -> Result<Vec<String>, 
                     return Some(artifact.path.clone());
                 }
 
+                // Artifacts that did not specify SHA1 hashes have been assigned to 'ignore'
+                if artifact.hash == "ignore" {
+                    return None;
+                }
+
                 match verify_file_hash(path, &artifact.hash) {
                     Ok(is_valid) => {
                         if !is_valid {

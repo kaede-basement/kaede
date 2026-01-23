@@ -66,6 +66,7 @@ export async function downloadClient({
         "url" : client.url,
         statuses,
       });
+      statuses.downloads.success++;
     } catch (error: unknown) {
       log.error(
         logPrefix,

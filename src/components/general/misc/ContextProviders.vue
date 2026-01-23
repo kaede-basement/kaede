@@ -68,7 +68,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
     "launching": 1,
     "current"  : undefined,
     "downloads": {
-      "current": markRaw(new Map<string, number>),
+      "current": markRaw(new Map<string, [number, number]>),
       "success": 0,
       "failed" : 0,
       "total"  : 0,

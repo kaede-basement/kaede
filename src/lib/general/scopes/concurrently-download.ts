@@ -44,6 +44,7 @@ export function concurrentlyDownload({
               path,
               statuses,
             });
+            statuses.downloads.success++;
           } catch (error: unknown) {
             log.error(
               __PRE_BUNDLED_FILENAME__,

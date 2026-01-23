@@ -10,7 +10,7 @@ export type LaunchStatusType = {
 }[LaunchKeyType];
 
 export type LauncherStatusesDownloadsType = {
-  "current": Raw<Map<string, number>>;
+  "current": Raw<Map<string, [number, number]>>;
   "success": number;
   "failed" : number;
   "total"  : number;

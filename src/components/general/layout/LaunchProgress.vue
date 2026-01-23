@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { useIntervalFn } from "@vueuse/core";
+import { computed, inject, ref } from "vue";
 
 import {
   GlobalStatesContextKey,
@@ -25,6 +26,8 @@ const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );
 const Translations = inject<TranslationsStateType>(TranslationsContextKey);
+
+const currentDownloadSpeed = ref<string>("0");
 
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.layout?.currentInstance, instanceStates)
@@ -77,6 +80,25 @@ const progress = computed<number>((oldValue: number | undefined): number => {
     }
   }
 });
+
+useIntervalFn(() => {
+  const currentDownloads: MapIterator<[number, number]> | undefined =
+    statuses.value?.downloads?.current?.values?.();
+
+  if (!currentDownloads) {
+    return;
+  }
+
+  const divider: number = 1024 * 1024;
+  let totalSpeed: number = 0;
+
+  for (const [, speed] of currentDownloads) {
+    totalSpeed += speed;
+  }
+
+  currentDownloadSpeed.value = (totalSpeed / divider).toFixed(2);
+  // Updates 25 times a second
+}, 40);
 </script>
 
 <template>
@@ -85,6 +107,13 @@ const progress = computed<number>((oldValue: number | undefined): number => {
     id="__layout__launch-progress-downloads-count"
     class="absolute right-2 top-2 z-10 flex flex-col items-end gap-1 leading-none opacity-50"
   >
+    <div
+      v-if="currentDownloadSpeed !== '0.00'"
+      id="__layout__launch-progress-current-speed"
+      class="text-sm"
+    >
+      {{ currentDownloadSpeed }} MB/s
+    </div>
     <div
       v-if="statuses.downloads.current.size > 0"
       id="__layout__launch-progress-current-downloads"

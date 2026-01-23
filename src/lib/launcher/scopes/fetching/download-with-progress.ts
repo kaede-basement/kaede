@@ -14,16 +14,14 @@ export function downloadWithProgress({
   return download(
     url,
     path,
-    ({ progressTotal, total }) => {
+    ({ progressTotal, total, transferSpeed }) => {
       const percents: number = Math.floor(progressTotal / total * 100);
 
       if (percents === 100) {
-        statuses.downloads.success++;
-
         return statuses.downloads.current.delete(url);
       }
 
-      statuses.downloads.current.set(url, percents);
+      statuses.downloads.current.set(url, [percents, transferSpeed]);
     },
   );
 }

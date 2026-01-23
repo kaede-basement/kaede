@@ -73,6 +73,7 @@ export async function downloadLogging({
         url,
         statuses,
       });
+      statuses.downloads.success++;
     } catch (error: unknown) {
       log.error(
         logPrefix,
