@@ -102,6 +102,10 @@ A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM u
 
 <img src="./demos/multi-window__blue-archive-different-bgs.jpg" alt="Multi-Window navigation with different Blue Archive background images">
 
+</div>
+
+</details>
+
 ---
 
 > [!NOTE]
@@ -111,9 +115,6 @@ A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM u
 > 
 > All information and assets used are the property and copyright of the respective authors.
 
-</div>
-
-</details>
 
 ## Features
 
