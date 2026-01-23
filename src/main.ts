@@ -16,13 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Import UnoCSS essentials
+// UnoCSS essentials
 import "virtual:uno.css";
-// Reset all CSS styles in a Tailwind-like way
+// Resets all styles in a Tailwind-like way
 import "@unocss/reset/tailwind.css";
-// Import custom CSS styles
+// Custom styles
 import "@/globals.css";
-// Import styles that are necessary for Material You ripple effect
+// Material You ripple effect essentials
 import "m3ripple-vue/style.css";
 
 import { VueQueryPlugin } from "@tanstack/vue-query";
@@ -67,7 +67,6 @@ log.info(
   getASCIIArt(portable, launchCount),
 );
 
-// Get the launcher base directory to share it between multiple functions
 const baseDirectory: string = await General.getBaseDirectory(portable);
 
 log.debug(

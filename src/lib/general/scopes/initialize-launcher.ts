@@ -24,7 +24,7 @@ export async function initializeLauncher({
     /*
      * Making the webview window visible means that the launcher successfully started.
      *
-     * Clearly, the 'startTime' variable is not accessible by the deeply nested
+     * The 'startTime' variable is not accessible by the deeply nested
      * 'ExtensionLoader.vue' component without exposing that variable through the 'window' object.
      */
     window[ApplicationNamespace].__internals.startTime = startTime;
@@ -44,7 +44,7 @@ export async function initializeLauncher({
     );
   }
 
-  // Cache the java major version since it will not change until the application relaunch
+  // Cache the default java major version
   window[ApplicationNamespace].__internals.javaMajor = await General.getJavaMajor();
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Checking if all directories present");

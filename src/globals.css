@@ -24,7 +24,6 @@ html {
   height: 100%;
   overflow: hidden;
 
-  /* Default theme is dark */
   color-scheme: dark;
 }
 
@@ -34,11 +33,11 @@ html {
 }
 
 .text-justify-last {
-  /* Justify the last line of text */
+  /* 'last' - the last line of text */
   text-align-last: justify;
 }
 
-/* Custom scrollbar */
+/* Prettify scrollbar */
 ::-webkit-scrollbar { width: 12px }
 ::-webkit-scrollbar-corner { background: transparent }
 ::-webkit-scrollbar-track { background: transparent }

@@ -175,24 +175,30 @@ provide<TranslationsStateType>(TranslationsContextKey, translations);
 provide<ContextInstanceStatesType>(InstanceStatesContextKey, instanceStates);
 
 /**
+ * Provides a reference to the '__internals' field of Kaede globals
+ * to avoid expensive 'window' look-ups
+ */
+const __internals = window[ApplicationNamespace].__internals;
+
+/**
  * Provides a reference to the function that returns a reference to the global states object.
  */
-window[ApplicationNamespace].__internals.getGlobalStates = getGlobalStates;
+__internals.getGlobalStates = getGlobalStates;
 
 /**
  * Provides a reference to the function that changes the value of a global states field.
  */
-window[ApplicationNamespace].__internals.changeGlobalStates = scopedChangeGlobalStates;
+__internals.changeGlobalStates = scopedChangeGlobalStates;
 
 /**
  * Provides a reference to the function that returns a reference to the instance states object.
  */
-window[ApplicationNamespace].__internals.getInstanceStates = getInstanceStates;
+__internals.getInstanceStates = getInstanceStates;
 
 /**
  * Provides a reference to the function that changes the value of an instance states field.
  */
-window[ApplicationNamespace].__internals.changeInstanceStates = scopedChangeInstanceStates;
+__internals.changeInstanceStates = scopedChangeInstanceStates;
 
 /**
  * Handles 'F5', 'Ctrl+R', and 'Command+R' key binds that reload the launcher.
