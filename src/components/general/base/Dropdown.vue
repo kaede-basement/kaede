@@ -39,10 +39,10 @@ onClickOutside(target, close);
 </script>
 
 <template>
-  <!-- The ref target should probably be always rendered, so it points to <Transition /> -->
-  <Transition name="slide-up" ref="target">
+  <Transition name="slide-up">
     <div
       v-if="shown"
+      ref="target"
       :id="id"
       :class="[
         'overflow-y-auto rounded-md bg-neutral-900 py-1',
