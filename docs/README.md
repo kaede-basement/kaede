@@ -48,20 +48,29 @@ Pull requests are welcome. AI code is not welcome. For major changes, please ope
 
 <div align="center">
 
+Home page and a launched Minecraft instance with the [HorizonUI mod](https://github.com/nokarin-dev/HorizonUI) by [nokarin-dev](https://github.com/nokarin-dev)
+
 <img src="./demos/kaede_home-page_minecraft.webp" alt="Home page with launched Minecraft">
+
+---
+
+Home page with expanded version dropdown
+
 <img src="./demos/kaede_home-page_no-minecraft.webp" alt="Home page without launched Minecraft">
-
-</div>
-
-<details>
-
-<div align="center">
 
 ---
 
 Default state of the launcher with no plugins or themes
 
 <img src="./demos/kaede_home-page_default.webp" alt="Home page with the default config and no plugins or themes">
+
+</div>
+
+More screenshots >>>
+
+<details>
+
+<div align="center">
 
 ---
 
