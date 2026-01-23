@@ -46,7 +46,11 @@ Pull requests are welcome. AI code is not welcome. For major changes, please ope
 
 ## Demonstration
 
+Screenshots of the launcher with or without user plugins.
+
 <div align="center">
+
+---
 
 Home page and a launched Minecraft instance with the [HorizonUI mod](https://github.com/nokarin-dev/HorizonUI) by [nokarin-dev](https://github.com/nokarin-dev)
 
@@ -66,6 +70,8 @@ Default state of the launcher with no plugins or themes
 
 </div>
 
+---
+
 More screenshots >>>
 
 <details>
@@ -74,7 +80,7 @@ More screenshots >>>
 
 ---
 
-LiteLoader 1.10.2 launched through Kaede
+[LiteLoader](https://www.liteloader.com/) (by [Mumfrey](https://www.liteloader.com/explore/docs/people:mumfrey)) 1.10.2 launched through Kaede
 
 <img src="./demos/kaede_home-page_minecraft-liteloader.webp" alt="LiteLoader 1.10.2">
 
@@ -95,6 +101,15 @@ Filters & Searching
 A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM usage)
 
 <img src="./demos/multi-window__blue-archive-different-bgs.jpg" alt="Multi-Window navigation with different Blue Archive background images">
+
+---
+
+> [!NOTE]
+> Assets from Blue Archive are not included in the launcher and are used here to merely demonstrate high customizability of Kaede.
+>
+> This application is not affiliated with Yostar & NEXON Games.
+>
+> All information and assets used are the property and copyright of the respective authors.
 
 </div>
 
