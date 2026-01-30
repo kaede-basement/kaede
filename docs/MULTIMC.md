@@ -261,11 +261,11 @@ type SpecificPatchMetaType = {
   // Seems to be the most complex part of Minecraft launching
   "libraries"?: Array<SpecificPatchLibraryType>;
 
-  // "The logging configuration file to provide to log4j"[^1].
-  // Stored in '/assets/log_configs/', alongside with '/assets/indexes/' and '/assets/objects/'[^2]
+  // "The logging configuration file to provide to log4j" [1].
+  // Stored in '/assets/log_configs/', alongside with '/assets/indexes/' and '/assets/objects/' [2]
   "logging"?: SpecificPatchLoggingType;
 
-  // "The main class to call in the execution of java"[^1]
+  // "The main class to call in the execution of java" [1]
   "mainClass"?: string;
 
   // Points to the Minecraft client jar
@@ -441,3 +441,7 @@ Prism Launcher seems to pick up other mods too, those mods will just not have an
 Cited resources
 
 [^1]: [Inside a Minecraft Launcher by Ryan](https://ryanccn.dev/posts/inside-a-minecraft-launcher)
+
+[^2]: [How Minecraft Launchers Work by Lin](https://dreta.dev/blog/2023/08/15/how-minecraft-launchers-work/)
+
+[^3]: [JSON Patches by MultiMC](https://github.com/MultiMC/Launcher/wiki/JSON-Patches)
