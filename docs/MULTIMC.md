@@ -25,7 +25,7 @@ It is possible that the correct way to navigate these patches is to:
 
 Following the defined way to navigate MultiMC patches, let us briefly understand how to apply this knowledge. For example, consider the Minecraft patch version to be `1.21.11` and the Fabric loader patch version to be `0.18.4`. The entry patch UID for Fabric is `net.fabricmc.fabric-loader`. It depends on a `net.fabricmc.intermediary` patch:
 
-```json
+```jsonc
 {
   // Other fields...
   "requires": [
@@ -40,7 +40,6 @@ For now, consider the `net.fabricmc.intermediary` patch version to equal the Min
 
 ```json
 {
-  // Other fields...
   "requires": [
     {
       "equals": "1.21.11",
@@ -54,7 +53,6 @@ This is a Minecraft patch. When we resolve its metadata, we get another dependen
 
 ```json
 {
-  // Other fields...
   "requires": [
     {
       "suggests": "3.3.3",
@@ -77,7 +75,7 @@ Luckily, the `org.lwjgl3` patch does not have any dependencies. Now these resolv
   - In case of array-typed conflicting fields, merge them.
   - In case of other types of conflicting fields, overwrite them.
 
-The final patch was built and can be used to download artifacts and launch the game. Actually, the final patch should not have necessarily the MultiMC format. One could implement their own format and parse all patches data into that format.
+The final patch can be used to download artifacts and launch the game. It may not have necessarily the MultiMC structure. One could implement their own format and parse all patches data into that format.
 
 Due to this section being a short explanation, I omitted the majority of important information. The actual final patch assemble is explained in the next sections.
 
@@ -127,6 +125,9 @@ type PatchUIDType =
   "org.quiltmc.quilt-loader";
 ```
 
+> [!NOTE]
+> The `|` symbol represents logical `OR`
+
 Finally, the patch index version entries have the next type schema:
 
 ```ts
@@ -151,14 +152,14 @@ type PatchIndexVersionType = {
   "requires" ?: Array<PatchDependencyType>;
 
   // Used not only in the 'net.minecraft' patches, but in others too. Might be missing
-  "type"?: PatchVariantType;
+  "type"?: "release" | "snapshot" | "experiment" | "old_alpha" | "old_beta" | "old_snapshot";
 
   // No clue. Might be missing, but present in 'net.fabricmc.intermediary'
   "volatile"?: boolean;
 };
 ```
 
-Where the `PatchVariantType` can be `"release" | "snapshot" | "experiment" | "old_alpha" | "old_beta" | "old_snapshot"`, and `PatchDependencyType` looks like this:
+Where `PatchDependencyType` looks like this:
 
 ```ts
 type PatchDependencyType = {
@@ -209,25 +210,28 @@ type SpecificPatchMetaType = {
 
   // Should be an array of needed libraries for this patch.
   // However, there is no way to surely tell the differences between the 'libraries' field
+  // (besides looking at Prism Launcher source code)
   "+libraries"?: Array<SpecificPatchLibraryType>;
 
   // This field contains a list of unique flags Prism Launcher uses when launching.
   //
   // So far, I have encountered next values:
   // - 'legacyLaunch'       // Appears to indicate the use of a legacy Java applet launcher in Prism
-  // - 'XR:Initial'         // Related to the Mojang compliance level
+  // - 'XR:Initial'         // Present in versions with chat reports
   // - 'FirstThreadOnMacOS' // Tells to use the '-XstartOnFirstThread' JVM argument on macOS
-  // - 'legacyServices'     // Perhaps, it is related to auth (?)
+  // - 'legacyServices'     // Old auth services (?)
   // - 'texturepacks'       // Shows that the version supports texture packs (?)
   // - 'no-texturepacks'    // Shows that the version does not support texture packs (?)
   //
   // There is also another format of traits, i.e. 'feature:*'.
-  // They are usually present in newer versions. For example:
+  // They are usually present in newer versions. For now, there are only these options:
   // - 'feature:is_quick_play_singleplayer'
   // - 'feature:is_quick_play_multiplayer'
   //
   // Other possible values that I have not encountered:
   // - 'legacyFML'
+  // - 'alphaLaunch'        // Used only in MultiMC (?)
+  // - 'noapplet'           // Used only in MultiMC (?)
   "+traits"?: Array<string>;
 
   // An array of tweak classes to pass to the game arguments.
@@ -247,8 +251,7 @@ type SpecificPatchMetaType = {
   // An array of Java major versions that are compatible with the patch
   "compatibleJavaMajors"?: Array<number>;
 
-  // I do not remember where I saw this field.
-  // However, it looks like it might represent the compatible Java vendor name
+  // Might represent the compatible Java vendor name
   "compatibleJavaName"?: string;
 
   // An array of conflicting patches. Usually present in 'org.lwjgl' and 'org.lwjgl3'
@@ -258,11 +261,11 @@ type SpecificPatchMetaType = {
   // Seems to be the most complex part of Minecraft launching
   "libraries"?: Array<SpecificPatchLibraryType>;
 
-  // "The logging configuration file to provide to log4j" [5].
-  // Stored in '/assets/log_configs/', alongside with '/assets/indexes/' and '/assets/objects/'
+  // "The logging configuration file to provide to log4j"[^1].
+  // Stored in '/assets/log_configs/', alongside with '/assets/indexes/' and '/assets/objects/'[^2]
   "logging"?: SpecificPatchLoggingType;
 
-  // "The main class to call in the execution of java" [5]
+  // "The main class to call in the execution of java"[^1]
   "mainClass"?: string;
 
   // Points to the Minecraft client jar
@@ -298,7 +301,7 @@ type SpecificPatchMetaType = {
 };
 ```
 
-It should be noted that as per MultiMC documentation [7], the `+agents`, `+traits`, `+tweakers`, and `+jvmArgs` should have their equivalent fields with the `-` sign or without the `+` sign. However, I never found such cases.
+It should be noted that as per MultiMC documentation[^3], the `+agents`, `+traits`, `+tweakers`, and `+jvmArgs` should have their equivalent fields with the `-` sign or without the `+` sign. However, I never found such cases.
 
 The `SpecificPatchAssetIndexType` type schema is equal to:
 
@@ -428,10 +431,13 @@ uhh...
 
 Prism Launcher seems to pick up other mods too, those mods will just not have any metadata unless used in other instances.
 
-# Improvements / Future works
+# Unknown information
 
-- Re-phrase the sentences that use first-person pronouns to not have them (not academically effective lol).
+- What are Java agents and how to use them?
+- What to do if the patch has specified multiple dependencies? (are there any such cases tho)
 
 # References
+
+Cited resources
 
 [^1]: [Inside a Minecraft Launcher by Ryan](https://ryanccn.dev/posts/inside-a-minecraft-launcher)
