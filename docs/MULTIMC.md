@@ -25,7 +25,7 @@ It is possible that the correct way to navigate these patches is to:
 
 Following the defined way to navigate MultiMC patches, let us briefly understand how to apply this knowledge. For example, consider the Minecraft patch version to be `1.21.11` and the Fabric loader patch version to be `0.18.4`. The entry patch UID for Fabric is `net.fabricmc.fabric-loader`. It depends on a `net.fabricmc.intermediary` patch:
 
-```jsonc
+```json5
 {
   // Other fields...
   "requires": [
@@ -109,6 +109,9 @@ The patch index type appears to always have this format.
 
 The `PatchUIDType` looks like this:
 
+> [!NOTE]
+> The `|` symbol represents logical `OR`
+
 ```ts
 type PatchUIDType =
   "com.azul.java" |
@@ -125,10 +128,10 @@ type PatchUIDType =
   "org.quiltmc.quilt-loader";
 ```
 
-> [!NOTE]
-> The `|` symbol represents logical `OR`
-
 Finally, the patch index version entries have the next type schema:
+
+> [!NOTE]
+> The `?` symbol represents an optional field
 
 ```ts
 type PatchIndexVersionType = {
@@ -206,7 +209,7 @@ type SpecificPatchMetaType = {
   /** All the next fields could be missing. */
   // Perhaps, these are Java agents.
   // Specified at https://github.com/PrismLauncher/meta/blob/main/meta/model/__init__.py#L342
-  "+agents"?: Array<Partial<{ "argument": string }>>;
+  "+agents"?: Array<{ "argument"?: string }>;
 
   // Should be an array of needed libraries for this patch.
   // However, there is no way to surely tell the differences between the 'libraries' field
@@ -271,9 +274,10 @@ type SpecificPatchMetaType = {
   // Points to the Minecraft client jar
   "mainJar"?: SpecificPatchMainJarType;
 
-  // An array of needed libraries for this patch that should not be included in classpaths.
-  // However, if a library is specified both in 'mavenFiles' and 'libraries',
-  // it should be included in classpaths
+  // An array of needed libraries for this patch that should be downloaded
+  // without being specified in classpaths.
+  // However, if the library was also included in the 'libraries' field,
+  // such library should be specified in classpaths
   "mavenFiles"?: Array<SpecificPatchLibraryType>;
 
   // A string with the game arguments. These arguments have placeholders that should be replaced,
@@ -324,7 +328,7 @@ type SpecificPatchAssetIndexType = {
 };
 ```
 
-The `PatchDependencyType` type schema was defined previously, but let us define it again:
+The `PatchDependencyType` type schema was defined previously, but let us see it again:
 
 ```ts
 type PatchDependencyType = {
@@ -347,7 +351,19 @@ type SpecificPatchLoggingType = {
   "argument": string;
 
   // Turns out, the config file download format uses the same schema as the 'assetIndex' field
-  "file": SpecificPatchAssetIndexType;
+  "file": {
+    // Used for storing the logging configuration JSON file
+    "id": string;
+
+    // An SHA-1 hash that the downloaded JSON file should have
+    "sha1": string;
+
+    // The size of a JSON file in bytes
+    "size": number;
+
+    // Points to the logging configuration JSON file
+    "url": string;
+  };
 
   // Usually equals to 'log4j2-xml'.
   // Perhaps, it could be used to parse Minecraft logs that are sent to console?
@@ -382,8 +398,48 @@ type SpecificPatchMainJarType = {
 
 Finally, the `SpecificPatchLibraryType` type schema is equal to:
 
+> [!NOTE]
+> The `[key: KeyType]: value` field is a value with the computed key name of a `KeyType` string literal
+> 
+> Example:
+> 
+> `{ [key: "macos" | "linux"]: string }` is equivalent to:
+> 
+> ```ts
+> type T = {
+>   "macos": string;
+>   "linux": string;
+> }
+> ```
+> 
+> The `Partial<{ ... }>` type represents an object where all fields are optional.
+> That is, all fields could be missing
+> 
+> Example:
+> 
+> `Partial<{ [key: "macos" | "linux"]: string }>` implies:
+> 
+> ```ts
+> type T = {
+>   // Or "linux": string;
+>   "macos": string;
+> };
+> ```
+> 
+> It also implies this type:
+> 
+> ```ts
+> type T = {
+>   "macos": string;
+>   "linux": string;
+> }
+> ```
+> 
+> Or an empty object.
+
 ```ts
 type SpecificPatchLibraryType = {
+  // This is where it gets tricky* (see explanations at the end of the section)
   "name": string;
   "downloads"?: {
     "artifact"?: {
@@ -403,9 +459,10 @@ type SpecificPatchLibraryType = {
       };
     };
   };
+  // Just in case, seems like this field is not critical and can be ignored
   "extract"?: {
     // Directories to exclude extracting for.
-    // For example, ["META-INF/"] means not to extract the 'META-INF' folder for this native
+    // For example, ["META-INF/"] means not to extract the 'META-INF' folder for this native.
     "exclude": Array<string>;
   };
   "natives"?: Partial<{
