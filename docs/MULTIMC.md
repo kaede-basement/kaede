@@ -391,7 +391,7 @@ type SpecificPatchMainJarType = {
       "url": string;
     };
   };
-  // This is where it gets tricky* (see explanations at the end of the section)
+  // This is where it gets tricky (see explanations in the next section)
   "name": string;
 };
 ```
@@ -432,14 +432,14 @@ Finally, the `SpecificPatchLibraryType` type schema is equal to:
 > type T = {
 >   "macos": string;
 >   "linux": string;
-> }
+> };
 > ```
 > 
 > Or an empty object.
 
 ```ts
 type SpecificPatchLibraryType = {
-  // This is where it gets tricky* (see explanations at the end of the section)
+  // Explained in the next section
   "name": string;
   "downloads"?: {
     "artifact"?: {
@@ -459,22 +459,115 @@ type SpecificPatchLibraryType = {
       };
     };
   };
-  // Just in case, seems like this field is not critical and can be ignored
+  // Seems like this field is not critical and can be ignored
   "extract"?: {
     // Directories to exclude extracting for.
     // For example, ["META-INF/"] means not to extract the 'META-INF' folder for this native.
     "exclude": Array<string>;
   };
+  // An additional library to download for specified platforms (and arches)
   "natives"?: Partial<{
     [key: SpecificPatchLibraryOSNameType]: string;
   }>;
+  // A list of rules that should be applied for specified platforms (and arches)
   "rules"?: Array<SpecificPatchLibraryRuleType>;
+  // A base URL for downloading this library.
+  // Present only if the 'natives' and 'downloads' field are missing.
+  // Sometimes this field has a URL that ends with a slash, sometimes not
   "url"?: string;
-  "MMC-hint" ?: string;
+  // What the heck is this (can be 'always-stale' or 'local')
+  "MMC-hint"?: string;
 };
 ```
 
-\* `<group>:<name>:<version>[:classifier][@extension]`
+### Normalizing the artifact name
+
+The `name` field comes in this format: `<group>:<name>:<version>[:classifier][@extension]`.
+
+Examples:
+
+- `com.mojang:text2speech:1.11.3`
+- `net.java.dev.jna:platform:3.4.0`
+- `ca.weblite:java-objc-bridge:1.1.0-mmachina.1` $\leftarrow$ `version` can be in any format, not just SemVer
+- `io.netty:netty-transport-native-epoll:4.1.97.Final:linux-aarch_64` $\leftarrow$ `classifier` is just a platform with an arch. Possible literals:
+  - `"windows-aarch_64"`
+  - `"windows-x86_64"`
+  - `"linux-aarch_64"`
+  - `"linux-x86_64"`
+  - `"osx-aarch_64"`
+  - `"osx-x86_64"`
+- `net.neoforged:neoform:1.21.2-20241022.151510@zip` $\leftarrow$ the `classifier` is missing, but `extension` is present. In this case, it equals to `zip`
+
+The name string always has the `group`, `name`, and `version` parts. The `classifier` and `extension` parts are optional.
+
+Parts are divided with a `:` symbol, except for `extension` - it is divided by the `@` symbol.
+
+- The `group` string should be split by dots. The resulted array for `net.java.dev.jna` must look like this: `["net", "java", "dev", "jna"]`.
+- The `name` and `version` strings should be left as they are.
+- The `classifier` part might be parsed for more convenient platform and arch checks.
+- The `extension` part is a file extension. If it is missing, use `jar`.
+
+For the coding part, I would suggest following next actions:
+
+1. Split the string by `@` (let us call it `Array_1`).
+2. The `extension` part will be a second element of an `Array_1` (fallback to `jar` if it is undefined).
+3. Split the first element of `Array_1` by `:` (let us call it `Array_2`).
+4. Take the `group`, `name`, `version`, and (if defined) `classifier` parts from `Array_2`, respectively.
+5. A filename can look like this: `${name}-${version}-${classifier}.${extension}`. If the classifier is undefined, it would look like this: `${name}-${version}.${extension}`. For example, the `com.mojang:text2speech:1.11.3` string will look like `text2speech-1.11.3.jar`.
+6. For the file directory, you need to split the `group` part by `.` (let us call it `Array_3`).
+7. Push back the `name` and `version` parts into `Array_3`.
+8. Join the `Array_3` elements using a path separator. For example, the `com.mojang:text2speech:1.11.3` string will look like `com/mojang/text2speech/1.11.3`.
+9. Now you have an artifact classifier, filename, and directory. The relative file path can be obtained by joining the file directory and filename.
+10. **Important:** for the future libraries parsing process, also make an `id` variable in a `${group}:${name}` format.
+
+You can also look at following code:
+
+```ts
+export function normalizeArtifactPath(artifact: string): {
+  "directory" : string;
+  "file"      : string;
+  "classifier": SpecificPatchClassifierOSType | undefined;
+  "id"        : string;
+} {
+  const prepared: Array<string> = artifact.split("@");
+  const cleaned = prepared?.[0] ?? "";
+  const extension = prepared?.[1] ?? "jar";
+  const paths: Array<string> = cleaned.split(":");
+
+  const group: string | undefined = paths?.[0];
+  const name: string | undefined = paths?.[1];
+  const version: string | undefined = paths?.[2];
+  const classifier: string | undefined = paths?.[3];
+
+  // The 'group', 'name', and 'version' elements should be always present
+  if (!group || !name || !version) {
+    const specifiedMessage: string =
+      `(either group (${group}), name (${name}), or version (${version}) is missing)`;
+
+    throw new Error(
+      `Could not normalize artifact path ${specifiedMessage}`,
+    );
+  }
+
+  const folders: Array<string> = [
+    ...group.split("."),
+    name,
+    version,
+  ];
+
+  return {
+    "directory": General.cachedJoin(...folders),
+    "file"     : classifier === undefined
+            ? `${name}-${version}.${extension}`
+            : `${name}-${version}-${classifier}.${extension}`,
+    "classifier": classifier as SpecificPatchClassifierOSType | undefined,
+    // 'org.ow2.asm:asm-tree'
+    "id"        : `${group}:${name}`,
+  };
+}
+```
+
+For the URL building part (using a base URL from the `url` field), you need to do some additional steps:
 
 ## Implementing the launch part
 
