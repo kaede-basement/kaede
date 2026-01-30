@@ -13,7 +13,7 @@ The MultiMC patch system is a complex, yet convenient way to manage Minecraft la
 
 Before one starts coding, they should understand what to expect from patches.
 
-As stated by Ryan [1], the Prism Launcher meta server is generating JSON patches from multiple sources. These sources can have completely different library and asset structures. Bringing such format mismatches to one consistent response type is challenging. Thus, one will stumble upon many inconsistencies when handling MultiMC patches.
+[As stated by Ryan] [1], the Prism Launcher meta server is generating JSON patches from multiple sources. These sources can have completely different library and asset structures. Bringing such format mismatches to one consistent response type is challenging. Thus, one will stumble upon many inconsistencies when handling MultiMC patches.
 
 The MultiMC patch is a JSON file that represents the information needed to handle the current patch. The patch system aims to simplify the installation and launching parts of Minecraft. Each patch can specify dependency or conflicting patches (although the latter one seems to be rare). Dependencies are just another patches, so each dependency can have its own dependencies too.
 
@@ -434,4 +434,4 @@ Prism Launcher seems to pick up other mods too, those mods will just not have an
 
 # References
 
-[1] 
+[1]: <https://ryanccn.dev/posts/inside-a-minecraft-launcher> "Hobbit"
