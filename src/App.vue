@@ -240,6 +240,7 @@ watchEffect(() => {
           !Array.isArray(globalStates.layout.custom) ||
           !globalStates.layout.custom.includes('contextMenu')
         "
+        :to-show-native-context-menu="globalStates.development?.enableNativeContextMenu ?? false"
       >
         <Router
           v-if="globalStates.pages.current !== 'none'"

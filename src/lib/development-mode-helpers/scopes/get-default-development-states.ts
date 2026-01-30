@@ -4,6 +4,7 @@ export function getDefaultDevelopmentStates(): GlobalStatesType["development"] {
   return {
     "showFPS"                   : false,
     "enableDebugMode"           : false,
+    "enableNativeContextMenu"   : false,
     "enableNativeReloadKeyBinds": false,
   };
 }

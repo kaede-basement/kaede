@@ -74,6 +74,7 @@ export type GlobalStatesContextMenuItemsType = Array<{
 export type GlobalStatesDevelopmentType = {
   "showFPS"                   : boolean;
   "enableDebugMode"           : boolean;
+  "enableNativeContextMenu"   : boolean;
   "enableNativeReloadKeyBinds": boolean;
 };
 export type GlobalStatesMiscType = {

@@ -11,10 +11,11 @@ import ContextProviders from "@/components/general/misc/ContextProviders.vue";
 import { ApplicationNamespace } from "@/constants/application.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 
-const { toShowSidebar, toShowContextMenu, page } = defineProps<{
-  "toShowSidebar"    : boolean;
-  "toShowContextMenu": boolean;
-  "page"             : RouteType;
+const { toShowSidebar, toShowContextMenu, toShowNativeContextMenu, page } = defineProps<{
+  "toShowSidebar"          : boolean;
+  "toShowContextMenu"      : boolean;
+  "toShowNativeContextMenu": boolean;
+  "page"                   : RouteType;
 }>();
 
 const contextMenu = ref<{
@@ -27,6 +28,10 @@ function closeContextMenu(): void {
   contextMenu.value.opened = false;
 }
 function showContextMenu(event: MouseEvent): void {
+  if (!toShowNativeContextMenu) {
+    event.preventDefault();
+  }
+
   const target = event.target as HTMLElement;
 
   if (
@@ -71,7 +76,6 @@ useEventListener(window, "pointerdown", (event: PointerEvent) => {
   <ContextProviders>
     <div
       id="__layout__wrapper"
-      @contextmenu.prevent
       @contextmenu="showContextMenu"
       class="relative h-vh w-full flex flex-nowrap gap-0 overflow-hidden text-white"
     >

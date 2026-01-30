@@ -72,6 +72,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     "development"     : {
       "showFPS"                   : false,
       "enableDebugMode"           : false,
+      "enableNativeContextMenu"   : false,
       "enableNativeReloadKeyBinds": false,
     },
     "extensions": {

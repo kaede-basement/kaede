@@ -82,10 +82,12 @@ export const ContextMenuItems = [
     "name"  : "Open Root Folder",
     "icon"  : "i-lucide-folder",
     "action": (): void => {
+      const baseDirectory: string = General.getCachedBaseDirectory();
+
       window[ApplicationNamespace].libs.ContextMenu.close();
       revealItemInDir(
         General.cachedJoin(
-          General.getCachedBaseDirectory(),
+          baseDirectory,
           FileStructure.Files.Config,
         ),
       ).catch((error: unknown) => {
@@ -94,6 +96,16 @@ export const ContextMenuItems = [
           "Failed to reveal the config file in the explorer:",
           Errors.prettify(error),
         );
+
+        revealItemInDir(
+          General.cachedJoin(baseDirectory),
+        ).catch((error: unknown) => {
+          log.error(
+            __PRE_BUNDLED_FILENAME__,
+            "Failed to reveal the root directory in the explorer:",
+            Errors.prettify(error),
+          );
+        });
       });
     },
   },
@@ -102,24 +114,39 @@ export const ContextMenuItems = [
     "icon"  : "i-lucide-box",
     "action": (): void => {
       const currentInstanceId: string | null = GlobalStateHelpers.get().layout.currentInstance;
+      const baseDirectory: string = General.getCachedBaseDirectory();
+
+      window[ApplicationNamespace].libs.ContextMenu.close();
 
       if (!currentInstanceId) {
+        log.warn("No instance selected; revealing the root directory in explorer");
+        revealItemInDir(
+          General.cachedJoin(
+            baseDirectory,
+            FileStructure.Folders.Instances.Path,
+          ),
+        ).catch((error: unknown) => {
+          log.error(
+            __PRE_BUNDLED_FILENAME__,
+            "Failed to reveal the root directory in the explorer:",
+            Errors.prettify(error),
+          );
+        });
+
         return;
       }
 
-      const baseDirectory: string = General.getCachedBaseDirectory();
       const minecraftDirectory: string = Instances.getMinecraftDirectory({
         "baseDirectory": baseDirectory,
         "instanceId"   : currentInstanceId,
       });
 
-      window[ApplicationNamespace].libs.ContextMenu.close();
       revealItemInDir(
         General.cachedJoin(minecraftDirectory),
       ).catch((error: unknown) => {
         log.error(
           __PRE_BUNDLED_FILENAME__,
-          "Failed to reveal the config file in the explorer:",
+          "Failed to reveal the instance directory in the explorer:",
           Errors.prettify(error),
         );
       });
