@@ -11,7 +11,7 @@ The MultiMC patch system is a complex, yet convenient way to manage Minecraft la
 
 ## How to think of MultiMC patches
 
-Before one starts coding, they should understand what to expect from patches.
+Before one starts the coding part, they should understand what to expect from patches.
 
 As stated by Ryan[^1], the Prism Launcher meta server is generating JSON patches from multiple sources. These sources can have completely different library and asset structures. Bringing such format mismatches to one consistent response type is challenging. Thus, one will stumble upon many inconsistencies when handling MultiMC patches.
 
@@ -21,9 +21,9 @@ It is possible that the correct way to navigate these patches is to:
  
 - resolve the entry patch, patch dependencies, and all sub-dependencies;
 - collect the resolved patches in the array;
-- build the final and single patch, starting from sub-dependencies and ending with the entry patch.
+- build the final patch, starting from sub-dependencies and ending with the entry patch.
 
-Following the defined way to navigate MultiMC patches, let us briefly understand how to apply this knowledge. For example, consider the Minecraft patch version to be `1.21.11` and the Fabric loader patch version to be `0.18.4`. The entry patch UID for Fabric is `net.fabricmc.fabric-loader`. It depends on a `net.fabricmc.intermediary` patch:
+Following the described way to navigate MultiMC patches, let us briefly understand how to apply this algorithm. For now, consider the version of a Minecraft patch to be `1.21.11` and the version of a Fabric loader patch to be `0.18.4`. The entry patch UID for Fabric is `net.fabricmc.fabric-loader`. It depends on a `net.fabricmc.intermediary` patch:
 
 ```json5
 {
@@ -36,10 +36,11 @@ Following the defined way to navigate MultiMC patches, let us briefly understand
 }
 ```
 
-For now, consider the `net.fabricmc.intermediary` patch version to equal the Minecraft patch version. Thus, we can resolve this patch and obtain another array of dependencies:
+The `net.fabricmc.intermediary` patch version should equal the Minecraft patch version. Thus, we can resolve this patch and obtain another array of dependencies:
 
-```json
+```json5
 {
+  // Other fields...
   "requires": [
     {
       "equals": "1.21.11",
@@ -51,8 +52,9 @@ For now, consider the `net.fabricmc.intermediary` patch version to equal the Min
 
 This is a Minecraft patch. When we resolve its metadata, we get another dependency:
 
-```json
+```json5
 {
+  // Other fields...
   "requires": [
     {
       "suggests": "3.3.3",
@@ -62,20 +64,89 @@ This is a Minecraft patch. When we resolve its metadata, we get another dependen
 }
 ```
 
-Luckily, the `org.lwjgl3` patch does not have any dependencies. Now these resolved patches should be assembled into one final patch as was previously defined:
+Luckily, the `org.lwjgl3` patch does not have any dependencies. Now, these resolved patches should be assembled into one final patch as was previously explained:
 
-- Use the data from `org.lwjgl3:3.3.3` (dependency of `net.minecraft:1.21.11`).
-- Use the data from `net.minecraft:1.21.11` (dependency of `net.fabricmc.intermediary`).
-  - In case of array-typed conflicting fields, merge them.
-  - In case of other types of conflicting fields, overwrite them.
-- Use the data from `net.fabricmc.intermediary` (dependency of `net.fabricmc.fabric-loader`).
-  - In case of array-typed conflicting fields, merge them.
-  - In case of other types of conflicting fields, overwrite them.
-- Use the data from `net.fabricmc.fabric-loader` (entry patch).
-  - In case of array-typed conflicting fields, merge them.
-  - In case of other types of conflicting fields, overwrite them.
+- Write the data from `org.lwjgl3:3.3.3` (dependency of `net.minecraft:1.21.11`) into an object.
+- Overwrite the object using data from `net.minecraft:1.21.11` (dependency of `net.fabricmc.intermediary`).
+- Overwrite the object using data from `net.fabricmc.intermediary` (dependency of `net.fabricmc.fabric-loader`).
+- Overwrite the object using data from `net.fabricmc.fabric-loader` (entry patch).
 
-The final patch can be used to download artifacts and launch the game. It may not have necessarily the MultiMC structure. One could implement their own format and parse all patches data into that format.
+The overwrite process follows next logic:
+
+- In case of array-typed conflicting fields, merge them.
+  - The merge process is not as simple as just pushing the element into an array. The next sections will explain it in details.
+- In case of other types of conflicting fields, overwrite them.
+
+The final patch can be used to download artifacts and launch the game. It may not have necessarily the MultiMC structure. One could implement their own format and parse all patches into that format.
+
+For example, I implemented the final patch structure like this:
+
+> [!NOTE]
+> The `|` symbol represents logical `OR`.
+> The `&` symbol represents logical `AND`.
+> 
+> Despite being called 'Union' and 'Intersection' types, respectively, they do **not** represent the Set operators:
+> 
+> ```ts
+> type First = { "a": number } | { "b": string };
+> // Implies:
+> const first_1: First = { "a": 10 };
+> // Also implies:
+> const first_2: First = { "b": "Eden Treaty" };
+> // However, does not imply this:
+> const first_3: First = { "a": 10, "b": "Decagrammaton" };
+> 
+> type Second = { "a": number } & { "b": string };
+> // Implies:
+> const second_1: Second = { "a": 0, "b": "Moondrop Aria" };
+> // However, does not imply this:
+> const second_2: Second = { "a": 0 };
+> ```
+
+```ts
+type FinalizedPatchType = {
+  "+jvmArgs"          : Array<string>;
+  "+traits"           : Array<string>;
+  "+tweakers"         : Array<string>;
+  "artifacts"         : Array<MappedArtifactType>;
+  "mainClass"         : string;
+  "minecraftArguments": string;
+  "assetIndex"        : {
+    "id"        : string;
+    "sha1"      : string;
+    "size"      : number;
+    "url"       : string;
+    "totalSize"?: number;
+  } | undefined;
+  "type"              : "release" | "snapshot" | "experiment" | "old_alpha" | "old_beta" | "old_snapshot" | undefined;
+  "client"            : MappedArtifactType | false;
+  "logging"           : (MappedArtifactType & {
+    "argument": string;
+  }) | false;
+};
+type MappedArtifactType = {
+  "id"       : string;
+  "path"     : string;
+  "file"     : string;
+  "directory": string;
+  "url"      : string;
+  // 'ignore' is used only when the hash is unknown
+  "hash"     : string | "ignore";
+
+  /**
+   * 'library' should be both downloaded and included in the classpath
+   * 'mavenFile' should be only downloaded
+   * 'native' should be downloaded and extracted but not included in the classpath
+   */
+  "status"?: "library" | "mavenFile" | "native";
+
+  /*
+   * Indicates the '+libraries' field in MultiMC patches.
+   * Should be specified the first in classpaths
+   */
+  "first"?: boolean;
+};
+```
 
 Due to this section being a short explanation, I omitted the majority of important information. The actual final patch assemble is explained in the next sections.
 
@@ -108,9 +179,6 @@ type PatchIndexType = {
 The patch index type appears to always have this format.
 
 The `PatchUIDType` looks like this:
-
-> [!NOTE]
-> The `|` symbol represents logical `OR`
 
 ```ts
 type PatchUIDType =
@@ -677,13 +745,11 @@ type SpecificPatchLibraryRuleType = {
 
 If there are no rules, include the library.
 
-Lin[^2] suggests to start from disallowing the library.
+Lin[^2] suggests to start from disallowing the library:
 
-In that case, one should include the library if the OS name is missing.
+One should include the library if the OS name is missing. If it is present, then they should allow the library if the specified platform and arch are compatible (or if the specified platform is compatible and the arch is missing).
 
-If it is present, then they should allow the library if the specified platform and arch are compatible (or if the specified platform is compatible and the arch is missing).
-
-However, the whole Minecraft launching process is so shitty and undocumented with 10000 workarounds and edge cases that I genuinely do not know if the next native library is a joke or not:
+However, 
 
 ```json
 {
@@ -885,3 +951,7 @@ Cited resources
 [^2]: [How Minecraft Launchers Work by Lin](https://dreta.dev/blog/2023/08/15/how-minecraft-launchers-work/)
 
 [^3]: [JSON Patches by MultiMC](https://github.com/MultiMC/Launcher/wiki/JSON-Patches)
+
+[^4]: [Brief explanation of Minecraft launching by RyRy](https://discord.com/channels/1031648380885147709/1064604527636000788/1460544613742809201)
+
+[^5]: [Parsing the OS name in library rules by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
