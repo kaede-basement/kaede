@@ -102,7 +102,10 @@ export function finalizePatches({
   "patches"    : Array<SpecificPatchMetaType>;
   "necessaries": PreLaunchInformationType;
 }): FinalizedPatchType {
-  // The last ones are the main patches; thus, they should overwrite what was previously written
+  /*
+   * Initially, patches are sorted from parents to dependencies.
+   * However, we need to go from dependencies to parents
+   */
   const reversed: Array<SpecificPatchMetaType> = patches.reverse();
 
   /*

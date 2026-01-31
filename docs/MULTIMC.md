@@ -87,7 +87,7 @@ Following the described way to navigate MultiMC patches, let us briefly understa
 }
 ```
 
-The `net.fabricmc.intermediary` patch version should equal the Minecraft patch version. Thus, we can resolve this patch and obtain another array of dependencies:
+The `net.fabricmc.intermediary` patch version should equal the Minecraft patch version. Thus, we can resolve the patch and obtain another array of dependencies:
 
 ```json5
 {
@@ -101,7 +101,7 @@ The `net.fabricmc.intermediary` patch version should equal the Minecraft patch v
 }
 ```
 
-This is a Minecraft patch. When we resolve its metadata, we get another dependency:
+This is a Minecraft patch. When we resolve it, we get another dependency:
 
 ```json5
 {
@@ -225,7 +225,7 @@ The version entries have the next type schema:
 ```ts
 type PatchIndexVersionType = {
   // Whether this version is a recommended one.
-  // In Prism Launcher, stars in the version select menu represent this field
+  // In the version select menu of Prism Launcher, star emojis represent this field
   "recommended": boolean;
 
   // The version release time in the ISO 8601 string format
@@ -234,19 +234,19 @@ type PatchIndexVersionType = {
   // A SHA-256 hash that the provided JSON file for this patch version should have
   "sha256": string;
 
-  // A version string, e.g. '26.1-snapshot-2'
+  // A version string, e.g. '26.1-snapshot-2' or '1.21.10'
   "version": string;
 
-  // An array of conflicted patches. Might be missing
+  // An array of conflicted patches
   "conflicts"?: Array<PatchDependencyType>;
 
-  // An array of required patches, i.e. dependencies. Might be missing
+  // An array of required patches, i.e. dependencies
   "requires" ?: Array<PatchDependencyType>;
 
-  // Used not only in the 'net.minecraft' patches, but in others too. Might be missing
+  // Used not only in the 'net.minecraft' patches, but in others too
   "type"?: "release" | "snapshot" | "experiment" | "old_alpha" | "old_beta" | "old_snapshot";
 
-  // No clue. Might be missing, but present in 'net.fabricmc.intermediary'
+  // No clue. Present in 'net.fabricmc.intermediary'
   "volatile"?: boolean;
 };
 ```
@@ -258,10 +258,10 @@ type PatchDependencyType = {
   // A unique identifier of the dependency
   "uid": PatchUIDType;
 
-  // A version of the dependency that should be selected. Might be missing
+  // A version of the dependency that should be selected
   "equals"?: string;
 
-  // A version of the dependency that is recommended. Might be missing
+  // A version of the dependency that is recommended
   "suggests"?: string;
 };
 ```
@@ -273,7 +273,7 @@ The patch index files are usually used on Minecraft instance creation. They are 
 > URL format: `https://meta.prismlauncher.org/v1/<uid>/<version>.json`
 
 > [!WARNING]
-> Time to deep dive into absolute horrors of Minecraft launching. It only gets worse from this point ^^
+> This is a beginning of absolute horrors of Minecraft installation and launching. It only gets worse from this point ^^
 > 
 > <img width="60%" src="./assets/never-kys-arisu.jpg" alt="A twitter post with Tendou Arisu plush and a 'never kys' text" />
 
@@ -295,7 +295,7 @@ type SpecificPatchMetaType = {
   // A unique identifier of the patch. As of now, can be 12 different string literals
   "uid": PatchUIDType;
 
-  // A version string, e.g. '26.1-snapshot-2'
+  // A version string, e.g. '26.1-snapshot-2' or '1.21.10'
   "version": string;
 
   /** All the next fields could be missing. */
@@ -305,7 +305,7 @@ type SpecificPatchMetaType = {
 
   // Should be an array of needed libraries for this patch.
   // However, there is no way to surely tell the difference between the 'libraries' field
-  // (besides looking at Prism Launcher source code)
+  // (besides looking at a Prism Launcher source code)
   "+libraries"?: Array<SpecificPatchLibraryType>;
 
   // This field contains a list of unique flags Prism Launcher uses when launching.
@@ -419,7 +419,7 @@ type SpecificPatchAssetIndexType = {
   // Points to the assets index JSON file
   "url": string;
 
-  // The total size of all asset objects in bytes. Might be missing
+  // The total size of all asset objects in bytes
   "totalSize"?: number;
 };
 ```
@@ -431,10 +431,10 @@ type PatchDependencyType = {
   // A unique identifier of the dependency
   "uid": PatchUIDType;
 
-  // A version of the dependency that should be selected. Might be missing
+  // A version of the dependency that should be selected
   "equals"?: string;
 
-  // A version of the dependency that is recommended. Might be missing
+  // A version of the dependency that is recommended
   "suggests"?: string;
 };
 ```
@@ -644,18 +644,14 @@ type SpecificPatchClassifierKeyType =
   "natives-macos-x86_64";
 ```
 
----
-
-> [!WARNING]
-> The next sections will include the coding part too. Prepare for it!
+> [!NOTE]
+> The next sections will include the coding part
 > 
 > <img width="60%" src="./assets/never-kys-hina.jpg" alt="A twitter post with Sorasaki Hina plush and a 'never kys' text" />
 
----
-
 ### Normalizing the artifact name
 
-The `name` field comes in this format: `<group>:<name>:<version>[:classifier][@extension]`.
+The `name` field follows this format: `<group>:<name>:<version>[:classifier][@extension]`.
 
 > [!IMPORTANT]
 > The `<name>` part can contain a `native` keyword. In such case, consider the `downloads` field to point to the native library download. Consequently, the `classifiers` field will be missing
@@ -699,7 +695,7 @@ type SpecificPatchClassifierOSType =
   "linux-aarch_64" | "linux-x86_64" |
   "osx-aarch_64" | "osx-x86_64";
 
-export function normalizeArtifactPath(artifact: string): {
+function normalizeArtifactPath(artifact: string): {
   "directory" : string;
   "file"      : string;
   "classifier": SpecificPatchClassifierOSType | undefined;
@@ -730,9 +726,11 @@ export function normalizeArtifactPath(artifact: string): {
     name,
     version,
   ];
+  // You should use an appropriate path delimiter according to current OS
+  const delimiter: string = "..."; // For example, '/' or '\\'
 
   return {
-    "directory": General.cachedJoin(...folders),
+    "directory": folders.join(delimiter),
     "file"     : classifier === undefined
       ? `${name}-${version}.${extension}`
       : `${name}-${version}-${classifier}.${extension}`,
@@ -758,7 +756,7 @@ If there are no rules, include the library.
 
 Lin[^2] suggests to start from disallowing the library.
 
-One should include the library if the OS name is missing. If it is present, then they should allow the library if the specified platform and arch are compatible (or if the specified platform is compatible and the arch is missing).
+One should include the library if the OS name is missing. If it is present, then they should allow the library if the specified platform and arch are compatible.
 
 However, for NeoForge 1.21.1, this way of parsing rules additionally downloads 16 unused native libraries. This is a problem with meta itself:
 
@@ -784,7 +782,7 @@ However, for NeoForge 1.21.1, this way of parsing rules additionally downloads 1
 
 The specified rules allow this library to be downloaded on Windows x86_64, x86, and ARM64. Yet, by judging the library name, it is needed only for Windows ARM64. It also seems like Minecraft is working perfectly without it on Windows x86_64.
 
-One might check the library name for `arm64` and `arm32` occurrences to approve the library only for their respective arches. Although I am not sure if it will work in 100% cases.
+One might check the library name for `arm64` and `arm32` occurrences to approve the library only for the user arch. Although I am not sure if it will work in 100% cases.
 
 The coding part.
 
@@ -799,7 +797,7 @@ For each rule:
 The OS name literal can be accessed via `rule.name.os` property. The action can be accessed via `rule.action`
 
 1. If the rule OS name is missing, overwrite `toInclude` to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
-2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64`.
+2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64` is equivalent to `linux` and `arm64`.
 3. If the platform and arch are incompatible, do not overwrite `toInclude`.
 4. If the platform and arch are compatible, then overwrite `toInclude` variable to `true` if the `action` field equals to `allow` and to `false` in other cases (`false`, undefined).
 
@@ -807,11 +805,30 @@ The TypeScript code representation of the algorithm:
 
 ```ts
 function shouldIncludeLibrary({
-  necessaries,
+  platform,
+  arch,
   library,
 }: {
-  "necessaries": PreLaunchInformationType;
-  "library"    : SpecificPatchLibraryType;
+  // The platform literals are decided by you
+  "platform": "windows" | "linux" | "osx";
+  // The arch literals are decided by you
+  "arch"    : "x86_64" | "x86" | "arm64" | "arm32";
+  "library"?: {
+    "rules"?: Array<{
+      "action"?: "allow" | "disallow";
+      "os"    ?: {
+        "name"?:
+          "linux" |
+          "linux-arm32" |
+          "linux-arm64" |
+          "windows" |
+          "windows-arm32" |
+          "windows-arm64" |
+          "osx-arm64" |
+          "osx";
+      };
+    }>;
+  };
 }): boolean {
   if (
     library?.rules === undefined ||
@@ -820,11 +837,9 @@ function shouldIncludeLibrary({
     return true;
   }
 
-  const { platform, arch } = necessaries;
-  const rules: Array<SpecificPatchLibraryRuleType> = library.rules;
   let toInclude: boolean = false;
 
-  for (const rule of rules) {
+  for (const rule of library.rules) {
     const parsedOS: SpecificPatchLibraryOSNameType | undefined = rule?.os?.name;
 
     if (parsedOS === undefined) {
@@ -855,10 +870,25 @@ function handlePlatformRule({
   rule,
   current,
 }: {
-  "platform": PreLaunchInformationType["platform"];
-  "arch"    : PreLaunchInformationType["arch"];
-  "rule"    : DeepRequired<SpecificPatchLibraryRuleType>;
-  "current" : boolean;
+  // The platform literals are decided by you
+  "platform": "windows" | "linux" | "osx";
+  // The arch literals are decided by you
+  "arch"    : "x86_64" | "x86" | "arm64" | "arm32";
+  "rule"    : {
+    "action": "allow" | "disallow";
+    "os"    : {
+      "name":
+        "linux" |
+        "linux-arm32" |
+        "linux-arm64" |
+        "windows" |
+        "windows-arm32" |
+        "windows-arm64" |
+        "osx-arm64" |
+        "osx";
+    };
+  };
+  "current": boolean;
 }): boolean {
   const {
     "platform": unifiedPlatform,
@@ -869,16 +899,16 @@ function handlePlatformRule({
   /*
    * The possible values for OS name are:
    * - 'platform'       <-- means x86_64 or x86 ('unifyPlatformWithArch' returns 'any')
-   * - 'platform-arm32' <-- means arm32
-   * - 'platform-arm64' <-- means arm64
+   * - 'platform-arm32' <-- means arm32 ('unifyPlatformWithArch' returns 'arm32')
+   * - 'platform-arm64' <-- means arm64 ('unifyPlatformWithArch' returns 'arm64')
    */
   const isCompatibleAnyArch: boolean = unifiedArch === "any" && (
-          arch === "x64" ||
-          arch === "x86"
+    arch === "x64" ||
+    arch === "x86"
   );
   const isCompatibleArch: boolean =
-          isCompatibleAnyArch ||
-          unifiedArch === arch;
+    isCompatibleAnyArch ||
+    unifiedArch === arch;
 
   // We care about the rule only if it targets the same platform and arch
   if (!isCompatiblePlatform || !isCompatibleArch) {
@@ -891,13 +921,20 @@ function handlePlatformRule({
 
 ### Checking is the library is a native
 
-If the `classifiers` are present, then the library is a native library that has the old format.
+If the `classifiers` field is present, then the library **has** a native library (old format).
 
-If the library name includes the `native` word, then the library is a native library that has the new format.
+If the library name includes the `native` word, then the library **is** native (new format).
 
 ### Parsing the library and maven files
 
-If the library only has a `name` field, then use `https://libraries.minecraft.net` as a base URL and build a download URL by normalizing `name` (`<group>:<name>:<version>[:classifier][@extension]`) into `<group splitted by dots and joined using a forward slash>/<name>/<version>/<name>-<version>[-classifier only if present].<extension>`, e.g. `net.minecraft:launchwrapper:1.12` into `https://libraries.minecraft.net/net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar`.
+> [!IMPORTANT]
+> Old-formatted native libraries are separate from "non-native" libraries. For this step, you should ignore them (the `classifiers` field).
+> 
+> New-formatted native libraries should be both added into classpath and extracted (the `artifact` field), so you need to parse them here too.
+> 
+> Do not forget about `+libraries` field too. I only saw it in the OptiFine patch, though. By checking how Hello Minecraft! Launcher sorts classpath, it seems like `+libraries` should go before all other `libraries`
+
+If the library only has a `name` field, then use `https://libraries.minecraft.net` as a base URL and build a download URL by normalizing `name` (`<group>:<name>:<version>[:classifier][@extension]`) into `<group splitted by dots and joined using a forward slash>/<name>/<version>/<name>-<version>[-classifier only if present].<extension>`, e.g. `net.minecraft:launchwrapper:1.12` becomes `https://libraries.minecraft.net/net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar`.
 
 If the library only has `name` and `url` fields, then use that `url` field as a base URL and build a download URL as described above.
 
@@ -905,41 +942,169 @@ If the library has the `downloads` field, then use `downloads.artifact.url` as a
 
 ### Parsing the native library
 
-New native library formats specify the platform and arch in the `classifier` part of a library name (`<group>:<name>:<version>[:classifier][@extension]`). Extract the platform and arch from that classifier. If they are compatible, download the native library.
+New-formatted native library formats specify the platform and arch in the `classifier` part of a library name (`<group>:<name>:<version>[:classifier][@extension]`). Extract the platform and arch from that classifier. If they are compatible, download the native library. You will need to extract it later.
 
-If the native library has an old format, iterate over object entries in `classifiers`. If the iterated key has compatible platform and arch, use the `url` field in that classifier field as a download URL. The filename probably should be the same as the last part of a download URL. For example, in `https://libraries.minecraft.net/com/mojang/text2speech/1.11.3/text2speech-1.11.3-natives-linux.jar` the last part will be `text2speech-1.11.3-natives-linux.jar`
+Note that with new-formatted natives you already parsed them in the previous section, so you need to either indicate that they are both downloaded, included in classpath, and extracted. Another possible solution is simply to leave them coexist in the same array of artifacts, and ignore artifact duplicates at downloading stages.
 
-### Removing duplicated libraries
+For example:
+
+```ts
+const uniqueMap: Map<string, string> = new Map(
+  // It is probably better to filter by unique paths rather than unique URLs...
+  entries.map(({ url, path }) => [path, url]),
+);
+const uniqueArtifacts: Array<{ "url": string; "path": string }> = [];
+
+for (const [path, url] of uniqueMap.entries()) {
+  uniqueArtifacts.push({ url, path });
+}
+```
+
+That way, NeoForge 1.21.1 filters out 70 duplicates out of 200 library artifacts.
+
+If the native library has an old format, iterate over object entries in `classifiers`. If the iterated key has compatible platform and arch, use the `url` field in that classifier field as a download URL. The filename probably should be the same as the last part of a download URL. For example, in `https://libraries.minecraft.net/com/mojang/text2speech/1.11.3/text2speech-1.11.3-natives-linux.jar` the last part will be `text2speech-1.11.3-natives-linux.jar`. However, the name normalization algorithm that was defined earlier already follows the same naming convention.
+
+### Merging libraries
 
 > [!IMPORTANT]
 > Only for libraries. Maven files and native libraries should be ignored
 
 Remember the patch hierarchy? Dependencies have lower priority than their "parent" patches. If the dependency specifies one version of a library, and the parent specifies another for that exact library, then the library specified by dependency should be ignored.
 
-```ts
-/*
- * Previously, maven files and libraries shared the same unique artifacts map...
- * Turns out, NeoForge 1.21.2 does not work well with this approach
- * since it specifies 'asm' library both in 'mavenFiles' and 'libraries' with different versions.
- *
- * It also seems like we do not even need to check for ID duplicates of maven files;
- * instead, just download every maven file.
- */
-const foundMavenFiles: Array<MappedArtifactType> = [];
-// Patches might have overlapping artifacts with different versions
-const uniqueArtifacts = new Map<string, MappedArtifactType>;
+Consider NeoForge `21.2.1-beta` and Minecraft `1.21.2`. NeoForge patch specifies the next library:
+
+```json
+{
+  "downloads": {
+    "artifact": {
+      "path": "org/ow2/asm/asm/9.7/asm-9.7.jar",
+      "sha1": "073d7b3086e14beb604ced229c302feff6449723",
+      "size": 125428,
+      "url": "https://maven.neoforged.net/releases/org/ow2/asm/asm/9.7/asm-9.7.jar"
+    }
+  },
+  "name": "org.ow2.asm:asm:9.7"
+}
 ```
+
+And Minecraft patch specifies this:
+
+```json
+{
+  "downloads": {
+    "artifact": {
+      "sha1": "8e6300ef51c1d801a7ed62d07cd221aca3a90640",
+      "size": 122176,
+      "url": "https://libraries.minecraft.net/org/ow2/asm/asm/9.3/asm-9.3.jar"
+    }
+  },
+  "name": "org.ow2.asm:asm:9.3"
+}
+```
+
+If one includes both of these libraries in classpath, then the launching part will fail. That is why one needs to filter them.
 
 Hash maps with library IDs (`<group>:<name>`) as keys should work. Each patch overwrites the map, and since patch parsing goes from dependencies to parents, the entry patches will always have the main priority.
 
----
+### Finalizing the patch
 
-> [!WARNING]
-> The parsing part is done. Time to download all artifacts and build classpaths, JVM arguments, and game arguments!
+As was previously said, final patch building should go from dependencies to parents. Array-typed fields are merged and other-typed fields are overwritten. Note that for arrays of strings it is sufficient to simply use sets since they are collections of distinct elements (strings in TypeScript are immutable primitives, by the way).
+
+The TypeScript code representation of the patch finalizing algorithm:
+
+```ts
+function finalizePatches({
+  patches,
+}: {
+  "patches": Array<SpecificPatchMetaType>;
+}): FinalizedPatchType {
+  // Initially, patches are sorted from parents to dependencies.
+  // However, we need to go from dependencies to parents
+  const reversed: Array<SpecificPatchMetaType> = patches.reverse();
+  const foundMavenFiles: Array<MappedArtifactType> = [];
+  // Patches might have overlapping artifacts with different versions
+  const uniqueArtifacts = new Map<string, MappedArtifactType>;
+  const built: FinalizedPatchType = {
+    "+jvmArgs" : [],
+    "+traits"  : [],
+    "+tweakers": [],
+    "artifacts": [],
+
+    /*
+     * Ancient versions do not have the 'mainClass' field,
+     * so use their class as a default value
+     */
+    "mainClass"         : "net.minecraft.client.Minecraft",
+    "minecraftArguments": "",
+    "assetIndex"        : undefined,
+    "type"              : undefined,
+    "client"            : false,
+    "logging"           : false,
+  };
+
+  for (const patch of reversed) {
+    if (patch?.["+jvmArgs"]) {
+      // Duplicates will be removed at latter stages
+      built["+jvmArgs"].push(...patch["+jvmArgs"]);
+    }
+
+    if (patch?.["+traits"]) {
+      // Duplicates will be removed at latter stages
+      built["+traits"].push(...patch["+traits"]);
+    }
+
+    if (patch?.["+tweakers"]) {
+      // Duplicates will be removed at latter stages
+      built["+tweakers"].push(...patch["+tweakers"]);
+    }
+
+    addMavenFiles( /* mavenFiles */ );
+    addArtifactsToMap( /* libraries */ );
+    addArtifactsToMap( /* +libraries */ );
+
+    if (patch.mainClass) {
+      built.mainClass = patch.mainClass;
+    }
+
+    if (patch.minecraftArguments) {
+      built.minecraftArguments = patch.minecraftArguments;
+    }
+
+    if (patch.assetIndex) {
+      built.assetIndex = patch.assetIndex;
+    }
+
+    if (patch.type) {
+      built.type = patch.type;
+    }
+
+    const currentLogging = parseLogging({ patch });
+    const currentClient = parseMainJar({ patch });
+
+    // Overwrite the 'logging' field only if the parsed data is defined
+    if (currentLogging) {
+      built.logging = currentLogging;
+    }
+
+    // Overwrite the 'client' field only if the parsed data is defined
+    if (currentClient) {
+      built.client = currentClient;
+    }
+  }
+
+  built.artifacts = [
+    ...foundMavenFiles.values(),
+    ...uniqueArtifacts.values(),
+  ];
+
+  return built;
+}
+```
+
+> [!NOTE]
+> One of the most complex parts is done. However, you still need to download artifacts and build classpaths, JVM arguments, and game arguments
 > 
 > <img width="60%" src="./assets/never-kys-hoshino.jpg" alt="A twitter post with Takanashi Hoshino plush and a 'never kys' text" />
-
----
 
 ## idk later
 
