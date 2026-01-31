@@ -797,7 +797,7 @@ For each rule:
 The OS name literal can be accessed via `rule.name.os` property. The action can be accessed via `rule.action`
 
 1. If the rule OS name is missing, overwrite `toInclude` to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
-2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64` is equivalent to `linux` and `arm64`.
+2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`[^5]. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64` is equivalent to `linux` and `arm64`.
 3. If the platform and arch are incompatible, do not overwrite `toInclude`.
 4. If the platform and arch are compatible, then overwrite `toInclude` variable to `true` if the `action` field equals to `allow` and to `false` in other cases (`false`, undefined).
 
@@ -962,7 +962,7 @@ for (const [path, url] of uniqueMap.entries()) {
 
 That way, NeoForge 1.21.1 filters out 70 duplicates out of 200 library artifacts.
 
-If the native library has an old format, iterate over object entries in `classifiers`. If the iterated key has compatible platform and arch, use the `url` field in that classifier field as a download URL. The filename probably should be the same as the last part of a download URL. For example, in `https://libraries.minecraft.net/com/mojang/text2speech/1.11.3/text2speech-1.11.3-natives-linux.jar` the last part will be `text2speech-1.11.3-natives-linux.jar`. However, the name normalization algorithm that was defined earlier already follows the same naming convention.
+If the native library has an old format, iterate over object entries in `classifiers`. If the iterated key has compatible platform and arch, use the `url` field in that classifier field as a download URL. The filename probably should be the same as the last part of a download URL. For example, in `https://libraries.minecraft.net/com/mojang/text2speech/1.11.3/text2speech-1.11.3-natives-linux.jar` the last part will be `text2speech-1.11.3-natives-linux.jar`. However, the name normalization algorithm that was defined earlier already follows the same naming convention (just need to add a `natives` suffix between `version` and `[classifier]`).
 
 ### Merging libraries
 
@@ -1106,7 +1106,128 @@ function finalizePatches({
 > 
 > <img width="60%" src="./assets/never-kys-hoshino.jpg" alt="A twitter post with Takanashi Hoshino plush and a 'never kys' text" />
 
-## idk later
+## Downloading objects
+
+For some reason, most of Minecraft launches do not download libraries, assets, client, and logging configuration concurrently (perhaps, because it is hard to do that in languages such as C++ or Java). They do it sequentially, even though the assets and libraries themselves are downloaded concurrently. I would suggest to use concurrent resolving of concurrent downloading steps (alright, what am I talking about at this point). Assets, Minecraft client, logging configuration, and libraries do not depend on each other, so one can safely handle all of them at the same time.
+
+```ts
+const responses: Array< /* response types */ > = await Promise.all([
+  Fetching.downloadAssets({ finalizedPatch }),
+  Fetching.downloadClient({ finalizedPatch }),
+  Fetching.downloadLogging({ finalizedPatch }),
+  Fetching.downloadLibraries({ finalizedPatch }),
+]);
+```
+
+### Assets
+
+The asset indexes might be stored in `assets/indexes`, the asset objects might be stored in `assets/objects`. They are shared across all instances.
+
+The asset index file should look like `<id>.json`, e.g. `17.json`. It contains an object will all asset objects to download:
+
+```json5
+{
+  "objects": {
+    "icons/icon_128x128.png": {
+      "hash": "b62ca8ec10d07e6bf5ac8dae0c8c1d2e6a1e3356",
+      "size": 9101
+    },
+    // Other objects...
+  }
+}
+```
+
+The object key can be ignored. What one actually needs here is `hash`:
+
+1. Use `https://resources.download.minecraft.net/` as a base URL.
+2. Get first two characters of the hash.
+3. Append it to the base URL (e.g. `https://resources.download.minecraft.net/b6`).
+4. Append the full hash to the URL (e.g. `https://resources.download.minecraft.net/b6/b62ca8ec10d07e6bf5ac8dae0c8c1d2e6a1e3356`).
+
+These URLs should be downloaded into `<asset objects directory>/<first two chars>/<full hash>`. Asset objects do not have any file extensions.
+
+Before downloading, check for the existence of all resulted file paths and verify their SHA1 hashes. Download the missing ones.
+
+> [!NOTE]
+> There are exactly 256 possible unique combinations of short hashes, i.e. hexadecimals.
+
+### Artifacts (libraries, natives, and mavenFiles)
+
+These artifacts are shared across all instances.
+
+Use the normalized artifact names for relative paths (e.g. `org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3.jar`) and join them with your libraries folder directory.
+
+Verify these paths, just like you did it with asset objects, then you should download missing ones.
+
+### Logging configuration
+
+Logging configurations are shared across all instances.
+
+Let us remember the logging configuration structure:
+
+```ts
+type SpecificPatchLoggingType = {
+  // A JVM argument that should be used (contains a placeholder to replace)
+  "argument": string;
+
+  // Turns out, the config file download format uses the same schema as the 'assetIndex' field
+  "file": {
+    // Used for storing the logging configuration JSON file
+    "id": string;
+
+    // A SHA-1 hash that the downloaded JSON file should have
+    "sha1": string;
+
+    // The size of a JSON file in bytes
+    "size": number;
+
+    // Points to the logging configuration JSON file
+    "url": string;
+  };
+
+  // Usually equals to 'log4j2-xml'.
+  // Perhaps, it could be used to parse Minecraft logs that are sent to console?
+  // For example, old versions do not have the 'logging' field, thus their console output
+  // is just raw lines of logs. But Minecraft versions that specify the 'logging' field
+  // send to the 'stdout' and 'stderr' the XML-formatted logs (due to '<XMLLayout />')
+  // (if we use the configuration file provided in the 'logging' field, of course).
+  "type": string;
+};
+```
+
+The `file.id` property is a filename with extension, e.g. `client-1.12.xml`. Simply download the file from `file.url` and save it under `file.id` in the logging configuration directory.
+
+### Client (main jar)
+
+Client jars are shared across all instances.
+
+The Minecraft client download structure is already familiar to you:
+
+```ts
+type SpecificPatchMainJarType = {
+  "downloads": {
+    "artifact": {
+      // A SHA-1 hash that the downloaded jar file should have
+      "sha1": string;
+
+      // The size of a jar file in bytes
+      "size": number;
+
+      // Points to the main jar downloads
+      "url": string;
+    };
+  };
+  // Normalize it once again
+  "name": string;
+};
+```
+
+> [!WARNING]
+> Oh, you are finally here. You made a great progress, but there is still plenty of things left...
+>
+> <img width="60%" src="./assets/never-kys-arisu.jpg" alt="A twitter post with Tendou Arisu plush and a 'never kys' text" />
+
+## Launching the Minecraft
 
 ### Adding mods
 

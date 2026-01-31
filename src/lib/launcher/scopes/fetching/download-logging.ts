@@ -1,6 +1,7 @@
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
+import Errors from "@/lib/errors";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { downloadWithProgress } from "@/lib/launcher/scopes/fetching/download-with-progress.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -8,7 +9,6 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
-import Errors from "@/lib/errors";
 
 export async function downloadLogging({
   necessaries,
