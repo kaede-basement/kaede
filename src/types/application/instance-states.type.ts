@@ -9,6 +9,8 @@ export type InstanceStateType = GlobalStatesType["minecraft"] & {
   "playTime"     : number;
   "lastLaunch"   : number;
   "entry"        : PatchUIDType;
+  "pinned"       : boolean;
+  "groups"       : Array<string>;
   "patchVersions": {
     "net.minecraft": string;
   } & Partial<
