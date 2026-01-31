@@ -49,7 +49,7 @@ That is, all fields could be missing. For example, `Partial<{ [key: "macos" | "l
 
 ```ts
 type T_1 = {
-  // Or "linux": string;
+  // Or '"linux": string;'
   "macos": string;
 };
 // It also implies this type:
@@ -57,7 +57,7 @@ type T_2 = {
   "macos": string;
   "linux": string;
 };
-// Can also be an empty object.
+// Or an empty object.
 ```
 
 ## How to think of MultiMC patches
@@ -177,7 +177,7 @@ type MappedArtifactType = {
 };
 ```
 
-Due to this section being a short explanation, I omitted the majority of important information. The actual final patch assemble is explained in the next sections.
+This section is merely a short explanation, so I omitted the majority of important information. The actual final patch assemble is explained in the next sections.
 
 ## An in-depth structure of the MultiMC patch system
 
@@ -185,7 +185,7 @@ Since now one should have a surface-level understanding of the MultiMC patch sys
 
 ### Patch index files
 
-> URL format: `https://meta.prismlauncher.org/v1/${uid}`
+> URL format: `https://meta.prismlauncher.org/v1/<uid>`
 
 Now, let us start with the actual response types. This is a TypeScript type schema for the patch index files, the JSON files that contain available versions of the patch:
 
@@ -270,9 +270,9 @@ The patch index files are usually used on Minecraft instance creation. They are 
 
 ### Version-specific patches
 
-> URL format: `https://meta.prismlauncher.org/v1/${uid}/${version}.json`
+> URL format: `https://meta.prismlauncher.org/v1/<uid>/<version>.json`
 
-Now begins the longest part of the entire post ^^
+It only gets worse from this point ^^
 
 The JSON files for version-specific patches diverse with each patch. This is what the final type looks like:
 
@@ -285,8 +285,8 @@ type SpecificPatchMetaType = {
   "name": string;
 
   // The version release time in the ISO 8601 string format.
-  // However, it should be noted that release time could be missing in custom patches,
-  // i.e. 'org.mcphackers.launchwrapper'
+  // However, it should be noted that the release time could be missing in custom patches,
+  // e.g. 'org.mcphackers.launchwrapper'
   "releaseTime": string;
 
   // A unique identifier of the patch. As of now, can be 12 different string literals
@@ -301,7 +301,7 @@ type SpecificPatchMetaType = {
   "+agents"?: Array<{ "argument"?: string }>;
 
   // Should be an array of needed libraries for this patch.
-  // However, there is no way to surely tell the differences between the 'libraries' field
+  // However, there is no way to surely tell the difference between the 'libraries' field
   // (besides looking at Prism Launcher source code)
   "+libraries"?: Array<SpecificPatchLibraryType>;
 
@@ -322,8 +322,8 @@ type SpecificPatchMetaType = {
   //
   // Other possible values that I have not encountered:
   // - 'legacyFML'
-  // - 'alphaLaunch'        // Used only in MultiMC (?)
-  // - 'noapplet'           // Used only in MultiMC (?)
+  // - 'alphaLaunch'        // Prism Launcher meta no longer has this value (?)
+  // - 'noapplet'           // Prism Launcher meta no longer has this value (?)
   "+traits"?: Array<string>;
 
   // An array of tweak classes to pass to the game arguments.
@@ -337,14 +337,15 @@ type SpecificPatchMetaType = {
   // - '-Djava.util.Arrays.useLegacyMergeSort=true' // Present in ancient versions of Minecraft
   "+jvmArgs"?: Array<string>;
 
-  // Seem to equal to the Mojang API response format. Points to the Minecraft assets index JSON file
+  // Seem to equal to the Mojang API response format.
+  // Points to the Minecraft assets index JSON file
   "assetIndex"?: SpecificPatchAssetIndexType;
 
   // An array of Java major versions that are compatible with the patch
   "compatibleJavaMajors"?: Array<number>;
 
   // Might represent the compatible Java vendor name.
-  // Present in '12w07b' and can be 'jre-legacy'
+  // For example, this field is present in '12w07b' and can equal to 'jre-legacy'
   "compatibleJavaName"?: string;
 
   // An array of conflicting patches. Usually present in 'org.lwjgl' and 'org.lwjgl3'
@@ -557,7 +558,7 @@ type SpecificPatchLibraryType = {
 
 > [!IMPORTANT]
 > Some libraries only specify the `name` field.
-> In this case, use `https://libraries.minecraft.net` as a base URL for downloading that library.
+> In such case, use `https://libraries.minecraft.net` as a base URL for downloading that library.
 > 
 > Example:
 > ```json
@@ -576,15 +577,28 @@ type SpecificPatchLibraryRuleType = {
   };
 };
 type SpecificPatchLibraryOSNameType =
+  // In this case, according to Scrumjellyfin [5],
+  // "...'linux', 'osx' and 'windows' are only matched on x86_64 or x86".
+
+  // Linux x86_64 and x86
   "linux" |
+  // Linux ARM32
   "linux-arm32" |
+  // Linux ARM64
   "linux-arm64" |
+  // Windows x86_64 and x86
   "windows" |
+  // Windows ARM32
   "windows-arm32" |
+  // Windows ARM64
   "windows-arm64" |
+  // OSX ARM64
   "osx-arm64" |
+  // OSX x86_64 and x86
   "osx";
 type SpecificPatchClassifierKeyType =
+  // It seems logical to consider 'natives-<platform>' as x86_64 and x86,
+  // as the library OS names followed the same convention. However...
   "natives-linux" |
   "natives-linux-${arch}" |
   "natives-linux-arm32" |
@@ -594,14 +608,17 @@ type SpecificPatchClassifierKeyType =
   "natives-osx-arm64" |
   "natives-windows" |
   "natives-windows-${arch}" |
-  // But there is already 'natives-osx' ?????
+  // ...'natives-<platform>' seem not to follow the same format
+  "natives-windows-32" |
+  // Huh? There is already 'natives-osx'...
   "natives-macos" |
   "natives-macos-${arch}" |
   "natives-macos-arm64" |
-  // These exist too
-  "natives-windows-32" |
+
+  /** The next literals are made up by me */
+  // Encountered this value
   "natives-windows-64" |
-  // The next literals are made up by me; never saw them, but they might exist
+  // Never saw these, but they might exist
   "natives-windows-arm32" |
   "natives-windows-arm64" |
   "natives-windows-x64" |
@@ -629,47 +646,47 @@ type SpecificPatchClassifierKeyType =
 The `name` field comes in this format: `<group>:<name>:<version>[:classifier][@extension]`.
 
 > [!IMPORTANT]
-> The `<name>` part can contain a `native` word. In such case, consider the `downloads` field to point to the native library download. The `classifiers` field will be missing
+> The `<name>` part can contain a `native` keyword. In such case, consider the `downloads` field to point to the native library download. Consequently, the `classifiers` field will be missing
 
 Examples:
 
 - `com.mojang:text2speech:1.11.3`
 - `net.java.dev.jna:platform:3.4.0`
-- `ca.weblite:java-objc-bridge:1.1.0-mmachina.1` $\leftarrow$ `version` can be in any format, not just SemVer
-- `io.netty:netty-transport-native-epoll:4.1.97.Final:linux-aarch_64` $\leftarrow$ `classifier` is just a platform with an arch. Possible literals:
+- `ca.weblite:java-objc-bridge:1.1.0-mmachina.1` $\leftarrow$ `<version>` can be in any format, not just SemVer
+- `io.netty:netty-transport-native-epoll:4.1.97.Final:linux-aarch_64` $\leftarrow$ `[classifier]` is just a platform with an arch. Possible literals:
   - `"windows-aarch_64"`
   - `"windows-x86_64"`
   - `"linux-aarch_64"`
   - `"linux-x86_64"`
   - `"osx-aarch_64"`
   - `"osx-x86_64"`
-- `net.neoforged:neoform:1.21.2-20241022.151510@zip` $\leftarrow$ the `classifier` is missing, but `extension` is present. In this case, it equals to `zip`
+- `net.neoforged:neoform:1.21.2-20241022.151510@zip` $\leftarrow$ `[classifier]` is missing, but `[extension]` is present. In this case, it equals to `zip`
 
-The name string always has the `group`, `name`, and `version` parts. The `classifier` and `extension` parts are optional.
+The name string always has the `<group>`, `<name>`, and `<version>` parts. The `[classifier]` and `[extension]` parts are optional.
 
-Parts are divided with a `:` symbol, except for `extension` - it is divided by the `@` symbol.
+Parts are divided with a `:` symbol, except for `[extension]` - it is divided by the `@` symbol. The `<group>` part is divided by dots. The resulted array for `net.java.dev.jna` must look like this: `["net", "java", "dev", "jna"]`. The `[extension]` part should fall back to `jar` if missing.
 
-- The `group` string should be split by dots. The resulted array for `net.java.dev.jna` must look like this: `["net", "java", "dev", "jna"]`.
-- The `name` and `version` strings should be left as they are.
-- The `classifier` part might be parsed for more convenient platform and arch checks.
-- The `extension` part is a file extension. If it is missing, use `jar`.
-
-For the coding part, I would suggest following next actions:
+For the coding part, I would suggest following next algorithm:
 
 1. Split the string by `@` (let us call it `Array_1`).
-2. The `extension` part will be a second element of an `Array_1` (fallback to `jar` if it is undefined).
+2. The `[extension]` part will be a second element of an `Array_1` (fall back to `jar` if it is undefined).
 3. Split the first element of `Array_1` by `:` (let us call it `Array_2`).
-4. Take the `group`, `name`, `version`, and (if defined) `classifier` parts from `Array_2`, respectively.
-5. A filename can look like this: `${name}-${version}-${classifier}.${extension}`. If the classifier is undefined, it would look like this: `${name}-${version}.${extension}`. For example, the `com.mojang:text2speech:1.11.3` string will look like `text2speech-1.11.3.jar`.
-6. For the file directory, you need to split the `group` part by `.` (let us call it `Array_3`).
-7. Push back the `name` and `version` parts into `Array_3`.
+4. Take the `<group>`, `<name>`, `<version>`, and (if defined) `[classifier]` parts from `Array_2`, respectively.
+5. A filename can look like this: `<name>-<version>[-classifier].[extension]`. If the classifier is undefined, it would look like this: `<name>-<version>.[extension]`. For example, the `com.mojang:text2speech:1.11.3` string will look like `text2speech-1.11.3.jar`.
+6. For the file directory, you need to split the `<group>` part by `.` (let us call it `Array_3`).
+7. Push back the `<name>` and `<version>` parts into `Array_3`.
 8. Join the `Array_3` elements using a path separator. For example, the `com.mojang:text2speech:1.11.3` string will look like `com/mojang/text2speech/1.11.3`.
-9. Now you have an artifact classifier, filename, and directory. The relative file path can be obtained by joining the file directory and filename.
-10. **Important:** for the future libraries parsing process, also make an `id` variable in a `${group}:${name}` format.
+9. Now you have an artifact classifier, filename, and directory. The relative filepath can be obtained by joining the file directory and filename.
+10. **Important:** for the future process of parsing libraries, also make an `id` variable in a `<group>:<name>` format.
 
-You can also look at following code:
+You can also look at the following code:
 
 ```ts
+type SpecificPatchClassifierOSType =
+  "windows-aarch_64" | "windows-x86_64" |
+  "linux-aarch_64" | "linux-x86_64" |
+  "osx-aarch_64" | "osx-x86_64";
+
 export function normalizeArtifactPath(artifact: string): {
   "directory" : string;
   "file"      : string;
@@ -727,11 +744,11 @@ type SpecificPatchLibraryRuleType = {
 
 If there are no rules, include the library.
 
-Lin[^2] suggests to start from disallowing the library:
+Lin[^2] suggests to start from disallowing the library.
 
 One should include the library if the OS name is missing. If it is present, then they should allow the library if the specified platform and arch are compatible (or if the specified platform is compatible and the arch is missing).
 
-However, 
+However, for NeoForge 1.21.1, this way of parsing rules additionally downloads 16 unused native libraries. This is a problem with meta itself:
 
 ```json
 {
@@ -753,74 +770,30 @@ However,
 }
 ```
 
-By judging the library name, this library is needed only for Windows ARM64. It also seems like Minecraft is working perfectly without it on Windows x86_64. But the so called `rules` are specifying the `windows` without any arch. For what reason? This is beyond me. For NeoForge 1.21.1, this way of parsing rules additionally downloads 16 useless (?) native libraries.
+The specified rules allow this library to be downloaded on Windows x86_64, x86, and ARM64. Yet, by judging the library name, it is needed only for Windows ARM64. It also seems like Minecraft is working perfectly without it on Windows x86_64.
 
-> But what if you include the library only if it explicitly specifies the same arch?
+One might check the library name for `arm64` and `arm32` occurrences to approve the library only for their respective arches. Although I am not sure if it will work in 100% cases.
 
-Consider the next library:
-
-```json
-{
-  "name": "com.mojang:jtracy-natives-windows:1.0.29",
-  "rules": [
-    {
-      "action": "allow",
-      "os": {
-        "name": "windows"
-      }
-    }
-  ]
-}
-```
-
-Obviously, you need to include this library for Windows with any arch, even though it does not specify the arch.
-
-I am suggesting to use the next logic that has some flaws, but works in every tested Minecraft version with every mod loader.
+The coding part.
 
 ```ts
-let toInclude: boolean = true;
+let toInclude: boolean = false;
 
 for (const rule of rules) { /* ... */ }
 ```
 
 For each rule:
 
-The OS name with (optional) arch can be accessed via `rule.name.os` property. The action can be accessed via `rule.action`
+The OS name literal can be accessed via `rule.name.os` property. The action can be accessed via `rule.action`
 
 1. If the rule OS name is missing, overwrite `toInclude` to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
-2. If the rule OS name is present, extract the platform and arch from it.
-3. If the platform and arch are incompatible, overwrite `toInclude` to `true` if the action equals to `disallow` or is undefined and to `false` in other cases (`true`).
-4. If the platform and arch (arch is also compatible if it is not specified in the OS name) are compatible, then overwrite `toInclude` variable to `true` if the `action` field equals to `allow` and to `false` in other cases (`false`, undefined).
+2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64`.
+3. If the platform and arch are incompatible, do not overwrite `toInclude`.
+4. If the platform and arch are compatible, then overwrite `toInclude` variable to `true` if the `action` field equals to `allow` and to `false` in other cases (`false`, undefined).
 
 The TypeScript code representation of the algorithm:
 
 ```ts
-function handlePlatformRule({
-  platform,
-  arch,
-  rule,
-}: {
-  "platform": PreLaunchInformationType["platform"];
-  "arch"    : PreLaunchInformationType["arch"];
-  "rule"    : DeepRequired<SpecificPatchLibraryRuleType>;
-}): boolean {
-  const {
-    "platform": unifiedPlatform,
-    "arch"    : unifiedArch,
-  } = unifyPlatformWithArch(rule.os.name);
-  const isCompatiblePlatform = unifiedPlatform === platform;
-  const isCompatibleArch =
-    unifiedArch === "any" ||
-    unifiedArch === arch;
-
-  // We care about the rule only if it targets the same platform and arch
-  if (!isCompatiblePlatform || !isCompatibleArch) {
-    return rule.action === "disallow";
-  }
-
-  return rule.action === "allow";
-}
-
 function shouldIncludeLibrary({
   necessaries,
   library,
@@ -837,7 +810,7 @@ function shouldIncludeLibrary({
 
   const { platform, arch } = necessaries;
   const rules: Array<SpecificPatchLibraryRuleType> = library.rules;
-  let toInclude: boolean = true;
+  let toInclude: boolean = false;
 
   for (const rule of rules) {
     const parsedOS: SpecificPatchLibraryOSNameType | undefined = rule?.os?.name;
@@ -850,17 +823,57 @@ function shouldIncludeLibrary({
 
     toInclude = handlePlatformRule({
       "rule": {
-        "action": rule?.action ?? "disallow",
+        "action": rule?.action ?? "allow",
         "os"    : {
           "name": parsedOS,
         },
       },
+      "current": toInclude,
       platform,
       arch,
     });
   }
 
   return toInclude;
+}
+
+function handlePlatformRule({
+  platform,
+  arch,
+  rule,
+  current,
+}: {
+  "platform": PreLaunchInformationType["platform"];
+  "arch"    : PreLaunchInformationType["arch"];
+  "rule"    : DeepRequired<SpecificPatchLibraryRuleType>;
+  "current" : boolean;
+}): boolean {
+  const {
+    "platform": unifiedPlatform,
+    "arch"    : unifiedArch,
+  } = unifyPlatformWithArch(rule.os.name);
+  const isCompatiblePlatform: boolean = unifiedPlatform === platform;
+
+  /*
+   * The possible values for OS name are:
+   * - 'platform'       <-- means x86_64 or x86 ('unifyPlatformWithArch' returns 'any')
+   * - 'platform-arm32' <-- means arm32
+   * - 'platform-arm64' <-- means arm64
+   */
+  const isCompatibleAnyArch: boolean = unifiedArch === "any" && (
+          arch === "x64" ||
+          arch === "x86"
+  );
+  const isCompatibleArch: boolean =
+          isCompatibleAnyArch ||
+          unifiedArch === arch;
+
+  // We care about the rule only if it targets the same platform and arch
+  if (!isCompatiblePlatform || !isCompatibleArch) {
+    return current;
+  }
+
+  return rule.action === "allow";
 }
 ```
 
@@ -872,7 +885,7 @@ If the library name includes the `native` word, then the library is a native lib
 
 ### Parsing the library and maven files
 
-If the library only has a `name` field, then use `https://libraries.minecraft.net` as a base URL and build a download URL by normalizing `name` (`<group>:<name>:<version>[:classifier][@extension]`) into `${group splitted by dots and joined using slash}/${name}/${version}/${name}-${version}-${classifier only if present}.${extension}`, e.g. `net.minecraft:launchwrapper:1.12` into `https://libraries.minecraft.net/net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar`.
+If the library only has a `name` field, then use `https://libraries.minecraft.net` as a base URL and build a download URL by normalizing `name` (`<group>:<name>:<version>[:classifier][@extension]`) into `<group splitted by dots and joined using a forward slash>/<name>/<version>/<name>-<version>[-classifier only if present].<extension>`, e.g. `net.minecraft:launchwrapper:1.12` into `https://libraries.minecraft.net/net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar`.
 
 If the library only has `name` and `url` fields, then use that `url` field as a base URL and build a download URL as described above.
 
@@ -905,7 +918,7 @@ const foundMavenFiles: Array<MappedArtifactType> = [];
 const uniqueArtifacts = new Map<string, MappedArtifactType>;
 ```
 
-Hash maps with library IDs (`${group}-${name}`) as keys should work. Each patch overwrites the map, and since patch parsing goes from dependencies to parents, the entry patches will always have the main priority.
+Hash maps with library IDs (`<group>:<name>`) as keys should work. Each patch overwrites the map, and since patch parsing goes from dependencies to parents, the entry patches will always have the main priority.
 
 ## idk later
 
