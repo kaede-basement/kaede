@@ -182,6 +182,7 @@ export async function downloadAssets({
     statuses,
     "concurrency": GeneralSettings.ConcurrentDownloads.Assets,
     "entries"    : missingAssetObjects,
+    "label"      : "assets",
   });
 
   log.info(

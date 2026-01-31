@@ -9,12 +9,16 @@ export function concurrentlyDownload({
   concurrency,
   entries,
   statuses,
+  label,
 }: {
   "concurrency": number;
   "entries"    : Array<{ "url": string; "path": string }>;
   "statuses"   : LauncherStatusesType;
+  "label"      : string;
 }): Promise<Array<void>> {
-  log.debug(__PRE_BUNDLED_FILENAME__, `Removing duplicates for ${entries.length} objects`);
+  const logPrefix: string = `${label}:${__PRE_BUNDLED_FILENAME__}`;
+
+  log.debug(logPrefix, `Removing duplicates for ${entries.length} objects`);
   const uniqueMap: Map<string, string> = new Map(
     // It is probably better to filter by unique paths rather than unique URLs...
     entries.map(({ url, path }) => [path, url]),
@@ -26,7 +30,7 @@ export function concurrentlyDownload({
   }
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Removed ${entries.length - uniqueArtifacts.length}/${entries.length} duplicates`,
   );
 
@@ -35,7 +39,7 @@ export function concurrentlyDownload({
   };
 
   log.debug(
-    __PRE_BUNDLED_FILENAME__,
+    logPrefix,
     `Starting to download ${uniqueArtifacts.length}/${entries.length} objects`,
   );
   statuses.downloads.total = statuses.downloads.total + uniqueArtifacts.length;
@@ -54,7 +58,7 @@ export function concurrentlyDownload({
           const { url, path } = uniqueArtifacts[index];
 
           log.debug(
-            __PRE_BUNDLED_FILENAME__,
+            logPrefix,
             `Concurrency group ${groupIndex}: downloading (${entryOutOfTotal}) '${url}'`,
           );
           try {
@@ -66,7 +70,7 @@ export function concurrentlyDownload({
             statuses.downloads.success++;
           } catch (error: unknown) {
             log.error(
-              __PRE_BUNDLED_FILENAME__,
+              logPrefix,
               `Concurrency group ${groupIndex}:`,
               `could not download the ${entryOutOfTotal} object:`,
               Errors.prettify(error),

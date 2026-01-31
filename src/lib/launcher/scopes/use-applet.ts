@@ -75,7 +75,7 @@ export async function useApplet({
      */
     if (line.includes("__java_applet_pid_workaround_")) {
       log.debug(
-        `${__PRE_BUNDLED_FILENAME__}:${instanceId}`,
+        `${instanceId}:${__PRE_BUNDLED_FILENAME__}`,
         "Trying to extract an actual process PID",
       );
       const elements: Array<string> = line.split("_");

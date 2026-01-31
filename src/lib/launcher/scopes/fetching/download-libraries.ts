@@ -73,6 +73,7 @@ export async function downloadLibraries({
     statuses,
     "concurrency": GeneralSettings.ConcurrentDownloads.Libraries,
     "entries"    : missingArtifacts,
+    "label"      : "libraries",
   });
   await ExtensionsManager.catchAsyncVoidHooks({
     "scope" : "onMinecraftLibrariesGet",
