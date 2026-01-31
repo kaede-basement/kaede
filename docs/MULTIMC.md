@@ -163,15 +163,15 @@ type MappedArtifactType = {
   "hash"     : string | "ignore";
 
   /**
-   * 'library' should be both downloaded and included in the classpath
-   * 'mavenFile' should be only downloaded
-   * 'native' should be downloaded and extracted but not included in the classpath
+   * 'library' should be both downloaded and included in classpath
+   * 'mavenFile' should be downloaded
+   * 'native' should be downloaded and extracted but not included in classpath
    */
   "status"?: "library" | "mavenFile" | "native";
 
   /*
    * Indicates the '+libraries' field in MultiMC patches.
-   * Should be specified the first in classpaths
+   * Should be specified the first in classpath
    */
   "first"?: boolean;
 };
@@ -237,7 +237,7 @@ type PatchIndexVersionType = {
   // A version string, e.g. '26.1-snapshot-2' or '1.21.10'
   "version": string;
 
-  // An array of conflicted patches
+  // An array of conflicting patches
   "conflicts"?: Array<PatchDependencyType>;
 
   // An array of required patches, i.e. dependencies
@@ -369,9 +369,9 @@ type SpecificPatchMetaType = {
   "mainJar"?: SpecificPatchMainJarType;
 
   // An array of needed libraries for this patch that should be downloaded
-  // without being specified in classpaths.
+  // without being specified in classpath.
   // However, if the library was also included in the 'libraries' field,
-  // such library should be specified in classpaths
+  // such library should be specified in classpath
   "mavenFiles"?: Array<SpecificPatchLibraryType>;
 
   // A string with the game arguments. These arguments have placeholders that should be replaced,
@@ -388,7 +388,7 @@ type SpecificPatchMetaType = {
   // An array of dependencies of this patch. As was shown with the Fabric example, can go three levels deep
   "requires"?: Array<PatchDependencyType>;
 
-  // An array of runtimes to download. Used by Java patches, i.e. 'com.azul.java'
+  // An array of runtimes to download. Used by Java patches, e.g. 'com.azul.java'
   // This field is not needed for Minecraft downloading and launching part,
   // so we will stop here
   "runtimes"?: Array<{ /* ... */ }>;
@@ -499,7 +499,7 @@ type SpecificPatchLibraryType = {
   // Explained in the next section
   "name": string;
   // An object with all the information for downloading the library.
-  // If it is missing, consider the 'natives' or 'url' fields
+  // If it is missing, see a 'url' field
   "downloads"?: {
     // A library to download.
     // In newer versions, can represent a native library (1.21.2)
@@ -515,9 +515,7 @@ type SpecificPatchLibraryType = {
       "id"?: string;
       // A relative filepath to where one should download a library.
       // Honestly, I have no idea if this field should even be used.
-      // I mean, if it exists, then it serves a purpose.
-      // However, this field can be missing, and when it is present,
-      // it will have the same path value that you will be able to obtain
+      // You will be able to obtain the same path value
       // in the next section ("Normalizing the artifact name")
       //
       // Example: 'net/neoforged/JarJarMetadata/0.4.1/JarJarMetadata-0.4.1.jar'
@@ -539,19 +537,19 @@ type SpecificPatchLibraryType = {
   // Seems like this field is not critical and can be ignored
   "extract"?: {
     // Directories to exclude extracting for.
-    // For example, ["META-INF/"] means not to extract the 'META-INF' folder for this native.
+    // For example, '["META-INF/"]' means not to extract the 'META-INF' folder for this native.
     "exclude": Array<string>;
   };
   // Seem to list available natives for present platforms and arches
   "natives"?: Partial<{
-    // The 'linux' key turns into 'natives-linux'.
-    // Might have the 'SpecificPatchClassifierKeyType' typed value
+    // The 'linux' key turns into a 'natives-linux' value that
+    // might have the 'SpecificPatchClassifierKeyType' typed value
     [key: SpecificPatchLibraryOSNameType]: string;
   }>;
   // A list of rules that should be applied for specified platforms (and arches)
   "rules"?: Array<SpecificPatchLibraryRuleType>;
   // A base URL for downloading this library.
-  // Might be present only if the 'natives' and 'downloads' field are missing.
+  // Might be present only if the 'natives' and 'downloads' fields are missing.
   // Sometimes this field has a URL that ends with a slash, sometimes not
   "url"?: string;
   // What the heck is this (can be 'always-stale' or 'local')
@@ -583,22 +581,22 @@ type SpecificPatchLibraryOSNameType =
   // In this case, according to Scrumjellyfin [5],
   // "...'linux', 'osx' and 'windows' are only matched on x86_64 or x86".
 
-  // Linux x86_64 and x86
+  // Linux x86_64 or x86
   "linux" |
   // Linux ARM32
   "linux-arm32" |
   // Linux ARM64
   "linux-arm64" |
-  // Windows x86_64 and x86
+  // Windows x86_64 or x86
   "windows" |
   // Windows ARM32
   "windows-arm32" |
   // Windows ARM64
   "windows-arm64" |
+  // OSX x86_64 or x86
+  "osx" |
   // OSX ARM64
-  "osx-arm64" |
-  // OSX x86_64 and x86
-  "osx";
+  "osx-arm64";
 type SpecificPatchClassifierKeyType =
   // It seems logical to consider 'natives-<platform>' as x86_64 and x86,
   // as the library OS names followed the same convention. However...
@@ -711,7 +709,7 @@ function normalizeArtifactPath(artifact: string): {
   const version: string | undefined = paths?.[2];
   const classifier: string | undefined = paths?.[3];
 
-  // The 'group', 'name', and 'version' elements should be always present
+  // The 'group', 'name', and 'version' elements should always be present
   if (!group || !name || !version) {
     const specifiedMessage: string =
       `(either group (${group}), name (${name}), or version (${version}) is missing)`;
@@ -1102,7 +1100,7 @@ function finalizePatches({
 ```
 
 > [!NOTE]
-> One of the most complex parts is done. However, you still need to download artifacts and build classpaths, JVM arguments, and game arguments
+> One of the most complex parts is done. However, you still need to download artifacts and build classpath, JVM arguments, and game arguments
 > 
 > <img width="60%" src="./assets/never-kys-hoshino.jpg" alt="A twitter post with Takanashi Hoshino plush and a 'never kys' text" />
 
@@ -1146,7 +1144,7 @@ The object key can be ignored. What one actually needs here is `hash`:
 
 These URLs should be downloaded into `<asset objects directory>/<first two chars>/<full hash>`. Asset objects do not have any file extensions.
 
-Before downloading, check for the existence of all resulted file paths and verify their SHA1 hashes. Download the missing ones.
+Before downloading, check for the existence of all resulted file paths and verify their SHA-1 hashes. Download the missing ones.
 
 > [!NOTE]
 > There are exactly 256 possible unique combinations of short hashes, i.e. hexadecimals.
