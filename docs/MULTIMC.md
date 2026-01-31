@@ -142,7 +142,7 @@ type PatchIndexVersionType = {
   // The version release time in the ISO 8601 string format
   "releaseTime": string;
 
-  // An SHA-256 hash that the provided JSON file for this patch version should have
+  // A SHA-256 hash that the provided JSON file for this patch version should have
   "sha256": string;
 
   // A version string, e.g. '26.1-snapshot-2'
@@ -254,7 +254,8 @@ type SpecificPatchMetaType = {
   // An array of Java major versions that are compatible with the patch
   "compatibleJavaMajors"?: Array<number>;
 
-  // Might represent the compatible Java vendor name
+  // Might represent the compatible Java vendor name.
+  // Present in '12w07b' and can be 'jre-legacy'
   "compatibleJavaName"?: string;
 
   // An array of conflicting patches. Usually present in 'org.lwjgl' and 'org.lwjgl3'
@@ -295,10 +296,12 @@ type SpecificPatchMetaType = {
   "requires"?: Array<PatchDependencyType>;
 
   // An array of runtimes to download. Used by Java patches, i.e. 'com.azul.java'
-  "runtimes"?: Array<SpecificPatchRuntimeType>;
+  // This field is not needed for Minecraft downloading and launching part,
+  // so we will stop here
+  "runtimes"?: Array<{ /* ... */ }>;
 
   // Used not only in the 'net.minecraft' patches, but in others too
-  "type"?: PatchVariantType;
+  "type"?: "release" | "snapshot" | "experiment" | "old_alpha" | "old_beta" | "old_snapshot";
 
   // No clue. Present in 'net.fabricmc.intermediary'
   "volatile"?: boolean;
@@ -314,7 +317,7 @@ type SpecificPatchAssetIndexType = {
   // Used for storing the index JSON file. Can be "27" or "pre-1.6"
   "id": string;
 
-  // An SHA-1 hash that the downloaded JSON file should have
+  // A SHA-1 hash that the downloaded JSON file should have
   "sha1": string;
 
   // The size of a JSON file in bytes
@@ -355,7 +358,7 @@ type SpecificPatchLoggingType = {
     // Used for storing the logging configuration JSON file
     "id": string;
 
-    // An SHA-1 hash that the downloaded JSON file should have
+    // A SHA-1 hash that the downloaded JSON file should have
     "sha1": string;
 
     // The size of a JSON file in bytes
@@ -381,7 +384,7 @@ The `SpecificPatchMainJarType` type schema is equal to:
 type SpecificPatchMainJarType = {
   "downloads": {
     "artifact": {
-      // An SHA-1 hash that the downloaded jar file should have
+      // A SHA-1 hash that the downloaded jar file should have
       "sha1": string;
 
       // The size of a jar file in bytes
@@ -441,15 +444,35 @@ Finally, the `SpecificPatchLibraryType` type schema is equal to:
 type SpecificPatchLibraryType = {
   // Explained in the next section
   "name": string;
+  // An object with all the information for downloading the library.
+  // If it is missing, consider the 'natives' or 'url' fields
   "downloads"?: {
+    // A library to download.
+    // In newer versions, can represent a native library (1.21.2)
     "artifact"?: {
+      // A SHA-1 hash that the downloaded file should have
       "sha1": string;
+      // A file size in bytes
       "size": number;
+      // A URL for downloading the library
       "url": string;
+      // Cannot remember/find what this represents and where it was.
+      // Just ignore it
       "id"?: string;
+      // A relative filepath to where you should download a library.
+      // Honestly, I have no idea if you even should use this field.
+      // I mean, if it is present, then it serves a purpose.
+      // However, this field can be missing, and when it exists,
+      // it will have the same path value that you will be able to obtain
+      // in the next section ("Normalizing the artifact name")
+      //
+      // Example: 'net/neoforged/JarJarMetadata/0.4.1/JarJarMetadata-0.4.1.jar'
       "path"?: string;
     };
+    // An additional native library to download for specified platforms (and arches).
+    // Present in older versions (1.16.5)
     "classifiers"?: {
+      // Same structure as in the 'artifact' field
       [key: SpecificPatchClassifierKeyType]: {
         "sha1": string;
         "size": number;
@@ -465,14 +488,16 @@ type SpecificPatchLibraryType = {
     // For example, ["META-INF/"] means not to extract the 'META-INF' folder for this native.
     "exclude": Array<string>;
   };
-  // An additional library to download for specified platforms (and arches)
+  // Seem to list available natives for present platforms and arches
   "natives"?: Partial<{
+    // The 'linux' key turns into 'natives-linux'.
+    // Might have the 'SpecificPatchClassifierKeyType' typed value
     [key: SpecificPatchLibraryOSNameType]: string;
   }>;
   // A list of rules that should be applied for specified platforms (and arches)
   "rules"?: Array<SpecificPatchLibraryRuleType>;
   // A base URL for downloading this library.
-  // Present only if the 'natives' and 'downloads' field are missing.
+  // Might be present only if the 'natives' and 'downloads' field are missing.
   // Sometimes this field has a URL that ends with a slash, sometimes not
   "url"?: string;
   // What the heck is this (can be 'always-stale' or 'local')
@@ -480,9 +505,81 @@ type SpecificPatchLibraryType = {
 };
 ```
 
+> [!IMPORTANT]
+> Some libraries only specify the `name` field.
+> In this case, use `https://libraries.minecraft.net` as a base URL for downloading that library.
+> 
+> Example:
+> ```json
+> {
+>   "name": "net.sf.trove4j:trove4j:3.0.3"
+> }
+> ```
+
+The library object has some new types:
+
+```ts
+type SpecificPatchLibraryRuleType = {
+  "action": "allow" | "disallow";
+  "os"   ?: {
+    "name": SpecificPatchLibraryOSNameType;
+  };
+};
+type SpecificPatchLibraryOSNameType =
+  "linux" |
+  "linux-arm32" |
+  "linux-arm64" |
+  "windows" |
+  "windows-arm32" |
+  "windows-arm64" |
+  "osx-arm64" |
+  "osx";
+type SpecificPatchClassifierKeyType =
+  "natives-linux" |
+  "natives-linux-${arch}" |
+  "natives-linux-arm32" |
+  "natives-linux-arm64" |
+  "natives-osx" |
+  "natives-osx-${arch}" |
+  "natives-osx-arm64" |
+  "natives-windows" |
+  "natives-windows-${arch}" |
+  // But there is already 'natives-osx' ?????
+  "natives-macos" |
+  "natives-macos-${arch}" |
+  "natives-macos-arm64" |
+  // These exist too
+  "natives-windows-32" |
+  "natives-windows-64" |
+  // The next literals are made up by me; never saw them, but they might exist
+  "natives-windows-arm32" |
+  "natives-windows-arm64" |
+  "natives-windows-x64" |
+  "natives-windows-x86" |
+  "natives-windows-x86_64" |
+  "natives-linux-32" |
+  "natives-linux-64" |
+  "natives-linux-x64" |
+  "natives-linux-x86" |
+  "natives-linux-x86_64" |
+  "natives-osx-32" |
+  "natives-osx-64" |
+  "natives-osx-x64" |
+  "natives-osx-x86" |
+  "natives-osx-x86_64" |
+  "natives-macos-32" |
+  "natives-macos-64" |
+  "natives-macos-x64" |
+  "natives-macos-x86" |
+  "natives-macos-x86_64";
+```
+
 ### Normalizing the artifact name
 
 The `name` field comes in this format: `<group>:<name>:<version>[:classifier][@extension]`.
+
+> [!IMPORTANT]
+> The `<name>` part can contain a `native` word. In such case, consider the `downloads` field to point to the native library download. The `classifiers` field will be missing
 
 Examples:
 
@@ -558,8 +655,8 @@ export function normalizeArtifactPath(artifact: string): {
   return {
     "directory": General.cachedJoin(...folders),
     "file"     : classifier === undefined
-            ? `${name}-${version}.${extension}`
-            : `${name}-${version}-${classifier}.${extension}`,
+      ? `${name}-${version}.${extension}`
+      : `${name}-${version}-${classifier}.${extension}`,
     "classifier": classifier as SpecificPatchClassifierOSType | undefined,
     // 'org.ow2.asm:asm-tree'
     "id"        : `${group}:${name}`,
@@ -567,9 +664,171 @@ export function normalizeArtifactPath(artifact: string): {
 }
 ```
 
-For the URL building part (using a base URL from the `url` field), you need to do some additional steps:
+### Rule parsing
 
-## Implementing the launch part
+```ts
+type SpecificPatchLibraryRuleType = {
+  "action": "allow" | "disallow";
+  "os"   ?: {
+    "name": SpecificPatchLibraryOSNameType;
+  };
+};
+```
+
+If there are no rules, include the library.
+
+Lin[^2] suggests to start from disallowing the library.
+
+In that case, one should include the library if the OS name is missing.
+
+If it is present, then they should allow the library if the specified platform and arch are compatible (or if the specified platform is compatible and the arch is missing).
+
+However, the whole Minecraft launching process is so shitty and undocumented with 10000 workarounds and edge cases that I genuinely do not know if the next native library is a joke or not:
+
+```json
+{
+  "name": "org.lwjgl:lwjgl-jemalloc-natives-windows-arm64:3.3.3",
+  "rules": [
+    {
+      "action": "allow",
+      "os": {
+        "name": "windows"
+      }
+    },
+    {
+      "action": "allow",
+      "os": {
+        "name": "windows-arm64"
+      }
+    }
+  ]
+}
+```
+
+By judging the library name, this library is needed only for Windows ARM64. It also seems like Minecraft is working perfectly without it on Windows x86_64. But the so called `rules` are specifying the `windows` without any arch. For what reason? This is beyond me. For NeoForge 1.21.1, this way of parsing rules additionally downloads 16 useless (?) native libraries.
+
+> But what if you include the library only if it explicitly specifies the same arch?
+
+Consider the next library:
+
+```json
+{
+  "name": "com.mojang:jtracy-natives-windows:1.0.29",
+  "rules": [
+    {
+      "action": "allow",
+      "os": {
+        "name": "windows"
+      }
+    }
+  ]
+}
+```
+
+Obviously, you need to include this library for Windows with any arch, even though it does not specify the arch.
+
+I am suggesting to use the next logic that has some flaws, but works in every tested Minecraft version with every mod loader.
+
+```ts
+let toInclude: boolean = true;
+
+for (const rule of rules) { /* ... */ }
+```
+
+For each rule:
+
+The OS name with (optional) arch can be accessed via `rule.name.os` property. The action can be accessed via `rule.action`
+
+1. If the rule OS name is missing, overwrite `toInclude` to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
+2. If the rule OS name is present, extract the platform and arch from it.
+3. If the platform and arch are incompatible, overwrite `toInclude` to `true` if the action equals to `disallow` or is undefined and to `false` in other cases (`true`).
+4. If the platform and arch (arch is also compatible if it is not specified in the OS name) are compatible, then overwrite `toInclude` variable to `true` if the `action` field equals to `allow` and to `false` in other cases (`false`, undefined).
+
+The TypeScript code representation of the algorithm:
+
+```ts
+function handlePlatformRule({
+  platform,
+  arch,
+  rule,
+}: {
+  "platform": PreLaunchInformationType["platform"];
+  "arch"    : PreLaunchInformationType["arch"];
+  "rule"    : DeepRequired<SpecificPatchLibraryRuleType>;
+}): boolean {
+  const {
+    "platform": unifiedPlatform,
+    "arch"    : unifiedArch,
+  } = unifyPlatformWithArch(rule.os.name);
+  const isCompatiblePlatform = unifiedPlatform === platform;
+  const isCompatibleArch =
+    unifiedArch === "any" ||
+    unifiedArch === arch;
+
+  // We care about the rule only if it targets the same platform and arch
+  if (!isCompatiblePlatform || !isCompatibleArch) {
+    return rule.action === "disallow";
+  }
+
+  return rule.action === "allow";
+}
+
+function shouldIncludeLibrary({
+  necessaries,
+  library,
+}: {
+  "necessaries": PreLaunchInformationType;
+  "library"    : SpecificPatchLibraryType;
+}): boolean {
+  if (
+    library?.rules === undefined ||
+    !Array.isArray(library.rules)
+  ) {
+    return true;
+  }
+
+  const { platform, arch } = necessaries;
+  const rules: Array<SpecificPatchLibraryRuleType> = library.rules;
+  let toInclude: boolean = true;
+
+  for (const rule of rules) {
+    const parsedOS: SpecificPatchLibraryOSNameType | undefined = rule?.os?.name;
+
+    if (parsedOS === undefined) {
+      toInclude = rule?.action === "allow";
+
+      continue;
+    }
+
+    toInclude = handlePlatformRule({
+      "rule": {
+        "action": rule?.action ?? "disallow",
+        "os"    : {
+          "name": parsedOS,
+        },
+      },
+      platform,
+      arch,
+    });
+  }
+
+  return toInclude;
+}
+```
+
+### Checking is the library is a native
+
+If the `classifiers` are present, then the library is a native library that has the old format.
+
+If the library name includes the `native` word, then the library is a native library that has the new format.
+
+### Parsing the library
+
+If the library only has a `name` field, then use `https://libraries.minecraft.net` as a base URL and build a download URL by normalizing `name` (`<group>:<name>:<version>[:classifier][@extension]`) into `${group splitted by dots and joined using slash}/${name}/${version}/${name}-${version}-${classifier only if present}.${extension}`, e.g. `net.minecraft:launchwrapper:1.12` into `https://libraries.minecraft.net/net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar`
+
+### Parsing the native library
+
+## idk later
 
 ### Adding mods
 
