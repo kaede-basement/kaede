@@ -780,7 +780,7 @@ However, for NeoForge 1.21.1, this way of parsing rules additionally downloads 1
 
 The specified rules allow this library to be downloaded on Windows x86_64, x86, and ARM64. Yet, by judging the library name, it is needed only for Windows ARM64. It also seems like Minecraft is working perfectly without it on Windows x86_64.
 
-One might check the library name for `arm64` and `arm32` occurrences to approve the library only for the user arch. Although I am not sure if it will work in 100% cases.
+One might check the library name for `arm64` and `arm32` occurrences to approve the library only for the user arch. I am not sure if it will work in 100% cases, though.
 
 The coding part.
 
@@ -792,12 +792,12 @@ for (const rule of rules) { /* ... */ }
 
 For each rule:
 
-The OS name literal can be accessed via `rule.name.os` property. The action can be accessed via `rule.action`
+The OS name literal can be accessed via `rule.name.os` property. The action can be accessed via `rule.action`.
 
 1. If the rule OS name is missing, overwrite `toInclude` to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
 2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`[^5]. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64` is equivalent to `linux` and `arm64`.
 3. If the platform and arch are incompatible, do not overwrite `toInclude`.
-4. If the platform and arch are compatible, then overwrite `toInclude` variable to `true` if the `action` field equals to `allow` and to `false` in other cases (`false`, undefined).
+4. If the platform and arch are compatible, then overwrite `toInclude` variable to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
 
 The TypeScript code representation of the algorithm:
 
@@ -930,11 +930,11 @@ If the library name includes the `native` word, then the library **is** native (
 > 
 > New-formatted native libraries should be both added into classpath and extracted (the `artifact` field), so you need to parse them here too.
 > 
-> Do not forget about `+libraries` field too. I only saw it in the OptiFine patch, though. By checking how Hello Minecraft! Launcher sorts classpath, it seems like `+libraries` should go before all other `libraries`
+> Do not forget about `+libraries` field. I only saw it in the OptiFine patch, though. By checking how Hello Minecraft! Launcher sorts classpath, it seems like `+libraries` should go before all other `libraries`
 
 If the library only has a `name` field, then use `https://libraries.minecraft.net` as a base URL and build a download URL by normalizing `name` (`<group>:<name>:<version>[:classifier][@extension]`) into `<group splitted by dots and joined using a forward slash>/<name>/<version>/<name>-<version>[-classifier only if present].<extension>`, e.g. `net.minecraft:launchwrapper:1.12` becomes `https://libraries.minecraft.net/net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar`.
 
-If the library only has `name` and `url` fields, then use that `url` field as a base URL and build a download URL as described above.
+If the library only has the `name` and `url` fields, then use that `url` field as a base URL and build a download URL as described above.
 
 If the library has the `downloads` field, then use `downloads.artifact.url` as a download URL.
 
@@ -942,7 +942,7 @@ If the library has the `downloads` field, then use `downloads.artifact.url` as a
 
 New-formatted native library formats specify the platform and arch in the `classifier` part of a library name (`<group>:<name>:<version>[:classifier][@extension]`). Extract the platform and arch from that classifier. If they are compatible, download the native library. You will need to extract it later.
 
-Note that with new-formatted natives you already parsed them in the previous section, so you need to either indicate that they are both downloaded, included in classpath, and extracted. Another possible solution is simply to leave them coexist in the same array of artifacts, and ignore artifact duplicates at downloading stages.
+Note that with new-formatted natives you already parsed them in the previous section, so you need to indicate that they are both downloaded, included in classpath, and extracted. Another possible solution is simply to leave them coexist in the same array of artifacts, and ignore artifact duplicates at downloading stages.
 
 For example:
 
@@ -958,9 +958,9 @@ for (const [path, url] of uniqueMap.entries()) {
 }
 ```
 
-That way, NeoForge 1.21.1 filters out 70 duplicates out of 200 library artifacts.
+That way, we can filter out 70 duplicates out of 200 library artifacts for NeoForge 1.21.1.
 
-If the native library has an old format, iterate over object entries in `classifiers`. If the iterated key has compatible platform and arch, use the `url` field in that classifier field as a download URL. The filename probably should be the same as the last part of a download URL. For example, in `https://libraries.minecraft.net/com/mojang/text2speech/1.11.3/text2speech-1.11.3-natives-linux.jar` the last part will be `text2speech-1.11.3-natives-linux.jar`. However, the name normalization algorithm that was defined earlier already follows the same naming convention (just need to add a `natives` suffix between `version` and `[classifier]`).
+If the native library has an old format, iterate over object entries in `classifiers`. If the iterated key has compatible platform and arch, use the `url` field in that classifier field as a download URL. The filename should probably be the same as the last part of a download URL. For example, in `https://libraries.minecraft.net/com/mojang/text2speech/1.11.3/text2speech-1.11.3-natives-linux.jar` the last part will be `text2speech-1.11.3-natives-linux.jar`. However, the name normalization algorithm that was defined earlier already follows the same naming convention (just need to add a `natives` suffix between `<version>` and `[classifier]`).
 
 ### Merging libraries
 
@@ -1106,7 +1106,7 @@ function finalizePatches({
 
 ## Downloading objects
 
-For some reason, most of Minecraft launches do not download libraries, assets, client, and logging configuration concurrently (perhaps, because it is hard to do that in languages such as C++ or Java). They do it sequentially, even though the assets and libraries themselves are downloaded concurrently. I would suggest to use concurrent resolving of concurrent downloading steps (alright, what am I talking about at this point). Assets, Minecraft client, logging configuration, and libraries do not depend on each other, so one can safely handle all of them at the same time.
+For some reason, most of Minecraft launches do not download libraries, assets, client, and logging configuration concurrently. They do it sequentially, even though the assets and libraries themselves are downloaded concurrently. I would suggest to use concurrent resolving of concurrent downloading steps (alright, what am I talking about at this point). Assets, Minecraft client, logging configuration, and libraries do not depend on each other, so one can safely handle all of them at the same time.
 
 ```ts
 const responses: Array< /* response types */ > = await Promise.all([
@@ -1121,7 +1121,26 @@ const responses: Array< /* response types */ > = await Promise.all([
 
 The asset indexes might be stored in `assets/indexes`, the asset objects might be stored in `assets/objects`. They are shared across all instances.
 
-The asset index file should look like `<id>.json`, e.g. `17.json`. It contains an object will all asset objects to download:
+```ts
+type SpecificPatchAssetIndexType = {
+  // Used for storing the index JSON file. Can be "27" or "pre-1.6"
+  "id": string;
+
+  // A SHA-1 hash that the downloaded JSON file should have
+  "sha1": string;
+
+  // The size of a JSON file in bytes
+  "size": number;
+
+  // Points to the assets index JSON file
+  "url": string;
+
+  // The total size of all asset objects in bytes
+  "totalSize"?: number;
+};
+```
+
+The asset index file should use `id` and look like `<id>.json`, e.g. `17.json`. It contains an object will all asset objects to download:
 
 ```json5
 {
@@ -1142,7 +1161,7 @@ The object key can be ignored. What one actually needs here is `hash`:
 3. Append it to the base URL (e.g. `https://resources.download.minecraft.net/b6`).
 4. Append the full hash to the URL (e.g. `https://resources.download.minecraft.net/b6/b62ca8ec10d07e6bf5ac8dae0c8c1d2e6a1e3356`).
 
-These URLs should be downloaded into `<asset objects directory>/<first two chars>/<full hash>`. Asset objects do not have any file extensions.
+These URLs should be downloaded into `<asset objects directory>/<first two chars>` as `<full hash>`. Asset objects do not have any file extensions. For example, `assets/objects/b6/b62ca8ec10d07e6bf5ac8dae0c8c1d2e6a1e3356`.
 
 Before downloading, check for the existence of all resulted file paths and verify their SHA-1 hashes. Download the missing ones.
 
@@ -1220,7 +1239,7 @@ type SpecificPatchMainJarType = {
 };
 ```
 
-> [!WARNING]
+> [!NOTE]
 > Oh, you are finally here. You made a great progress, but there is still plenty of things left...
 >
 > <img width="60%" src="./assets/never-kys-ibuki.jpg" alt="A twitter post with Tanga Ibuki plush and a 'never kys' text" />
@@ -1246,12 +1265,12 @@ Prism Launcher seems to pick up other mods too, those mods will just not have an
 
 Cited resources
 
-[^1]: [Inside a Minecraft Launcher by Ryan](https://ryanccn.dev/posts/inside-a-minecraft-launcher)
+[^1]: [Inside a Minecraft Launcher, by Ryan](https://ryanccn.dev/posts/inside-a-minecraft-launcher)
 
-[^2]: [How Minecraft Launchers Work by Lin](https://dreta.dev/blog/2023/08/15/how-minecraft-launchers-work/)
+[^2]: [How Minecraft Launchers Work, by Lin](https://dreta.dev/blog/2023/08/15/how-minecraft-launchers-work/)
 
-[^3]: [JSON Patches by MultiMC](https://github.com/MultiMC/Launcher/wiki/JSON-Patches)
+[^3]: [JSON Patches, by MultiMC](https://github.com/MultiMC/Launcher/wiki/JSON-Patches)
 
-[^4]: [Brief explanation of Minecraft launching by RyRy](https://discord.com/channels/1031648380885147709/1064604527636000788/1460544613742809201)
+[^4]: [Brief explanation of Minecraft launching, by RyRy](https://discord.com/channels/1031648380885147709/1064604527636000788/1460544613742809201)
 
-[^5]: [Parsing the OS name in library rules by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
+[^5]: [Parsing the OS name in library rules, by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
