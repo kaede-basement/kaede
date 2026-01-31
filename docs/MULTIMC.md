@@ -9,6 +9,57 @@
 
 The MultiMC patch system is a complex, yet convenient way to manage Minecraft launching with various mod loaders.
 
+## Prerequisites
+
+Initially, I wanted to write the code parts as a pseudocode following the [CLRS conventions](https://course.ccs.neu.edu/cs3000/resources/latex_pseudocode.pdf). However, it would have taken plenty of time, so this walkthrough will only feature TypeScript. To make it easier for one to understand type schemas, they need to know:
+
+- The `?` symbol represents an optional field.
+- The `|` symbol represents logical `OR`.
+- The `&` symbol represents logical `AND`.
+
+Despite `|` and `&` being called 'Union' and 'Intersection' types, respectively, they do **not** represent the Set operators:
+
+```ts
+type First = { "a": number } | { "b": string };
+// Implies:
+const first_1: First = { "a": 10 };
+// Also implies:
+const first_2: First = { "b": "Eden Treaty" };
+// However, does not imply this:
+const first_3: First = { "a": 10, "b": "Decagrammaton" };
+
+type Second = { "a": number } & { "b": string };
+// Implies:
+const second_1: Second = { "a": 0, "b": "Moondrop Aria" };
+// However, does not imply this:
+const second_2: Second = { "a": 0 };
+```
+
+- The `[key: KeyType]: value` field is a value with the computed key name of a `KeyType` string literal. For example, `{ [key: "macos" | "linux"]: string }` is equivalent to:
+
+```ts
+type T = {
+  "macos": string;
+  "linux": string;
+}
+```
+
+The `Partial<{ ... }>` type represents an object where all fields are optional.
+That is, all fields could be missing. For example, `Partial<{ [key: "macos" | "linux"]: string }>` implies:
+
+```ts
+type T_1 = {
+  // Or "linux": string;
+  "macos": string;
+};
+// It also implies this type:
+type T_2 = {
+  "macos": string;
+  "linux": string;
+};
+// Can also be an empty object.
+```
+
 ## How to think of MultiMC patches
 
 Before one starts the coding part, they should understand what to expect from patches.
@@ -81,28 +132,6 @@ The final patch can be used to download artifacts and launch the game. It may no
 
 For example, I implemented the final patch structure like this:
 
-> [!NOTE]
-> The `|` symbol represents logical `OR`.
-> The `&` symbol represents logical `AND`.
-> 
-> Despite being called 'Union' and 'Intersection' types, respectively, they do **not** represent the Set operators:
-> 
-> ```ts
-> type First = { "a": number } | { "b": string };
-> // Implies:
-> const first_1: First = { "a": 10 };
-> // Also implies:
-> const first_2: First = { "b": "Eden Treaty" };
-> // However, does not imply this:
-> const first_3: First = { "a": 10, "b": "Decagrammaton" };
-> 
-> type Second = { "a": number } & { "b": string };
-> // Implies:
-> const second_1: Second = { "a": 0, "b": "Moondrop Aria" };
-> // However, does not imply this:
-> const second_2: Second = { "a": 0 };
-> ```
-
 ```ts
 type FinalizedPatchType = {
   "+jvmArgs"          : Array<string>;
@@ -174,13 +203,6 @@ type PatchIndexType = {
   // An array of available patches that are sorted from latest to oldest versions
   "versions": Array<PatchIndexVersionType>;
 };
-```
-
-The patch index type appears to always have this format.
-
-The `PatchUIDType` looks like this:
-
-```ts
 type PatchUIDType =
   "com.azul.java" |
   "com.mumfrey.liteloader" |
@@ -196,10 +218,9 @@ type PatchUIDType =
   "org.quiltmc.quilt-loader";
 ```
 
-Finally, the patch index version entries have the next type schema:
+The patch index type appears to always have this format.
 
-> [!NOTE]
-> The `?` symbol represents an optional field
+The version entries have the next type schema:
 
 ```ts
 type PatchIndexVersionType = {
@@ -468,45 +489,6 @@ type SpecificPatchMainJarType = {
 ```
 
 Finally, the `SpecificPatchLibraryType` type schema is equal to:
-
-> [!NOTE]
-> The `[key: KeyType]: value` field is a value with the computed key name of a `KeyType` string literal
-> 
-> Example:
-> 
-> `{ [key: "macos" | "linux"]: string }` is equivalent to:
-> 
-> ```ts
-> type T = {
->   "macos": string;
->   "linux": string;
-> }
-> ```
-> 
-> The `Partial<{ ... }>` type represents an object where all fields are optional.
-> That is, all fields could be missing
-> 
-> Example:
-> 
-> `Partial<{ [key: "macos" | "linux"]: string }>` implies:
-> 
-> ```ts
-> type T = {
->   // Or "linux": string;
->   "macos": string;
-> };
-> ```
-> 
-> It also implies this type:
-> 
-> ```ts
-> type T = {
->   "macos": string;
->   "linux": string;
-> };
-> ```
-> 
-> Or an empty object.
 
 ```ts
 type SpecificPatchLibraryType = {
