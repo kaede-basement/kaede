@@ -644,6 +644,15 @@ type SpecificPatchClassifierKeyType =
   "natives-macos-x86_64";
 ```
 
+---
+
+> [!WARNING]
+> The next sections will include the coding part too. Prepare for it!
+> 
+> <img width="60%" src="./assets/never-kys-hina.jpg" alt="A twitter post with Sorasaki Hina plush and a 'never kys' text" />
+
+---
+
 ### Normalizing the artifact name
 
 The `name` field comes in this format: `<group>:<name>:<version>[:classifier][@extension]`.
@@ -922,6 +931,15 @@ const uniqueArtifacts = new Map<string, MappedArtifactType>;
 ```
 
 Hash maps with library IDs (`<group>:<name>`) as keys should work. Each patch overwrites the map, and since patch parsing goes from dependencies to parents, the entry patches will always have the main priority.
+
+---
+
+> [!WARNING]
+> The parsing part is done. Time to download all artifacts and build classpaths, JVM arguments, and game arguments!
+> 
+> <img width="60%" src="./assets/never-kys-hoshino.jpg" alt="A twitter post with Takanashi Hoshino plush and a 'never kys' text" />
+
+---
 
 ## idk later
 
