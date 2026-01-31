@@ -1,5 +1,6 @@
 import { APIEndpoints } from "@/constants/launcher.ts";
 import General from "@/lib/general";
+import Parsers from "@/lib/launcher/scopes/parsers/index.ts";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
@@ -7,7 +8,6 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
-import Parsers from "@/lib/launcher/scopes/parsers/index.ts";
 
 export function parseLibrary({
   necessaries,
