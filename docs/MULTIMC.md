@@ -822,11 +822,42 @@ If the `classifiers` are present, then the library is a native library that has 
 
 If the library name includes the `native` word, then the library is a native library that has the new format.
 
-### Parsing the library
+### Parsing the library and maven files
 
-If the library only has a `name` field, then use `https://libraries.minecraft.net` as a base URL and build a download URL by normalizing `name` (`<group>:<name>:<version>[:classifier][@extension]`) into `${group splitted by dots and joined using slash}/${name}/${version}/${name}-${version}-${classifier only if present}.${extension}`, e.g. `net.minecraft:launchwrapper:1.12` into `https://libraries.minecraft.net/net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar`
+If the library only has a `name` field, then use `https://libraries.minecraft.net` as a base URL and build a download URL by normalizing `name` (`<group>:<name>:<version>[:classifier][@extension]`) into `${group splitted by dots and joined using slash}/${name}/${version}/${name}-${version}-${classifier only if present}.${extension}`, e.g. `net.minecraft:launchwrapper:1.12` into `https://libraries.minecraft.net/net/minecraft/launchwrapper/1.12/launchwrapper-1.12.jar`.
+
+If the library only has `name` and `url` fields, then use that `url` field as a base URL and build a download URL as described above.
+
+If the library has the `downloads` field, then use `downloads.artifact.url` as a download URL.
 
 ### Parsing the native library
+
+New native library formats specify the platform and arch in the `classifier` part of a library name (`<group>:<name>:<version>[:classifier][@extension]`). Extract the platform and arch from that classifier. If they are compatible, download the native library.
+
+If the native library has an old format, iterate over object entries in `classifiers`. If the iterated key has compatible platform and arch, use the `url` field in that classifier field as a download URL. The filename probably should be the same as the last part of a download URL. For example, in `https://libraries.minecraft.net/com/mojang/text2speech/1.11.3/text2speech-1.11.3-natives-linux.jar` the last part will be `text2speech-1.11.3-natives-linux.jar`
+
+### Removing duplicated libraries
+
+> [!IMPORTANT]
+> Only for libraries. Maven files and native libraries should be ignored
+
+Remember the patch hierarchy? Dependencies have lower priority than their "parent" patches. If the dependency specifies one version of a library, and the parent specifies another for that exact library, then the library specified by dependency should be ignored.
+
+```ts
+/*
+ * Previously, maven files and libraries shared the same unique artifacts map...
+ * Turns out, NeoForge 1.21.2 does not work well with this approach
+ * since it specifies 'asm' library both in 'mavenFiles' and 'libraries' with different versions.
+ *
+ * It also seems like we do not even need to check for ID duplicates of maven files;
+ * instead, just download every maven file.
+ */
+const foundMavenFiles: Array<MappedArtifactType> = [];
+// Patches might have overlapping artifacts with different versions
+const uniqueArtifacts = new Map<string, MappedArtifactType>;
+```
+
+Hash maps with library IDs (`${group}-${name}`) as keys should work. Each patch overwrites the map, and since patch parsing goes from dependencies to parents, the entry patches will always have the main priority.
 
 ## idk later
 
