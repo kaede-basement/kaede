@@ -14,8 +14,8 @@ The MultiMC patch system is a complex, yet convenient way to manage Minecraft la
 Initially, I wanted to write the code parts as a pseudocode following the [CLRS conventions](https://course.ccs.neu.edu/cs3000/resources/latex_pseudocode.pdf). However, it would have taken plenty of time, so this walkthrough will only feature TypeScript. To make it easier for one to understand type schemas, they need to know:
 
 - The `?` symbol represents an optional field.
-- The `|` symbol represents logical `OR`.
-- The `&` symbol represents logical `AND`.
+- The `|` symbol represents a logical `OR`.
+- The `&` symbol represents a logical `AND`.
 
 Despite `|` and `&` being called 'Union' and 'Intersection' types, respectively, they do **not** represent the Set operators:
 
@@ -272,7 +272,10 @@ The patch index files are usually used on Minecraft instance creation. They are 
 
 > URL format: `https://meta.prismlauncher.org/v1/<uid>/<version>.json`
 
-It only gets worse from this point ^^
+> [!WARNING]
+> Time to deep dive into absolute horrors of Minecraft launching. It only gets worse from this point ^^
+> 
+> <img width="60%" src="./assets/never-kys-arisu.jpg" alt="A twitter post with Tendou Arisu plush and a 'never kys' text" />
 
 The JSON files for version-specific patches diverse with each patch. This is what the final type looks like:
 
@@ -510,10 +513,10 @@ type SpecificPatchLibraryType = {
       // Cannot remember/find what this represents and where it was.
       // Just ignore it
       "id"?: string;
-      // A relative filepath to where you should download a library.
-      // Honestly, I have no idea if you even should use this field.
-      // I mean, if it is present, then it serves a purpose.
-      // However, this field can be missing, and when it exists,
+      // A relative filepath to where one should download a library.
+      // Honestly, I have no idea if this field should even be used.
+      // I mean, if it exists, then it serves a purpose.
+      // However, this field can be missing, and when it is present,
       // it will have the same path value that you will be able to obtain
       // in the next section ("Normalizing the artifact name")
       //
@@ -673,7 +676,7 @@ For the coding part, I would suggest following next algorithm:
 3. Split the first element of `Array_1` by `:` (let us call it `Array_2`).
 4. Take the `<group>`, `<name>`, `<version>`, and (if defined) `[classifier]` parts from `Array_2`, respectively.
 5. A filename can look like this: `<name>-<version>[-classifier].[extension]`. If the classifier is undefined, it would look like this: `<name>-<version>.[extension]`. For example, the `com.mojang:text2speech:1.11.3` string will look like `text2speech-1.11.3.jar`.
-6. For the file directory, you need to split the `<group>` part by `.` (let us call it `Array_3`).
+6. For the file directory, split the `<group>` part by `.` (let us call it `Array_3`).
 7. Push back the `<name>` and `<version>` parts into `Array_3`.
 8. Join the `Array_3` elements using a path separator. For example, the `com.mojang:text2speech:1.11.3` string will look like `com/mojang/text2speech/1.11.3`.
 9. Now you have an artifact classifier, filename, and directory. The relative filepath can be obtained by joining the file directory and filename.
