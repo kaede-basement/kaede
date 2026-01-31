@@ -14,25 +14,44 @@ export function concurrentlyDownload({
   "entries"    : Array<{ "url": string; "path": string }>;
   "statuses"   : LauncherStatusesType;
 }): Promise<Array<void>> {
+  log.debug(__PRE_BUNDLED_FILENAME__, `Removing duplicates for ${entries.length} objects`);
+  const uniqueMap: Map<string, string> = new Map(
+    // It is probably better to filter by unique paths rather than unique URLs...
+    entries.map(({ url, path }) => [path, url]),
+  );
+  const uniqueArtifacts: Array<{ "url": string; "path": string }> = [];
+
+  for (const [path, url] of uniqueMap.entries()) {
+    uniqueArtifacts.push({ url, path });
+  }
+
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Removed ${entries.length - uniqueArtifacts.length}/${entries.length} duplicates`,
+  );
+
   const indexReference: { "value": number } = {
     "value": 0,
   };
 
-  log.debug(__PRE_BUNDLED_FILENAME__, `Starting to download ${entries.length} objects`);
-  statuses.downloads.total = statuses.downloads.total + entries.length;
+  log.debug(
+    __PRE_BUNDLED_FILENAME__,
+    `Starting to download ${uniqueArtifacts.length}/${entries.length} objects`,
+  );
+  statuses.downloads.total = statuses.downloads.total + uniqueArtifacts.length;
 
   return Promise.all(
     Array
       .from({ "length": concurrency })
       .map(async (_, groupIndex: number): Promise<void> => {
         while (true) {
-          if (indexReference.value >= entries.length) {
+          if (indexReference.value >= uniqueArtifacts.length) {
             break;
           }
 
-          const entryOutOfTotal = `${indexReference.value + 1}/${entries.length}`;
+          const entryOutOfTotal = `${indexReference.value + 1}/${uniqueArtifacts.length}`;
           const index = indexReference.value++;
-          const { url, path } = entries[index];
+          const { url, path } = uniqueArtifacts[index];
 
           log.debug(
             __PRE_BUNDLED_FILENAME__,
