@@ -1225,7 +1225,7 @@ type SpecificPatchMainJarType = {
 > [!WARNING]
 > Oh, you are finally here. You made a great progress, but there is still plenty of things left...
 >
-> <img width="60%" src="./assets/never-kys-arisu.jpg" alt="A twitter post with Tendou Arisu plush and a 'never kys' text" />
+> <img width="60%" src="./assets/never-kys-ibuki.jpg" alt="A twitter post with Tanga Ibuki plush and a 'never kys' text" />
 
 ## Launching the Minecraft
 
