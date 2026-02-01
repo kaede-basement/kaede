@@ -1254,13 +1254,41 @@ Jar files are essentially archive files. You need to extract the files from them
 
 ### Java Virtual Machine arguments
 
-- `-Xms<number><m>` The minimum heap memory in megabytes that is allocated in RAM to the Java process.
-- `-Xmx<number><m>` The maximum heap memory in megabytes that is allocated in RAM to the Java process.
+It seems like one can safely specify those JVM arguments that were not targeted for current Minecraft version, and the game will still work as intended. This implies, for example, that FML-specific JVM arguments can be present even in Vanilla versions.
+
+The list of possible JVM arguments includes but is not limited to:
+
+- `-Xms<number><m OR g>` - the minimum heap memory in megabytes/gigabytes that is allocated to the Java process, e.g. `-Xms4g` or `-Xms4096m`.
+- `-Xmx<number><m OR g>` - the maximum heap memory in megabytes/gigabytes that is allocated to the Java process, e.g. `-Xmx6144m`.
 
 > [!NOTE]
-> Heap is a dynamic memory area that grows downward. Java is an interpreted (excluding GraalVM Native Image subsets of Java) language by nature, so (almost) all its objects are stored in the heap memory.
+> Heap is a dynamic memory area in RAM. Java is an interpreted (excluding GraalVM Native Image subsets of Java) language by nature, so (almost) all code objects are stored in the heap memory.
 
-For performance tweaking, see [Minecraft-Performance-Flags-Benchmarks repository](https://github.com/brucethemoose/Minecraft-Performance-Flags-Benchmarks).
+- `-Dlog4j2.formatMsgNoLookups=true` - prevents Log4Shell, although this argument is probably not needed anymore since that issue should have been fixed by this point. It also does not work for some old Minecraft versions.
+- `-Djava.net.useSystemProxiestrue` - Hello Minecraft! Launcher by default includes this argument. No clue why it lacks the `=` sign before `true`, though (still works).
+- `-Dfml.ignoreInvalidMinecraftCertificates=true` - [Hello Minecraft! Launcher by default includes this argument](https://github.com/HMCL-dev/HMCL/blob/5c2bb1cc251901dd471a8aa8048d90c22bb56916/HMCLCore/src/main/java/org/jackhuang/hmcl/launch/DefaultLauncher.java#L263).
+- `-Dfml.ignorePatchDiscrepancies=true` - [Hello Minecraft! Launcher by default includes this argument](https://github.com/HMCL-dev/HMCL/blob/5c2bb1cc251901dd471a8aa8048d90c22bb56916/HMCLCore/src/main/java/org/jackhuang/hmcl/launch/DefaultLauncher.java#L264).
+- `-DlibraryDirectory=${libraries_directory}` - is used by some old versions of Minecraft. Points to libraries directory.
+- `-Djava.library.path=${natives_directory}` - points to a temporary natives directory.
+- `-Dminecraft.client.jar=${main_jar_path}` - Hello Minecraft! Launcher *sometimes* includes this argument. Points to the client jar path.
+- `-Djna.tmpdir=${natives_directory}` - points to a temporary natives directory.
+- `-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}` - points to a temporary natives directory.
+- `-Dio.netty.native.workdir=${natives_directory}` - points to a temporary natives directory.
+- `-Dminecraft.launcher.brand=${launcher_name}` - represents your Launcher name.
+- `-Dminecraft.launcher.version=${launcher_version}` - represents your Launcher version.
+- `-Duser.language=${user_locale}` - user locale. For example, `-Duser.language=en`.
+
+Windows-specific ones:
+
+- `-Dos.name=Windows 10` - only on Windows 10. No idea what it does.
+- `-Dos.version=10.0` - only on Windows 10. No idea what it does.
+- `-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump` - appears to improve the game performance for Intel CPUs.
+
+MacOS-specific ones:
+
+- `-XstartOnFirstThread` - appears to improve the game performance. Should be included if the `+traits` (or `traits`) field has a `XstartOnFirstThread` value.
+
+For further performance tweaking, see [Minecraft-Performance-Flags-Benchmarks repository](https://github.com/brucethemoose/Minecraft-Performance-Flags-Benchmarks).
 
 ### Classpath
 

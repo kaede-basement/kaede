@@ -33,6 +33,7 @@ export async function getJvmArguments({
   log.debug(logPrefix, "Adding default JVM arguments");
   jvmArguments.push(
     "-Xmx4096m",
+    "-Dlibrariestru",
     ...Object.values(JVMArguments.Default),
     ...finalizedPatch["+jvmArgs"],
   );
