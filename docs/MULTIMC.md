@@ -578,7 +578,7 @@ type SpecificPatchLibraryRuleType = {
   };
 };
 type SpecificPatchLibraryOSNameType =
-  // In this case, according to Scrumjellyfin [5],
+  // In this case, according to Scrumjellyfin [4],
   // "...'linux', 'osx' and 'windows' are only matched on x86_64 or x86".
 
   // Linux x86_64 or x86
@@ -795,7 +795,7 @@ For each rule:
 The OS name literal can be accessed via `rule.name.os` property. The action can be accessed via `rule.action`.
 
 1. If the rule OS name is missing, overwrite `toInclude` to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
-2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`[^5]. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64` is equivalent to `linux` and `arm64`.
+2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`[^4]. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64` is equivalent to `linux` and `arm64`.
 3. If the platform and arch are incompatible, do not overwrite `toInclude`.
 4. If the platform and arch are compatible, then overwrite `toInclude` variable to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
 
@@ -921,7 +921,7 @@ function handlePlatformRule({
 
 If the `classifiers` field is present, then the library **has** a native library (old format).
 
-If the library name includes the `native` word, then the library **is** native (new format).
+If the library name includes the `native` keyword, then the library **is** native (new format).
 
 ### Parsing the library and maven files
 
@@ -1246,6 +1246,26 @@ type SpecificPatchMainJarType = {
 
 ## Launching the Minecraft
 
+### Extracting the natives
+
+These are **not** shared across all instances.
+
+Jar files are essentially archive files. You need to extract the files from them into instance-specific `natives` folder. This process is done on every instance launch[^2].
+
+### Java Virtual Machine arguments
+
+- `-Xms<number><m>` The minimum heap memory in megabytes that is allocated in RAM to the Java process.
+- `-Xmx<number><m>` The maximum heap memory in megabytes that is allocated in RAM to the Java process.
+
+> [!NOTE]
+> Heap is a dynamic memory area that grows downward. Java is an interpreted (excluding GraalVM Native Image subsets of Java) language by nature, so (almost) all its objects are stored in the heap memory.
+
+For performance tweaking, see [Minecraft-Performance-Flags-Benchmarks repository](https://github.com/brucethemoose/Minecraft-Performance-Flags-Benchmarks).
+
+### Classpath
+
+### Game arguments
+
 ### Adding mods
 
 > Note that the new format does require you adding jar mods through the MultiMC UI. It won't magically pick up random files in an instMods folder, and it won't let you manually edit minecraft.jar. This is mostly to ensure that everything is in a well-defined state and things don't break in the future...
@@ -1271,6 +1291,6 @@ Cited resources
 
 [^3]: [JSON Patches, by MultiMC](https://github.com/MultiMC/Launcher/wiki/JSON-Patches)
 
-[^4]: [Brief explanation of Minecraft launching, by RyRy](https://discord.com/channels/1031648380885147709/1064604527636000788/1460544613742809201)
+[^4]: [Parsing the OS name in library rules, by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
 
-[^5]: [Parsing the OS name in library rules, by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
+[^5]: [Brief explanation of Minecraft launching, by RyRy](https://discord.com/channels/1031648380885147709/1064604527636000788/1460544613742809201)
