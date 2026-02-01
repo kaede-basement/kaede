@@ -1266,6 +1266,18 @@ For performance tweaking, see [Minecraft-Performance-Flags-Benchmarks repository
 
 ### Game arguments
 
+## Other information
+
+make it a table, perhaps
+
+1.5.2 and older version do not support specifying the game directory. They use `%appdata%/.minecraft`
+
+## Troubleshooting
+
+### Java Virtual Machine could not be created
+
+You probably passed the launch arguments as a string.
+
 ### Adding mods
 
 > Note that the new format does require you adding jar mods through the MultiMC UI. It won't magically pick up random files in an instMods folder, and it won't let you manually edit minecraft.jar. This is mostly to ensure that everything is in a well-defined state and things don't break in the future...
