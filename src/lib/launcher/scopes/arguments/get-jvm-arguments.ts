@@ -1,5 +1,6 @@
 import { version } from "@tauri-apps/plugin-os";
 
+import { JVMArguments } from "@/constants/launcher.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type {
@@ -32,19 +33,7 @@ export async function getJvmArguments({
   log.debug(logPrefix, "Adding default JVM arguments");
   jvmArguments.push(
     "-Xmx4096m",
-    "-Dlog4j2.formatMsgNoLookups=true",
-    "-Djava.net.useSystemProxiestrue",
-    "-Dfml.ignoreInvalidMinecraftCertificates=true",
-    "-Dfml.ignorePatchDiscrepancies=true",
-    "-DlibraryDirectory=${libraries_directory}",
-    "-Djava.library.path=${natives_directory}",
-    "-Dminecraft.client.jar=${main_jar_directory}",
-    "-Djna.tmpdir=${natives_directory}",
-    "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
-    "-Dio.netty.native.workdir=${natives_directory}",
-    "-Dminecraft.launcher.brand=${launcher_name}",
-    "-Dminecraft.launcher.version=${launcher_version}",
-    "-Duser.language=en",
+    ...Object.values(JVMArguments.Default),
     ...finalizedPatch["+jvmArgs"],
   );
 
@@ -57,8 +46,8 @@ export async function getJvmArguments({
       if (version().slice(0, 2) === "10") {
         log.debug(logPrefix, "Adding Windows 10 specific JVM arguments");
         jvmArguments.push(
-          "-Dos.name=Windows 10",
-          "-Dos.version=10.0",
+          JVMArguments.WindowsNonIterable.DosName,
+          JVMArguments.WindowsNonIterable.DosVersion,
         );
       }
 
@@ -66,10 +55,7 @@ export async function getJvmArguments({
         logFilePath = "file:///" + finalizedPatch.logging.path;
       }
 
-      jvmArguments.push(
-        "-XX:HeapDumpPath=" +
-        "MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump",
-      );
+      jvmArguments.push(JVMArguments.WindowsNonIterable.MojangTricks);
 
       break;
     }
@@ -80,7 +66,9 @@ export async function getJvmArguments({
         logFilePath = finalizedPatch.logging.path;
       }
 
-      jvmArguments.push("-XstartOnFirstThread");
+      if (finalizedPatch["+traits"].includes("FirstThreadOnMacOS")) {
+        jvmArguments.push(JVMArguments.MacOSNonIterable.FirstThread);
+      }
 
       break;
     }

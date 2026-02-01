@@ -8,6 +8,8 @@ export const DefaultInstanceSettings: Omit<InstanceStateType, "patchVersions"> =
   "windowHeight": 480,
   "windowWidth" : 854,
   "checksum"    : true,
+  "pinned"      : false,
+  "groups"      : [],
   "entry"       : Patches.Minecraft,
   "javaBinary"  : "java",
   "add"         : {},
@@ -15,6 +17,34 @@ export const DefaultInstanceSettings: Omit<InstanceStateType, "patchVersions"> =
   "playTime"    : 0,
   "lastLaunch"  : 0,
 };
+export const JVMArguments = {
+  "Default": {
+    "Log4J"                      : "-Dlog4j2.formatMsgNoLookups=true",
+    "SystemProxies"              : "-Djava.net.useSystemProxiestrue",
+    "FMLIgnoreCertificates"      : "-Dfml.ignoreInvalidMinecraftCertificates=true",
+    "FMLIgnorePatchDiscrepancies": "-Dfml.ignorePatchDiscrepancies=true",
+    "LibrariesDirectory"         : "-DlibraryDirectory=${libraries_directory}",
+    "NativesPath"                : "-Djava.library.path=${natives_directory}",
+    "ClientJAR"                  : "-Dminecraft.client.jar=${main_jar_directory}",
+    "TemporaryNativesPath"       : "-Djna.tmpdir=${natives_directory}",
+    "SharedLibraryExtractPath":
+      "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
+    "NettyWorkingDirectory": "-Dio.netty.native.workdir=${natives_directory}",
+    "LauncherBrand"        : "-Dminecraft.launcher.brand=${launcher_name}",
+    "LauncherVersion"      : "-Dminecraft.launcher.version=${launcher_version}",
+    "UserLanguage"         : "-Duser.language=en",
+  },
+  "WindowsNonIterable": {
+    "DosName"   : "-Dos.name=Windows 10",
+    "DosVersion": "-Dos.version=10.0",
+    "MojangTricks":
+      "-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump",
+  },
+  "MacOSNonIterable": {
+    "FirstThread": "-XstartOnFirstThread",
+  },
+  "LinuxNonIterable": {},
+} as const;
 export const LaunchStatus = {
   "General": {
     "Starting": "general-pending-starting",
