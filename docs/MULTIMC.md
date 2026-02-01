@@ -179,9 +179,12 @@ type MappedArtifactType = {
 
 This section is merely a short explanation, so I omitted the majority of important information. The actual final patch assemble is explained in the next sections.
 
-## An in-depth structure of the MultiMC patch system
+## An in-depth structure of the MultiMC (Prism Launcher*) patch system
 
 Since now one should have a surface-level understanding of the MultiMC patch system, they can dive deeper.
+
+> [!IMPORTANT]
+> *The following sections will use Prism Launcher meta server, although the provided instructions should be applicable to MultiMC meta as well.
 
 ### Patch index files
 
@@ -643,7 +646,7 @@ type SpecificPatchClassifierKeyType =
 ```
 
 > [!NOTE]
-> The next sections will include the coding part
+> The next sections will include the coding part...
 > 
 > <img width="60%" src="./assets/never-kys-hina.jpg" alt="A twitter post with Sorasaki Hina plush and a 'never kys' text" />
 
@@ -1239,12 +1242,38 @@ type SpecificPatchMainJarType = {
 };
 ```
 
+## Launching the Minecraft
+
+The launching command looks like this: `<java binary> <JVM arguments> <classpath> <main class> <game arguments>`.
+
+> [!IMPORTANT]
+> Depending on your programming language and used libraries to create programs, you probably want to provide arguments as an array of strings. Otherwise, you will see `Error: Could not create the Java Virtual Machine`.
+> 
+> If you have decided to provide launch arguments as an array of strings, then the elements of that array should approximately look like this:
+> 
+> ```ts
+> const commandArguments: Array<string> = [
+>   "-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump",
+>   "-XstartOnFirstThread",
+>   "-Dminecraft.launcher.brand=A Launcher", // yes, without wrapping the value or a whole argument into double quotes
+>   "-cp",
+>   "C:\\...;...\\client.jar", // classpath
+>   "net.minecraft.client.Minecraft",
+>   "--gameDir",
+>   "C:\\...\\minecraft",
+>   "--assetsDir",
+>   "C:\\...\\assets",
+>   "--versionType",
+>   "Kaede 0.0.0", // versionType is not used anywhere, so we can pass any value into it
+>   "--tweakClass",
+>   "net.minecraft.launchwrapper.AlphaVanillaTweaker",
+> ];
+> ```
+
 > [!NOTE]
-> Oh, you are finally here. You made a great progress, but there is still plenty of things left...
+> Oh, you are finally here. You made a great progress!
 >
 > <img width="60%" src="./assets/never-kys-ibuki.jpg" alt="A twitter post with Tanga Ibuki plush and a 'never kys' text" />
-
-## Launching the Minecraft
 
 ### Extracting the natives
 
@@ -1252,9 +1281,15 @@ These are **not** shared across all instances.
 
 Jar files are essentially archive files. You need to extract the files from them into instance-specific `natives` folder. This process is done on every instance launch[^2].
 
+### Java binary
+
+You can use `java` or an absolute path to the java binary: `C:\\Program Files\\Eclipse Adoptium\\jdk-8.0.472.8-hotspot\\bin\\java.exe`.
+
+On Windows, you might want to use `javaw` (or `javaw.exe` in paths) if Java spawns a command line window.
+
 ### Java Virtual Machine arguments
 
-It seems like one can safely specify those JVM arguments that were not targeted for current Minecraft version, and the game will still work as intended. This implies, for example, that FML-specific JVM arguments can be present even in Vanilla versions.
+It seems like one can specify JVM arguments that were not targeted for current Minecraft version, and the game will still work as intended. This implies, for example, that FML-specific JVM arguments can be present even in Vanilla versions.
 
 The list of possible JVM arguments includes but is not limited to:
 
@@ -1282,7 +1317,7 @@ Windows-specific ones:
 
 - `-Dos.name=Windows 10` - only on Windows 10. No idea what it does.
 - `-Dos.version=10.0` - only on Windows 10. No idea what it does.
-- `-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump` - appears to improve the game performance for Intel CPUs.
+- `-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump` - appears to improve the game performance for Intel CPUs but also [causes problems for some users](https://github.com/MultiMC/Launcher/issues/5477).
 
 MacOS-specific ones:
 
@@ -1292,19 +1327,91 @@ For further performance tweaking, see [Minecraft-Performance-Flags-Benchmarks re
 
 ### Classpath
 
+Lin[^2] states that "the classpath is a string that includes all the paths to the libraries and the path to the game client itself".
+
+The order of libraries in the Java classpath matters. To build it like in Hello Minecraft! Launcher, add the parsed libraries from `+libraries` first, then from the `libraries` field, and end with a path to the client jar.
+
+> [!NOTE]
+> Hello Minecraft! Launcher this, Hello Minecraft! Launcher that... Wasn't this a guide for launching Minecraft using a MultiMC patch system?
+>
+> Hello Minecraft! Launcher directly launches Minecraft since it is a Java program, so the launch command is easily accessible. Prism Launcher uses Java applets to manage Minecraft launching because it is not a Java program, so that seems to be a reason why I cannot get the exact launch command for Prism.
+
+The libraries should be separated by a `:` symbol on Linux and macOS. On Windows, the `;` symbol should be used.
+
+Also include `-cp` before classpath.
+
+An example for a vanilla version of Minecraft 1.0 on Windows 10:
+
+```
+-cp C:\Users\windstone\AppData\Roaming\kaede\libraries\net\java\jinput\jinput\2.0.5\jinput-2.0.5.jar;C:\Users\windstone\AppData\Roaming\kaede\libraries\net\java\jutils\jutils\1.0.0\jutils-1.0.0.jar;C:\Users\windstone\AppData\Roaming\kaede\libraries\org\lwjgl\lwjgl\lwjgl-platform\2.9.4-nightly-20150209\lwjgl-platform-2.9.4-nightly-20150209.jar;C:\Users\windstone\AppData\Roaming\kaede\libraries\org\lwjgl\lwjgl\lwjgl\2.9.4-nightly-20150209\lwjgl-2.9.4-nightly-20150209.jar;C:\Users\windstone\AppData\Roaming\kaede\libraries\org\lwjgl\lwjgl\lwjgl_util\2.9.4-nightly-20150209\lwjgl_util-2.9.4-nightly-20150209.jar;C:\Users\windstone\AppData\Roaming\kaede\libraries\com\mojang\minecraft\1.0\minecraft-1.0-client.jar
+```
+
+### Main class
+
+As was previously said, sometimes Minecraft patches will not specify a main class. For example, the `a1.1.2_01` version does not specify a main class. In such cases, fall back to `net.minecraft.client.Minecraft`. Most of the time it will be a correct class name.
+
+Note that there exists some strange class names, like `ax` in `a1.0.4`. They are valid, although I could not manage to launch that version without using a [custom LaunchWrapper](https://github.com/MCPHackers/LaunchWrapper).
+
 ### Game arguments
 
-## Other information
+The provided by Prism Launcher meta Minecraft arguments are sufficient to launch the game. However, one can add the `--height` and `--width` arguments with specified integer values to configure the Minecraft window size, e.g. `--height 600 --width 800`.
 
-make it a table, perhaps
+The most important part here is not to forget to add tweaker classes.
 
-1.5.2 and older version do not support specifying the game directory. They use `%appdata%/.minecraft`
+### Replacing placeholders
+
+The list of placeholders that are not related to authentication:
+
+- `assets_index_name`
+- `assets_root`
+- `classpath`
+- `clientid` - present in newer versions
+- `game_assets`
+- `game_directory`
+- `launcher_name`
+- `launcher_version`
+- `natives_directory`
+- `quickPlayMultiplayer` - "the host of the multiplayer server"[^2]
+- `quickPlayPath` - "where to output the logs files, relative to .minecraft"[^2]
+- `quickPlayRealms` - "the ID of the Minecraft Realms"[^2]
+- `quickPlaySingleplayer` - "the path to the singleplayer world"[^2]
+- `resolution_height`
+- `resolution_width`
+- `user_properties` - used by old versions.
+- `user_type` - possible values are: `msa`, `mojang`, and `offline`.
+- `version_name`
+- `version_type`
+- `libraries_directory`
+- `main_jar_path`
+
+The list of auth placeholders:
+
+- "auth_access_token": auth.token,
+- "auth_player_name" : auth.username,
+- // Used in 1.6.4
+- "auth_session"     : auth.token,
+- "auth_uuid"        : auth.uuid,
+- // 'Only present in newer versions with Microsoft integration'
+- "auth_xuid"        : auth.uuid,
+
+### Spawning a Minecraft process
+
+Besides correctly passing launch arguments and using a Java binary as the process program, you also need to set a working directory to the instance directory (`minecraft` one).
+
+The 1.5.2 and older versions do not support specifying the game directory. On Windows, they use `%appdata%/.minecraft`. Use [a custom LaunchWrapper](https://github.com/MCPHackers/LaunchWrapper) to fix this issue. These versions can also fail to launch if `options.txt` and `optionsof.txt` in `%appdata%/.minecraft` are not their cup of tea (I honestly do not know what the reason can be. Just delete the file or use a custom LaunchWrapper).
 
 ## Troubleshooting
 
-### Java Virtual Machine could not be created
+> [!NOTE]
+> Remember:
+>
+> <img width="60%" src="./assets/never-kys-cpp.jpg" alt="A twitter post with Sunaookami Shiroko and Takanashi Hoshino plushes and a 'never kys' text" />
 
-You probably passed the launch arguments as a string.
+### Error: Could not create the Java Virtual Machine
+
+Your launch arguments are invalid.
+
+---
 
 ### Adding mods
 
