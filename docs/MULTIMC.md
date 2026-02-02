@@ -386,8 +386,7 @@ type SpecificPatchMetaType = {
   // An array of Java major versions that are compatible with the patch
   "compatibleJavaMajors"?: Array<number>;
 
-  // Might represent the compatible Java vendor name.
-  // For example, this field is present in '12w07b' and can equal to 'jre-legacy'
+  // This field is present in '12w07b' and equals to 'jre-legacy' there
   "compatibleJavaName"?: string;
 
   // An array of conflicting patches. Usually present in 'org.lwjgl' and 'org.lwjgl3'
