@@ -581,7 +581,7 @@ type SpecificPatchLibraryType = {
   // Seem to list available natives for present platforms and arches
   "natives"?: Partial<{
     // The 'linux' key turns into a 'natives-linux' value that
-    // might have the 'SpecificPatchClassifierKeyType' typed value
+    // might have a 'SpecificPatchClassifierKeyType' type
     [key: SpecificPatchLibraryOSNameType]: string;
   }>;
   // A list of rules that should be applied for specified platforms (and arches)
