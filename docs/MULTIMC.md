@@ -9,11 +9,13 @@
 
 The MultiMC patch system is a complex, yet convenient way to manage Minecraft launching with various mod loaders.
 
+If one correctly integrates the patch system, they will be able to launch both Vanilla and Modded versions of Minecraft without ever reading any documentation for adding mod loaders.
+
 ## Prerequisites
 
 Initially, I wanted to write the code parts as a pseudocode following the [CLRS conventions](https://course.ccs.neu.edu/cs3000/resources/latex_pseudocode.pdf). However, it would have taken plenty of time, so this walkthrough will only feature TypeScript. To make it easier for one to understand type schemas, they need to know:
 
-- The `?` symbol represents an optional field.
+- The `?` symbol represents an optional field, e.g. `{ "a"?: string }`.
 - The `|` symbol represents a logical `OR`.
 - The `&` symbol represents a logical `AND`.
 
