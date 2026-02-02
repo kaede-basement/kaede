@@ -503,7 +503,7 @@ type SpecificPatchLoggingType = {
   // Perhaps, it could be used to parse Minecraft logs that are sent to console?
   // For example, old versions do not have the 'logging' field, thus their console output
   // is just raw lines of logs. But Minecraft versions that specify the 'logging' field
-  // send to the 'stdout' and 'stderr' the XML-formatted logs (due to '<XMLLayout />')
+  // send to 'stdout' and 'stderr' the XML-formatted logs (due to '<XMLLayout />')
   // (if we use the configuration file provided in the 'logging' field, of course).
   "type": string;
 };
@@ -605,6 +605,10 @@ type SpecificPatchLibraryType = {
 >   "name": "net.sf.trove4j:trove4j:3.0.3"
 > }
 > ```
+>
+> Becomes
+>
+> `https://libraries.minecraft.net/net/sf/trove4j/trove4j/3.0.3/trove4j-3.0.3.jar`
 
 The library object has some new types:
 
@@ -696,15 +700,15 @@ Examples:
 
 - `com.mojang:text2speech:1.11.3`
 - `net.java.dev.jna:platform:3.4.0`
-- `ca.weblite:java-objc-bridge:1.1.0-mmachina.1` $\leftarrow$ `<version>` can be in any format, not just SemVer
-- `io.netty:netty-transport-native-epoll:4.1.97.Final:linux-aarch_64` $\leftarrow$ `[classifier]` is just a platform with an arch. Possible literals:
+- `ca.weblite:java-objc-bridge:1.1.0-mmachina.1` - `<version>` can be in any format, not just SemVer
+- `io.netty:netty-transport-native-epoll:4.1.97.Final:linux-aarch_64` - `[classifier]` is just a platform with an arch. Possible literals:
   - `"windows-aarch_64"`
   - `"windows-x86_64"`
   - `"linux-aarch_64"`
   - `"linux-x86_64"`
   - `"osx-aarch_64"`
   - `"osx-x86_64"`
-- `net.neoforged:neoform:1.21.2-20241022.151510@zip` $\leftarrow$ `[classifier]` is missing, but `[extension]` is present. In this case, it equals to `zip`
+- `net.neoforged:neoform:1.21.2-20241022.151510@zip` - `[classifier]` is missing, but `[extension]` is present. In this case, it equals to `zip`
 
 The name string always has the `<group>`, `<name>`, and `<version>` parts. The `[classifier]` and `[extension]` parts are optional.
 
@@ -788,13 +792,13 @@ type SpecificPatchLibraryRuleType = {
 };
 ```
 
-If there are no rules, include the library. Otherwise, start parsing rules.
+If there are no rules, include the library. Otherwise, start parsing them.
 
 Lin[^3] suggests to start by disallowing the library.
 
 One should include the library if the OS name is missing. If it is present, then they should allow the library if the specified platform and arch are compatible.
 
-However, for NeoForge 1.21.1, this way of parsing rules additionally downloads 16 unused native libraries. This is a problem with meta itself:
+However, for NeoForge 1.21.1, this way of parsing rules additionally downloads 16 unused native libraries. This is a problem with meta itself (for backwards compatibility):
 
 ```json
 {
@@ -955,7 +959,7 @@ function handlePlatformRule({
 }
 ```
 
-### Checking is the library is a native
+### Checking for natives
 
 If the `classifiers` field is present, then the library **has** a native library (old format).
 
@@ -1118,7 +1122,9 @@ function finalizePatches({
       built.type = patch.type;
     }
 
+    // 'parseLogging' simply converts the 'logging' field into a 'MappedArtifactType' object
     const currentLogging = parseLogging({ patch });
+    // 'parseMainJar' simply converts the 'mainJar' field into a 'MappedArtifactType' object
     const currentClient = parseMainJar({ patch });
 
     // Overwrite the 'logging' field only if the parsed data is defined
@@ -1133,7 +1139,7 @@ function finalizePatches({
   }
 
   built.artifacts = [
-    ...foundMavenFiles.values(),
+    ...foundMavenFiles,
     ...uniqueArtifacts.values(),
   ];
 
@@ -1148,7 +1154,7 @@ function finalizePatches({
 
 ## Downloading objects
 
-For some reason, most of Minecraft launches do not download libraries, assets, client, and logging configuration concurrently. They do it sequentially, even though the assets and libraries themselves are downloaded concurrently. I would suggest to use concurrent resolving of concurrent downloading steps (alright, what am I talking about at this point). Assets, Minecraft client, logging configuration, and libraries do not depend on each other, so one can safely handle all of them at the same time.
+For some reason, most of Minecraft launchers do not download libraries, assets, client, and logging configuration concurrently. They do it sequentially, even though the assets and libraries themselves are downloaded concurrently. I would suggest to use concurrent resolving of concurrent downloading steps (alright, what am I talking about at this point). Assets, Minecraft client, logging configuration, and libraries do not depend on each other, so one can safely handle all of them at the same time.
 
 ```ts
 const responses: Array< /* response types */ > = await Promise.all([
@@ -1161,7 +1167,7 @@ const responses: Array< /* response types */ > = await Promise.all([
 
 ### Assets
 
-The asset indexes might be stored in `assets/indexes`, the asset objects might be stored in `assets/objects`. They are shared across all instances.
+The asset indexes should be stored in `assets/indexes`, the asset objects should be stored in `assets/objects`[^3]. They are shared across all instances.
 
 ```ts
 type SpecificPatchAssetIndexType = {
@@ -1182,7 +1188,7 @@ type SpecificPatchAssetIndexType = {
 };
 ```
 
-The asset index file should use `id` and look like `<id>.json`, e.g. `17.json`. It contains an object will all asset objects to download:
+The asset index file should use `id` and look like `<id>.json`, e.g. `27.json`. It contains an object will all asset objects to download:
 
 ```json5
 {
@@ -1248,13 +1254,13 @@ type SpecificPatchLoggingType = {
   // Perhaps, it could be used to parse Minecraft logs that are sent to console?
   // For example, old versions do not have the 'logging' field, thus their console output
   // is just raw lines of logs. But Minecraft versions that specify the 'logging' field
-  // send to the 'stdout' and 'stderr' the XML-formatted logs (due to '<XMLLayout />')
+  // send to 'stdout' and 'stderr' the XML-formatted logs (due to '<XMLLayout />')
   // (if we use the configuration file provided in the 'logging' field, of course).
   "type": string;
 };
 ```
 
-The `file.id` property is a filename with extension, e.g. `client-1.12.xml`. Simply download the file from `file.url` and save it under `file.id` in the logging configuration directory.
+The `file.id` property is a filename with extension, e.g. `client-1.12.xml`. Simply download the file from `file.url` and save it using `file.id` as a name in the logging configuration directory.
 
 ### Client (main jar)
 
@@ -1286,7 +1292,7 @@ type SpecificPatchMainJarType = {
 The launching command looks like this: `<java binary> <JVM arguments> <classpath> <main class> <game arguments>`.
 
 > [!IMPORTANT]
-> Depending on your programming language and used libraries to create programs, you probably want to provide arguments as an array of strings. Otherwise, you will see `Error: Could not create the Java Virtual Machine`.
+> Depending on your programming language and used libraries to spawn programs, you probably want to provide arguments as an array of strings. Otherwise, you might see `Error: Could not create the Java Virtual Machine`.
 > 
 > If you have decided to provide launch arguments as an array of strings, then the elements of that array should approximately look like this:
 > 
@@ -1344,7 +1350,7 @@ The list of possible JVM arguments includes but is not limited to:
 > [!NOTE]
 > Heap is a dynamic memory area in RAM. Java is an interpreted (excluding GraalVM Native Image subsets of Java) language by nature, so (almost) all code objects are stored in the heap memory.
 
-- `-Dlog4j2.formatMsgNoLookups=true` - prevents Log4Shell, although this argument is probably not needed anymore since that issue should have been fixed by this point. It also does not work for some old Minecraft versions.
+- `-Dlog4j2.formatMsgNoLookups=true` - prevents Log4Shell, although this argument is probably not needed anymore since that issue should have been fixed in libraries by this point. It also does not work for some old Minecraft versions.
 - `-Djava.net.useSystemProxiestrue` - Hello Minecraft! Launcher by default includes this argument. No clue why it lacks the `=` sign before `true` (still works, though).
 - `-Dfml.ignoreInvalidMinecraftCertificates=true` - [Hello Minecraft! Launcher by default includes this argument](https://github.com/HMCL-dev/HMCL/blob/5c2bb1cc251901dd471a8aa8048d90c22bb56916/HMCLCore/src/main/java/org/jackhuang/hmcl/launch/DefaultLauncher.java#L263).
 - `-Dfml.ignorePatchDiscrepancies=true` - [Hello Minecraft! Launcher by default includes this argument](https://github.com/HMCL-dev/HMCL/blob/5c2bb1cc251901dd471a8aa8048d90c22bb56916/HMCLCore/src/main/java/org/jackhuang/hmcl/launch/DefaultLauncher.java#L264).
@@ -1368,7 +1374,7 @@ MacOS-specific ones:
 
 - `-XstartOnFirstThread` - appears to improve the game performance. Should be included if the `+traits` (or `traits`) field has a `XstartOnFirstThread` value.
 
-For further performance tweaking, see [Minecraft-Performance-Flags-Benchmarks repository](https://github.com/brucethemoose/Minecraft-Performance-Flags-Benchmarks).
+For performance tweaking, see [Minecraft-Performance-Flags-Benchmarks repository](https://github.com/brucethemoose/Minecraft-Performance-Flags-Benchmarks).
 
 ### Classpath
 
@@ -1376,9 +1382,8 @@ Lin[^3] states that "the classpath is a string that includes all the paths to th
 
 The order of libraries in the Java classpath matters. To build it like in Hello Minecraft! Launcher, add the parsed libraries from `+libraries` first, then from the `libraries` field, and end with a path to the client jar.
 
-> [!NOTE]
 > Hello Minecraft! Launcher this, Hello Minecraft! Launcher that... Wasn't this a guide for launching Minecraft using a MultiMC patch system?
->
+> 
 > Hello Minecraft! Launcher directly launches Minecraft since it is a Java program, so the launch command is easily accessible. Prism Launcher uses Java applets to manage Minecraft launching because it is not a Java program, so that seems to be a reason why I cannot get the exact launch command for Prism.
 
 The libraries should be separated by a `:` symbol on Linux and macOS. On Windows, the `;` symbol should be used.
@@ -1401,7 +1406,7 @@ Note that there exists some strange class names, like `ax` in `a1.0.4`. They are
 
 The provided by Prism Launcher meta Minecraft arguments are sufficient to launch the game. However, one can add the `--height` and `--width` arguments with specified integer values to configure the Minecraft window size, e.g. `--height 600 --width 800`.
 
-The most important part here is not to forget to add tweaker classes: `--tweakClass <tweak class>` (for each tweak class). Some versions (`a1.0.4`) may already include it in `minecraftArguments`.
+The most important part here is not to forget to add tweaker classes (if `+tweakers` are present): `--tweakClass <tweak class>` (for each tweak class). Some versions (`a1.0.4`) may already include it in `minecraftArguments`.
 
 ### Replacing placeholders
 
@@ -1410,26 +1415,28 @@ The most important part here is not to forget to add tweaker classes: `--tweakCl
 >
 > <img width="60%" src="./assets/never-kys-aru.jpg" alt="A twitter post with Rikuhachima Aru plush and a 'never kys' text" />
 
+These placeholders are seen in JVM arguments and game arguments. The `classpath` substitution is made in `-cp ${classpath}`. You may directly write `-cp <classpath string>` without ever using a `${classpath}` placeholder.
+
 The list of placeholders that are not related to authentication:
 
 - `assets_index_name` - the assets index id, e.g. `27` or `pre-1.6`.
-- `assets_root` - the directory of the game assets.
-- `game_assets` - the directory of the game assets.
+- `assets_root` - the directory of the game assets, e.g. `assets` (not `objects`, `indexes`, or `log_configs`).
+- `game_assets` - the directory of the game assets, e.g. `assets` (not `objects`, `indexes`, or `log_configs`).
 - `classpath` - the built classpath string.
 - `game_directory` - the directory of instance-specific `minecraft` folder.
 - `launcher_name` - represents your Launcher name.
 - `launcher_version` - represents your Launcher version.
 - `natives_directory` - "the directory of the platform natives"[^2].
 - `quickPlayMultiplayer` - "the host of the multiplayer server"[^3].
-- `quickPlayPath` - "where to output the logs files, relative to .minecraft"[^3].
+- `quickPlayPath` - "where to output the logs files, relative to .minecraft"[^3] (`.minecraft` can be just `minecraft`).
 - `quickPlayRealms` - "the ID of the Minecraft Realms"[^3].
 - `quickPlaySingleplayer` - "the path to the singleplayer world"[^3].
 - `resolution_height` - "user's specified custom resolution height"[^3].
 - `resolution_width` - "user's specified custom resolution width"[^3].
-- `user_properties` - no idea. Used by old versions. Can be set to `{ "unknown": ["unknown"] }`.
+- `user_properties` - no idea. Used by old versions. Can be set to `"{ \"unknown\": [\"unknown\"] }"`.
 - `user_type` - possible values are: `msa`, `mojang`, and `offline`.
 - `version_name` - the Minecraft version.
-- `version_type` - should be a Minecraft version type (e.g. `release` or `snapshot`), yet this value is not used anywhere except being shown on the home screen. Hello Minecraft! Launcher puts its own name there.
+- `version_type` - should be a Minecraft version type (e.g. `release` or `snapshot`), yet this value is not used anywhere except as a display text on the home screen. Hello Minecraft! Launcher puts its own name there.
 - `libraries_directory` - used for the `-DlibraryDirectory=` JVM argument. Points to libraries directory.
 - `main_jar_path` - used for the `-Dminecraft.client.jar=` JVM argument. Points to the client jar path.
 
@@ -1466,15 +1473,19 @@ Your launch arguments are invalid.
 
 ### Multiplayer does not work
 
-Yeah, I have the same issue, no clue why it does not work only in my Launcher.
+I have the same issue :c
 
-### a1.0.4 without a custom LaunchWrapper
+No idea why it does not work.
+
+### a1.0.4
 
 ```
 Error: Main method not found in class ax, please define the main method as:
    public static void main(String[] args)
 or a JavaFX application class must extend javafx.application.Application
 ```
+
+Use [a custom LaunchWrapper](https://github.com/MCPHackers/LaunchWrapper) for ancient versions.
 
 # Unknown information
 
@@ -1496,3 +1507,7 @@ Cited resources
 [^4]: [JSON Patches, by MultiMC](https://github.com/MultiMC/Launcher/wiki/JSON-Patches)
 
 [^5]: [Parsing the OS name in library rules, by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
+
+[^6]: [Website is missing that information. See the screenshot below:](https://minecraft.wiki/w/Minecraft_Wiki%3AProjects/wiki.vg_merge/Launching_the_game?ref=minewiki.pl)
+
+![Lost media](./assets/minecraft-wiki-lost-media.png)

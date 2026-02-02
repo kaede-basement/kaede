@@ -191,7 +191,7 @@ export function finalizePatches({
   }
 
   built.artifacts = [
-    ...foundMavenFiles.values(),
+    ...foundMavenFiles,
     ...uniqueArtifacts.values(),
   ];
 
