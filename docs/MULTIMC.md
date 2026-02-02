@@ -1438,7 +1438,7 @@ The list of auth placeholders:
 
 Besides correctly passing launch arguments and using a Java binary as the process program, you also need to set a working directory to the instance directory (`minecraft` one).
 
-The 1.5.2 and older versions do not support specifying the game directory. On Windows, they use `%appdata%/.minecraft`. Use [a custom LaunchWrapper](https://github.com/MCPHackers/LaunchWrapper) to fix this issue. These versions can also fail to launch if `options.txt` and `optionsof.txt` in `%appdata%/.minecraft` are not their cup of tea (I honestly do not know what the reason can be. Just delete the file or use a custom LaunchWrapper).
+The 1.5.2 and older versions do not support specifying the game directory. On Windows, they use `%appdata%/.minecraft`. Use [a custom LaunchWrapper](https://github.com/MCPHackers/LaunchWrapper) to fix this issue. These versions can also fail to launch if `options.txt` and `optionsof.txt` in `%appdata%/.minecraft` are not their cup of tea (I honestly do not know what the reason can be. Just delete these files or use a custom LaunchWrapper).
 
 ## Troubleshooting
 
@@ -1455,24 +1455,10 @@ Your launch arguments are invalid.
 
 Yeah, I have the same issue, no clue why it does not work only in my Launcher.
 
-###
-
----
-
-### Adding mods
-
-> Note that the new format does require you adding jar mods through the MultiMC UI. It won't magically pick up random files in an instMods folder, and it won't let you manually edit minecraft.jar. This is mostly to ensure that everything is in a well-defined state and things don't break in the future...
-
-https://github.com/MultiMC/Launcher/issues/1138
-
-uhh...
-
-Prism Launcher seems to pick up other mods too, those mods will just not have any metadata unless used in other instances.
-
 # Unknown information
 
-- What are Java agents and how to use them?
-- What to do if the patch has specified multiple dependencies? (are there any such cases tho)
+- What are Java agents
+- What to do if the patch has specified multiple dependencies (are there any such cases tho)
 
 # References
 
