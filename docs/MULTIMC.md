@@ -16,7 +16,7 @@ If one correctly integrates the patch system, they will be able to launch both V
 Initially, I wanted to write the code parts as a pseudocode following the [CLRS conventions](https://course.ccs.neu.edu/cs3000/resources/latex_pseudocode.pdf). However, it would have taken plenty of time, so this walkthrough will only feature TypeScript. To make it easier for one to understand type schemas, they need to know:
 
 - The `?` symbol represents an optional field, e.g. `{ "a"?: string }`.
-- The `|` symbol represents a logical `OR`.
+- The `|` symbol represents a logical `XOR`.
 - The `&` symbol represents a logical `AND`.
 
 Despite `|` and `&` being called 'Union' and 'Intersection' types, respectively, they do **not** represent the Set operators:
@@ -24,20 +24,24 @@ Despite `|` and `&` being called 'Union' and 'Intersection' types, respectively,
 ```ts
 type First = { "a": number } | { "b": string };
 // Implies:
-const first_1: First = { "a": 10 };
-// Also implies:
-const first_2: First = { "b": "Eden Treaty" };
-// However, does not imply this:
-const first_3: First = { "a": 10, "b": "Decagrammaton" };
+// { "a": 10 };
+// { "b": "Eden Treaty" };
+//
+// However, does not imply these:
+// { "a": 10, "b": "Decagrammaton" };
+// {};
 
 type Second = { "a": number } & { "b": string };
 // Implies:
-const second_1: Second = { "a": 0, "b": "Moondrop Aria" };
-// However, does not imply this:
-const second_2: Second = { "a": 0 };
+// { "a": 0, "b": "Moondrop Aria" };
+//
+// However, does not imply these:
+// { "a": 0 };
+// { "b": "Sennheiser HD560S" };
+// {};
 ```
 
-- The `[key: KeyType]: value` field is a value with the computed key name of a `KeyType` string literal. For example, `{ [key: "macos" | "linux"]: string }` is equivalent to:
+- The `[key: KeyType]: value` field is a value with the computed key name of `KeyType`. For example, `{ [key: "macos" | "linux"]: string }` is equivalent to:
 
 ```ts
 type T = {
@@ -47,19 +51,15 @@ type T = {
 ```
 
 The `Partial<{ ... }>` type represents an object where all fields are optional.
-That is, all fields could be missing. For example, `Partial<{ [key: "macos" | "linux"]: string }>` implies:
+That is, all fields could be missing. For example:
 
 ```ts
-type T_1 = {
-  // Or '"linux": string;'
-  "macos": string;
-};
-// It also implies this type:
-type T_2 = {
-  "macos": string;
-  "linux": string;
-};
-// Or an empty object.
+type Example = Partial<{ [key: "macos" | "linux"]: string }>;
+// Implies:
+// { "linux": "NixOS Yarara" };
+// { "macos": "macOS Sequoia" };
+// { "linux": "6.12.60", "macos": "15" };
+// {};
 ```
 
 ## How to think of MultiMC patches
@@ -75,6 +75,10 @@ It is possible that the correct way to navigate these patches is to:
 - resolve the entry patch, patch dependencies, and all sub-dependencies;
 - collect the resolved patches in the array;
 - build the final patch, starting from sub-dependencies and ending with the entry patch.
+
+In general, the whole Minecraft installation and launching process can be shown as this schema:
+
+
 
 Following the described way to navigate MultiMC patches, let us briefly understand how to apply this algorithm. For now, consider the version of a Minecraft patch to be `1.21.11` and the version of a Fabric loader patch to be `0.18.4`. The entry patch UID for Fabric is `net.fabricmc.fabric-loader`. It depends on a `net.fabricmc.intermediary` patch:
 
@@ -1295,8 +1299,8 @@ It seems like one can specify JVM arguments that were not targeted for current M
 
 The list of possible JVM arguments includes but is not limited to:
 
-- `-Xms<number><m OR g>` - the minimum heap memory in megabytes/gigabytes that is allocated to the Java process, e.g. `-Xms4g` or `-Xms4096m`.
-- `-Xmx<number><m OR g>` - the maximum heap memory in megabytes/gigabytes that is allocated to the Java process, e.g. `-Xmx6144m`.
+- `-Xms<number><m or g>` - the minimum heap memory in megabytes/gigabytes that is allocated to the Java process, e.g. `-Xms4g` or `-Xms4096m`.
+- `-Xmx<number><m or g>` - the maximum heap memory in megabytes/gigabytes that is allocated to the Java process, e.g. `-Xmx6144m`.
 
 > [!NOTE]
 > Heap is a dynamic memory area in RAM. Java is an interpreted (excluding GraalVM Native Image subsets of Java) language by nature, so (almost) all code objects are stored in the heap memory.
