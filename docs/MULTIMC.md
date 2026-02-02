@@ -1498,6 +1498,8 @@ Use [a custom LaunchWrapper](https://github.com/MCPHackers/LaunchWrapper) for an
 
 Cited resources
 
+![Lost media](./assets/minecraft-wiki-lost-media.png)
+
 [^1]: [Brief explanation of Minecraft launching, by RyRy](https://discord.com/channels/1031648380885147709/1064604527636000788/1460544613742809201)
 
 [^2]: [Inside a Minecraft Launcher, by Ryan](https://ryanccn.dev/posts/inside-a-minecraft-launcher)
@@ -1508,6 +1510,4 @@ Cited resources
 
 [^5]: [Parsing the OS name in library rules, by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
 
-[^6]: [Website is missing that information. See the screenshot below:](https://minecraft.wiki/w/Minecraft_Wiki%3AProjects/wiki.vg_merge/Launching_the_game?ref=minewiki.pl)
-
-![Lost media](./assets/minecraft-wiki-lost-media.png)
+[^6]: [Website is missing that information. See the screenshot above:](https://minecraft.wiki/w/Minecraft_Wiki%3AProjects/wiki.vg_merge/Launching_the_game?ref=minewiki.pl)
