@@ -11,6 +11,14 @@ The MultiMC patch system is a complex, yet convenient way to manage Minecraft la
 
 If one correctly integrates the patch system, they will be able to launch both Vanilla and Modded versions of Minecraft without ever reading any documentation for mod loaders that are provided by the MultiMC meta server.
 
+## TL;DR
+
+![A schema that shows the installation and launching parts of Minecraft with MultiMC patch system](./assets/multimc-meta-schema.webp)
+
+> Made in Paint.NET
+
+`Other nested dependencies` represents the further dependency tree of patches.
+
 ## Prerequisites
 
 Initially, I wanted to write the code parts as a pseudocode following the [CLRS conventions](https://course.ccs.neu.edu/cs3000/resources/latex_pseudocode.pdf). However, it would have taken plenty of time, so this walkthrough will only feature TypeScript. To make it easier for one to understand type schemas, they need to know:
@@ -76,10 +84,6 @@ It is possible that the correct way to navigate these patches is to:
 - collect the resolved patches in the array;
 - build the final patch, starting from sub-dependencies and ending with the entry patch.
 
-In general, the whole Minecraft installation and launching process can be shown as this schema:
-
-
-
 Following the described way to navigate MultiMC patches, let us briefly understand how to apply this algorithm. For now, consider the version of a Minecraft patch to be `1.21.11` and the version of a Fabric loader patch to be `0.18.4`. The entry patch UID for Fabric is `net.fabricmc.fabric-loader`. It depends on a `net.fabricmc.intermediary` patch:
 
 ```json5
@@ -139,6 +143,8 @@ The final patch can be used to download artifacts and launch the game. It may no
 For example, I implemented the final patch structure like this:
 
 ```ts
+// You can just take a glance at the structure; do not inspect it in details.
+// There is still 8000 words left to read for you that explain everything :3
 type FinalizedPatchType = {
   "+jvmArgs"          : Array<string>;
   "+traits"           : Array<string>;
@@ -214,16 +220,23 @@ type PatchIndexType = {
 };
 type PatchUIDType =
   "com.azul.java" |
+  // LiteLoader patch
   "com.mumfrey.liteloader" |
   "net.adoptium.java" |
+  // FabricMC patch
   "net.fabricmc.fabric-loader" |
+  // A dependency of the FabricMC patch
   "net.fabricmc.intermediary" |
+  // Vanilla Minecraft patch
   "net.minecraft" |
   "net.minecraft.java" |
+  // Forge patch
   "net.minecraftforge" |
+  // NeoForge patch
   "net.neoforged" |
   "org.lwjgl" |
   "org.lwjgl3" |
+  // QuiltMC patch
   "org.quiltmc.quilt-loader";
 ```
 
