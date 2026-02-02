@@ -19,6 +19,24 @@ If one correctly integrates the patch system, they will be able to launch both V
 
 `Other nested dependencies` represent the further dependency tree of patches.
 
+Also, take into consideration RyRy's[^1] explanations:
+
+- collect the json for a minecraft version from mojang's piston-meta -> transform it a bit for the one-six format
+- stack patches on that data to build up a launch profile,
+- resolve components like lwjgl and log4j etc.
+- fetch those libs from their respective maven urls
+- if necessary, extract the natives for your platform
+- if using a mod loader
+  - collect loader metadata
+    - resolve loader version for minecraft version
+    - collect libraries for loader
+    - (forge only) run processors to build the patched client
+- build java class path with libs for client, loader, and all mods you want to load
+- build java args from launch profile and any extra's the user wants
+- actually launch Minecraft by combining all the above
+  - (prism and the multimc family use a launch wrapper to allow launch old applet bases versions and to simplify some things)
+    - other launchers use a direct java launch with an appropriate loader "main class" set.
+
 ## Prerequisites
 
 Initially, I wanted to write the code parts as a pseudocode following the [CLRS conventions](https://course.ccs.neu.edu/cs3000/resources/latex_pseudocode.pdf). However, it would have taken plenty of time, so this walkthrough will only feature TypeScript. To make it easier for one to understand type schemas, they need to know:
@@ -58,8 +76,7 @@ type T = {
 }
 ```
 
-The `Partial<{ ... }>` type represents an object where all fields are optional.
-That is, all fields could be missing. For example:
+The `Partial<{ ... }>` type represents an object where all fields are optional. That is, all fields could be missing. For example:
 
 ```ts
 type Example = Partial<{ [key: "macos" | "linux"]: string }>;
@@ -74,7 +91,7 @@ type Example = Partial<{ [key: "macos" | "linux"]: string }>;
 
 Before one starts the coding part, they should understand what to expect from patches.
 
-As stated by Ryan[^1], the Prism Launcher meta server is generating JSON patches from multiple sources. These sources can have completely different library and asset structures. Bringing such format mismatches to one consistent response type is challenging. Thus, one will stumble upon many inconsistencies when handling MultiMC patches.
+As stated by Ryan[^2], the Prism Launcher meta server is generating JSON patches from multiple sources. These sources can have completely different library and asset structures. Bringing such format mismatches to one consistent response type is challenging. Thus, one will stumble upon many inconsistencies when handling MultiMC patches.
 
 The MultiMC patch is a JSON file that represents the information needed to handle the current patch. The patch system aims to simplify the installation and launching parts of Minecraft. Each patch can specify dependency or conflicting patches (although the latter one seems to be rare). Dependencies are just another patches, so each dependency can have its own dependencies too.
 
@@ -143,8 +160,8 @@ The final patch can be used to download artifacts and launch the game. It may no
 For example, I implemented the final patch structure like this:
 
 ```ts
-// You can just take a glance at the structure; do not inspect it in details.
-// There is still 8000 words left to read for you that explain everything :3
+// You can just take a glance at the structure; inspecting it in details is unnecessary.
+// There are still 8000 words left to read for you that explain everything :3
 type FinalizedPatchType = {
   "+jvmArgs"          : Array<string>;
   "+traits"           : Array<string>;
@@ -337,8 +354,8 @@ type SpecificPatchMetaType = {
   // - 'XR:Initial'         // Present in versions with chat reports
   // - 'FirstThreadOnMacOS' // Tells to use the '-XstartOnFirstThread' JVM argument on macOS
   // - 'legacyServices'     // Old auth services (?)
-  // - 'texturepacks'       // Shows that the version supports texture packs (?)
-  // - 'no-texturepacks'    // Shows that the version does not support texture packs (?)
+  // - 'texturepacks'       // Shows that the version supports texture packs selection
+  // - 'no-texturepacks'    // Shows that the version does not support texture packs selection
   //
   // There is also another format of traits, i.e. 'feature:*'.
   // They are usually present in newer versions. For now, there are only these options:
@@ -346,7 +363,7 @@ type SpecificPatchMetaType = {
   // - 'feature:is_quick_play_multiplayer'
   //
   // Other possible values that I have not encountered:
-  // - 'legacyFML'
+  // - 'legacyFML'          // For old game versions
   // - 'alphaLaunch'        // Prism Launcher meta no longer has this value (?)
   // - 'noapplet'           // Prism Launcher meta no longer has this value (?)
   "+traits"?: Array<string>;
@@ -380,11 +397,11 @@ type SpecificPatchMetaType = {
   // Seems to be the most complex part of Minecraft launching
   "libraries"?: Array<SpecificPatchLibraryType>;
 
-  // "The logging configuration file to provide to log4j" [1].
-  // Stored in '/assets/log_configs/', alongside with '/assets/indexes/' and '/assets/objects/' [2]
+  // "The logging configuration file to provide to log4j" [2].
+  // Stored in '/assets/log_configs/', alongside with '/assets/indexes/' and '/assets/objects/' [3]
   "logging"?: SpecificPatchLoggingType;
 
-  // "The main class to call in the execution of java" [1]
+  // "The main class to call in the execution of java" [2]
   "mainClass"?: string;
 
   // Points to the Minecraft client jar
@@ -423,7 +440,7 @@ type SpecificPatchMetaType = {
 };
 ```
 
-It should be noted that as per MultiMC documentation[^3], the `+agents`, `+traits`, `+tweakers`, and `+jvmArgs` should have their equivalent fields with the `-` sign or without the `+` sign. However, I never found such cases.
+It should be noted that as per MultiMC documentation[^4], the `+agents`, `+traits`, `+tweakers`, and `+jvmArgs` should have their equivalent fields with the `-` sign or without the `+` sign. However, they seem to be [deprecated](https://github.com/MultiMC/Launcher/blob/develop/launcher/minecraft/OneSixVersionFormat.cpp#L232).
 
 The `SpecificPatchAssetIndexType` type schema is equal to:
 
@@ -600,7 +617,7 @@ type SpecificPatchLibraryRuleType = {
   };
 };
 type SpecificPatchLibraryOSNameType =
-  // In this case, according to Scrumjellyfin [4],
+  // In this case, according to Scrumjellyfin [5],
   // "...'linux', 'osx' and 'windows' are only matched on x86_64 or x86".
 
   // Linux x86_64 or x86
@@ -774,7 +791,7 @@ type SpecificPatchLibraryRuleType = {
 
 If there are no rules, include the library.
 
-Lin[^2] suggests to start from disallowing the library.
+Lin[^3] suggests to start from disallowing the library.
 
 One should include the library if the OS name is missing. If it is present, then they should allow the library if the specified platform and arch are compatible.
 
@@ -817,7 +834,7 @@ For each rule:
 The OS name literal can be accessed via `rule.name.os` property. The action can be accessed via `rule.action`.
 
 1. If the rule OS name is missing, overwrite `toInclude` to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
-2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`[^4]. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64` is equivalent to `linux` and `arm64`.
+2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`[^5]. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64` is equivalent to `linux` and `arm64`.
 3. If the platform and arch are incompatible, do not overwrite `toInclude`.
 4. If the platform and arch are compatible, then overwrite `toInclude` variable to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
 
@@ -1298,7 +1315,13 @@ The launching command looks like this: `<java binary> <JVM arguments> <classpath
 
 These are **not** shared across all instances.
 
-Jar files are essentially archive files. You need to extract the files from them into instance-specific `natives` folder. This process is done on every instance launch[^2].
+According to Ryan[^2], "natives are binaries such as dynamic libraries and DLLs that are specific for each platform".
+
+They represent `.jar` files.
+
+Jar files are essentially archive files. You need to extract the files from them into instance-specific `natives` folder. This process is done on every instance launch[^3].
+
+Some libraries (e.g. LWJGL and `java-objc-bridge`) require to use platform-specific bindings, so the natives extraction step is important[^2].
 
 ### Java binary
 
@@ -1346,7 +1369,7 @@ For further performance tweaking, see [Minecraft-Performance-Flags-Benchmarks re
 
 ### Classpath
 
-Lin[^2] states that "the classpath is a string that includes all the paths to the libraries and the path to the game client itself".
+Lin[^3] states that "the classpath is a string that includes all the paths to the libraries and the path to the game client itself".
 
 The order of libraries in the Java classpath matters. To build it like in Hello Minecraft! Launcher, add the parsed libraries from `+libraries` first, then from the `libraries` field, and end with a path to the client jar.
 
@@ -1357,7 +1380,7 @@ The order of libraries in the Java classpath matters. To build it like in Hello 
 
 The libraries should be separated by a `:` symbol on Linux and macOS. On Windows, the `;` symbol should be used.
 
-Also include `-cp` before classpath.
+Also, include `-cp` before classpath.
 
 An example for a vanilla version of Minecraft 1.0 on Windows 10:
 
@@ -1375,43 +1398,41 @@ Note that there exists some strange class names, like `ax` in `a1.0.4`. They are
 
 The provided by Prism Launcher meta Minecraft arguments are sufficient to launch the game. However, one can add the `--height` and `--width` arguments with specified integer values to configure the Minecraft window size, e.g. `--height 600 --width 800`.
 
-The most important part here is not to forget to add tweaker classes.
+The most important part here is not to forget to add tweaker classes: `--tweakClass <tweak class>` (for each tweak class).
 
 ### Replacing placeholders
 
 The list of placeholders that are not related to authentication:
 
-- `assets_index_name`
-- `assets_root`
-- `classpath`
-- `clientid` - present in newer versions
-- `game_assets`
-- `game_directory`
-- `launcher_name`
-- `launcher_version`
-- `natives_directory`
-- `quickPlayMultiplayer` - "the host of the multiplayer server"[^2]
-- `quickPlayPath` - "where to output the logs files, relative to .minecraft"[^2]
-- `quickPlayRealms` - "the ID of the Minecraft Realms"[^2]
-- `quickPlaySingleplayer` - "the path to the singleplayer world"[^2]
-- `resolution_height`
-- `resolution_width`
+- `assets_index_name` - the assets index id, e.g. `27` or `pre-1.6`.
+- `assets_root` - the directory of the game assets.
+- `game_assets` - the directory of the game assets.
+- `classpath` - the built classpath string.
+- `game_directory` - the directory of instance-specific `minecraft` folder.
+- `launcher_name` - represents your Launcher name.
+- `launcher_version` - represents your Launcher version.
+- `natives_directory` - "the directory of the platform natives"[^2].
+- `quickPlayMultiplayer` - "the host of the multiplayer server"[^3].
+- `quickPlayPath` - "where to output the logs files, relative to .minecraft"[^3].
+- `quickPlayRealms` - "the ID of the Minecraft Realms"[^3].
+- `quickPlaySingleplayer` - "the path to the singleplayer world"[^3].
+- `resolution_height` - "user’s specified custom resolution width"[^3].
+- `resolution_width` - "user’s specified custom resolution height"[^3].
 - `user_properties` - used by old versions.
 - `user_type` - possible values are: `msa`, `mojang`, and `offline`.
-- `version_name`
-- `version_type`
-- `libraries_directory`
-- `main_jar_path`
+- `version_name` - the Minecraft version.
+- `version_type` - should be a Minecraft version type (e.g. `release` or `snapshot`), yet this value is not used anywhere except being shown on the home screen. Hello Minecraft! Launcher puts its own name there.
+- `libraries_directory` - used for the `-DlibraryDirectory=` JVM argument. Points to libraries directory.
+- `main_jar_path` - used for the `-Dminecraft.client.jar=` JVM argument. Points to the client jar path.
 
 The list of auth placeholders:
 
-- "auth_access_token": auth.token,
-- "auth_player_name" : auth.username,
-- // Used in 1.6.4
-- "auth_session"     : auth.token,
-- "auth_uuid"        : auth.uuid,
-- // 'Only present in newer versions with Microsoft integration'
-- "auth_xuid"        : auth.uuid,
+- `auth_access_token` - .
+- `auth_player_name` - .
+- `auth_session` - used in old version, e.g. 1.6.4.
+- `auth_uuid` - .
+- `auth_xuid` - "the account’s XUID, only present in newer versions with Microsoft integration"[^3].
+- `clientid` - "base64 encoded uuid from clientId.txt in .minecraft"[^6]. Present in newer versions.
 
 ### Spawning a Minecraft process
 
@@ -1429,6 +1450,12 @@ The 1.5.2 and older versions do not support specifying the game directory. On Wi
 ### Error: Could not create the Java Virtual Machine
 
 Your launch arguments are invalid.
+
+### Multiplayer does not work
+
+Yeah, I have the same issue, no clue why it does not work only in my Launcher.
+
+###
 
 ---
 
@@ -1451,12 +1478,12 @@ Prism Launcher seems to pick up other mods too, those mods will just not have an
 
 Cited resources
 
-[^1]: [Inside a Minecraft Launcher, by Ryan](https://ryanccn.dev/posts/inside-a-minecraft-launcher)
+[^1]: [Brief explanation of Minecraft launching, by RyRy](https://discord.com/channels/1031648380885147709/1064604527636000788/1460544613742809201)
 
-[^2]: [How Minecraft Launchers Work, by Lin](https://dreta.dev/blog/2023/08/15/how-minecraft-launchers-work/)
+[^2]: [Inside a Minecraft Launcher, by Ryan](https://ryanccn.dev/posts/inside-a-minecraft-launcher)
 
-[^3]: [JSON Patches, by MultiMC](https://github.com/MultiMC/Launcher/wiki/JSON-Patches)
+[^3]: [How Minecraft Launchers Work, by Lin](https://dreta.dev/blog/2023/08/15/how-minecraft-launchers-work/)
 
-[^4]: [Parsing the OS name in library rules, by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
+[^4]: [JSON Patches, by MultiMC](https://github.com/MultiMC/Launcher/wiki/JSON-Patches)
 
-[^5]: [Brief explanation of Minecraft launching, by RyRy](https://discord.com/channels/1031648380885147709/1064604527636000788/1460544613742809201)
+[^5]: [Parsing the OS name in library rules, by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)

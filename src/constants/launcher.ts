@@ -25,7 +25,7 @@ export const JVMArguments = {
     "FMLIgnorePatchDiscrepancies": "-Dfml.ignorePatchDiscrepancies=true",
     "LibrariesDirectory"         : "-DlibraryDirectory=${libraries_directory}",
     "NativesPath"                : "-Djava.library.path=${natives_directory}",
-    "ClientJAR"                  : "-Dminecraft.client.jar=${main_jar_directory}",
+    "ClientJAR"                  : "-Dminecraft.client.jar=${main_jar_path}",
     "TemporaryNativesPath"       : "-Djna.tmpdir=${natives_directory}",
     "SharedLibraryExtractPath":
       "-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}",
