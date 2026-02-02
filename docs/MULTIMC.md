@@ -9,7 +9,7 @@
 
 The MultiMC patch system is a complex, yet convenient way to manage Minecraft launching with various mod loaders.
 
-If one correctly integrates the patch system, they will be able to launch both Vanilla and Modded versions of Minecraft without ever reading any documentation for mod loaders that are provided by the MultiMC meta server.
+If one correctly integrates the patch system, they will be able to launch both Vanilla and Modded versions of Minecraft without ever reading any documentation for Minecraft mod loaders.
 
 ## TL;DR
 
