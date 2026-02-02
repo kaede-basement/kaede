@@ -17,7 +17,7 @@ If one correctly integrates the patch system, they will be able to launch both V
 
 > Made in Paint.NET
 
-`Other nested dependencies` represents the further dependency tree of patches.
+`Other nested dependencies` represent the further dependency tree of patches.
 
 ## Prerequisites
 
