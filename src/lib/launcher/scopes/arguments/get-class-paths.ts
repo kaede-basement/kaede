@@ -61,7 +61,10 @@ export async function getClassPaths({
   // The library paths may have duplicates because of the natives
   log.debug(logPrefix, "Removing duplicated classpaths");
   const uniquePaths: Set<string> = new Set(classPathsArray);
-  const classPaths: string = [...uniquePaths].join(";");
+  const pathSeparator: string = necessaries.platform === "windows"
+    ? ";"
+    : ":";
+  const classPaths: string = [...uniquePaths].join(pathSeparator);
 
   log.info(
     logPrefix,
