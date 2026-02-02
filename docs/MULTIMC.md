@@ -1398,9 +1398,14 @@ Note that there exists some strange class names, like `ax` in `a1.0.4`. They are
 
 The provided by Prism Launcher meta Minecraft arguments are sufficient to launch the game. However, one can add the `--height` and `--width` arguments with specified integer values to configure the Minecraft window size, e.g. `--height 600 --width 800`.
 
-The most important part here is not to forget to add tweaker classes: `--tweakClass <tweak class>` (for each tweak class).
+The most important part here is not to forget to add tweaker classes: `--tweakClass <tweak class>` (for each tweak class). Some versions (`a1.0.4`) may already include it in `minecraftArguments`.
 
 ### Replacing placeholders
+
+> [!NOTE]
+> You are almost there...
+>
+> <img width="60%" src="./assets/never-kys-aru.jpg" alt="A twitter post with Rikuhachima Aru plush and a 'never kys' text" />
 
 The list of placeholders that are not related to authentication:
 
@@ -1440,6 +1445,11 @@ Besides correctly passing launch arguments and using a Java binary as the proces
 
 The 1.5.2 and older versions do not support specifying the game directory. On Windows, they use `%appdata%/.minecraft`. Use [a custom LaunchWrapper](https://github.com/MCPHackers/LaunchWrapper) to fix this issue. These versions can also fail to launch if `options.txt` and `optionsof.txt` in `%appdata%/.minecraft` are not their cup of tea (I honestly do not know what the reason can be. Just delete these files or use a custom LaunchWrapper).
 
+Now is the moment of truth: launch the game!
+
+![Kaede Home page with launched Minecraft](./demos/kaede_home-page_minecraft.webp)
+![LiteLoader 1.10.2](./demos/kaede_home-page_minecraft-liteloader.webp)
+
 ## Troubleshooting
 
 > [!NOTE]
@@ -1455,12 +1465,22 @@ Your launch arguments are invalid.
 
 Yeah, I have the same issue, no clue why it does not work only in my Launcher.
 
+### a1.0.4 without a custom LaunchWrapper
+
+```
+Error: Main method not found in class ax, please define the main method as:
+   public static void main(String[] args)
+or a JavaFX application class must extend javafx.application.Application
+```
+
 # Unknown information
 
 - What are Java agents
 - What to do if the patch has specified multiple dependencies (are there any such cases tho)
 
 # References
+
+> Special thanks to [sn1pp](https://github.com/sn1pp) for providing some good ideas and useful information.
 
 Cited resources
 
