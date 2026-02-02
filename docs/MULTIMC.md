@@ -22,7 +22,7 @@ If one correctly integrates the patch system, they will be able to launch both V
 Also, take into consideration RyRy's[^1] explanations:
 
 - collect the json for a minecraft version from mojang's piston-meta -> transform it a bit for the one-six format
-- stack patches on that data to build up a launch profile,
+- stack patches on that data to build up a launch profile
 - resolve components like lwjgl and log4j etc.
 - fetch those libs from their respective maven urls
 - if necessary, extract the natives for your platform
@@ -34,7 +34,7 @@ Also, take into consideration RyRy's[^1] explanations:
 - build java class path with libs for client, loader, and all mods you want to load
 - build java args from launch profile and any extra's the user wants
 - actually launch Minecraft by combining all the above
-  - (prism and the multimc family use a launch wrapper to allow launch old applet bases versions and to simplify some things)
+  - prism and the multimc family use a launch wrapper to allow launch old applet bases versions and to simplify some things
     - other launchers use a direct java launch with an appropriate loader "main class" set.
 
 ## Prerequisites
