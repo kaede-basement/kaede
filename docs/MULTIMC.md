@@ -940,7 +940,7 @@ function handlePlatformRule({
    * - 'platform-arm64' <-- means arm64 ('unifyPlatformWithArch' returns 'arm64')
    */
   const isCompatibleAnyArch: boolean = unifiedArch === "any" && (
-    arch === "x64" ||
+    arch === "x86_64" ||
     arch === "x86"
   );
   const isCompatibleArch: boolean =
@@ -1342,7 +1342,7 @@ The list of possible JVM arguments includes but is not limited to:
 > Heap is a dynamic memory area in RAM. Java is an interpreted (excluding GraalVM Native Image subsets of Java) language by nature, so (almost) all code objects are stored in the heap memory.
 
 - `-Dlog4j2.formatMsgNoLookups=true` - prevents Log4Shell, although this argument is probably not needed anymore since that issue should have been fixed by this point. It also does not work for some old Minecraft versions.
-- `-Djava.net.useSystemProxiestrue` - Hello Minecraft! Launcher by default includes this argument. No clue why it lacks the `=` sign before `true`, though (still works).
+- `-Djava.net.useSystemProxiestrue` - Hello Minecraft! Launcher by default includes this argument. No clue why it lacks the `=` sign before `true` (still works, though).
 - `-Dfml.ignoreInvalidMinecraftCertificates=true` - [Hello Minecraft! Launcher by default includes this argument](https://github.com/HMCL-dev/HMCL/blob/5c2bb1cc251901dd471a8aa8048d90c22bb56916/HMCLCore/src/main/java/org/jackhuang/hmcl/launch/DefaultLauncher.java#L263).
 - `-Dfml.ignorePatchDiscrepancies=true` - [Hello Minecraft! Launcher by default includes this argument](https://github.com/HMCL-dev/HMCL/blob/5c2bb1cc251901dd471a8aa8048d90c22bb56916/HMCLCore/src/main/java/org/jackhuang/hmcl/launch/DefaultLauncher.java#L264).
 - `-DlibraryDirectory=${libraries_directory}` - is used by some old versions of Minecraft. Points to libraries directory.
@@ -1416,9 +1416,9 @@ The list of placeholders that are not related to authentication:
 - `quickPlayPath` - "where to output the logs files, relative to .minecraft"[^3].
 - `quickPlayRealms` - "the ID of the Minecraft Realms"[^3].
 - `quickPlaySingleplayer` - "the path to the singleplayer world"[^3].
-- `resolution_height` - "user’s specified custom resolution width"[^3].
-- `resolution_width` - "user’s specified custom resolution height"[^3].
-- `user_properties` - used by old versions.
+- `resolution_height` - "user's specified custom resolution height"[^3].
+- `resolution_width` - "user's specified custom resolution width"[^3].
+- `user_properties` - no idea. Used by old versions. Can be set to `{ "unknown": ["unknown"] }`.
 - `user_type` - possible values are: `msa`, `mojang`, and `offline`.
 - `version_name` - the Minecraft version.
 - `version_type` - should be a Minecraft version type (e.g. `release` or `snapshot`), yet this value is not used anywhere except being shown on the home screen. Hello Minecraft! Launcher puts its own name there.
@@ -1427,11 +1427,11 @@ The list of placeholders that are not related to authentication:
 
 The list of auth placeholders:
 
-- `auth_access_token` - .
-- `auth_player_name` - .
-- `auth_session` - used in old version, e.g. 1.6.4.
-- `auth_uuid` - .
-- `auth_xuid` - "the account’s XUID, only present in newer versions with Microsoft integration"[^3].
+- `auth_access_token` - "the account's Minecraft access token, required for accessing servers with online-mode and Minecraft Realms"[^3].
+- `auth_player_name` - "the username of the player"[^2].
+- `auth_session` - Account's session ID. Used in old version, e.g. 1.6.4.
+- `auth_uuid` - "the authentication UUID provided by MSA"[^2].
+- `auth_xuid` - "the account's XUID, only present in newer versions with Microsoft integration"[^3].
 - `clientid` - "base64 encoded uuid from clientId.txt in .minecraft"[^6]. Present in newer versions.
 
 ### Spawning a Minecraft process
