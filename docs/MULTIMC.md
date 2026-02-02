@@ -791,7 +791,7 @@ type SpecificPatchLibraryRuleType = {
 
 If there are no rules, include the library. Otherwise, start parsing rules.
 
-Lin[^3] suggests to start from disallowing the library.
+Lin[^3] suggests to start by disallowing the library.
 
 One should include the library if the OS name is missing. If it is present, then they should allow the library if the specified platform and arch are compatible.
 
