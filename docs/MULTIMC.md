@@ -764,7 +764,7 @@ function normalizeArtifactPath(artifact: string): {
     version,
   ];
   // You should use an appropriate path delimiter according to current OS
-  const delimiter: string = "..."; // For example, '/' or '\\'
+  const delimiter: string = "\\"; // For example, '/' or '\\'
 
   return {
     "directory": folders.join(delimiter),
@@ -789,7 +789,7 @@ type SpecificPatchLibraryRuleType = {
 };
 ```
 
-If there are no rules, include the library.
+If there are no rules, include the library. Otherwise, start parsing rules.
 
 Lin[^3] suggests to start from disallowing the library.
 
@@ -986,6 +986,10 @@ Note that with new-formatted natives you already parsed them in the previous sec
 For example:
 
 ```ts
+const entries: Array<{ "url": string; "path": string }> = [
+  { "url": "https://...", "path": "..." },
+];
+
 const uniqueMap: Map<string, string> = new Map(
   // It is probably better to filter by unique paths rather than unique URLs...
   entries.map(({ url, path }) => [path, url]),
@@ -1068,8 +1072,8 @@ function finalizePatches({
     "artifacts": [],
 
     /*
-     * Ancient versions do not have the 'mainClass' field,
-     * so use their class as a default value
+     * Ancient versions do not specify the 'mainClass' field,
+     * so use this class as a default value
      */
     "mainClass"         : "net.minecraft.client.Minecraft",
     "minecraftArguments": "",
@@ -1476,7 +1480,7 @@ or a JavaFX application class must extend javafx.application.Application
 # Unknown information
 
 - What are Java agents
-- What to do if the patch has specified multiple dependencies (are there any such cases tho)
+- What to do if the patch has specified multiple dependencies at once (are there any such cases tho)
 
 # References
 
