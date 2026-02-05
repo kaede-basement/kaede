@@ -620,7 +620,7 @@ type SpecificPatchLibraryRuleType = {
   };
 };
 type SpecificPatchLibraryOSNameType =
-  // In this case, according to Scrumjellyfin [5],
+  // In this case, according to Scrumplex [5],
   // "...'linux', 'osx' and 'windows' are only matched on x86_64 or x86".
 
   // Linux x86_64 or x86
@@ -840,6 +840,9 @@ The OS name literal can be accessed via `rule.name.os` property. The action can 
 2. If the rule OS name is present, extract the platform and arch from it. `<platform>` (e.g. `linux` or `windows`) means `platform` and `x86_64` or `x86`[^5]. `<platform>[-arch]` means `platform` and `arm32` or `arm64` (depends on `[-arch]`), e.g. `linux-arm64` is equivalent to `linux` and `arm64`.
 3. If the platform and arch are incompatible, do not overwrite `toInclude`.
 4. If the platform and arch are compatible, then overwrite `toInclude` variable to `true` if the action equals to `allow` and to `false` in other cases (`false`, undefined).
+
+> [!NOTE]
+> The MultiMC meta server does not specify CPU architectures; they are exclusive to Prism Launcher meta[^5]
 
 The TypeScript code representation of the algorithm:
 
@@ -1508,6 +1511,6 @@ Cited resources
 
 [^4]: [JSON Patches, by MultiMC](https://github.com/MultiMC/Launcher/wiki/JSON-Patches)
 
-[^5]: [Parsing the OS name in library rules, by Scrumjellyfin](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
+[^5]: [Parsing the OS name in library rules, by Scrumplex](https://discord.com/channels/1031648380885147709/1064604527636000788/1467103508833505514)
 
-[^6]: [Website is missing that information. See the screenshot above:](https://minecraft.wiki/w/Minecraft_Wiki%3AProjects/wiki.vg_merge/Launching_the_game?ref=minewiki.pl)
+[^6]: [Website is missing that information. See the screenshot above](https://minecraft.wiki/w/Minecraft_Wiki%3AProjects/wiki.vg_merge/Launching_the_game?ref=minewiki.pl)
