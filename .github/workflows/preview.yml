@@ -57,7 +57,7 @@ jobs:
         uses: restackio/update-json-file-action@2.1
         with:
           file: "./vite-pages.json"
-          fields: "{\"useKaedeBase\":true}"
+          fields: "{\"useKaedeBase\": true}"
 
       - name: Build
         run: bun run build:frontend

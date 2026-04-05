@@ -19,12 +19,14 @@
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { LogInfo } from "@/constants/browser.ts";
 import { readStoragePath } from "@/lib/browser/scopes/read-storage-path.ts";
+import { writeToStoragePath } from "@/lib/browser/scopes/write-to-storage-path.ts";
 
 export async function placeholderInvoke(
   command: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any,
-  options: unknown,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  options: any,
 ): Promise<unknown> {
   console.log(command, payload, options);
 
@@ -38,6 +40,9 @@ export async function placeholderInvoke(
     case "plugin:fs|exists": {
       return false;
     }
+    case "plugin:fs|read_dir": {
+      return [];
+    }
     case "plugin:fs|read_text_file": {
       const input: string = await readStoragePath(payload?.path);
       const encoder: TextEncoder = new TextEncoder;
@@ -48,10 +53,18 @@ export async function placeholderInvoke(
        */
       return encoder.encode(input);
     }
+    case "plugin:fs|write_text_file": {
+      const path: string = decodeURIComponent(options.headers.path);
+      const contents: Uint8Array = payload;
+      const decoder: TextDecoder = new TextDecoder;
+      const output: string = decoder.decode(contents);
+
+      return writeToStoragePath(path, output);
+    }
     case "plugin:path|join": {
       const paths: Array<string> = payload?.paths ?? [];
 
-      return paths.join("\\");
+      return paths.join("/");
     }
     case "plugin:app|version": {
       return "0.0.0";

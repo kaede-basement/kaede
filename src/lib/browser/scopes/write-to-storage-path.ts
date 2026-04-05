@@ -20,22 +20,14 @@ import { ApplicationNamespace } from "@/constants/application.ts";
 import { BrowserStorageStoreKey } from "@/constants/browser.ts";
 import { getDatabaseStore } from "@/lib/browser/scopes/get-database-store.ts";
 
-export async function readStoragePath(path: string): Promise<string> {
+export function writeToStoragePath(path: string, value: string): void {
   const database: IDBDatabase | undefined = window[ApplicationNamespace].__internals.indexedDB;
 
   if (!database) {
-    return "";
+    return;
   }
 
   const store: IDBObjectStore = getDatabaseStore(BrowserStorageStoreKey, database);
-  const request = store.get(path);
 
-  return new Promise(resolve => {
-    request.addEventListener("success", (): void => {
-      resolve(request.result?.value ?? "");
-    }, { "once": true });
-    request.addEventListener("error", () => {
-      resolve("");
-    }, { "once": true });
-  });
+  store.put({ path, value });
 }
