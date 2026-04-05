@@ -18,6 +18,7 @@
 
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { LogInfo } from "@/constants/browser.ts";
+import { handleBodyRead } from "@/lib/browser/scopes/handle-body-read.ts";
 import { listStores } from "@/lib/browser/scopes/list-stores.ts";
 import { readStoragePath } from "@/lib/browser/scopes/read-storage-path.ts";
 import { writeToStoragePath } from "@/lib/browser/scopes/write-to-storage-path.ts";
@@ -32,11 +33,39 @@ export async function placeholderInvoke(
   console.log(command, payload, options);
 
   switch (command) {
+    case "plugin:http|fetch": {
+      // So-called "rid"
+      return {
+        "url"   : payload.clientConfig.url,
+        "method": payload.clientConfig.method,
+      };
+    }
+    case "plugin:http|fetch_send": {
+      const response: Response = await fetch(
+        payload.rid.url,
+        { "method": payload.rid.method },
+      );
+
+      return {
+        "status"    : response.status,
+        "statusText": response.statusText,
+        "headers"   : response.headers,
+        "url"       : payload.rid.url,
+        "rid"       : { "rid": payload.rid, response },
+      };
+    }
+    case "plugin:http|fetch_read_body": {
+      const response: Response = payload.rid.response;
+      // All this from the Firefox Debugger of "@tauri-apps/plugin-http/dist-js"
+      const streamChannel = payload.streamChannel;
+
+      return handleBodyRead(response, streamChannel);
+    }
     case "get_executable_directory": {
       return "indexed_db";
     }
     case "get_launched_state": {
-      return 0;
+      return 1;
     }
     case "plugin:fs|exists": {
       const paths: Array<string> = await listStores(payload.path);
