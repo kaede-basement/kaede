@@ -6,6 +6,7 @@ import * as ShellXPlugin from "tauri-plugin-shellx-api";
 import { ApplicationNamespace } from "@/constants/application.ts";
 import FileStructure from "@/constants/file-structure.ts";
 import { APIEndpoints } from "@/constants/launcher.ts";
+import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import Errors from "@/lib/errors";
@@ -67,6 +68,7 @@ export function declareWindow(): void {
     },
     "libs": {
       APIEndpoints,
+      Browser,
       Configs,
       DevelopmentModeHelpers,
       FileStructure,

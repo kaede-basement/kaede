@@ -33,6 +33,7 @@ import type { Child } from "tauri-plugin-shellx-api";
 
 import type FileStructure from "@/constants/file-structure.ts";
 import type { APIEndpoints } from "@/constants/launcher.ts";
+import type Browser from "@/lib/browser";
 import type Configs from "@/lib/configs";
 import type DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import type Errors from "@/lib/errors";
@@ -190,6 +191,11 @@ declare global {
          * Launcher API endpoints
          */
         "APIEndpoints": typeof APIEndpoints;
+
+        /**
+         * A support for the Browser environment
+         */
+        "Browser": typeof Browser;
 
         /**
          * Launcher configuration-related collection of utilities

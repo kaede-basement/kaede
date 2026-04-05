@@ -50,10 +50,8 @@ const startTime = performance.now();
 Globals.declareWindow();
 
 if (Browser.detectIsBrowser()) {
-  await Browser.handleTauriEnvironment().catch(error => {
-    // eslint-disable-next-line no-console
-    console.error(error);
-  });
+  await Browser.handleTauriEnvironment();
+
   Browser.handleLogsFlush();
 }
 

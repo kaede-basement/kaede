@@ -18,6 +18,7 @@
 
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { LogInfo } from "@/constants/browser.ts";
+import { listStores } from "@/lib/browser/scopes/list-stores.ts";
 import { readStoragePath } from "@/lib/browser/scopes/read-storage-path.ts";
 import { writeToStoragePath } from "@/lib/browser/scopes/write-to-storage-path.ts";
 
@@ -38,10 +39,12 @@ export async function placeholderInvoke(
       return 0;
     }
     case "plugin:fs|exists": {
-      return false;
+      const paths: Array<string> = await listStores(payload.path);
+
+      return paths.length > 0;
     }
     case "plugin:fs|read_dir": {
-      return [];
+      return listStores(payload.path);
     }
     case "plugin:fs|read_text_file": {
       const input: string = await readStoragePath(payload?.path);
@@ -94,6 +97,17 @@ export async function placeholderInvoke(
       window[ApplicationNamespace].__internals.logsInBrowser?.push?.(message);
 
       return;
+    }
+    case "plugin:shellx|execute": {
+      return {
+        "status": {
+          "code"   : 0,
+          "signal" : null,
+          "success": true,
+        },
+        "stdout": "A Kaede Placeholder",
+        "stderr": "A Kaede Placeholder",
+      };
     }
     default: {
       return;

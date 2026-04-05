@@ -22,7 +22,7 @@ import FileStructure from "@/constants/file-structure.ts";
 import { getDatabaseStore } from "@/lib/browser/scopes/get-database-store.ts";
 import General from "@/lib/general";
 
-let firstTime: boolean = false;
+let firstTime: boolean = true;
 
 export function handleLogsFlush(): void {
   setInterval(async () => {
@@ -50,7 +50,9 @@ export function handleLogsFlush(): void {
         parsedLogs.push(...currentLogs);
         store.put({
           "path" : logsKey,
-          "value": firstTime ? "" : parsedLogs.join("\n"),
+          "value": firstTime
+            ? currentLogs.join("\n")
+            : parsedLogs.join("\n"),
         });
 
         firstTime = false;

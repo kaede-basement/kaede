@@ -20,23 +20,29 @@ import { ApplicationNamespace } from "@/constants/application.ts";
 import { BrowserStorageStoreKey } from "@/constants/browser.ts";
 import { getDatabaseStore } from "@/lib/browser/scopes/get-database-store.ts";
 
-export async function writeToStoragePath(path: string, value: string): Promise<void> {
+export async function listStores(path?: string): Promise<Array<string>> {
   const database: IDBDatabase | undefined = window[ApplicationNamespace].__internals.indexedDB;
 
   if (!database) {
-    return;
+    return [];
   }
 
   const store: IDBObjectStore = getDatabaseStore(BrowserStorageStoreKey, database);
+  const request = store.getAllKeys();
 
-  const request = store.put({ path, value });
-
-  return new Promise((resolve, reject) => {
+  return new Promise(resolve => {
     request.addEventListener("success", (): void => {
-      resolve();
+      // All keys are string, so we type cast
+      const keys: Array<string> = request.result as Array<string>;
+
+      if (!path) {
+        return resolve(keys);
+      }
+
+      resolve(keys.filter(filtering => filtering.startsWith(path)));
     }, { "once": true });
     request.addEventListener("error", () => {
-      reject("An error occurred while writing to indexed DB");
+      resolve([]);
     }, { "once": true });
   });
 }
