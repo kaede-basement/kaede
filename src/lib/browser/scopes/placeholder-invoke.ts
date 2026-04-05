@@ -42,6 +42,10 @@ export async function placeholderInvoke(
       const input: string = await readStoragePath(payload?.path);
       const encoder: TextEncoder = new TextEncoder;
 
+      /*
+       * '<Tauri API>#readTextFile' expects Uint8Array,
+       * and we cannot change/replace that function since Tauri API is frozen
+       */
       return encoder.encode(input);
     }
     case "plugin:path|join": {
