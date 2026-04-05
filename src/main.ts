@@ -31,6 +31,7 @@ import { createApp } from "vue";
 import App from "@/App.vue";
 import { ApplicationNamespace, ApplicationRootID, DefaultLocale } from "@/constants/application";
 import { getASCIIArt } from "@/constants/ascii-art.ts";
+import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import Errors from "@/lib/errors";
@@ -47,6 +48,10 @@ const startTime = performance.now();
 
 // 'window[ApplicationNamespace]' is accessed not only by extensions but by the application itself
 Globals.declareWindow();
+
+if (Browser.detectIsBrowser()) {
+  Browser.handleTauriEnvironment();
+}
 
 const [launchCount, portable]: [number, boolean, void, void] = await Promise.all([
   // Get application UI reloads count
