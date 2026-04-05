@@ -16,16 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-const logInfo = {
-  "delimiter": " | ",
-  "levels"   : {
-    "1": "TRACE",
-    "2": "DEBUG",
-    "3": "INFO",
-    "4": "WARN",
-    "5": "ERROR",
-  },
-} as const;
+import { ApplicationNamespace } from "@/constants/application.ts";
+import { LogInfo } from "@/constants/browser.ts";
+import { readStoragePath } from "@/lib/browser/scopes/read-storage-path.ts";
 
 export async function placeholderInvoke(
   command: string,
@@ -36,11 +29,20 @@ export async function placeholderInvoke(
   console.log(command, payload, options);
 
   switch (command) {
+    case "get_executable_directory": {
+      return "indexed_db";
+    }
     case "get_launched_state": {
       return 0;
     }
     case "plugin:fs|exists": {
       return false;
+    }
+    case "plugin:fs|read_text_file": {
+      const input: string = await readStoragePath(payload?.path);
+      const encoder: TextEncoder = new TextEncoder;
+
+      return encoder.encode(input);
     }
     case "plugin:path|join": {
       const paths: Array<string> = payload?.paths ?? [];
@@ -52,18 +54,27 @@ export async function placeholderInvoke(
     }
     case "plugin:log|log": {
       const now: Date = new Date;
-      const time: string =
-        now.getHours() + ":" +
-        now.getMinutes() + ":" +
-        now.getSeconds() + "." +
-        now.getMilliseconds();
+      const hours: number = now.getHours();
+      const minutes: string = now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0");
+      const seconds: string = now
+        .getSeconds()
+        .toString()
+        .padStart(2, "0");
+      const milliseconds: string = now
+        .getMilliseconds()
+        .toString()
+        .padStart(3, "0");
+      const time: string = `${hours}:${minutes}:${seconds}:${milliseconds}`;
       const message: string =
-        time + logInfo.delimiter +
-        logInfo.levels[payload.level as 1] + logInfo.delimiter +
-        `webview:${payload.location}` + logInfo.delimiter +
+        time + LogInfo.delimiter +
+        LogInfo.levels[payload.level as 1] + LogInfo.delimiter +
+        `webview:${payload.location}` + LogInfo.delimiter +
         payload.message;
 
-      window.__KAEDE__.__internals.logsInBrowser?.push?.(message);
+      window[ApplicationNamespace].__internals.logsInBrowser?.push?.(message);
 
       return;
     }

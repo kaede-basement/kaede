@@ -16,11 +16,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { ApplicationNamespace } from "@/constants/application.ts";
+import { BrowserStorageStoreKey } from "@/constants/browser.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import { getDatabaseStore } from "@/lib/browser/scopes/get-database-store.ts";
+import General from "@/lib/general";
+
+let firstTime: boolean = false;
 
 export function handleLogsFlush(): void {
-  setInterval(() => {
-    const KaedeInternals = window.__KAEDE__.__internals;
+  setInterval(async () => {
+    const KaedeInternals = window[ApplicationNamespace].__internals;
     const database: IDBDatabase | undefined = KaedeInternals.indexedDB;
     const currentLogs: Array<string> | undefined = KaedeInternals.logsInBrowser;
 
@@ -28,12 +34,33 @@ export function handleLogsFlush(): void {
       return;
     }
 
-    const store: IDBObjectStore = getDatabaseStore("logs", database);
+    const store: IDBObjectStore = getDatabaseStore(BrowserStorageStoreKey, database);
+    const logsKey: string = General.cachedJoin(
+      General.getCachedBaseDirectory(),
+      FileStructure.Folders.Logs.Path,
+      FileStructure.Folders.Logs.Files.LatestLog,
+    );
+    const logsRequest = store.get(logsKey);
 
-    for (const message of currentLogs) {
-      store.add({ message });
-    }
+    await new Promise((resolve, reject) => {
+      logsRequest.addEventListener("success", (): void => {
+        const storedLogs: string = logsRequest.result?.value ?? "";
+        const parsedLogs: Array<string> = storedLogs.split("\n");
+
+        parsedLogs.push(...currentLogs);
+        store.put({
+          "path" : logsKey,
+          "value": firstTime ? "" : parsedLogs.join("\n"),
+        });
+
+        firstTime = false;
+        resolve(true);
+      }, { "once": true });
+      logsRequest.addEventListener("error", error => {
+        reject(error);
+      }, { "once": true });
+    });
 
     currentLogs.length = 0;
-  }, 300);
+  }, 500);
 }

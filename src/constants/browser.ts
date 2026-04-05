@@ -16,14 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { detectIsBrowser } from "@/lib/browser/scopes/detect-is-browser.ts";
-import { handleLogsFlush } from "@/lib/browser/scopes/handle-logs-flush.ts";
-import { handleTauriEnvironment } from "@/lib/browser/scopes/handle-tauri-environment.ts";
-import { readStoragePath } from "@/lib/browser/scopes/read-storage-path.ts";
-
-export default {
-  detectIsBrowser,
-  handleLogsFlush,
-  handleTauriEnvironment,
-  readStoragePath,
+export const BrowserStorageKey = "kaedeBrowserDB" as const;
+export const BrowserStorageStoreKey = "storage" as const;
+export const LogInfo = {
+  "delimiter": " | ",
+  "levels"   : {
+    "1": "TRACE",
+    "2": "DEBUG",
+    "3": "INFO",
+    "4": "WARN",
+    "5": "ERROR",
+  },
 } as const;

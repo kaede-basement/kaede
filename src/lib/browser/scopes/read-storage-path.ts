@@ -16,35 +16,26 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { BrowserStorageKey, BrowserStorageStoreKey } from "@/constants/browser.ts";
-import type { DatabaseType } from "@/types/browser/database.type.ts";
+import { ApplicationNamespace } from "@/constants/application.ts";
+import { BrowserStorageStoreKey } from "@/constants/browser.ts";
+import { getDatabaseStore } from "@/lib/browser/scopes/get-database-store.ts";
 
-export async function handleDatabase(): Promise<DatabaseType> {
-  const request: IDBOpenDBRequest = indexedDB.open(BrowserStorageKey, 1);
+export async function readStoragePath(path: string): Promise<string> {
+  const database: IDBDatabase | undefined = window[ApplicationNamespace].__internals.indexedDB;
 
-  request.addEventListener("upgradeneeded", (): void => {
-    const currentDatabase: IDBDatabase = request.result;
+  if (!database) {
+    return "";
+  }
 
-    if (!currentDatabase.objectStoreNames.contains(BrowserStorageStoreKey)) {
-      currentDatabase.createObjectStore(BrowserStorageStoreKey, {
-        "keyPath": "path",
-      });
-    }
-  }, { "once": true });
+  const store: IDBObjectStore = getDatabaseStore(BrowserStorageStoreKey, database);
+  const request = store.get(path);
 
   return new Promise(resolve => {
-    let database: DatabaseType["database"];
-
     request.addEventListener("success", (): void => {
-      database = request.result;
-
-      resolve({ database });
+      resolve(request.result.value);
     }, { "once": true });
-    request.addEventListener("error", (): void => {
-      // eslint-disable-next-line no-console
-      console.log("Error in Indexed DB:", request.error);
-
-      resolve({ database });
+    request.addEventListener("error", () => {
+      resolve("");
     }, { "once": true });
   });
 }

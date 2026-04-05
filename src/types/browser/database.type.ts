@@ -16,7 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export type DatabaseKeyType = "general" | "logs";
+import { BrowserStorageStoreKey } from "@/constants/browser.ts";
+
+export type DatabaseKeyType = typeof BrowserStorageStoreKey;
 export type DatabaseType = {
   "database"?: IDBDatabase;
 };
