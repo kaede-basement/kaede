@@ -16,12 +16,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { detectIsBrowser } from "@/lib/browser/scopes/detect-is-browser.ts";
-import { handleLogsFlush } from "@/lib/browser/scopes/handle-logs-flush.ts";
-import { handleTauriEnvironment } from "@/lib/browser/scopes/handle-tauri-environment.ts";
+import { getDatabaseStore } from "@/lib/browser/scopes/get-database-store.ts";
 
-export default {
-  detectIsBrowser,
-  handleLogsFlush,
-  handleTauriEnvironment,
-} as const;
+export function handleLogsFlush(): void {
+  setInterval(() => {
+    const KaedeInternals = window.__KAEDE__.__internals;
+    const database: IDBDatabase | undefined = KaedeInternals.indexedDB;
+    const currentLogs: Array<string> | undefined = KaedeInternals.logsInBrowser;
+
+    if (!database || !currentLogs) {
+      return;
+    }
+
+    const store: IDBObjectStore = getDatabaseStore("logs", database);
+
+    for (const message of currentLogs) {
+      store.add({ message });
+    }
+
+    currentLogs.length = 0;
+  }, 300);
+}

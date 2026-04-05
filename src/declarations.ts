@@ -83,6 +83,9 @@ declare global {
   /* Declared in the '@/lib/globals/scopes/declare-window.ts' */
   interface Window {
 
+    /* Tauri internals */
+    "__TAURI_INTERNALS__": object;
+
     /* Tauri exposes these */
     "__TAURI__": typeof TauriApi & {
       "dialog"      : typeof TauriDialog;
@@ -152,6 +155,10 @@ declare global {
         "startTime"          ?: number;
         // A Java major version (for example, 8, 11, or 17)
         "javaMajor"          ?: number;
+
+        /* Needed for browser environments (non-application) */
+        "logsInBrowser"       : Array<string>;
+        "indexedDB"          ?: IDBDatabase;
       };
 
       /**

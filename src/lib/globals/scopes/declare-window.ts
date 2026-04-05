@@ -59,6 +59,7 @@ export function declareWindow(): void {
       "initialInstances"    : {} as InstanceStatesType,
       "initialPortable"     : false,
       "initialBaseDirectory": "",
+      "logsInBrowser"       : [],
     },
     "variables": {
       "rippleColor"     : "#ffffff15",

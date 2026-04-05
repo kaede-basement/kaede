@@ -16,4 +16,43 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export function handleTauriEnvironment(): void {}
+import { handleDatabase } from "@/lib/browser/scopes/handle-database.ts";
+import { placeholderInvoke } from "@/lib/browser/scopes/placeholder-invoke.ts";
+
+export async function handleTauriEnvironment(): Promise<void> {
+  const { database } = await handleDatabase();
+
+  window.__KAEDE__.__internals.indexedDB = database;
+  window.__TAURI_INTERNALS__ = {
+    "plugins": {
+      "path": {
+        "delimiter": ";",
+        "sep"      : "\\",
+      },
+    },
+    "callbacks"     : new Map,
+    "convertFileSrc": (): void => {},
+    "invoke"        : placeholderInvoke,
+    "ipc"           : (): void => {},
+    "metadata"      : {
+      "currentWebview": { "label": "main" },
+      "currentWindow" : { "label": "main" },
+    },
+    "postMessage"       : (): void => {},
+    "runCallback"       : (): void => {},
+    "transformCallback" : (): void => {},
+    "unregisterCallback": (): void => {},
+    "__TAURI_PATTERN__" : {
+      "pattern": "brownfield",
+    },
+  };
+  window.__TAURI_OS_PLUGIN_INTERNALS__ = {
+    "eol"          : "unknown",
+    "os_type"      : "linux",
+    "platform"     : "linux",
+    "family"       : "unix",
+    "version"      : "unknown",
+    "arch"         : "x86_64",
+    "exe_extension": "unknown",
+  };
+}

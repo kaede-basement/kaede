@@ -16,12 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { detectIsBrowser } from "@/lib/browser/scopes/detect-is-browser.ts";
-import { handleLogsFlush } from "@/lib/browser/scopes/handle-logs-flush.ts";
-import { handleTauriEnvironment } from "@/lib/browser/scopes/handle-tauri-environment.ts";
-
-export default {
-  detectIsBrowser,
-  handleLogsFlush,
-  handleTauriEnvironment,
-} as const;
+export type DatabaseKeyType = "general" | "logs";
+export type DatabaseType = {
+  "database"?: IDBDatabase;
+};

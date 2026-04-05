@@ -16,12 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { detectIsBrowser } from "@/lib/browser/scopes/detect-is-browser.ts";
-import { handleLogsFlush } from "@/lib/browser/scopes/handle-logs-flush.ts";
-import { handleTauriEnvironment } from "@/lib/browser/scopes/handle-tauri-environment.ts";
+import type { DatabaseKeyType } from "@/types/browser/database.type.ts";
 
-export default {
-  detectIsBrowser,
-  handleLogsFlush,
-  handleTauriEnvironment,
-} as const;
+export function getDatabaseStore(key: DatabaseKeyType, database: IDBDatabase): IDBObjectStore {
+  return database.transaction(key, "readwrite").objectStore(key);
+}
