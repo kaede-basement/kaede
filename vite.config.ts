@@ -24,6 +24,8 @@ import eslint from "vite-plugin-eslint2";
 // 'vitest/config' extends 'vite' config
 import { defineConfig } from "vitest/config";
 
+import vitePagesConfiguration from "./vite-pages.json";
+
 function handleSourceFileNames(): {
   "name"     : string;
   "transform": (source: string, id: string) => string;
@@ -46,6 +48,7 @@ function handleSourceFileNames(): {
 }
 
 export default defineConfig({
+  "base"       : vitePagesConfiguration.useKaedeBase ? "/kaede" : undefined,
   // Better support for Tauri CLI output
   "clearScreen": false,
   // Enable environment variables
