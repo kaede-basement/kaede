@@ -121,6 +121,7 @@ function handleTextSelection(event: KeyboardEvent): void {
     :listen-to-events="true"
     :focus-on-key-f="true"
     :on-input="handleInput"
+    :on-blur="handleInput"
     :on-key-down="handleEnter"
     :on-escape="handleEscape"
     :on-keyboard-event="handleTextSelection"

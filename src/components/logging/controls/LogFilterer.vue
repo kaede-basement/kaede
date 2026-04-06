@@ -31,6 +31,7 @@ function handleEscape(): void {
     :default-value="filtering"
     :listen-to-events="true"
     :on-input="handleInput"
+    :on-blur="handleInput"
     :on-escape="handleEscape"
   />
 </template>

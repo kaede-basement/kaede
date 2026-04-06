@@ -102,7 +102,7 @@ function handleGroup(group: string): void {
         id="__add-instance-page__no-groups-text"
         class="h-8 flex items-center pl-2 text-neutral-400 leading-none"
       >
-        No groups...
+        No groups to select...
       </p>
     </template>
   </div>

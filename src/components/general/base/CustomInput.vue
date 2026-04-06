@@ -16,6 +16,7 @@ const {
   onKeyDown,
   onEscape,
   onKeyboardEvent,
+  onBlur,
   classNames,
 } = defineProps<{
   "icon"            : string;
@@ -29,6 +30,7 @@ const {
   "onKeyDown"      ?: (event: KeyboardEvent) => void;
   "onEscape"       ?: () => void;
   "onKeyboardEvent"?: (event: KeyboardEvent) => void;
+  "onBlur"         ?: (value: string) => void;
   "classNames"     ?: {
     "wrapper" : string;
     "icon"   ?: string;
@@ -40,7 +42,12 @@ const target = useTemplateRef("target");
 
 const focused = ref<boolean>(false);
 
-function unFocus(): void {
+function unFocus(event: Event): void {
+  const target = event?.target as HTMLInputElement;
+  const value: string = target?.value ?? "";
+
+  onBlur?.(value);
+
   focused.value = false;
 }
 

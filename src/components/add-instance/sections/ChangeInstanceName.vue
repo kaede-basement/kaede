@@ -78,6 +78,7 @@ function handleNameChange(input: string): void {
       :default-value="currentInstance?.name"
       :listen-to-events="true"
       :on-input="handleNameChange"
+      :on-blur="handleNameChange"
       :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"
     />
   </div>

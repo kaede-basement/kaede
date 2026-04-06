@@ -40,5 +40,9 @@ export async function createInstance(
 
   await Instances.add(id, currentInstance);
 
+  GlobalStateHelpers.Pages.addToState("add-instance", {
+    "instance": undefined,
+  });
+
   return GlobalStateHelpers.Pages.navigate(Routes.Home);
 }
