@@ -3,7 +3,7 @@ import type { InstanceStateType } from "@/types/application/instance-states.type
 
 export const DefaultInstanceIcon = "https://minecraft.wiki/images/Minecraft_Preview_App_Store_icon_2.png";
 export const DefaultInstanceSettings: Omit<InstanceStateType, "patchVersions"> = {
-  "name"        : "Minecraft",
+  "name"        : "Your Minecraft Instance Name",
   "icon"        : DefaultInstanceIcon,
   "windowHeight": 480,
   "windowWidth" : 854,

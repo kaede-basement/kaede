@@ -45,7 +45,7 @@ const cardStyles = computed(
     )
   ),
 );
-const aspectRation = computed((): string => {
+const aspectRatio = computed((): string => {
   if (!currentInstance.value) {
     return "0:0";
   }
@@ -106,16 +106,16 @@ function handleHeightChange(value: string): void {
       </p>
       <div
         id="__add-instance-page__instance-resolution-display-aspect-ratio"
-        class="h-full border border-blue bg-blue-950 p-2"
+        class="h-32 border border-blue bg-blue-950 p-2 transition-[width]"
         :style="{
-          'aspectRatio': currentInstance.windowWidth / currentInstance.windowHeight,
+          'width': `${128 * (currentInstance.windowWidth / currentInstance.windowHeight)}px`,
         }"
       >
         <p
           id="__add-instance-page__instance-resolution-aspect-ratio-label"
           class="pointer-events-none absolute left-[50%] left-[50%] translate-x-[-50%] translate-y-[calc(50%+24px)] text-3xl text-neutral-300 leading-none"
         >
-          {{ aspectRation }}
+          {{ aspectRatio }}
         </p>
       </div>
     </div>
