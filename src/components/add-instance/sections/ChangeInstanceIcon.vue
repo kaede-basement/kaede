@@ -19,10 +19,12 @@
 <script setup lang="ts">
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { copyFile } from "@tauri-apps/plugin-fs";
 import { computed, inject } from "vue";
 
 import Image from "@/components/general/base/Image.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
+import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
+import FileStructure from "@/constants/file-structure.ts";
 import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -58,24 +60,41 @@ async function handleIconPick(): Promise<void> {
     );
   }
 
-  const selectedIcon: string | null = await open({
+  const selectedIconPath: string | null = await open({
     "multiple" : false,
     "directory": false,
-    "title"    : "Select an instance icon",
+    "title"    : "Select an instance icon (it will be copied)",
     "filters"  : [{
       "name"      : "Image",
       "extensions": ["png", "jpg", "jpeg", "webp", "gif", "svg", "avif", "apng"],
     }],
   });
 
-  if (!selectedIcon) {
+  if (!selectedIconPath) {
     return;
   }
+
+  const delimiter = window[ApplicationNamespace].__internals.joinDelimiter;
+  const splitPath: Array<string> = selectedIconPath.split(delimiter);
+  const fileName: string = splitPath[splitPath.length - 1];
+  const copyDestination: string = General.cachedJoin(
+    General.getCachedBaseDirectory(),
+    FileStructure.Folders.Resources.Path,
+    fileName,
+  );
+
+  /*
+   * If the file was selected from the path to where Kaede usually does not have
+   * an access, then the dynamically expanded scope will disappear
+   * on the next application launch.
+   * That is why we need to copy that file to the 'resources/' folder
+   */
+  await copyFile(selectedIconPath, copyDestination);
 
   GlobalStateHelpers.Pages.addToState("add-instance", {
     "instance": {
       ...currentInstance.value,
-      "icon": convertFileSrc(selectedIcon),
+      "icon": convertFileSrc(copyDestination),
     },
   });
 }
