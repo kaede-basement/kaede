@@ -5,6 +5,7 @@ import MinecraftIcon from "@/resources/MinecraftIcon.webp";
 import NeoForgeIcon from "@/resources/NeoForgeIcon.webp";
 import OptiFineIcon from "@/resources/OptiFineIcon.webp";
 import QuiltIcon from "@/resources/QuiltIcon.webp";
+import type { PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
 export const Patches = {
   "AzulJava"          : "com.azul.java",
@@ -29,7 +30,7 @@ export const CustomPatches = {
 // The order is the same as in HMCL
 export const InstallablePatches: Array<{
   "id"     : string;
-  "uid"    : string;
+  "uid"    : PatchUIDType | typeof CustomPatches[keyof typeof CustomPatches];
   "name"   : string;
   "icon"  ?: string;
   "action"?: (uid: string) => Promise<void>;

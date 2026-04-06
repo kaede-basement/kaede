@@ -1,6 +1,8 @@
-import { PatchUIDs } from "@/constants/meta.ts";
+import { CustomPatches, PatchUIDs } from "@/constants/meta.ts";
 
 export type PatchUIDType = (typeof PatchUIDs)[number];
+export type ExtendedPatchUIDType =
+  PatchUIDType | (typeof CustomPatches)[keyof typeof CustomPatches];
 export type PatchVariantType =
   "release" |
   "snapshot" |

@@ -33,7 +33,10 @@ import type {
   ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import type { PatchIndexType, PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
+import type {
+  ExtendedPatchUIDType,
+  PatchIndexType,
+} from "@/types/launcher/meta/patch-index.type.ts";
 
 const { data, status } = useQuery({
   "queryKey": ["meta", APIEndpoints.Meta.Paths.Minecraft.Id, "versions"],
@@ -122,7 +125,7 @@ const currentVersionSearch = computed(
     globalStates?.pages?.states?.["add-instance"]?.instanceVersionSearch
   ),
 );
-const currentPatch = computed((): PatchUIDType => (
+const currentPatch = computed((): ExtendedPatchUIDType => (
   currentVersionSearch.value?.patch ?? Patches.Minecraft
 ));
 const cardStyles = computed(
@@ -194,7 +197,15 @@ onClickOutside(target, () => handleDropdown(false));
     :style="cardStyles"
   >
     <div
-      v-if="currentInstance?.patchVersions?.[currentPatch]"
+      v-if="currentInstance?.patchVersions?.[Patches.Minecraft]"
+      id="__add-instance-page__instance-version-selected-badge"
+      class="grid h-full place-items-center rounded-md bg-neutral-800 px-2 text-neutral-300 leading-none"
+      :data-tooltip="`Selected version of '${Patches.Minecraft}'`"
+    >
+      {{ currentInstance.patchVersions[Patches.Minecraft] }}
+    </div>
+    <div
+      v-if="currentPatch !== Patches.Minecraft && currentInstance?.patchVersions?.[currentPatch]"
       id="__add-instance-page__instance-version-selected-badge"
       class="grid h-full place-items-center rounded-md bg-neutral-800 px-2 text-neutral-300 leading-none"
       :data-tooltip="`Selected version of '${currentPatch}'`"
