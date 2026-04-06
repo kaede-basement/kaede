@@ -33,6 +33,12 @@ export async function placeholderInvoke(
   console.log(command, payload, options);
 
   switch (command) {
+    case "plugin:upload|download": {
+      const response: Response = await fetch(payload.url);
+      const body: string = await response.text();
+
+      return writeToStoragePath(payload.filePath, body);
+    }
     case "plugin:http|fetch": {
       // So-called "rid"
       return {
