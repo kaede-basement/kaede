@@ -115,15 +115,11 @@ function handleTextSelection(event: KeyboardEvent): void {
   <CustomInput
     icon="i-lucide-search"
     placeholder="Search..."
+    id-root="__log-controls__search"
     :debounce-time="200"
     :default-value="searching.current"
     :listen-to-events="true"
     :focus-on-key-f="true"
-    :ids="{
-      'wrapper': '__log-controls__search-wrapper',
-      'icon'   : '__log-controls__search-icon',
-      'input'  : '__log-controls__search-input',
-    }"
     :on-input="handleInput"
     :on-key-down="handleEnter"
     :on-escape="handleEscape"

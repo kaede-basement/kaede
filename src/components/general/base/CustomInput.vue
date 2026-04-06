@@ -8,26 +8,22 @@ const {
   icon,
   placeholder,
   debounceTime,
+  idRoot,
   defaultValue,
   listenToEvents,
   focusOnKeyF,
-  ids,
   onInput,
   onKeyDown,
   onEscape,
   onKeyboardEvent,
 } = defineProps<{
-  "icon"           : string;
-  "placeholder"    : string;
-  "debounceTime"   : number;
-  "defaultValue"  ?: string;
-  "listenToEvents"?: boolean;
-  "focusOnKeyF"   ?: boolean;
-  "ids"            : {
-    "wrapper": string;
-    "icon"   : string;
-    "input"  : string;
-  };
+  "icon"            : string;
+  "placeholder"     : string;
+  "debounceTime"    : number;
+  "idRoot"          : string;
+  "defaultValue"   ?: string;
+  "listenToEvents" ?: boolean;
+  "focusOnKeyF"    ?: boolean;
   "onInput"        ?: (value: string) => void;
   "onKeyDown"      ?: (event: KeyboardEvent) => void;
   "onEscape"       ?: () => void;
@@ -86,7 +82,7 @@ if (listenToEvents) {
 <template>
   <div
     @click="handleWrapperClick"
-    :id="ids.wrapper"
+    :id="`${idRoot}-wrapper`"
     :class="[
       focused ? 'cursor-text' : 'cursor-pointer',
       'shrink-0 relative w-28 sm:w-40 flex flex-nowrap items-center',
@@ -94,7 +90,7 @@ if (listenToEvents) {
     ]"
   >
     <div
-      :id="ids.icon"
+      :id="`${idRoot}-icon`"
       :class="[
         icon,
         focused ? 'text-white' : 'text-neutral-400',
@@ -103,7 +99,7 @@ if (listenToEvents) {
     ></div>
     <input
       ref="target"
-      :id="ids.input"
+      :id="`${idRoot}-input`"
       :class="[
         focused ? 'text-white' : 'text-neutral-400',
         'absolute pl-8 left-0 right-0 top-0 bottom-0 bg-transparent text-sm',
