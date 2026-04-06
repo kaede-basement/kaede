@@ -2,6 +2,8 @@ import type { ShallowReactive } from "vue";
 
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
+import type { PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
+import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 
 export type GlobalStatesLayoutType = {
   "locale"                 : string;
@@ -44,8 +46,16 @@ export type GlobalStatesPagesType = {
       "tab": unknown;
     }>;
     "add-instance": Partial<{
-      // TODO: modrinth / curseforge / etc.
-      "provider": unknown;
+      "instance": {
+        "name"         : string;
+        "entry"        : PatchUIDType;
+        "checksum"     : boolean;
+        "groups"       : Array<string>;
+        "javaBinary"   : string;
+        "patchVersions": InstanceStateType["patchVersions"];
+        "icon"        ?: string;
+      };
+      "tab": string;
     }>;
     // Reserved for extensions' needs
     "none": Record<string, unknown>;

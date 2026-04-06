@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, inject } from "vue";
 
 import CleanInstance from "@/components/add-instance/sections/CleanInstance.vue";
 import Image from "@/components/general/base/Image.vue";
@@ -7,12 +7,19 @@ import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
 import { GlobalStatesContextKey, InstanceCreationSections } from "@/constants/application.ts";
 import General from "@/lib/general";
+import { Pages } from "@/lib/global-state-helpers/scopes/pages.ts";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
-const selected = ref<string>(InstanceCreationSections[0].id);
+const selected = computed((): string => {
+  if (!globalStates) {
+    return InstanceCreationSections[0].id;
+  }
 
+  return globalStates.pages.states["add-instance"].tab
+    ?? InstanceCreationSections[0].id;
+});
 const cardStyles = computed(
   (): ReturnType<typeof General.getSidebarInnerStyles> => (
     General.getSidebarInnerStyles(
@@ -24,7 +31,9 @@ const cardStyles = computed(
 );
 
 function handleModeSelect(id: string): void {
-  selected.value = id;
+  Pages.addToState("add-instance", {
+    "tab": id,
+  });
 }
 </script>
 

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { fetch } from "@tauri-apps/plugin-http";
-import { computed, inject, ref } from "vue";
+import { computed, inject } from "vue";
 
 import CustomInput from "@/components/general/base/CustomInput.vue";
 import Image from "@/components/general/base/Image.vue";
@@ -10,10 +12,14 @@ import { GlobalStatesContextKey } from "@/constants/application.ts";
 import { APIEndpoints, DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { InstallablePatches } from "@/constants/meta.ts";
 import General from "@/lib/general";
+import { Pages } from "@/lib/global-state-helpers/scopes/pages.ts";
 import Instances from "@/lib/instances";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
-import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
-import type { PatchIndexType, PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
+import { log } from "@/lib/logging/scopes/log.ts";
+import type {
+  ContextGlobalStatesType,
+  GlobalStatesType,
+} from "@/types/application/global-states.type.ts";
+import type { PatchIndexType } from "@/types/launcher/meta/patch-index.type.ts";
 
 const {} = useQuery({
   "queryKey": ["meta", APIEndpoints.Meta.Paths.Minecraft.Id, "versions"],
@@ -50,6 +56,24 @@ const {} = useQuery({
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
+const currentInstance = computed(
+  (): GlobalStatesType["pages"]["states"]["add-instance"]["instance"] => {
+    const storedInstance = globalStates?.pages?.states?.["add-instance"]?.instance;
+
+    if (!storedInstance) {
+      return {
+        "name"         : "",
+        "entry"        : "net.minecraft",
+        "checksum"     : true,
+        "groups"       : [],
+        "javaBinary"   : "java",
+        "patchVersions": { "net.minecraft": "1.16.5" },
+      };
+    }
+
+    return storedInstance;
+  },
+);
 const cardStyles = computed(
   (): ReturnType<typeof General.getSidebarInnerStyles> => (
     General.getSidebarInnerStyles(
@@ -60,34 +84,52 @@ const cardStyles = computed(
   ),
 );
 
-const instanceInformation = ref<{
-  "name"         : string;
-  "entry"        : PatchUIDType;
-  "checksum"     : boolean;
-  "groups"       : Array<string>;
-  "javaBinary"   : string;
-  "patchVersions": InstanceStateType["patchVersions"];
-  "icon"        ?: string;
-}>({
-  "name"         : "",
-  "entry"        : "net.minecraft",
-  "checksum"     : true,
-  "groups"       : [],
-  "javaBinary"   : "java",
-  "patchVersions": { "net.minecraft": "1.16.5" },
-});
+async function handleIconPick(): Promise<void> {
+  if (!currentInstance.value) {
+    return log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not select an instance icon since the instance is undefined",
+    );
+  }
 
+  const selectedIcon: string | null = await open({
+    "multiple" : false,
+    "directory": false,
+    "title"    : "Select an instance icon",
+    "filters"  : [{
+      "name"      : "Image",
+      "extensions": ["png", "jpg", "jpeg", "webp", "gif", "svg", "avif", "apng"],
+    }],
+  });
+
+  if (!selectedIcon) {
+    return;
+  }
+
+  Pages.addToState("add-instance", {
+    "instance": {
+      ...currentInstance.value,
+      "icon": convertFileSrc(selectedIcon),
+    },
+  });
+}
 function handlePatch(uid: string): void {
   console.log(uid);
 }
 function createInstance(): void {
-  const currentInformation = instanceInformation.value;
+  if (!currentInstance.value) {
+    return log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not create an instance since the instance is undefined",
+    );
+  }
+
   const randomDigits: number = Math.floor(Math.random() * 1000);
   const id: string =
     "instance_" + randomDigits + "_" +
-    General.hashString(currentInformation.name).toString();
+    General.hashString(currentInstance.value.name).toString();
 
-  Instances.add(id, currentInformation);
+  Instances.add(id, currentInstance.value);
 }
 </script>
 
@@ -104,9 +146,10 @@ function createInstance(): void {
       >
         <Image
           id="__add-instance-page__instance-icon-image"
-          :src="instanceInformation.icon ?? DefaultInstanceSettings.icon"
+          :src="currentInstance?.icon ?? DefaultInstanceSettings.icon"
           alt="An instance icon"
-          class-names="rounded-md size-16"
+          class-names="cursor-pointer object-cover rounded-md size-24 hover:opacity-70"
+          @click="handleIconPick"
         />
       </div>
     </div>
