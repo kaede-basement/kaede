@@ -77,7 +77,6 @@ function handleNameChange(input: string): void {
       tooltip="Instance name"
       :debounce-time="300"
       :default-value="currentInstance?.name"
-      :listen-to-events="true"
       :on-input="handleNameChange"
       :on-blur="handleNameChange"
       :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"

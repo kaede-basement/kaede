@@ -20,7 +20,8 @@
 import ChangeInstanceGroups from "@/components/add-instance/sections/ChangeInstanceGroups.vue";
 import ChangeInstanceIcon from "@/components/add-instance/sections/ChangeInstanceIcon.vue";
 import ChangeInstanceName from "@/components/add-instance/sections/ChangeInstanceName.vue";
-import ChangeInstanceResolution from "@/components/add-instance/sections/ChangeInstanceResolution.vue";
+import ChangeInstanceResolution
+  from "@/components/add-instance/sections/ChangeInstanceResolution.vue";
 import ChangeInstanceVersion from "@/components/add-instance/sections/ChangeInstanceVersion.vue";
 import CreateInstance from "@/components/add-instance/sections/CreateInstance.vue";
 </script>

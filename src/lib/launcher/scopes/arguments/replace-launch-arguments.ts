@@ -1,4 +1,5 @@
 import { ApplicationName } from "@/constants/application.ts";
+import { Patches } from "@/constants/meta.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -65,7 +66,7 @@ export function replaceLaunchArguments({
     }),
     // 'msa', 'mojang', or 'offline' (?)
     "user_type"          : auth.type,
-    "version_name"       : instance.patchVersions["net.minecraft"],
+    "version_name"       : instance.patchVersions[Patches.Minecraft],
     "version_type"       : `${ApplicationName} ${applicationVersion}`,
     // Introduced by Kaede
     "libraries_directory": directories.libraries,

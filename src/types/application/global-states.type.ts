@@ -46,6 +46,10 @@ export type GlobalStatesPagesType = {
       "tab": unknown;
     }>;
     "add-instance": Partial<{
+      "instanceVersionSearch": {
+        "patch": PatchUIDType;
+        "input": string;
+      };
       "instance": {
         "name"         : string;
         "entry"        : PatchUIDType;
