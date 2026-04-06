@@ -17,48 +17,12 @@
   -->
 
 <script setup lang="ts">
-import { useQuery } from "@tanstack/vue-query";
-import { fetch } from "@tauri-apps/plugin-http";
-
 import ChangeInstanceGroups from "@/components/add-instance/sections/ChangeInstanceGroups.vue";
 import ChangeInstanceIcon from "@/components/add-instance/sections/ChangeInstanceIcon.vue";
 import ChangeInstanceName from "@/components/add-instance/sections/ChangeInstanceName.vue";
+import ChangeInstanceResolution from "@/components/add-instance/sections/ChangeInstanceResolution.vue";
+import ChangeInstanceVersion from "@/components/add-instance/sections/ChangeInstanceVersion.vue";
 import CreateInstance from "@/components/add-instance/sections/CreateInstance.vue";
-import { APIEndpoints } from "@/constants/launcher.ts";
-import type { PatchIndexType } from "@/types/launcher/meta/patch-index.type.ts";
-
-const {} = useQuery({
-  "queryKey": ["meta", APIEndpoints.Meta.Paths.Minecraft.Id, "versions"],
-  "queryFn" : async (): Promise<PatchIndexType["versions"]> => {
-    const response: Response = await fetch(
-      APIEndpoints.Meta.Base +
-      APIEndpoints.Meta.Paths.Minecraft.Id,
-    );
-    const parsed: unknown = await response.json();
-
-    if (typeof parsed !== "object" || parsed === null) {
-      throw new Error("The provided metadata is invalid");
-    }
-
-    if (!("versions" in parsed) || !Array.isArray(parsed.versions)) {
-      throw new Error("No versions in the provided metadata");
-    }
-
-    const entry: unknown = parsed.versions?.[0];
-
-    if (typeof entry !== "object" || entry === null) {
-      throw new Error("The parsed versions are invalid");
-    }
-
-    if (!("version" in entry) || !("type" in entry)) {
-      throw new Error("No version or type fields in the parsed versions");
-    }
-
-    return parsed
-      .versions
-      .filter(({ type }) => type === "release");
-  },
-});
 </script>
 
 <template>
@@ -75,6 +39,13 @@ const {} = useQuery({
         <ChangeInstanceName />
         <ChangeInstanceGroups />
       </div>
+    </div>
+    <ChangeInstanceVersion />
+    <div
+      id="__add-instance-page__instance-others-group"
+      class="flex flex-wrap gap-2 sm:flex-nowrap"
+    >
+      <ChangeInstanceResolution />
     </div>
     <CreateInstance />
   </div>

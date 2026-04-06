@@ -18,12 +18,13 @@ const {
   onKeyboardEvent,
   onBlur,
   classNames,
+  type,
 } = defineProps<{
   "icon"            : string;
   "placeholder"     : string;
   "debounceTime"    : number;
   "idRoot"          : string;
-  "defaultValue"   ?: string;
+  "defaultValue"   ?: string | number;
   "listenToEvents" ?: boolean;
   "focusOnKeyF"    ?: boolean;
   "onInput"        ?: (value: string) => void;
@@ -36,6 +37,7 @@ const {
     "icon"   ?: string;
     "input"  ?: string;
   };
+  "type"?: "text" | "number";
 }>();
 
 const target = useTemplateRef("target");
@@ -102,6 +104,7 @@ if (listenToEvents) {
       'shrink-0 relative w-28 sm:w-40 flex flex-nowrap items-center',
       'gap-2 rounded-md bg-neutral-800 pl-2',
     ]"
+    :title="placeholder"
   >
     <div
       :id="`${idRoot}-icon`"
@@ -121,7 +124,7 @@ if (listenToEvents) {
         'absolute pl-8 left-0 right-0 top-0 bottom-0 bg-transparent text-sm',
         'outline-none transition-[color] focus:outline-none placeholder-neutral-400',
       ]"
-      type="text"
+      :type="type ?? 'text'"
       :placeholder="focused ? '' : placeholder"
       :value="defaultValue"
       @input="handleInput"

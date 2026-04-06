@@ -53,6 +53,8 @@ export type GlobalStatesPagesType = {
         "groups"       : Array<string>;
         "javaBinary"   : string;
         "patchVersions": InstanceStateType["patchVersions"];
+        "windowHeight" : number;
+        "windowWidth"  : number;
         "icon"        ?: string;
       };
       "tab": string;

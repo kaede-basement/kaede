@@ -17,21 +17,52 @@
   -->
 
 <script setup lang="ts">
-import { convertFileSrc } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { useQuery } from "@tanstack/vue-query";
+import { fetch } from "@tauri-apps/plugin-http";
 import { computed, inject } from "vue";
 
-import Image from "@/components/general/base/Image.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
-import { DefaultInstanceSettings } from "@/constants/launcher.ts";
+import { APIEndpoints } from "@/constants/launcher.ts";
 import General from "@/lib/general";
-import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
-import { log } from "@/lib/logging/scopes/log.ts";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
+import type { PatchIndexType } from "@/types/launcher/meta/patch-index.type.ts";
+
+const {} = useQuery({
+  "queryKey": ["meta", APIEndpoints.Meta.Paths.Minecraft.Id, "versions"],
+  "queryFn" : async (): Promise<PatchIndexType["versions"]> => {
+    const response: Response = await fetch(
+      APIEndpoints.Meta.Base +
+      APIEndpoints.Meta.Paths.Minecraft.Id,
+    );
+    const parsed: unknown = await response.json();
+
+    if (typeof parsed !== "object" || parsed === null) {
+      throw new Error("The provided metadata is invalid");
+    }
+
+    if (!("versions" in parsed) || !Array.isArray(parsed.versions)) {
+      throw new Error("No versions in the provided metadata");
+    }
+
+    const entry: unknown = parsed.versions?.[0];
+
+    if (typeof entry !== "object" || entry === null) {
+      throw new Error("The parsed versions are invalid");
+    }
+
+    if (!("version" in entry) || !("type" in entry)) {
+      throw new Error("No version or type fields in the parsed versions");
+    }
+
+    return parsed
+      .versions
+      .filter(({ type }) => type === "release");
+  },
+});
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
@@ -49,51 +80,14 @@ const cardStyles = computed(
     )
   ),
 );
-
-async function handleIconPick(): Promise<void> {
-  if (!currentInstance.value) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Could not select an instance icon since the instance is undefined",
-    );
-  }
-
-  const selectedIcon: string | null = await open({
-    "multiple" : false,
-    "directory": false,
-    "title"    : "Select an instance icon",
-    "filters"  : [{
-      "name"      : "Image",
-      "extensions": ["png", "jpg", "jpeg", "webp", "gif", "svg", "avif", "apng"],
-    }],
-  });
-
-  if (!selectedIcon) {
-    return;
-  }
-
-  GlobalStateHelpers.Pages.addToState("add-instance", {
-    "instance": {
-      ...currentInstance.value,
-      "icon": convertFileSrc(selectedIcon),
-    },
-  });
-}
 </script>
 
 <template>
   <div
-    id="__add-instance-page__instance-icon-wrapper"
-    class="shrink-0 rounded-md p-2"
+    id="__add-instance-page__instance-version"
+    class="rounded-md p-2"
     :style="cardStyles"
   >
-    <Image
-      id="__add-instance-page__instance-icon-image"
-      :src="currentInstance?.icon ?? DefaultInstanceSettings.icon"
-      alt="An instance icon"
-      class-names="cursor-pointer object-cover rounded-md size-22 hover:opacity-70"
-      @click="handleIconPick"
-      title="An instance icon"
-    />
+    минекрафт версии
   </div>
 </template>

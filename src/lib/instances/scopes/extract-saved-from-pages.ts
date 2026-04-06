@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export function extractSavedFromPages(
@@ -25,11 +26,13 @@ export function extractSavedFromPages(
 
   if (!storedInstance) {
     return {
-      "name"         : "",
-      "entry"        : "net.minecraft",
-      "checksum"     : true,
-      "groups"       : [],
-      "javaBinary"   : "java",
+      "name"         : DefaultInstanceSettings.name,
+      "entry"        : DefaultInstanceSettings.entry,
+      "checksum"     : DefaultInstanceSettings.checksum,
+      "groups"       : [...DefaultInstanceSettings.groups],
+      "javaBinary"   : DefaultInstanceSettings.javaBinary,
+      "windowHeight" : DefaultInstanceSettings.windowHeight,
+      "windowWidth"  : DefaultInstanceSettings.windowWidth,
       "patchVersions": { "net.minecraft": "1.16.5" },
     };
   }

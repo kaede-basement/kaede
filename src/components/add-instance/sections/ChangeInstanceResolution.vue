@@ -1,0 +1,164 @@
+<!--
+  - Kaede, a Minecraft Launcher
+  - Copyright (C) 2026  windstone <notwindstone@gmail.com> and contributors
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU General Public License as published by
+  - the Free Software Foundation, either version 3 of the License, or
+  - (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU General Public License for more details.
+  -
+  - You should have received a copy of the GNU General Public License
+  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<script setup lang="ts">
+import { computed, inject } from "vue";
+
+import CustomInput from "@/components/general/base/CustomInput.vue";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
+import General from "@/lib/general";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+import Instances from "@/lib/instances";
+import type {
+  ContextGlobalStatesType,
+  GlobalStatesType,
+} from "@/types/application/global-states.type.ts";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+
+const currentInstance = computed(
+  (): GlobalStatesType["pages"]["states"]["add-instance"]["instance"] => (
+    Instances.extractSavedFromPages(globalStates)
+  ),
+);
+const cardStyles = computed(
+  (): ReturnType<typeof General.getSidebarInnerStyles> => (
+    General.getSidebarInnerStyles(
+      globalStates?.layout?.sidebar?.background,
+      globalStates?.layout?.sidebar?.color,
+      globalStates?.layout?.sidebar?.blur,
+    )
+  ),
+);
+const aspectRation = computed((): string => {
+  if (!currentInstance.value) {
+    return "0:0";
+  }
+
+  const width: number = currentInstance.value.windowWidth;
+  const height: number = currentInstance.value.windowHeight;
+  const common: number = General.gcd(width, height);
+
+  return `${width / common}:${height / common}`;
+});
+
+function handleWidthChange(value: string): void {
+  const width: number = Number(value);
+
+  if (!currentInstance.value || Number.isNaN(width)) {
+    return;
+  }
+
+  GlobalStateHelpers.Pages.addToState("add-instance", {
+    "instance": {
+      ...currentInstance.value,
+      "windowWidth": width,
+    },
+  });
+}
+function handleHeightChange(value: string): void {
+  const height: number = Number(value);
+
+  if (!currentInstance.value || Number.isNaN(height)) {
+    return;
+  }
+
+  GlobalStateHelpers.Pages.addToState("add-instance", {
+    "instance": {
+      ...currentInstance.value,
+      "windowHeight": height,
+    },
+  });
+}
+</script>
+
+<template>
+  <div
+    v-if="currentInstance"
+    id="__add-instance-page__instance-resolution"
+    class="relative max-w-[50%] flex flex-1 flex-col gap-2 rounded-md p-2 lg:max-w-[33%]"
+    :style="cardStyles"
+  >
+    <div
+      id="__add-instance-page__instance-resolution-display"
+      class="h-48 flex flex-col items-center gap-4 overflow-auto rounded-md bg-neutral-800 py-4"
+    >
+      <p
+        id="__add-instance-page__instance-resolution-title"
+        class="text-neutral-300 leading-none"
+      >
+        Aspect Ratio
+      </p>
+      <div
+        id="__add-instance-page__instance-resolution-display-aspect-ratio"
+        class="h-full border border-blue bg-blue-950 p-2"
+        :style="{
+          'aspectRatio': currentInstance.windowWidth / currentInstance.windowHeight,
+        }"
+      >
+        <p
+          id="__add-instance-page__instance-resolution-aspect-ratio-label"
+          class="pointer-events-none absolute left-[50%] left-[50%] translate-x-[-50%] translate-y-[calc(50%+24px)] text-3xl text-neutral-300 leading-none"
+        >
+          {{ aspectRation }}
+        </p>
+      </div>
+    </div>
+  </div>
+  <div
+    id="__add-instance-page__instance-other-settings-wrapper"
+    class="lg:flex-2 flex flex-1 flex-col gap-2"
+  >
+    <div
+      id="__add-instance-page__instance-other-width"
+      class="rounded-md p-2"
+      :style="cardStyles"
+    >
+      <CustomInput
+        icon="i-lucide-unfold-horizontal"
+        placeholder="Window Width"
+        id-root="__add-instance-page__instance-other-width"
+        type="number"
+        :debounce-time="300"
+        :default-value="currentInstance?.windowWidth"
+        :listen-to-events="true"
+        :on-input="handleWidthChange"
+        :on-blur="handleWidthChange"
+        :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"
+      />
+    </div>
+    <div
+      id="__add-instance-page__instance-other-height"
+      class="rounded-md p-2"
+      :style="cardStyles"
+    >
+      <CustomInput
+        icon="i-lucide-unfold-vertical"
+        placeholder="Window Height"
+        id-root="__add-instance-page__instance-other-height"
+        type="number"
+        :debounce-time="300"
+        :default-value="currentInstance?.windowHeight"
+        :listen-to-events="true"
+        :on-input="handleHeightChange"
+        :on-blur="handleHeightChange"
+        :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"
+      />
+    </div>
+  </div>
+</template>

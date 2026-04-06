@@ -5,6 +5,7 @@ import { capitalize } from "@/lib/general/scopes/capitalize.ts";
 import { checkDaysDifference } from "@/lib/general/scopes/check-days-difference.ts";
 import { checkIsPortable } from "@/lib/general/scopes/check-is-portable.ts";
 import { concurrentlyDownload } from "@/lib/general/scopes/concurrently-download.ts";
+import { gcd } from "@/lib/general/scopes/gcd.ts";
 import { getAtAGlance } from "@/lib/general/scopes/get-at-a-glance.ts";
 import { getBaseDirectory } from "@/lib/general/scopes/get-base-directory.ts";
 import { getCachedBaseDirectory } from "@/lib/general/scopes/get-cached-base-directory.ts";
@@ -30,6 +31,7 @@ export default {
   checkDaysDifference,
   checkIsPortable,
   concurrentlyDownload,
+  gcd,
   getAtAGlance,
   getBaseDirectory,
   getCachedBaseDirectory,
