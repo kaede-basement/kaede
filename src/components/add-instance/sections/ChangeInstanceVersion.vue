@@ -147,7 +147,41 @@ function handleVersionSearch(input: string): void {
     },
   });
 }
-function selectVersion(): void {}
+function selectVersion(event: MouseEvent): void {
+  const target = event?.target as HTMLSpanElement;
+
+  if (!target) {
+    return;
+  }
+
+  // ["__add", "instance", "page__instance", "version", "dropdown", "item", element_type, version]
+  const splitId: Array<string> = target?.id?.split?.("-");
+  const extractedVersion: string = splitId.slice(7).join("-");
+
+  if (!extractedVersion || !currentInstance.value || !currentPatch.value) {
+    return;
+  }
+
+  GlobalStateHelpers.Pages.addToState("add-instance", {
+    "instance": {
+      ...currentInstance.value,
+      "patchVersions": {
+        ...currentInstance.value.patchVersions,
+        [currentPatch.value]: extractedVersion,
+      },
+    },
+  });
+}
+function slideOverVersions(event: MouseEvent): void {
+  const pressed: number = event.buttons;
+
+  // '1' means that the user has clicked the primary mouse button
+  if (pressed !== 1) {
+    return;
+  }
+
+  selectVersion(event);
+}
 
 onClickOutside(target, () => handleDropdown(false));
 </script>
@@ -184,36 +218,38 @@ onClickOutside(target, () => handleDropdown(false));
         <button
           v-if="selector"
           id="__add-instance-page__instance-version-dropdown-wrapper"
-          class="absolute left-0 top-14 z-50 max-h-[274px] w-full flex flex-col gap-2 overflow-y-auto rounded-md p-2"
+          class="absolute left-0 top-14 z-50 max-h-[274px] w-full flex flex-col overflow-y-auto rounded-md"
           :style="cardStyles"
-          @click="selectVersion"
+          @pointerdown="selectVersion"
+          @pointerover="slideOverVersions"
+          @pointerup="() => handleDropdown(false)"
         >
           <span
             v-for="entry in filteredVersions"
-            :id="`__add-instance-page__instance-version-dropdown-item-${entry.version}`"
+            :id="`__add-instance-page__instance-version-dropdown-item-wrapper-${entry.version}`"
             :key="entry.version"
-            class="__add-instance-page__instance-version-dropdown-item flex flex-nowrap rounded-md bg-neutral-800 p-2 text-sm text-neutral-300 leading-none"
+            class="__add-instance-page__instance-version-dropdown-item flex flex-nowrap border-b border-neutral-600 px-2 py-3 text-sm text-neutral-300 leading-none hover:bg-neutral-800"
           >
             <span
-              :id="`__add-instance-page__instance-version-dropdown-item-${entry.version}-star`"
+              :id="`__add-instance-page__instance-version-dropdown-item-star-${entry.version}`"
               class="w-6 shrink-0 text-start"
             >
               {{ entry.recommended ? "⭐" : "" }}
             </span>
             <span
-              :id="`__add-instance-page__instance-version-dropdown-item-${entry.version}-version`"
+              :id="`__add-instance-page__instance-version-dropdown-item-version-${entry.version}`"
               class="flex-1 text-start"
             >
               {{ entry.version }}
             </span>
             <span
-              :id="`__add-instance-page__instance-version-dropdown-item-${entry.version}-type`"
+              :id="`__add-instance-page__instance-version-dropdown-item-type-${entry.version}`"
               class="flex-1 text-start"
             >
               {{ entry?.type }}
             </span>
             <span
-              :id="`__add-instance-page__instance-version-dropdown-item-${entry.version}-time`"
+              :id="`__add-instance-page__instance-version-dropdown-item-time-${entry.version}`"
               class="flex-1 text-start"
             >
               {{ entry.releaseTime }}
