@@ -72,9 +72,22 @@ export async function placeholderInvoke(
 
       return paths.length > 0;
     }
+    case "plugin:fs|size": {
+      const paths: Array<string> = await listStores(payload?.path);
+      let size: number = 0;
+
+      for (const path of paths) {
+        const currentFile = await readStoragePath(path);
+
+        size = size + currentFile.length;
+      }
+
+      return size;
+    }
     case "plugin:fs|read_dir": {
       return listStores(payload.path);
     }
+    case "plugin:fs|read_file":
     case "plugin:fs|read_text_file": {
       const input: string = await readStoragePath(payload?.path);
       const encoder: TextEncoder = new TextEncoder;

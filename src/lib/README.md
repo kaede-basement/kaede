@@ -45,14 +45,14 @@ As for the table of replicas:
 | `readTextFileLines()`                    | None            |
 | `remove()`                               | None            |
 | `rename()`                               | None            |
-| `size()`                                 | None            |
+| `size()`                                 | Yes (IndexedDB) |
 | `startAccessingSecurityScopedResource()` | None            |
 | `stat()`                                 | None            |
 | `stopAccessingSecurityScopedResource()`  | None            |
 | `truncate()`                             | None            |
 | `watch()`                                | None            |
 | `watchImmediate()`                       | None            |
-| `writeFile()`                            | Yes (IndexedDB) |
+| `writeFile()`                            | None            |
 | `writeTextFile()`                        | Yes (IndexedDB) |
 
 </details>

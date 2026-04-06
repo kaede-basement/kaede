@@ -43,6 +43,7 @@ import type { InstanceStatesType } from "@/types/application/instance-states.typ
 import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
+import { size } from "@tauri-apps/plugin-fs";
 
 const startTime = performance.now();
 
@@ -53,6 +54,8 @@ if (Browser.detectIsBrowser()) {
   await Browser.handleTauriEnvironment();
 
   Browser.handleLogsFlush();
+
+  console.log(await size("indexed_db/assets"));
 }
 
 const [launchCount, portable]: [number, boolean, void, void] = await Promise.all([
