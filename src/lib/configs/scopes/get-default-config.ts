@@ -26,7 +26,7 @@ export async function getDefaultConfig(): Promise<ConfigType> {
       "enableMaterialYouRipple": true,
       "custom"                 : false,
       "background"             : {
-        "url"    : "https://i.ibb.co/qMzhNMQK/tea-party-2x.webp",
+        "url"    : null,
         "key"    : null,
         "blur"   : null,
         "color"  : null,
