@@ -67,7 +67,7 @@ onClickOutside(target, close);
               <Image
                 v-if="item.image"
                 :id="`${item.id}-image`"
-                class-names="block rounded-md size-12 p-1"
+                class-names="block object-cover rounded-md size-12 p-1"
                 :src="item.image"
                 :alt="`${item.title}'s image logo`"
               />

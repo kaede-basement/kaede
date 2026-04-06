@@ -11,6 +11,7 @@ import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
 import { APIEndpoints, DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { InstallablePatches } from "@/constants/meta.ts";
+import { Routes } from "@/constants/routes.ts";
 import General from "@/lib/general";
 import { Pages } from "@/lib/global-state-helpers/scopes/pages.ts";
 import Instances from "@/lib/instances";
@@ -84,6 +85,45 @@ const cardStyles = computed(
   ),
 );
 
+function handleNameChange(input: string): void {
+  if (!currentInstance.value) {
+    return log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not change an instance name since the instance is undefined",
+    );
+  }
+
+  Pages.addToState("add-instance", {
+    "instance": {
+      ...currentInstance.value,
+      "name": input,
+    },
+  });
+}
+function handleGroup(group: string): void {
+  if (!currentInstance.value) {
+    return log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not change instance groups since the instance is undefined",
+    );
+  }
+
+  const currentGroups: Set<string> = new Set(currentInstance.value.groups);
+
+  if (currentGroups.has(group)) {
+    currentGroups.delete(group);
+  } else {
+    currentGroups.add(group);
+  }
+
+  Pages.addToState("add-instance", {
+    "instance": {
+      ...currentInstance.value,
+      "groups": [...currentGroups],
+    },
+  });
+}
+
 async function handleIconPick(): Promise<void> {
   if (!currentInstance.value) {
     return log.error(
@@ -113,10 +153,7 @@ async function handleIconPick(): Promise<void> {
     },
   });
 }
-function handlePatch(uid: string): void {
-  console.log(uid);
-}
-function createInstance(): void {
+async function createInstance(): Promise<void> {
   if (!currentInstance.value) {
     return log.error(
       __PRE_BUNDLED_FILENAME__,
@@ -129,7 +166,9 @@ function createInstance(): void {
     "instance_" + randomDigits + "_" +
     General.hashString(currentInstance.value.name).toString();
 
-  Instances.add(id, currentInstance.value);
+  await Instances.add(id, currentInstance.value);
+
+  return Pages.navigate(Routes.Home);
 }
 </script>
 
@@ -137,70 +176,94 @@ function createInstance(): void {
   <div id="__add-instance-page__wrapper" class="h-fit w-full flex flex-col gap-2">
     <div
       id="__add-instance-page__instance-main-group"
-      class="flex flex-wrap gap-2 sm:flex-nowrap"
+      class="flex flex-nowrap gap-2"
     >
       <div
         id="__add-instance-page__instance-icon-wrapper"
-        class="flex flex-nowrap gap-2 rounded-md p-2"
+        class="shrink-0 rounded-md p-2"
         :style="cardStyles"
       >
         <Image
           id="__add-instance-page__instance-icon-image"
           :src="currentInstance?.icon ?? DefaultInstanceSettings.icon"
           alt="An instance icon"
-          class-names="cursor-pointer object-cover rounded-md size-24 hover:opacity-70"
+          class-names="cursor-pointer object-cover rounded-md size-22 hover:opacity-70"
           @click="handleIconPick"
         />
       </div>
+      <div
+        id="__add-instance-page__instance-general-wrapper"
+        class="w-full flex flex-col gap-2"
+      >
+        <div
+          id="__add-instance-page__instance-name"
+          class="rounded-md p-2"
+          :style="cardStyles"
+        >
+          <CustomInput
+            icon="i-lucide-grid-2x2"
+            placeholder="Instance Name"
+            id-root="__add-instance-page__instance-name"
+            :debounce-time="300"
+            :default-value="currentInstance?.name"
+            :listen-to-events="true"
+            :on-input="handleNameChange"
+            :class-names="{
+              'wrapper': 'h-8 w-full sm:w-full',
+            }"
+          />
+        </div>
+        <div
+          v-if="currentInstance?.groups"
+          id="__add-instance-page__instance-groups"
+          class="flex flex-nowrap gap-2 overflow-x-auto rounded-md p-2"
+          :style="cardStyles"
+        >
+          <template v-if="currentInstance.groups.length > 0">
+            <button
+              v-for="group in ['vanilla', 'fabric', 'forge']"
+              :id="`__add-instance-page__instance-group-${group}`"
+              :key="group"
+              @click="() => handleGroup(group)"
+              :class="[
+                '__add-instance-page__instance-group',
+                'relative rounded-md px-2 py-1 transition-[background-color,color]',
+                currentInstance?.groups?.includes?.(group)
+                  ? 'bg-[theme(colors.neutral.100/.25)]'
+                  : 'bg-neutral-800 text-neutral-400',
+              ]"
+            >
+              <span
+                :id="`__add-instance-page__instance-group-${group}-label`"
+              >
+                {{ group }}
+              </span>
+            </button>
+          </template>
+          <template v-else>
+            <p
+              id="__add-instance-page__no-groups-text"
+              class="h-8 flex items-center pl-2 text-neutral-400 leading-none"
+            >
+              No groups...
+            </p>
+          </template>
+        </div>
+      </div>
     </div>
     <div
-      id="__add-instance-page__instance-name"
-      class="flex flex-nowrap items-center gap-4 rounded-md px-4 py-2"
+      id="__add-instance-page__create-instance-wrapper"
+      class="w-fit rounded-md p-2"
       :style="cardStyles"
     >
-      <label
-        id="__add-instance-page__instance-name-label"
-        for="__add-instance-page__instance-name-input"
-        class="cursor-pointer text-neutral-300"
+      <button
+        id="__add-instance-page__create-instance-button"
+        class="relative rounded-md bg-neutral-800 px-2 py-1"
+        @click="createInstance"
       >
-        Instance Name
-      </label>
-      <CustomInput
-        icon="i-lucide-type"
-        placeholder="hii"
-        id-root="__add-instance-page__instance-name"
-        class="h-8"
-        :debounce-time="200"
-        :default-value="'hii'"
-        :listen-to-events="true"
-        :on-input="() => {}"
-        :on-escape="() => {}"
-      />
-    </div>
-    <button
-      v-for="patch in InstallablePatches"
-      :key="patch.uid"
-      @click="() => patch?.action?.(patch.uid) ?? handlePatch(patch.uid)"
-      :id="`__add-instance-page__item-${patch.id}`"
-      class="__add-instance-page__item rounded-md p-2 hover:bg-neutral-800"
-      :style="cardStyles"
-    >
-      <span
-        :id="`__add-instance-page__item-inner-${patch.id}`"
-        class="relative h-full flex flex-col items-center justify-center gap-4 rounded-md p-4 transition-[background-color] duration-150 hover:bg-[theme(colors.neutral.100/.05)]"
-      >
-         <Image
-           v-if="patch.icon"
-           :id="`__add-instance-page__item-icon-${patch.id}`"
-           :src="patch.icon"
-           :alt="`An icon of the '${patch.uid}' patch`"
-           class-names="rounded-md size-12"
-         />
-        <span :id="`__add-instance-page__item-${patch.id}`" class="block break-all">
-          {{ patch.name }}
-        </span>
+        Create an Instance
         <MaterialRipple />
-      </span>
-    </button>
+      </button>
+    </div>
   </div>
 </template>

@@ -16,6 +16,7 @@ const {
   onKeyDown,
   onEscape,
   onKeyboardEvent,
+  classNames,
 } = defineProps<{
   "icon"            : string;
   "placeholder"     : string;
@@ -28,6 +29,11 @@ const {
   "onKeyDown"      ?: (event: KeyboardEvent) => void;
   "onEscape"       ?: () => void;
   "onKeyboardEvent"?: (event: KeyboardEvent) => void;
+  "classNames"     ?: {
+    "wrapper" : string;
+    "icon"   ?: string;
+    "input"  ?: string;
+  };
 }>();
 
 const target = useTemplateRef("target");
@@ -84,6 +90,7 @@ if (listenToEvents) {
     @click="handleWrapperClick"
     :id="`${idRoot}-wrapper`"
     :class="[
+      classNames?.wrapper,
       focused ? 'cursor-text' : 'cursor-pointer',
       'shrink-0 relative w-28 sm:w-40 flex flex-nowrap items-center',
       'gap-2 rounded-md bg-neutral-800 pl-2',
@@ -92,6 +99,7 @@ if (listenToEvents) {
     <div
       :id="`${idRoot}-icon`"
       :class="[
+        classNames?.icon,
         icon,
         focused ? 'text-white' : 'text-neutral-400',
         'pointer-events-none absolute z-10 size-4 transition-[color]',
@@ -101,6 +109,7 @@ if (listenToEvents) {
       ref="target"
       :id="`${idRoot}-input`"
       :class="[
+        classNames?.input,
         focused ? 'text-white' : 'text-neutral-400',
         'absolute pl-8 left-0 right-0 top-0 bottom-0 bg-transparent text-sm',
         'outline-none transition-[color] focus:outline-none placeholder-neutral-400',
