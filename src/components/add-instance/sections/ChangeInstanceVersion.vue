@@ -172,12 +172,6 @@ function selectVersion(event: MouseEvent): void {
       ...currentInstance.value,
       "patchVersions": handledPatchVersions,
     },
-    // Reset the search bar as well
-    "instanceVersionSearch": {
-      "patch": Patches.Minecraft,
-      ...currentVersionSearch.value,
-      "input": "",
-    },
   });
 }
 function slideOverVersions(event: MouseEvent): void {

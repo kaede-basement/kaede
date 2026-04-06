@@ -54,9 +54,10 @@ const cardStyles = computed(
 function handlePatch(uid: ExtendedPatchUIDType): void {
   GlobalStateHelpers.Pages.addToState("add-instance", {
     "instanceVersionSearch": {
-      "input": "",
       ...currentVersionSearch.value,
       "patch": uid,
+      // Reset the search bar as well
+      "input": "",
     },
   });
 }
