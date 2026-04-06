@@ -21,12 +21,14 @@ import { computed, inject } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
+import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import General from "@/lib/general";
 import Instances from "@/lib/instances";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
+import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
@@ -35,6 +37,14 @@ const currentInstance = computed(
     Instances.extractSavedFromPages(globalStates)
   ),
 );
+const currentVersionSearch = computed(
+  (): GlobalStatesType["pages"]["states"]["add-instance"]["instanceVersionSearch"] => (
+    globalStates?.pages?.states?.["add-instance"]?.instanceVersionSearch
+  ),
+);
+const currentPatch = computed((): ExtendedPatchUIDType => (
+  currentVersionSearch.value?.patch ?? Patches.Minecraft
+));
 const cardStyles = computed(
   (): ReturnType<typeof General.getSidebarInnerStyles> => (
     General.getSidebarInnerStyles(
@@ -49,16 +59,22 @@ const cardStyles = computed(
 <template>
   <div
     id="__add-instance-page__create-instance-wrapper"
-    class="w-fit rounded-md p-2"
+    class="w-fit flex flex-nowrap gap-2 rounded-md p-2"
     :style="cardStyles"
   >
     <button
       id="__add-instance-page__create-instance-button"
       class="relative rounded-md bg-neutral-800 px-2 py-1"
-      @click="() => Instances.create(currentInstance)"
+      @click="() => Instances.create(currentInstance, currentPatch)"
     >
       Create an Instance
       <MaterialRipple />
     </button>
+    <div
+      id="__add-instance-page__create-instance-type-indetificator"
+      class="py-1 pr-2 text-neutral-300"
+    >
+      with {{ PrettyPatchLabels[currentPatch] }}
+    </div>
   </div>
 </template>

@@ -18,7 +18,6 @@
 
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
-import { fetch } from "@tauri-apps/plugin-http";
 import { onClickOutside } from "@vueuse/core";
 import { computed, inject, ref, useTemplateRef } from "vue";
 
@@ -29,6 +28,7 @@ import { Patches } from "@/constants/meta.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
+import Launcher from "@/lib/launcher";
 import type {
   ContextGlobalStatesType,
   GlobalStatesType,
@@ -38,83 +38,12 @@ import type {
   PatchIndexType,
 } from "@/types/launcher/meta/patch-index.type.ts";
 
-const { data, status } = useQuery({
-  "queryKey": ["meta", APIEndpoints.Meta.Paths.Minecraft.Id, "versions"],
-  "queryFn" : async (): Promise<PatchIndexType["versions"]> => {
-    const response: Response = await fetch(
-      APIEndpoints.Meta.Base +
-      APIEndpoints.Meta.Paths.Minecraft.Id,
-    );
-    const parsed: unknown = await response.json();
-
-    if (typeof parsed !== "object" || parsed === null) {
-      throw new Error("The provided metadata is invalid");
-    }
-
-    if (!("versions" in parsed) || !Array.isArray(parsed.versions)) {
-      throw new Error("No versions in the provided metadata");
-    }
-
-    const entry: unknown = parsed.versions?.[0];
-
-    if (typeof entry !== "object" || entry === null) {
-      throw new Error("The parsed versions are invalid");
-    }
-
-    if (!("version" in entry) || !("type" in entry)) {
-      throw new Error("No version or type fields in the parsed versions");
-    }
-
-    return parsed.versions;
-  },
-});
-
 const target = useTemplateRef("target");
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const selector = ref<boolean>(false);
 
-const filteredVersions = computed((): PatchIndexType["versions"] => {
-  if (status.value !== "success") {
-    return [{
-      "version"    : "Loading...",
-      "recommended": false,
-      "releaseTime": "",
-      "sha256"     : "",
-    }];
-  }
-
-  if (!data.value) {
-    return [{
-      "version"    : "No data?..",
-      "recommended": false,
-      "releaseTime": "",
-      "sha256"     : "",
-    }];
-  }
-
-  const filteringValue: string | undefined = currentVersionSearch.value?.input;
-
-  if (!filteringValue) {
-    return data.value;
-  }
-
-  const filteredData = data
-    .value
-    .filter(({ version }) => version.includes(filteringValue));
-
-  if (filteredData.length === 0) {
-    return [{
-      "version"    : "No matches",
-      "recommended": false,
-      "releaseTime": "",
-      "sha256"     : "",
-    }];
-  }
-
-  return filteredData;
-});
 const currentInstance = computed(
   (): GlobalStatesType["pages"]["states"]["add-instance"]["instance"] => (
     Instances.extractSavedFromPages(globalStates)
@@ -128,6 +57,65 @@ const currentVersionSearch = computed(
 const currentPatch = computed((): ExtendedPatchUIDType => (
   currentVersionSearch.value?.patch ?? Patches.Minecraft
 ));
+const queryKey = computed((): Array<unknown> => [
+  "meta",
+  APIEndpoints.Meta.Paths.Minecraft.Id,
+  "versions",
+  currentPatch.value === Patches.Minecraft
+    ? "do-not-reload"
+    : currentInstance.value?.patchVersions?.["net.minecraft"],
+  currentPatch.value,
+]);
+
+const { data, status } = useQuery({
+  "queryKey": queryKey,
+  "queryFn" : (): Promise<PatchIndexType["versions"]> => {
+    return Launcher.Fetching.fetchAllVersions(
+      currentPatch.value,
+      currentInstance.value?.patchVersions?.["net.minecraft"],
+    );
+  },
+});
+
+const noMatches = {
+  "version"    : "No matches",
+  "recommended": false,
+  "releaseTime": "",
+  "sha256"     : "",
+} as const;
+
+const filteredVersions = computed((): PatchIndexType["versions"] => {
+  if (status.value !== "success" || !data.value) {
+    return [{
+      "version": status.value === "success"
+        ? "No data?.."
+        : "Loading...",
+      "recommended": false,
+      "releaseTime": "",
+      "sha256"     : "",
+    }];
+  }
+
+  const filteringValue: string | undefined = currentVersionSearch.value?.input;
+
+  if (!filteringValue) {
+    if (data.value.length === 0) {
+      return [noMatches];
+    }
+
+    return data.value;
+  }
+
+  const filteredData = data
+    .value
+    .filter(({ version }) => version.includes(filteringValue));
+
+  if (filteredData.length === 0) {
+    return [noMatches];
+  }
+
+  return filteredData;
+});
 const cardStyles = computed(
   (): ReturnType<typeof General.getSidebarInnerStyles> => (
     General.getSidebarInnerStyles(
@@ -161,17 +149,34 @@ function selectVersion(event: MouseEvent): void {
   const splitId: Array<string> = target?.id?.split?.("-");
   const extractedVersion: string = splitId.slice(7).join("-");
 
-  if (!extractedVersion || !currentInstance.value || !currentPatch.value) {
+  if (
+    !extractedVersion ||
+    !currentInstance.value ||
+    !currentPatch.value ||
+    // Sometimes it may happen...
+    extractedVersion === "Loading..."
+  ) {
     return;
   }
+
+  // If user changes the minecraft version, we need to reset all patch versions
+  const handledPatchVersions = currentPatch.value === Patches.Minecraft ? {
+    [currentPatch.value]: extractedVersion,
+  } : {
+    ...currentInstance.value.patchVersions,
+    [currentPatch.value]: extractedVersion,
+  };
 
   GlobalStateHelpers.Pages.addToState("add-instance", {
     "instance": {
       ...currentInstance.value,
-      "patchVersions": {
-        ...currentInstance.value.patchVersions,
-        [currentPatch.value]: extractedVersion,
-      },
+      "patchVersions": handledPatchVersions,
+    },
+    // Reset the search bar as well
+    "instanceVersionSearch": {
+      "patch": Patches.Minecraft,
+      ...currentVersionSearch.value,
+      "input": "",
     },
   });
 }
@@ -224,50 +229,49 @@ onClickOutside(target, () => handleDropdown(false));
       @click="() => handleDropdown(true)"
       :class-names="{ 'wrapper': 'h-8 flex-1' }"
     />
-    <template v-if="status === 'success'">
-      <Transition name="slide-up">
-        <button
-          v-if="selector"
-          id="__add-instance-page__instance-version-dropdown-wrapper"
-          class="absolute left-0 top-14 z-50 max-h-[274px] w-full flex flex-col overflow-y-auto rounded-md"
-          :style="cardStyles"
-          @pointerdown="selectVersion"
-          @pointerover="slideOverVersions"
-          @pointerup="() => handleDropdown(false)"
+    <Transition name="slide-up">
+      <button
+        v-if="selector"
+        id="__add-instance-page__instance-version-dropdown-wrapper"
+        class="absolute left-0 top-14 z-50 max-h-[274px] w-full flex flex-col overflow-y-auto rounded-md"
+        :style="cardStyles"
+        @pointerdown="selectVersion"
+        @pointerover="slideOverVersions"
+        @pointerup="() => handleDropdown(false)"
+      >
+        <span
+          v-for="entry in filteredVersions"
+          :id="`__add-instance-page__instance-version-dropdown-item-wrapper-${entry.version}`"
+          :key="entry.version"
+          class="__add-instance-page__instance-version-dropdown-item flex flex-nowrap border-b border-neutral-600 px-2 py-3 text-sm text-neutral-300 leading-none hover:bg-neutral-800"
         >
           <span
-            v-for="entry in filteredVersions"
-            :id="`__add-instance-page__instance-version-dropdown-item-wrapper-${entry.version}`"
-            :key="entry.version"
-            class="__add-instance-page__instance-version-dropdown-item flex flex-nowrap border-b border-neutral-600 px-2 py-3 text-sm text-neutral-300 leading-none hover:bg-neutral-800"
+            :id="`__add-instance-page__instance-version-dropdown-item-star-${entry.version}`"
+            class="w-6 shrink-0 text-start"
           >
-            <span
-              :id="`__add-instance-page__instance-version-dropdown-item-star-${entry.version}`"
-              class="w-6 shrink-0 text-start"
-            >
-              {{ entry.recommended ? "⭐" : "" }}
-            </span>
-            <span
-              :id="`__add-instance-page__instance-version-dropdown-item-version-${entry.version}`"
-              class="flex-1 text-start"
-            >
-              {{ entry.version }}
-            </span>
-            <span
-              :id="`__add-instance-page__instance-version-dropdown-item-type-${entry.version}`"
-              class="flex-1 text-start"
-            >
-              {{ entry?.type }}
-            </span>
-            <span
-              :id="`__add-instance-page__instance-version-dropdown-item-time-${entry.version}`"
-              class="flex-1 text-start"
-            >
-              {{ entry.releaseTime }}
-            </span>
+            {{ entry.recommended ? "⭐" : "" }}
           </span>
-        </button>
-      </Transition>
-    </template>
+          <span
+            :id="`__add-instance-page__instance-version-dropdown-item-version-${entry.version}`"
+            class="flex-1 text-start"
+          >
+            {{ entry.version }}
+          </span>
+          <span
+            :id="`__add-instance-page__instance-version-dropdown-item-type-${entry.version}`"
+            class="flex-1 text-start"
+          >
+            {{ entry?.type }}
+          </span>
+          <span
+            :id="`__add-instance-page__instance-version-dropdown-item-time-${entry.version}`"
+            class="flex-1 text-start"
+            v-if="entry.releaseTime"
+          >
+            {{ new Date(entry.releaseTime).toDateString() }}
+          </span>
+        </span>
+      </button>
+    </Transition>
   </div>
 </template>

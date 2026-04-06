@@ -16,15 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Patches } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
 export async function createInstance(
   currentInstance: GlobalStatesType["pages"]["states"]["add-instance"]["instance"],
+  uid: ExtendedPatchUIDType,
 ): Promise<void> {
   if (!currentInstance) {
     return log.error(
@@ -33,12 +36,34 @@ export async function createInstance(
     );
   }
 
+  if (currentInstance.patchVersions[Patches.Minecraft] === undefined) {
+    return log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not create an instance since the minecraft patch version is undefined",
+    );
+  }
+
+  if (currentInstance.patchVersions[uid] === undefined) {
+    return log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not create an instance since the entry patch version is undefined",
+    );
+  }
+
   const randomDigits: number = Math.floor(Math.random() * 1000);
   const id: string =
     "instance_" + randomDigits + "_" +
     General.hashString(currentInstance.name).toString();
 
+  log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
+
   await Instances.add(id, currentInstance);
+
+  log.info(
+    __PRE_BUNDLED_FILENAME__,
+    "Successfully created an instance with the entry patch:",
+    uid,
+  );
 
   GlobalStateHelpers.Pages.addToState("add-instance", {
     "instance": undefined,

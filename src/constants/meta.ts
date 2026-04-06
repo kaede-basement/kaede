@@ -21,6 +21,22 @@ export const Patches = {
   "LWJGL3"            : "org.lwjgl3",
   "Quilt"             : "org.quiltmc.quilt-loader",
 } as const;
+export const PrettyPatchLabels = {
+  "com.azul.java"               : "Azul JDK",
+  "com.mumfrey.liteloader"      : "Lite Loader",
+  "net.adoptium.java"           : "Temurin JDK",
+  "net.fabricmc.fabric-loader"  : "Fabric MC",
+  "net.fabricmc.intermediary"   : "Fabric MC (intermediary)",
+  "net.minecraft"               : "Vanilla Minecraft",
+  "net.minecraft.java"          : "Minecraft Java",
+  "net.minecraftforge"          : "Forge",
+  "net.neoforged"               : "NeoForge",
+  "org.lwjgl"                   : "LWJGL",
+  "org.lwjgl3"                  : "LWJGL3",
+  "org.quiltmc.quilt-loader"    : "QuiltMC",
+  "optifine.OptiFine"           : "OptiFine",
+  "org.mcphackers.launchwrapper": "Vanilla Minecraft (custom launchwrapper)",
+} as const;
 export const PatchUIDs = Object.values(Patches);
 export const CustomPatches = {
   "OptiFine"               : "optifine.OptiFine",
