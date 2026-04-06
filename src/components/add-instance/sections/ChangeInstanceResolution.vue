@@ -19,6 +19,7 @@
 <script setup lang="ts">
 import { computed, inject } from "vue";
 
+import ChangeMemoryAllocation from "@/components/add-instance/sections/ChangeMemoryAllocation.vue";
 import CustomInput from "@/components/general/base/CustomInput.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
 import General from "@/lib/general";
@@ -107,7 +108,7 @@ function handleHeightChange(value: string): void {
   >
     <div
       id="__add-instance-page__instance-resolution-display"
-      class="relative h-48 flex flex-col items-center gap-4 overflow-hidden rounded-md bg-neutral-800 py-4"
+      class="relative h-50 flex flex-col items-center gap-4 overflow-hidden rounded-md bg-neutral-800 py-4"
     >
       <p
         id="__add-instance-page__instance-resolution-title"
@@ -123,7 +124,7 @@ function handleHeightChange(value: string): void {
       </p>
       <div
         id="__add-instance-page__instance-resolution-display-aspect-ratio"
-        class="absolute top-12 h-32 border border-blue bg-blue-950 transition-[width]"
+        class="absolute top-12 h-34 border border-blue bg-blue-950 transition-[width]"
         :style="{
           'width': `${aspectRatioWidth}px`,
         }"
@@ -136,9 +137,15 @@ function handleHeightChange(value: string): void {
   >
     <div
       id="__add-instance-page__instance-other-width"
-      class="rounded-md p-2"
+      class="relative rounded-md p-2"
       :style="cardStyles"
     >
+      <div
+        id="__add-instance-page__instance-other-width-unit"
+        class="pointer-events-none absolute right-4 top-[50%] z-10 translate-y-[-50%] text-sm text-neutral-400"
+      >
+        px
+      </div>
       <CustomInput
         icon="i-lucide-unfold-horizontal"
         placeholder="Window Width"
@@ -154,9 +161,15 @@ function handleHeightChange(value: string): void {
     </div>
     <div
       id="__add-instance-page__instance-other-height"
-      class="rounded-md p-2"
+      class="relative rounded-md p-2"
       :style="cardStyles"
     >
+      <div
+        id="__add-instance-page__instance-other-height-unit"
+        class="pointer-events-none absolute right-4 top-[50%] z-10 translate-y-[-50%] text-sm text-neutral-400"
+      >
+        px
+      </div>
       <CustomInput
         icon="i-lucide-unfold-vertical"
         placeholder="Window Height"
@@ -170,5 +183,6 @@ function handleHeightChange(value: string): void {
         :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"
       />
     </div>
+    <ChangeMemoryAllocation />
   </div>
 </template>

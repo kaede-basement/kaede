@@ -12,10 +12,12 @@ export const DefaultInstanceSettings: Omit<InstanceStateType, "patchVersions"> =
   "groups"      : [],
   "entry"       : Patches.Minecraft,
   "javaBinary"  : "java",
-  "add"         : {},
-  "remove"      : {},
-  "playTime"    : 0,
-  "lastLaunch"  : 0,
+  "add"         : {
+    "jvmArguments": ["-Xmx4096m", "-Xms6144m"],
+  },
+  "remove"    : {},
+  "playTime"  : 0,
+  "lastLaunch": 0,
 };
 export const JVMArguments = {
   "Default": {

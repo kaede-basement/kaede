@@ -60,6 +60,9 @@ export type GlobalStatesPagesType = {
         "windowHeight" : number;
         "windowWidth"  : number;
         "icon"        ?: string;
+        "add"          : {
+          "jvmArguments": Array<string>;
+        };
       };
       "tab": string;
     }>;
