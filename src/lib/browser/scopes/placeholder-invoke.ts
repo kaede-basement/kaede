@@ -67,6 +67,24 @@ export async function placeholderInvoke(
     case "get_launched_state": {
       return 1;
     }
+    case "verify_file_paths": {
+      const artifacts: Array<{
+        "shortHashPath": string;
+        "hash"         : string;
+        "url"          : string;
+        "path"         : string;
+      }> = payload.artifacts;
+      const directories: Set<string> = new Set(await listStores("indexed_db/"));
+      const missing: Array<string> = [];
+
+      for (const { path } of artifacts) {
+        if (!directories.has(path)) {
+          missing.push(path);
+        }
+      }
+
+      return missing;
+    }
     case "plugin:fs|exists": {
       const paths: Array<string> = await listStores(payload.path);
 
