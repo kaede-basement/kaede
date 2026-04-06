@@ -16,7 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Patches } from "@/constants/meta.ts";
+import { message } from "@tauri-apps/plugin-dialog";
+
+import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -37,13 +39,29 @@ export async function createInstance(
   }
 
   if (currentInstance.patchVersions[Patches.Minecraft] === undefined) {
+    await message(
+      "Please, select the Minecraft version.",
+      {
+        "title": "Instance creation",
+        "kind" : "error",
+      },
+    );
+
     return log.error(
       __PRE_BUNDLED_FILENAME__,
-      "Could not create an instance since the minecraft patch version is undefined",
+      "Could not create an instance since the Minecraft patch version is undefined",
     );
   }
 
   if (currentInstance.patchVersions[uid] === undefined) {
+    await message(
+      `Please, specify the ${PrettyPatchLabels[uid]} version.`,
+      {
+        "title": "Instance creation",
+        "kind" : "error",
+      },
+    );
+
     return log.error(
       __PRE_BUNDLED_FILENAME__,
       "Could not create an instance since the entry patch version is undefined",
