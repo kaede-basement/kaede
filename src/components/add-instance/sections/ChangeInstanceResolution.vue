@@ -56,6 +56,18 @@ const aspectRatio = computed((): string => {
 
   return `${width / common}:${height / common}`;
 });
+const aspectRatioWidth = computed((): number => {
+  if (!currentInstance.value) {
+    return 1;
+  }
+
+  const actual: number = 128 * (
+    currentInstance.value.windowWidth / currentInstance.value.windowHeight
+  );
+
+  // Cap at 3000 to avoid large DOM element width
+  return Math.min(actual, 3000);
+});
 
 function handleWidthChange(value: string): void {
   const width: number = Number(value);
@@ -89,7 +101,6 @@ function handleHeightChange(value: string): void {
 
 <template>
   <div
-    v-if="currentInstance"
     id="__add-instance-page__instance-resolution"
     class="relative max-w-[50%] flex flex-1 flex-col gap-2 rounded-md p-2 lg:max-w-[33%]"
     :style="cardStyles"
@@ -108,7 +119,7 @@ function handleHeightChange(value: string): void {
         id="__add-instance-page__instance-resolution-display-aspect-ratio"
         class="h-32 border border-blue bg-blue-950 p-2 transition-[width]"
         :style="{
-          'width': `${128 * (currentInstance.windowWidth / currentInstance.windowHeight)}px`,
+          'width': `${aspectRatioWidth}px`,
         }"
       >
         <p
