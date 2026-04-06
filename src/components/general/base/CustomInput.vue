@@ -19,6 +19,7 @@ const {
   onBlur,
   classNames,
   type,
+  tooltip,
 } = defineProps<{
   "icon"            : string;
   "placeholder"     : string;
@@ -37,7 +38,8 @@ const {
     "icon"   ?: string;
     "input"  ?: string;
   };
-  "type"?: "text" | "number";
+  "type"   ?: "text" | "number";
+  "tooltip"?: string;
 }>();
 
 const target = useTemplateRef("target");
@@ -104,7 +106,7 @@ if (listenToEvents) {
       'shrink-0 relative w-28 sm:w-40 flex flex-nowrap items-center',
       'gap-2 rounded-md bg-neutral-800 pl-2',
     ]"
-    :title="placeholder"
+    :data-tooltip="tooltip"
   >
     <div
       :id="`${idRoot}-icon`"

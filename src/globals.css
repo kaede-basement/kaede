@@ -59,7 +59,7 @@ input::-webkit-inner-spin-button {
 }
 
 /* Show a custom tooltip on button hover */
-button[data-tooltip] {
+[data-tooltip] {
   position: relative;
 
   &:after {

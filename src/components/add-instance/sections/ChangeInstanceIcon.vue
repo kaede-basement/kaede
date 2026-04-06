@@ -85,6 +85,7 @@ async function handleIconPick(): Promise<void> {
   <div
     id="__add-instance-page__instance-icon-wrapper"
     class="shrink-0 rounded-md p-2"
+    data-tooltip="Instance icon"
     :style="cardStyles"
   >
     <Image
@@ -93,7 +94,6 @@ async function handleIconPick(): Promise<void> {
       alt="An instance icon"
       class-names="cursor-pointer object-cover rounded-md size-22 hover:opacity-70"
       @click="handleIconPick"
-      title="An instance icon"
     />
   </div>
 </template>

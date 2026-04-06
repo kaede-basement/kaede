@@ -102,12 +102,12 @@ function handleHeightChange(value: string): void {
 <template>
   <div
     id="__add-instance-page__instance-resolution"
-    class="relative max-w-[50%] flex flex-1 flex-col gap-2 rounded-md p-2 lg:max-w-[33%]"
+    class="max-w-[50%] flex flex-1 flex-col gap-2 rounded-md p-2 lg:max-w-[33%]"
     :style="cardStyles"
   >
     <div
       id="__add-instance-page__instance-resolution-display"
-      class="h-48 flex flex-col items-center gap-4 overflow-auto rounded-md bg-neutral-800 py-4"
+      class="relative h-48 flex flex-col items-center gap-4 overflow-hidden rounded-md bg-neutral-800 py-4"
     >
       <p
         id="__add-instance-page__instance-resolution-title"
@@ -115,20 +115,19 @@ function handleHeightChange(value: string): void {
       >
         Aspect Ratio
       </p>
+      <p
+        id="__add-instance-page__instance-resolution-aspect-ratio-label"
+        class="absolute left-[50%] top-[50%] z-10 translate-x-[-50%] translate-y-[calc(-50%+15px)] text-3xl text-neutral-300 leading-none"
+      >
+        {{ aspectRatio }}
+      </p>
       <div
         id="__add-instance-page__instance-resolution-display-aspect-ratio"
-        class="h-32 border border-blue bg-blue-950 p-2 transition-[width]"
+        class="absolute top-12 h-32 border border-blue bg-blue-950 transition-[width]"
         :style="{
           'width': `${aspectRatioWidth}px`,
         }"
-      >
-        <p
-          id="__add-instance-page__instance-resolution-aspect-ratio-label"
-          class="pointer-events-none absolute left-[50%] left-[50%] translate-x-[-50%] translate-y-[calc(50%+24px)] text-3xl text-neutral-300 leading-none"
-        >
-          {{ aspectRatio }}
-        </p>
-      </div>
+      ></div>
     </div>
   </div>
   <div
@@ -145,6 +144,7 @@ function handleHeightChange(value: string): void {
         placeholder="Window Width"
         id-root="__add-instance-page__instance-other-width"
         type="number"
+        tooltip="Window width of the instance"
         :debounce-time="300"
         :default-value="currentInstance?.windowWidth"
         :listen-to-events="true"
@@ -163,6 +163,7 @@ function handleHeightChange(value: string): void {
         placeholder="Window Height"
         id-root="__add-instance-page__instance-other-height"
         type="number"
+        tooltip="Window height of the instance"
         :debounce-time="300"
         :default-value="currentInstance?.windowHeight"
         :listen-to-events="true"

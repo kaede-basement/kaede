@@ -74,6 +74,7 @@ function handleNameChange(input: string): void {
       icon="i-lucide-grid-2x2"
       placeholder="Instance Name"
       id-root="__add-instance-page__instance-name"
+      tooltip="Instance name"
       :debounce-time="300"
       :default-value="currentInstance?.name"
       :listen-to-events="true"
