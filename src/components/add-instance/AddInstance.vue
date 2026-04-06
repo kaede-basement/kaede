@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, inject } from "vue";
 
-import CleanInstance from "@/components/add-instance/sections/CleanInstance.vue";
+import CleanInstance from "@/components/add-instance/tabs/CleanInstance.vue";
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
 import { GlobalStatesContextKey, InstanceCreationSections } from "@/constants/application.ts";
 import General from "@/lib/general";
-import { Pages } from "@/lib/global-state-helpers/scopes/pages.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
 
 const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
@@ -31,7 +31,7 @@ const cardStyles = computed(
 );
 
 function handleModeSelect(id: string): void {
-  Pages.addToState("add-instance", {
+  GlobalStateHelpers.Pages.addToState("add-instance", {
     "tab": id,
   });
 }

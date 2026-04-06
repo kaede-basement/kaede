@@ -1,0 +1,109 @@
+<!--
+  - Kaede, a Minecraft Launcher
+  - Copyright (C) 2026  windstone <notwindstone@gmail.com> and contributors
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU General Public License as published by
+  - the Free Software Foundation, either version 3 of the License, or
+  - (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU General Public License for more details.
+  -
+  - You should have received a copy of the GNU General Public License
+  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<script setup lang="ts">
+import { computed, inject } from "vue";
+
+import { GlobalStatesContextKey } from "@/constants/application.js";
+import General from "@/lib/general/index.js";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+import Instances from "@/lib/instances/index.js";
+import { log } from "@/lib/logging/scopes/log.ts";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.js";
+import type { GlobalStatesType } from "@/types/application/global-states.type.js";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+
+const currentInstance = computed(
+  (): GlobalStatesType["pages"]["states"]["add-instance"]["instance"] => (
+    Instances.extractSavedFromPages(globalStates)
+  ),
+);
+const cardStyles = computed(
+  (): ReturnType<typeof General.getSidebarInnerStyles> => (
+    General.getSidebarInnerStyles(
+      globalStates?.layout?.sidebar?.background,
+      globalStates?.layout?.sidebar?.color,
+      globalStates?.layout?.sidebar?.blur,
+    )
+  ),
+);
+
+function handleGroup(group: string): void {
+  if (!currentInstance.value) {
+    return log.error(
+      __PRE_BUNDLED_FILENAME__,
+      "Could not change instance groups since the instance is undefined",
+    );
+  }
+
+  const currentGroups: Set<string> = new Set(currentInstance.value.groups);
+
+  if (currentGroups.has(group)) {
+    currentGroups.delete(group);
+  } else {
+    currentGroups.add(group);
+  }
+
+  GlobalStateHelpers.Pages.addToState("add-instance", {
+    "instance": {
+      ...currentInstance.value,
+      "groups": [...currentGroups],
+    },
+  });
+}
+</script>
+
+<template>
+  <div
+    v-if="currentInstance?.groups"
+    id="__add-instance-page__instance-groups"
+    class="flex flex-nowrap gap-2 overflow-x-auto rounded-md p-2"
+    :style="cardStyles"
+  >
+    <template v-if="currentInstance.groups.length > 0">
+      <button
+        v-for="group in ['vanilla', 'fabric', 'forge']"
+        :id="`__add-instance-page__instance-group-${group}`"
+        :key="group"
+        @click="() => handleGroup(group)"
+        :class="[
+          '__add-instance-page__instance-group',
+          'relative rounded-md px-2 py-1 transition-[background-color,color]',
+          currentInstance?.groups?.includes?.(group)
+            ? 'bg-[theme(colors.neutral.100/.25)]'
+            : 'bg-neutral-800 text-neutral-400',
+        ]"
+      >
+        <span
+          :id="`__add-instance-page__instance-group-${group}-label`"
+        >
+          {{ group }}
+        </span>
+      </button>
+    </template>
+    <template v-else>
+      <p
+        id="__add-instance-page__no-groups-text"
+        class="h-8 flex items-center pl-2 text-neutral-400 leading-none"
+      >
+        No groups...
+      </p>
+    </template>
+  </div>
+</template>

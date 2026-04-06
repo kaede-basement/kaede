@@ -1,5 +1,7 @@
 import { ApplicationNamespace } from "@/constants/application.ts";
 import { addInstanceWithSync } from "@/lib/instances/scopes/add-instance-with-sync.ts";
+import { createInstance } from "@/lib/instances/scopes/create-instance.ts";
+import { extractSavedFromPages } from "@/lib/instances/scopes/extract-saved-from-pages.ts";
 import { findCurrent } from "@/lib/instances/scopes/find-current.ts";
 import { getConfigInstanceStates } from "@/lib/instances/scopes/get-config-instance-states.ts";
 import { getMinecraftDirectory } from "@/lib/instances/scopes/get-minecraft-directory.ts";
@@ -14,9 +16,11 @@ export default {
     value: InstanceStatesType[Key],
   ): void => window[ApplicationNamespace].__internals.changeInstanceStates(key, value),
   "add"          : addInstanceWithSync,
+  "create"       : createInstance,
   "getFromConfig": getConfigInstanceStates,
   "readStored"   : readStoredInstances,
   "syncMetadata" : saveInstanceStatesToFile,
+  extractSavedFromPages,
   getMinecraftDirectory,
   findCurrent,
 } as const;

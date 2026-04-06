@@ -1,9 +1,9 @@
 import type { ShallowReactive } from "vue";
 
-import type { RouteType } from "@/types/application/route.type.ts";
-import type { TranslationsType } from "@/types/translations/translations.type.ts";
-import type { PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
+import type { RouteType } from "@/types/application/route.type.ts";
+import type { PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
+import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 export type GlobalStatesLayoutType = {
   "locale"                 : string;
