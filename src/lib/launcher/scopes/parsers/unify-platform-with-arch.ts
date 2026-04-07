@@ -37,6 +37,7 @@ export function unifyPlatformWithArch(
     case "linux-arm32": {
       return { "platform": "linux", "arch": "arm32" };
     }
+    case "linux-riscv64":
     case "linux-arm64": {
       return { "platform": "linux", "arch": "arm64" };
     }

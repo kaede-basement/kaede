@@ -12,7 +12,7 @@ export type PatchVariantType =
   "old_snapshot";
 export type PatchDependencyType = {
   // A unique identifier of the dependency
-  "uid": PatchUIDType;
+  "uid": ExtendedPatchUIDType;
 
   // A version of the dependency that should be selected. Might be missing
   "equals"?: string;

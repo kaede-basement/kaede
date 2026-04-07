@@ -2,7 +2,7 @@ import type { ShallowReactive } from "vue";
 
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
-import type { ExtendedPatchUIDType, PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
+import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
 export type GlobalStatesLayoutType = {
@@ -52,7 +52,7 @@ export type GlobalStatesPagesType = {
       };
       "instance": {
         "name"         : string;
-        "entry"        : PatchUIDType;
+        "entry"        : ExtendedPatchUIDType;
         "checksum"     : boolean;
         "groups"       : Array<string>;
         "javaBinary"   : string;

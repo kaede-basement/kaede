@@ -638,7 +638,9 @@ type SpecificPatchLibraryOSNameType =
   // OSX x86_64 or x86
   "osx" |
   // OSX ARM64
-  "osx-arm64";
+  "osx-arm64" |
+  // Linux ARM64
+  "linux-riscv64";
 type SpecificPatchClassifierKeyType =
   // It seems logical to consider 'natives-<platform>' as x86_64 and x86,
   // as the library OS names followed the same convention. However...

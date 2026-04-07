@@ -1,14 +1,14 @@
 import type { ShallowReactive } from "vue";
 
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
-import type { ExtendedPatchUIDType, PatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
+import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
 export type InstanceStateType = GlobalStatesType["minecraft"] & {
   "name"         : string;
   "checksum"     : boolean;
   "playTime"     : number;
   "lastLaunch"   : number;
-  "entry"        : PatchUIDType;
+  "entry"        : ExtendedPatchUIDType;
   "pinned"       : boolean;
   "groups"       : Array<string>;
   "patchVersions": {

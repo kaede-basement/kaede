@@ -59,7 +59,7 @@ const cardStyles = computed(
 <template>
   <div
     id="__add-instance-page__create-instance-wrapper"
-    class="w-fit flex flex-nowrap gap-2 rounded-md p-2"
+    class="mb-2 w-fit flex flex-nowrap gap-2 rounded-md p-2"
     :style="cardStyles"
   >
     <button
@@ -71,7 +71,7 @@ const cardStyles = computed(
       <MaterialRipple />
     </button>
     <div
-      id="__add-instance-page__create-instance-type-indetificator"
+      id="__add-instance-page__create-instance-type-display"
       class="py-1 pr-2 text-neutral-300"
     >
       with {{ PrettyPatchLabels[currentPatch] }}

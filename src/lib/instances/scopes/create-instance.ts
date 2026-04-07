@@ -75,7 +75,10 @@ export async function createInstance(
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
 
-  await Instances.add(id, currentInstance);
+  await Instances.add(id, {
+    ...currentInstance,
+    "entry": uid,
+  });
 
   log.info(
     __PRE_BUNDLED_FILENAME__,
@@ -87,5 +90,5 @@ export async function createInstance(
     "instance": undefined,
   });
 
-  return GlobalStateHelpers.Pages.navigate(Routes.Home);
+  return GlobalStateHelpers.Pages.navigate(Routes.Library);
 }

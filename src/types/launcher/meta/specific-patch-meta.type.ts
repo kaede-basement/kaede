@@ -36,7 +36,8 @@ export type SpecificPatchLibraryOSNameType =
   "windows-arm32" |
   "windows-arm64" |
   "osx-arm64" |
-  "osx";
+  "osx" |
+  "linux-riscv64";
 export type SpecificPatchRuntimeVendorType = "azul" | "eclipse";
 export type SpecificPatchRuntimeType = {
   "checksum"    : SpecificPatchRuntimeChecksumType;
