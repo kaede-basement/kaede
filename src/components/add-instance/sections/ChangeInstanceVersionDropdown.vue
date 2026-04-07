@@ -32,8 +32,8 @@ import type {
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type {
-  ExtendedPatchUIDType,
-  PatchIndexType,
+  ExtendedPatchUIDType, PatchDependencyType,
+  PatchIndexType, PatchVariantType,
 } from "@/types/launcher/meta/patch-index.type.ts";
 
 const { handleDropdown, currentFilter } = defineProps<{
@@ -80,7 +80,6 @@ const noMatches = {
   "version"    : "No matches",
   "recommended": false,
   "releaseTime": "",
-  "sha256"     : "",
 } as const;
 
 const { data, status } = useQuery({
@@ -93,7 +92,14 @@ const { data, status } = useQuery({
   },
 });
 
-const filteredVersions = computed((): PatchIndexType["versions"] => {
+const filteredVersions = computed((): Array<{
+  "recommended": boolean;
+  "releaseTime": string;
+  "version"    : string;
+  "type"      ?: PatchVariantType;
+  "requires"  ?: Array<PatchDependencyType>;
+  "conflicts" ?: Array<PatchDependencyType>;
+}> => {
   if (status.value !== "success" || !data.value) {
     return [{
       "version": status.value === "success"
@@ -101,20 +107,35 @@ const filteredVersions = computed((): PatchIndexType["versions"] => {
         : "Loading...",
       "recommended": false,
       "releaseTime": "",
-      "sha256"     : "",
     }];
   }
 
   const filteringValue: string | undefined = currentVersionSearch.value?.input;
 
-  // Format the release time ahead-of-time
-  for (const entry of data.value) {
-    entry.releaseTime = new Date(entry.releaseTime).toDateString();
-  }
+  /*
+   * Format the release time ahead-of-time and
+   * re-create the array to avoid changing the Vue Query cache
+   */
+  const mappedData: Array<{
+    "recommended": boolean;
+    "releaseTime": string;
+    "version"    : string;
+    "type"      ?: PatchVariantType;
+    "requires"  ?: Array<PatchDependencyType>;
+    "conflicts" ?: Array<PatchDependencyType>;
+  }> = data
+    .value
+    .map(entry => ({
+      "recommended": entry.recommended,
+      "version"    : entry.version,
+      "type"       : entry.type,
+      "releaseTime": entry.releaseTime,
+      "requires"   : entry.requires,
+      "conflicts"  : entry.conflicts,
+    }));
 
   if (!filteringValue) {
-    const filteredData = data
-      .value
+    const filteredData = mappedData
       .filter(({ type }) => (
 
         /*
@@ -134,8 +155,7 @@ const filteredVersions = computed((): PatchIndexType["versions"] => {
     return filteredData;
   }
 
-  const filteredData = data
-    .value
+  const filteredData = mappedData
     .filter(({ version, type }) => (
       version.includes(filteringValue) &&
 
