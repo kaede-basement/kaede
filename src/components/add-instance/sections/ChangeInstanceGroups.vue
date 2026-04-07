@@ -19,6 +19,7 @@
 <script setup lang="ts">
 import { computed, inject } from "vue";
 
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { GlobalStatesContextKey } from "@/constants/application.js";
 import General from "@/lib/general/index.js";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -95,6 +96,7 @@ function handleGroup(group: string): void {
         >
           {{ group }}
         </span>
+        <MaterialRipple />
       </button>
     </template>
     <template v-else>

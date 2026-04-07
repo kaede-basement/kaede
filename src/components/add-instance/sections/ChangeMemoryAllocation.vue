@@ -101,7 +101,7 @@ function handleMemoryAllocation(value: string, type: "min" | "max"): void {
       id="__add-instance-page__instance-other-memory-title-label"
       class="h-8 flex items-center pl-2 text-neutral-400 leading-none"
     >
-      Memory Allocation
+      Memory allocation
     </p>
   </div>
   <div

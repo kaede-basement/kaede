@@ -19,6 +19,7 @@
 <script setup lang="ts">
 import { computed, inject } from "vue";
 
+import ChangeCustomOptions from "@/components/add-instance/sections/ChangeCustomOptions.vue";
 import ChangeInstanceGroups from "@/components/add-instance/sections/ChangeInstanceGroups.vue";
 import ChangeInstanceIcon from "@/components/add-instance/sections/ChangeInstanceIcon.vue";
 import ChangeInstanceName from "@/components/add-instance/sections/ChangeInstanceName.vue";
@@ -116,6 +117,8 @@ function toggleOtherOptions(): void {
         <ChangeJavaBinary />
       </div>
     </div>
+    <!-- We need to always render this element since plugins will embed there -->
+    <ChangeCustomOptions v-show="expanded" />
     <CreateInstance />
   </div>
 </template>

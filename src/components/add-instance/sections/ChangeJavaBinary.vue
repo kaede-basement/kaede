@@ -70,7 +70,7 @@ function handleJavaProgram(value: string): void {
       id="__add-instance-page__instance-other-java-binary-title-label"
       class="h-8 flex items-center pl-2 text-neutral-400 leading-none"
     >
-      Java
+      Launch program
     </p>
   </div>
   <div

@@ -64,8 +64,24 @@ export type GlobalStatesPagesType = {
           "jvmArguments": Array<string>;
         };
       };
-      "full": boolean;
-      "tab" : string;
+      "full"          : boolean;
+      "tab"           : string;
+      "customSettings": Array<{
+        "label"?: string;
+        "input"?: {
+          "onInput": (
+            value: string,
+            currentInstance: GlobalStatesType["pages"]["states"]["add-instance"]["instance"],
+            currentPatch: ExtendedPatchUIDType,
+          ) => void;
+          "iconClassName": string;
+          "placeholder"  : string;
+          "defaultValue"?: string;
+          "tooltip"     ?: string;
+          "type"        ?: "text" | "number";
+          "debounceTime"?: number;
+        };
+      }>;
     }>;
     // Reserved for extensions' needs
     "none": Record<string, unknown>;
