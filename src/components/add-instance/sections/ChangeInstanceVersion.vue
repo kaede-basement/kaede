@@ -102,7 +102,7 @@ onClickOutside(target, () => handleDropdown(false));
     <div
       v-if="currentInstance?.patchVersions?.[Patches.Minecraft]"
       id="__add-instance-page__instance-version-selected-badge"
-      class="grid h-full place-items-center rounded-md bg-neutral-800 px-2 text-neutral-300 leading-none"
+      class="grid h-full place-items-center rounded-md px-2 text-neutral-400 leading-none bg-[theme(colors.neutral.100/.1)]"
       :data-tooltip="`Selected version of '${Patches.Minecraft}'`"
     >
       {{ currentInstance.patchVersions[Patches.Minecraft] }}
@@ -110,7 +110,7 @@ onClickOutside(target, () => handleDropdown(false));
     <div
       v-if="currentPatch !== Patches.Minecraft && currentInstance?.patchVersions?.[currentPatch]"
       id="__add-instance-page__instance-version-selected-badge"
-      class="grid h-full place-items-center rounded-md bg-neutral-800 px-2 text-neutral-300 leading-none"
+      class="grid h-full place-items-center rounded-md px-2 text-neutral-400 leading-none bg-[theme(colors.neutral.100/.1)]"
       :data-tooltip="`Selected version of '${currentPatch}'`"
     >
       {{ currentInstance.patchVersions[currentPatch] }}
@@ -130,7 +130,7 @@ onClickOutside(target, () => handleDropdown(false));
     <button
       v-if="currentPatch === Patches.Minecraft"
       id="__add-instance-page__instance-version-selected-filter"
-      class="relative grid h-full min-w-20 place-items-center rounded-md bg-neutral-800 px-2 leading-none"
+      class="relative grid h-full min-w-20 place-items-center rounded-md px-2 leading-none bg-[theme(colors.neutral.100/.1)]"
       @click="toggleTypeFilter"
     >
       {{ currentFilter }}

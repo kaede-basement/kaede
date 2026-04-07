@@ -64,7 +64,7 @@ const cardStyles = computed(
   >
     <button
       id="__add-instance-page__create-instance-button"
-      class="relative rounded-md bg-neutral-800 px-2 py-1"
+      class="relative rounded-md px-2 py-1 bg-[theme(colors.neutral.100/.1)]"
       @click="() => Instances.create(currentInstance, currentPatch)"
     >
       Create an Instance

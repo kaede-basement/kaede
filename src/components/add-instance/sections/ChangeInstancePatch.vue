@@ -75,7 +75,7 @@ function handlePatch(uid: ExtendedPatchUIDType): void {
       :key="patch.uid"
       :disabled="currentPatch === patch.uid"
       @click="() => patch?.action?.(patch.uid) ?? handlePatch(patch.uid)"
-      class="__add-instance-page__item relative flex flex-1 flex-col items-center justify-center gap-2 rounded-md p-2 transition-[background-color] disabled:bg-neutral-800 hover:bg-[theme(colors.neutral.100/.05)]"
+      class="__add-instance-page__item relative flex flex-1 flex-col items-center justify-center gap-2 rounded-md p-2 transition-[background-color] disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
     >
        <Image
          v-if="patch.icon"

@@ -88,7 +88,7 @@ function toggleOtherOptions(): void {
       </p>
       <button
         id="__add-instance-page__other-group-expander-toggle"
-        class="relative rounded-md bg-neutral-800 p-2 leading-none"
+        class="relative rounded-md p-2 leading-none bg-[theme(colors.neutral.100/.1)]"
         @click="toggleOtherOptions"
       >
         <span

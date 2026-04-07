@@ -111,7 +111,7 @@ function handleHeightChange(value: string): void {
     >
       <div
         id="__add-instance-page__instance-resolution-display"
-        class="relative h-50 flex flex-col items-center gap-4 overflow-hidden rounded-md bg-neutral-800 py-4"
+        class="relative h-50 flex flex-col items-center gap-4 overflow-hidden rounded-md py-4 bg-[theme(colors.neutral.100/.1)]"
       >
         <p
           id="__add-instance-page__instance-resolution-title"

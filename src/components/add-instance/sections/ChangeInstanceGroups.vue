@@ -87,7 +87,7 @@ function handleGroup(group: string): void {
           'shrink-0 relative rounded-md px-2 py-1 transition-[background-color,color]',
           currentInstance?.groups?.includes?.(group)
             ? 'bg-[theme(colors.neutral.100/.25)]'
-            : 'bg-neutral-800 text-neutral-400',
+            : 'bg-[theme(colors.neutral.100/.1)] text-neutral-400',
         ]"
       >
         <span

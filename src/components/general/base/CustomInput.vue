@@ -104,7 +104,7 @@ if (listenToEvents) {
       classNames?.wrapper,
       focused ? 'cursor-text' : 'cursor-pointer',
       'shrink-0 relative w-28 sm:w-40 flex flex-nowrap items-center',
-      'gap-2 rounded-md bg-neutral-800 pl-2',
+      'gap-2 rounded-md pl-2 bg-[theme(colors.neutral.100/.1)]',
     ]"
     :data-tooltip="tooltip"
   >
