@@ -28,21 +28,31 @@ import vitePagesConfiguration from "./vite-pages.json";
 
 function handleSourceFileNames(): {
   "name"     : string;
+  "enforce"  : "pre";
   "transform": (source: string, id: string) => string;
 } {
   return {
     "name"     : "handle-source-file-names",
+    // Ensure that the sources we get are untouched by 'esbuild' and others
+    "enforce"  : "pre",
     "transform": (source: string, id: string): string => {
       /*
        * Replacing is not an option since 'process.cwd'
        * returns 'letter:\path\...' when 'id' is 'letter:/path/...'
        */
-      const relativePath = id.slice(process.cwd().length);
+      const relativePath: string = id.slice(process.cwd().length);
 
-      return source.replaceAll(
-        "__PRE_BUNDLED_FILENAME__",
-        `"${relativePath}"`,
-      );
+      return source
+        .split("\n")
+        .map((line, index) => {
+          const lineNumber: number = index + 1;
+
+          return line.replaceAll(
+            "__PRE_BUNDLED_FILENAME__",
+            `"${relativePath}:${lineNumber}"`,
+          );
+        })
+        .join("\n");
     },
   };
 }
@@ -68,13 +78,13 @@ export default defineConfig({
     "setupFiles": "vitest.setup.ts",
   },
   "plugins": [
+    // Replace all '__PRE_BUNDLED_FILENAME__,' variables at build time
+    handleSourceFileNames(),
     // Handle a Vue framework
     vue(),
     // Handle a UnoCSS package
     unocss(),
     // Handle an ESLint package
     eslint(),
-    // Replace all '__PRE_BUNDLED_FILENAME__,' variables at build time
-    handleSourceFileNames(),
   ],
 });
