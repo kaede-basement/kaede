@@ -19,24 +19,31 @@
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
 import FileStructure from "@/constants/file-structure.ts";
-import { PatchUIDs } from "@/constants/meta.ts";
+import { CustomPatches, PatchUIDs } from "@/constants/meta.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
+import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
+
+const customPatchUIDs = Object.values(CustomPatches);
 
 export async function ensurePatchDirectories(
   necessaries: PreLaunchInformationType,
 ): Promise<void> {
   const { directories, logPrefix } = necessaries;
+  const actualPatchUIDs: Array<ExtendedPatchUIDType> = [
+    ...PatchUIDs,
+    ...customPatchUIDs,
+  ];
 
   log.debug(
     logPrefix,
-    `Checking if ${PatchUIDs.length} patch directories exist`,
+    `Checking if ${actualPatchUIDs.length} patch directories exist`,
   );
   const existStatuses: Array<boolean> = await Promise.all(
-    PatchUIDs.map(uid => exists(
+    actualPatchUIDs.map(uid => exists(
       General.cachedJoin(
         directories.base,
         FileStructure.Folders.Cache.Path,
@@ -55,7 +62,7 @@ export async function ensurePatchDirectories(
       General.cachedJoin(
         directories.base,
         FileStructure.Folders.Cache.Path,
-        PatchUIDs[index],
+        actualPatchUIDs[index],
       ),
     );
   }

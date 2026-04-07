@@ -18,6 +18,7 @@
 
 import FileStructure from "@/constants/file-structure.ts";
 import { APIEndpoints, LaunchStatus } from "@/constants/launcher.ts";
+import { CustomPatches } from "@/constants/meta.ts";
 import Errors from "@/lib/errors";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
@@ -66,13 +67,21 @@ export async function resolvePatch({
       "path"           : [FileStructure.Folders.Cache.Path, metadata.uid, fileName],
       "label"          : `/cache/${metadata.uid}/${fileName}`,
       "getDefaultValue": async () => {
+        const url: string = metadata.uid === CustomPatches.OptiFine
+          ? (
+            APIEndpoints.KaedeCache.Base +
+            APIEndpoints.KaedeCache.Paths.OptiFine.Base +
+            fileName
+          )
+          : APIEndpoints.Meta.Base + metadata.uid + "/" + fileName;
+
         log.warn(
           descriptiveLogPrefix,
           "No cache; fetching the patch metadata",
         );
         statuses.current = LaunchStatus.PatchMetadata.Fetching;
         const fetched: { "data": unknown } | LaunchStatusType = await Fetching.fetchMetadata({
-          "url"   : APIEndpoints.Meta.Base + metadata.uid + "/" + fileName,
+          "url"   : url,
           "label" : "patch metadata",
           "scope" : "PatchMetadata",
           "prefix": descriptiveLogPrefix,
