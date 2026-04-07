@@ -97,7 +97,7 @@ const cardStyles = computed(
         :type="option.input?.type ?? 'text'"
         :tooltip="option.input.tooltip"
         :debounce-time="option.input?.debounceTime ?? 300"
-        :default-value="option.input.defaultValue"
+        :default-value="option.input?.defaultValue?.()"
         :on-input="value => option.input?.onInput?.(value, currentInstance, currentPatch)"
         :on-blur="value => option.input?.onInput?.(value, currentInstance, currentPatch)"
         :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"

@@ -1,4 +1,4 @@
-import { ContextMenuItems } from "@/constants/application.ts";
+import { ContextMenuItems, DefaultGlobalStatesPagesStates } from "@/constants/application.ts";
 import EnglishTranslations from "@/constants/english.json";
 import { Routes, SidebarRouteGroupItems } from "@/constants/routes.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -36,13 +36,7 @@ export function getDefaultGlobalStates(): GlobalStatesType {
     },
     "pages": {
       "current": GlobalStateHelpers.Pages.getRouteFromSearchParameters(searchParameters),
-      "states" : {
-        "home"        : {},
-        "library"     : {},
-        "settings"    : { "tab": "extensions" },
-        "add-instance": {},
-        "none"        : {},
-      },
+      "states" : DefaultGlobalStatesPagesStates,
     },
     "logs": {
       "show"       : false,

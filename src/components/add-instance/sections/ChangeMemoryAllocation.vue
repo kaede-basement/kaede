@@ -73,18 +73,24 @@ function handleMemoryAllocation(value: string, type: "min" | "max"): void {
     return;
   }
 
+  const currentJvmArguments: Array<string> = currentInstance.value.add.jvmArguments
+    // Remove any existing memory allocation flags
+    .filter(jvmArgument => !jvmArgument.startsWith("-Xms") && !jvmArgument.startsWith("-Xmx"));
+
+  if (type === "max") {
+    currentJvmArguments
+      .unshift(`-Xms${currentMemoryAllocation.value.min}m`, `-Xmx${value}m`);
+  } else {
+    currentJvmArguments
+      .unshift(`-Xms${value}m`, `-Xmx${currentMemoryAllocation.value.max}m`);
+  }
+
   GlobalStateHelpers.Pages.addToState("add-instance", {
     "instance": {
       ...currentInstance.value,
       "add": {
         ...currentInstance.value.add,
-        "jvmArguments": type === "max" ? [
-          `-Xms${currentMemoryAllocation.value.min}m`,
-          `-Xmx${value}m`,
-        ] : [
-          `-Xms${value}m`,
-          `-Xmx${currentMemoryAllocation.value.max}m`,
-        ],
+        "jvmArguments": currentJvmArguments,
       },
     },
   });

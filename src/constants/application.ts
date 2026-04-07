@@ -1,6 +1,7 @@
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import FileStructure from "@/constants/file-structure.ts";
+import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -11,6 +12,7 @@ import CraftingTableIcon from "@/resources/CraftingTableIcon.webp";
 import CurseForgeIcon from "@/resources/CurseForgeIcon.webp";
 import FTBIcon from "@/resources/FTBIcon.svg";
 import ModrinthIcon from "@/resources/ModrinthIcon.webp";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export const ApplicationName = "Kaede";
 export const ApplicationNamespace = "__KAEDE__";
@@ -32,6 +34,60 @@ export const CSSThemeExtensions = {
   "Disabled": ".css.disabled",
 } as const;
 
+export const DefaultGlobalStatesPagesStates: GlobalStatesType["pages"]["states"] = {
+  "home"        : {},
+  "library"     : {},
+  "settings"    : { "tab": "extensions" },
+  "add-instance": {
+
+    /*
+     * Preferably, we should not interfere with the customizable options
+     * that were made purely for extensions. However, I wanted to use
+     * these type of things so many times because it is simpler for me, lol
+     */
+    "customSettings": [
+      {
+        "input": {
+          "onInput": (
+            value: string,
+            currentInstance: GlobalStatesType["pages"]["states"]["add-instance"]["instance"],
+          ): void => {
+            if (!currentInstance) {
+              return;
+            }
+
+            const jvmArguments: Array<string> = value.split(" ");
+
+            GlobalStateHelpers.Pages.addToState("add-instance", {
+              "instance": {
+                ...currentInstance,
+                "add": {
+                  ...currentInstance.add,
+                  "jvmArguments": jvmArguments,
+                },
+              },
+            });
+          },
+          "placeholder"  : "JVM arguments",
+          "iconClassName": "i-lucide-braces",
+          "defaultValue" : (): string | undefined => {
+            const currentInstance = GlobalStateHelpers.Pages?.getState("add-instance")?.instance;
+
+            if (!currentInstance) {
+              return DefaultInstanceSettings.add?.jvmArguments?.join?.(" ");
+            }
+
+            return currentInstance.add.jvmArguments.join(" ");
+          },
+          "debounceTime": 300,
+          "tooltip"     : "Specify your JVM arguments here",
+          "type"        : "text",
+        },
+      },
+    ],
+  },
+  "none": {},
+};
 export const InstanceCreationSections: Array<{
   "id"     : string;
   "name"   : string;

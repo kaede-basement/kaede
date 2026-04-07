@@ -1,4 +1,8 @@
-import { ApplicationNamespace, ContextMenuItems } from "@/constants/application.ts";
+import {
+  ApplicationNamespace,
+  ContextMenuItems,
+  DefaultGlobalStatesPagesStates,
+} from "@/constants/application.ts";
 import { Routes, SidebarRouteGroupItems } from "@/constants/routes.ts";
 import Configs from "@/lib/configs";
 import General from "@/lib/general";
@@ -23,13 +27,7 @@ export function getConfigGlobalStates(): GlobalStatesType {
     "translations": window[ApplicationNamespace].__internals.initialTranslations,
     "pages"       : {
       "current": GlobalStateHelpers.Pages.getRouteFromSearchParameters(searchParameters),
-      "states" : {
-        "home"        : {},
-        "library"     : {},
-        "settings"    : { "tab": "extensions" },
-        "add-instance": {},
-        "none"        : {},
-      },
+      "states" : DefaultGlobalStatesPagesStates,
     },
     "sidebarItems": [
       ...SidebarRouteGroupItems.map(item => {

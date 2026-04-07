@@ -76,7 +76,7 @@ export type GlobalStatesPagesType = {
           ) => void;
           "iconClassName": string;
           "placeholder"  : string;
-          "defaultValue"?: string;
+          "defaultValue"?: () => string | undefined;
           "tooltip"     ?: string;
           "type"        ?: "text" | "number";
           "debounceTime"?: number;
