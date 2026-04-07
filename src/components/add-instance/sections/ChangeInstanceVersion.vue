@@ -126,7 +126,13 @@ const cardStyles = computed(
   ),
 );
 
-function handleDropdown(state: boolean): void {
+function handleDropdown(state: boolean, event?: PointerEvent): void {
+  const target = event?.target as HTMLButtonElement | undefined;
+
+  if (target?.id === "__add-instance-page__instance-version-dropdown-wrapper") {
+    return;
+  }
+
   selector.value = state;
 }
 function handleVersionSearch(input: string): void {
@@ -139,7 +145,7 @@ function handleVersionSearch(input: string): void {
   });
 }
 function selectVersion(event: MouseEvent): void {
-  const target = event?.target as HTMLSpanElement;
+  const target = event?.target as HTMLSpanElement | undefined;
 
   if (!target) {
     return;
@@ -231,7 +237,7 @@ onClickOutside(target, () => handleDropdown(false));
         :style="cardStyles"
         @pointerdown="selectVersion"
         @pointerover="slideOverVersions"
-        @pointerup="() => handleDropdown(false)"
+        @pointerup="event => handleDropdown(false, event)"
       >
         <span
           v-for="entry in filteredVersions"
