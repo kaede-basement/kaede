@@ -24,6 +24,7 @@ import ChangeInstancePatch from "@/components/add-instance/sections/ChangeInstan
 import ChangeInstanceResolution
   from "@/components/add-instance/sections/ChangeInstanceResolution.vue";
 import ChangeInstanceVersion from "@/components/add-instance/sections/ChangeInstanceVersion.vue";
+import ChangeMemoryAllocation from "@/components/add-instance/sections/ChangeMemoryAllocation.vue";
 import CreateInstance from "@/components/add-instance/sections/CreateInstance.vue";
 </script>
 
@@ -49,6 +50,12 @@ import CreateInstance from "@/components/add-instance/sections/CreateInstance.vu
       class="flex flex-wrap gap-2 sm:flex-nowrap"
     >
       <ChangeInstanceResolution />
+      <div
+        id="__add-instance-page__instance-other-settings-wrapper"
+        class="lg:flex-2 flex flex-1 flex-col gap-2"
+      >
+        <ChangeMemoryAllocation />
+      </div>
     </div>
     <CreateInstance />
   </div>

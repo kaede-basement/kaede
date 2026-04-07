@@ -19,7 +19,6 @@
 <script setup lang="ts">
 import { computed, inject } from "vue";
 
-import ChangeMemoryAllocation from "@/components/add-instance/sections/ChangeMemoryAllocation.vue";
 import CustomInput from "@/components/general/base/CustomInput.vue";
 import { GlobalStatesContextKey } from "@/constants/application.ts";
 import General from "@/lib/general";
@@ -103,86 +102,90 @@ function handleHeightChange(value: string): void {
 <template>
   <div
     id="__add-instance-page__instance-resolution"
-    class="max-w-[50%] flex flex-1 flex-col gap-2 rounded-md p-2 lg:max-w-[33%]"
-    :style="cardStyles"
+    class="max-w-[50%] flex flex-1 flex-col gap-2 lg:max-w-[33%]"
   >
     <div
-      id="__add-instance-page__instance-resolution-display"
-      class="relative h-50 flex flex-col items-center gap-4 overflow-hidden rounded-md bg-neutral-800 py-4"
-    >
-      <p
-        id="__add-instance-page__instance-resolution-title"
-        class="text-neutral-300 leading-none"
-      >
-        Aspect Ratio
-      </p>
-      <p
-        id="__add-instance-page__instance-resolution-aspect-ratio-label"
-        class="absolute left-[50%] top-[50%] z-10 translate-x-[-50%] translate-y-[calc(-50%+15px)] text-3xl text-neutral-300 leading-none"
-      >
-        {{ aspectRatio }}
-      </p>
-      <div
-        id="__add-instance-page__instance-resolution-display-aspect-ratio"
-        class="absolute top-12 h-34 border border-blue bg-blue-950 transition-[width]"
-        :style="{
-          'width': `${aspectRatioWidth}px`,
-        }"
-      ></div>
-    </div>
-  </div>
-  <div
-    id="__add-instance-page__instance-other-settings-wrapper"
-    class="lg:flex-2 flex flex-1 flex-col gap-2"
-  >
-    <div
-      id="__add-instance-page__instance-other-width"
-      class="relative rounded-md p-2"
+      id="__add-instance-page__instance-resolution-inner"
+      class="rounded-md p-2"
       :style="cardStyles"
     >
       <div
-        id="__add-instance-page__instance-other-width-unit"
-        class="pointer-events-none absolute right-4 top-[50%] z-10 translate-y-[-50%] text-sm text-neutral-400"
+        id="__add-instance-page__instance-resolution-display"
+        class="relative h-50 flex flex-col items-center gap-4 overflow-hidden rounded-md bg-neutral-800 py-4"
       >
-        px
+        <p
+          id="__add-instance-page__instance-resolution-title"
+          class="text-neutral-300 leading-none"
+        >
+          Aspect Ratio
+        </p>
+        <p
+          id="__add-instance-page__instance-resolution-aspect-ratio-label"
+          class="absolute left-[50%] top-[50%] z-10 translate-x-[-50%] translate-y-[calc(-50%+15px)] text-3xl text-neutral-300 leading-none"
+        >
+          {{ aspectRatio }}
+        </p>
+        <div
+          id="__add-instance-page__instance-resolution-display-aspect-ratio"
+          class="absolute top-12 h-34 border border-blue bg-blue-950 transition-[width]"
+          :style="{
+            'width': `${aspectRatioWidth}px`,
+          }"
+        ></div>
       </div>
-      <CustomInput
-        icon="i-lucide-unfold-horizontal"
-        placeholder="Window Width"
-        id-root="__add-instance-page__instance-other-width"
-        type="number"
-        tooltip="Window width of the instance"
-        :debounce-time="300"
-        :default-value="currentInstance?.windowWidth"
-        :on-input="handleWidthChange"
-        :on-blur="handleWidthChange"
-        :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"
-      />
     </div>
     <div
-      id="__add-instance-page__instance-other-height"
-      class="relative rounded-md p-2"
-      :style="cardStyles"
+      id="__add-instance-page__instance-other-resolution-wrapper"
+      class="flex flex-nowrap gap-2"
     >
       <div
-        id="__add-instance-page__instance-other-height-unit"
-        class="pointer-events-none absolute right-4 top-[50%] z-10 translate-y-[-50%] text-sm text-neutral-400"
+        id="__add-instance-page__instance-other-width"
+        class="relative flex-1 rounded-md p-2"
+        :style="cardStyles"
       >
-        px
+        <div
+          id="__add-instance-page__instance-other-width-unit"
+          class="pointer-events-none absolute right-4 top-[50%] z-10 translate-y-[-50%] text-sm text-neutral-400"
+        >
+          px
+        </div>
+        <CustomInput
+          icon="i-lucide-unfold-horizontal"
+          placeholder="Window Width"
+          id-root="__add-instance-page__instance-other-width"
+          type="number"
+          tooltip="Window width of the instance"
+          :debounce-time="300"
+          :default-value="currentInstance?.windowWidth"
+          :on-input="handleWidthChange"
+          :on-blur="handleWidthChange"
+          :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"
+        />
       </div>
-      <CustomInput
-        icon="i-lucide-unfold-vertical"
-        placeholder="Window Height"
-        id-root="__add-instance-page__instance-other-height"
-        type="number"
-        tooltip="Window height of the instance"
-        :debounce-time="300"
-        :default-value="currentInstance?.windowHeight"
-        :on-input="handleHeightChange"
-        :on-blur="handleHeightChange"
-        :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"
-      />
+      <div
+        id="__add-instance-page__instance-other-height"
+        class="relative flex-1 rounded-md p-2"
+        :style="cardStyles"
+      >
+        <div
+          id="__add-instance-page__instance-other-height-unit"
+          class="pointer-events-none absolute right-4 top-[50%] z-10 translate-y-[-50%] text-sm text-neutral-400"
+        >
+          px
+        </div>
+        <CustomInput
+          icon="i-lucide-unfold-vertical"
+          placeholder="Window Height"
+          id-root="__add-instance-page__instance-other-height"
+          type="number"
+          tooltip="Window height of the instance"
+          :debounce-time="300"
+          :default-value="currentInstance?.windowHeight"
+          :on-input="handleHeightChange"
+          :on-blur="handleHeightChange"
+          :class-names="{ 'wrapper': 'h-8 w-full sm:w-full' }"
+        />
+      </div>
     </div>
-    <ChangeMemoryAllocation />
   </div>
 </template>
