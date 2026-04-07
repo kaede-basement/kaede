@@ -124,6 +124,7 @@ onClickOutside(target, () => handleDropdown(false));
       :debounce-time="300"
       :default-value="currentVersionSearch?.input"
       :on-input="handleVersionSearch"
+      :on-escape="() => handleDropdown(false)"
       @click="() => handleDropdown(true)"
       :class-names="{ 'wrapper': 'h-8 flex-1' }"
     />

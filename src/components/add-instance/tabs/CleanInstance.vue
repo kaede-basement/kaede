@@ -26,6 +26,7 @@ import ChangeInstancePatch from "@/components/add-instance/sections/ChangeInstan
 import ChangeInstanceResolution
   from "@/components/add-instance/sections/ChangeInstanceResolution.vue";
 import ChangeInstanceVersion from "@/components/add-instance/sections/ChangeInstanceVersion.vue";
+import ChangeJavaBinary from "@/components/add-instance/sections/ChangeJavaBinary.vue";
 import ChangeMemoryAllocation from "@/components/add-instance/sections/ChangeMemoryAllocation.vue";
 import CreateInstance from "@/components/add-instance/sections/CreateInstance.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
@@ -112,6 +113,7 @@ function toggleOtherOptions(): void {
         class="lg:flex-2 flex flex-1 flex-col gap-2"
       >
         <ChangeMemoryAllocation />
+        <ChangeJavaBinary />
       </div>
     </div>
     <CreateInstance />

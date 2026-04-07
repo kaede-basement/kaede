@@ -56,13 +56,6 @@ function handleIndex(event: Event): void {
 function handleInput(inputValue: string): void {
   setFound(searchLogs(inputValue));
 }
-function handleEscape(): void {
-  if (searching.current === "") {
-    return;
-  }
-
-  setFound(searchLogs(""));
-}
 function handleEnter(event: KeyboardEvent): void {
   if (event.key !== "Enter" || searching.current === "") {
     return;
@@ -123,7 +116,6 @@ function handleTextSelection(event: KeyboardEvent): void {
     :on-input="handleInput"
     :on-blur="handleInput"
     :on-key-down="handleEnter"
-    :on-escape="handleEscape"
     :on-keyboard-event="handleTextSelection"
   />
   <div

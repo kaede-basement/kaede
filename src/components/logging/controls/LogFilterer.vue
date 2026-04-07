@@ -13,13 +13,6 @@ const filtering = computed((): string => globalStates?.logs?.filtering ?? "");
 function handleInput(newValue: string): void {
   GlobalStateHelpers.Logs.filterBy(newValue);
 }
-function handleEscape(): void {
-  if (filtering.value === "") {
-    return;
-  }
-
-  GlobalStateHelpers.Logs.filterBy("");
-}
 </script>
 
 <template>
@@ -32,6 +25,5 @@ function handleEscape(): void {
     :listen-to-events="true"
     :on-input="handleInput"
     :on-blur="handleInput"
-    :on-escape="handleEscape"
   />
 </template>

@@ -93,12 +93,12 @@ function handleMemoryAllocation(value: string, type: "min" | "max"): void {
 
 <template>
   <div
-    id="__add-instance-page__instance-other-min-memory"
+    id="__add-instance-page__instance-other-memory-title"
     class="relative rounded-md p-2"
     :style="cardStyles"
   >
     <p
-      id="__add-instance-page__no-groups-text"
+      id="__add-instance-page__instance-other-memory-title-label"
       class="h-8 flex items-center pl-2 text-neutral-400 leading-none"
     >
       Memory Allocation

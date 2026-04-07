@@ -12,6 +12,7 @@ const {
   defaultValue,
   listenToEvents,
   focusOnKeyF,
+  blurOnEscape = true,
   onInput,
   onKeyDown,
   onEscape,
@@ -28,6 +29,7 @@ const {
   "defaultValue"   ?: string | number;
   "listenToEvents" ?: boolean;
   "focusOnKeyF"    ?: boolean;
+  "blurOnEscape"   ?: boolean;
   "onInput"        ?: (value: string) => void;
   "onKeyDown"      ?: (event: KeyboardEvent) => void;
   "onEscape"       ?: () => void;
@@ -48,6 +50,9 @@ const focused = ref<boolean>(false);
 
 function unFocus(event: Event): void {
   const target = event?.target as HTMLInputElement;
+
+  target?.blur?.();
+
   const value: string = target?.value ?? "";
 
   onBlur?.(value);
@@ -62,6 +67,14 @@ const handleInput = useDebounceFn((event: Event): void => {
   onInput?.(targetValue);
 }, debounceTime);
 
+function handleKeyDown(event: KeyboardEvent): void {
+  if (event.key === "Escape" && blurOnEscape) {
+    unFocus(event);
+    onEscape?.();
+  }
+
+  onKeyDown?.(event);
+}
 function handleWrapperClick(): void {
   target.value?.focus?.();
   focused.value = true;
@@ -69,21 +82,6 @@ function handleWrapperClick(): void {
 
 if (listenToEvents) {
   useEventListener("keydown", (event: KeyboardEvent) => {
-    if (event.key === "Escape") {
-      if (!target.value) {
-        return;
-      }
-
-      event.preventDefault();
-      target.value.blur?.();
-
-      target.value.value = "";
-
-      onEscape?.();
-
-      return;
-    }
-
     if (focusOnKeyF && event.ctrlKey && event.code === "KeyF") {
       event.preventDefault();
       handleWrapperClick();
@@ -130,7 +128,7 @@ if (listenToEvents) {
       :placeholder="focused ? '' : placeholder"
       :value="defaultValue"
       @input="handleInput"
-      @keydown="onKeyDown"
+      @keydown="handleKeyDown"
       @blur="unFocus"
     />
     <MaterialRipple :disabled="focused" />
