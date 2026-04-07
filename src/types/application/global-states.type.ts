@@ -64,7 +64,8 @@ export type GlobalStatesPagesType = {
           "jvmArguments": Array<string>;
         };
       };
-      "tab": string;
+      "full": boolean;
+      "tab" : string;
     }>;
     // Reserved for extensions' needs
     "none": Record<string, unknown>;

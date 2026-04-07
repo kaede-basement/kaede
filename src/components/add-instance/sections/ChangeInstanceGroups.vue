@@ -76,15 +76,15 @@ function handleGroup(group: string): void {
     class="flex flex-nowrap gap-2 overflow-x-auto rounded-md p-2"
     :style="cardStyles"
   >
-    <template v-if="currentInstance.groups.length > 0">
+    <template v-if="['Group 1', 'Group 2', 'Hiii'].length > 0">
       <button
-        v-for="group in ['vanilla', 'fabric', 'forge']"
+        v-for="group in ['Group 1', 'Group 2', 'Hiii']"
         :id="`__add-instance-page__instance-group-${group}`"
         :key="group"
         @click="() => handleGroup(group)"
         :class="[
           '__add-instance-page__instance-group',
-          'relative rounded-md px-2 py-1 transition-[background-color,color]',
+          'shrink-0 relative rounded-md px-2 py-1 transition-[background-color,color]',
           currentInstance?.groups?.includes?.(group)
             ? 'bg-[theme(colors.neutral.100/.25)]'
             : 'bg-neutral-800 text-neutral-400',

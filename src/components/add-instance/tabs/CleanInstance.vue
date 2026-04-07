@@ -17,6 +17,8 @@
   -->
 
 <script setup lang="ts">
+import { computed, inject } from "vue";
+
 import ChangeInstanceGroups from "@/components/add-instance/sections/ChangeInstanceGroups.vue";
 import ChangeInstanceIcon from "@/components/add-instance/sections/ChangeInstanceIcon.vue";
 import ChangeInstanceName from "@/components/add-instance/sections/ChangeInstanceName.vue";
@@ -26,6 +28,34 @@ import ChangeInstanceResolution
 import ChangeInstanceVersion from "@/components/add-instance/sections/ChangeInstanceVersion.vue";
 import ChangeMemoryAllocation from "@/components/add-instance/sections/ChangeMemoryAllocation.vue";
 import CreateInstance from "@/components/add-instance/sections/CreateInstance.vue";
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import { GlobalStatesContextKey } from "@/constants/application.ts";
+import General from "@/lib/general";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+
+const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+
+const expanded = computed(
+  (): boolean => (
+    globalStates?.pages?.states?.["add-instance"]?.full === true
+  ),
+);
+const cardStyles = computed(
+  (): ReturnType<typeof General.getSidebarInnerStyles> => (
+    General.getSidebarInnerStyles(
+      globalStates?.layout?.sidebar?.background,
+      globalStates?.layout?.sidebar?.color,
+      globalStates?.layout?.sidebar?.blur,
+    )
+  ),
+);
+
+function toggleOtherOptions(): void {
+  GlobalStateHelpers.Pages.addToState("add-instance", {
+    "full": !expanded.value,
+  });
+}
 </script>
 
 <template>
@@ -46,6 +76,33 @@ import CreateInstance from "@/components/add-instance/sections/CreateInstance.vu
     <ChangeInstancePatch />
     <ChangeInstanceVersion />
     <div
+      id="__add-instance-page__other-group-expander"
+      class="relative flex flex-nowrap justify-between rounded-md p-2"
+      :style="cardStyles"
+    >
+      <p
+        id="__add-instance-page__other-group-expander-label"
+        class="h-8 flex items-center pl-2 text-neutral-400 leading-none"
+      >
+        Other options
+      </p>
+      <button
+        id="__add-instance-page__other-group-expander-toggle"
+        class="relative rounded-md bg-neutral-800 p-2 leading-none"
+        @click="toggleOtherOptions"
+      >
+        <span
+          id="__add-instance-page__other-group-expander-toggle-icon"
+          :class="[
+            expanded ? 'rotate-90' : 'rotate-0',
+            'i-lucide-chevron-right block size-4 transition-[transform]',
+          ]"
+        ></span>
+        <MaterialRipple />
+      </button>
+    </div>
+    <div
+      v-if="expanded"
       id="__add-instance-page__instance-others-group"
       class="flex flex-wrap gap-2 sm:flex-nowrap"
     >
