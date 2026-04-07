@@ -47,11 +47,11 @@ const currentMemoryAllocation = computed((): {
   };
 
   for (const jvmArgument of jvmArguments) {
-    if (jvmArgument.startsWith("-Xmx")) {
+    if (jvmArgument.startsWith("-Xms")) {
       results.min = Number(jvmArgument.slice(4, -1));
     }
 
-    if (jvmArgument.startsWith("-Xms")) {
+    if (jvmArgument.startsWith("-Xmx")) {
       results.max = Number(jvmArgument.slice(4, -1));
     }
   }
@@ -79,11 +79,11 @@ function handleMemoryAllocation(value: string, type: "min" | "max"): void {
       "add": {
         ...currentInstance.value.add,
         "jvmArguments": type === "max" ? [
-          `-Xmx${currentMemoryAllocation.value.min}m`,
-          `-Xms${value}m`,
-        ] : [
+          `-Xms${currentMemoryAllocation.value.min}m`,
           `-Xmx${value}m`,
-          `-Xms${currentMemoryAllocation.value.max}m`,
+        ] : [
+          `-Xms${value}m`,
+          `-Xmx${currentMemoryAllocation.value.max}m`,
         ],
       },
     },
@@ -92,6 +92,18 @@ function handleMemoryAllocation(value: string, type: "min" | "max"): void {
 </script>
 
 <template>
+  <div
+    id="__add-instance-page__instance-other-min-memory"
+    class="relative rounded-md p-2"
+    :style="cardStyles"
+  >
+    <p
+      id="__add-instance-page__no-groups-text"
+      class="h-8 flex items-center pl-2 text-neutral-400 leading-none"
+    >
+      Memory Allocation
+    </p>
+  </div>
   <div
     id="__add-instance-page__instance-other-min-memory"
     class="relative rounded-md p-2"
