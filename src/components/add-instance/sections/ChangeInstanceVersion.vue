@@ -98,6 +98,11 @@ const filteredVersions = computed((): PatchIndexType["versions"] => {
 
   const filteringValue: string | undefined = currentVersionSearch.value?.input;
 
+  // Format the release time ahead-of-time
+  for (const entry of data.value) {
+    entry.releaseTime = new Date(entry.releaseTime).toDateString();
+  }
+
   if (!filteringValue) {
     if (data.value.length === 0) {
       return [noMatches];
@@ -233,7 +238,7 @@ onClickOutside(target, () => handleDropdown(false));
       <button
         v-if="selector"
         id="__add-instance-page__instance-version-dropdown-wrapper"
-        class="absolute left-0 top-14 z-50 max-h-[274px] w-full flex flex-col overflow-y-auto rounded-md"
+        class="absolute left-0 top-14 z-50 max-h-73 w-full flex flex-col overflow-y-auto break-all rounded-md text-start text-sm"
         :style="cardStyles"
         @pointerdown="selectVersion"
         @pointerover="slideOverVersions"
@@ -243,32 +248,31 @@ onClickOutside(target, () => handleDropdown(false));
           v-for="entry in filteredVersions"
           :id="`__add-instance-page__instance-version-dropdown-item-wrapper-${entry.version}`"
           :key="entry.version"
-          class="__add-instance-page__instance-version-dropdown-item flex flex-nowrap border-b border-neutral-600 px-2 py-3 text-sm text-neutral-300 leading-none hover:bg-neutral-800"
+          class="__add-instance-page__instance-version-dropdown-item flex flex-nowrap border-b border-neutral-600 p-2 text-neutral-300 hover:bg-neutral-800"
         >
           <span
             :id="`__add-instance-page__instance-version-dropdown-item-star-${entry.version}`"
-            class="w-6 shrink-0 text-start"
+            class="w-6 shrink-0"
           >
             {{ entry.recommended ? "⭐" : "" }}
           </span>
           <span
             :id="`__add-instance-page__instance-version-dropdown-item-version-${entry.version}`"
-            class="flex-1 text-start"
+            class="flex-1"
           >
             {{ entry.version }}
           </span>
           <span
             :id="`__add-instance-page__instance-version-dropdown-item-type-${entry.version}`"
-            class="flex-1 text-start"
+            class="flex-1"
           >
             {{ entry?.type }}
           </span>
           <span
             :id="`__add-instance-page__instance-version-dropdown-item-time-${entry.version}`"
-            class="flex-1 text-start"
-            v-if="entry.releaseTime"
+            class="flex-1"
           >
-            {{ new Date(entry.releaseTime).toDateString() }}
+            {{ entry.releaseTime }}
           </span>
         </span>
       </button>
