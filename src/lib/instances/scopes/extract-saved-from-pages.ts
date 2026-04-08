@@ -35,7 +35,8 @@ export function extractSavedFromPages(
       "windowWidth"  : DefaultInstanceSettings.windowWidth,
       "patchVersions": { "net.minecraft": "1.16.5" },
       "add"          : {
-        "jvmArguments": DefaultInstanceSettings.add.jvmArguments ?? [],
+        "jvmArguments" : DefaultInstanceSettings.add?.jvmArguments ?? [],
+        "gameArguments": DefaultInstanceSettings.add?.gameArguments ?? [],
       },
     };
   }
