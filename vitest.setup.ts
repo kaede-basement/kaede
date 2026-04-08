@@ -41,6 +41,7 @@ vi.stubGlobal("window", {
       "temporaryAccounts"   : [] as Array<AccountType>,
       "initialTranslations" : {} as TranslationsType,
       "initialInstances"    : {} as InstanceStatesType,
+      "logsInBrowser"       : [],
     },
     "variables": {
       "rippleColor"     : "",
@@ -168,7 +169,10 @@ vi.stubGlobal("window", {
         "before": [],
         "after" : [],
       },
-      "onMinecraftPatchResolve": {},
+      "onMinecraftPatchResolve": {
+        "before": [],
+        "after" : [],
+      },
     },
   },
 } satisfies {
