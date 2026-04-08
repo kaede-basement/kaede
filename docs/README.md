@@ -38,7 +38,9 @@ No prior Rust knowledge is needed to contribute to this project. Most of the cod
 I also leave comments in the code.
 
 For launcher plugins, themes, or translations:
+
 - [Making a Plugin](./EXTENSIONS.md#making-a-plugin)
+- [Type Declarations for Plugins](../types/README.md)
 - [Making a Theme](./EXTENSIONS.md#making-a-theme)
 - [Translating the Launcher](https://github.com/kaede-basement/translations)
 

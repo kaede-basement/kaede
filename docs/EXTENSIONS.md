@@ -1,3 +1,7 @@
+# Extensions
+
+## General
+
 ### Repositories
 
 Kaede has two built-in plugin repositories.
@@ -21,6 +25,10 @@ The second one is an unrestricted environment that allows plugins to do everythi
 Settings have an option to enable the execution of KAUR extensions that require an unrestricted environment, because those extensions by default are prohibited.
 
 ## Making a Plugin
+
+### TypeScript
+
+The usage of TypeScript in Kaede plugins is possible via another [plugin](https://github.com/kaede-basement/trusted-extensions/tree/main/plugins/typescript-chan).
 
 ### Unrestricted
 
