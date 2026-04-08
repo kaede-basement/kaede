@@ -82,9 +82,9 @@ function handlePatch(uid: ExtendedPatchUIDType): void {
          :id="`__add-instance-page__item-patch-icon-${patch.id}`"
          :src="patch.icon"
          :alt="`An icon of the '${patch.uid}' patch`"
-         class-names="rounded-md size-10"
+         class-names="min-w-10 rounded-md size-10"
        />
-      <span :id="`__add-instance-page__item-patch-label-${patch.id}`" class="block break-all text-sm">
+      <span :id="`__add-instance-page__item-patch-label-${patch.id}`" class="block text-sm">
         {{ patch.name }}
       </span>
       <MaterialRipple :disabled="currentPatch === patch.uid" />

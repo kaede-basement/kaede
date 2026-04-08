@@ -45,7 +45,7 @@ function handleModeSelect(id: string): void {
     >
       <div
         id="__add-instance-page__type-selector"
-        class="h-fit w-full flex shrink-0 gap-2 overflow-x-auto rounded-md p-2"
+        class="h-fit w-full flex shrink-0 flex-wrap gap-2 rounded-md p-2"
         :style="cardStyles"
       >
         <button
@@ -54,7 +54,7 @@ function handleModeSelect(id: string): void {
           :disabled="selected === mode.id"
           @click="() => mode?.action?.(mode.id) ?? handleModeSelect(mode.id)"
           :id="`__add-instance-page__type-selector-item-${mode.id}`"
-          class="__add-instance-page__type-selector-item relative flex shrink-0 flex-nowrap items-center gap-2 rounded-md py-1 pl-1 pr-2 transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
+          class="__add-instance-page__type-selector-item relative min-w-fit flex flex-1 flex-nowrap items-center justify-center gap-2 rounded-md py-1 pl-1 pr-2 transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
         >
           <Image
             :id="`__add-instance-page__type-selector-image-${mode.id}`"
@@ -64,6 +64,7 @@ function handleModeSelect(id: string): void {
           />
           <span
             :id="`__add-instance-page__type-selector-item-label-${mode.id}`"
+            class="shrink-0"
           >
             {{ mode.name }}
           </span>
