@@ -152,7 +152,7 @@ function handleButtonAction(event: PointerEvent, action: () => void): void {
           :id="`__sidebar__entry-${item.name}-button`"
           :disabled="item.path === globalStates?.pages?.current"
           @pointerdown="(event: PointerEvent) => handleButtonAction(event, item.action)"
-          class="relative grid size-12 shrink-0 place-items-center rounded-md transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
+          class="__sidebar__entry-button relative grid size-12 shrink-0 place-items-center rounded-md transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
           :aria-label="item.name"
         >
           <span
@@ -182,7 +182,7 @@ function handleButtonAction(event: PointerEvent, action: () => void): void {
         <div
           v-else
           :id="`__sidebar__entry-divider-${index}`"
-          class="h-[1px] w-[calc(100%-8px)] bg-[theme(colors.neutral.100/.1)]"
+          class="__sidebar__entry-divider h-[1px] w-[calc(100%-8px)] bg-[theme(colors.neutral.100/.1)]"
         ></div>
       </template>
     </TransitionGroup>

@@ -103,7 +103,7 @@ watch(
       v-show="opened"
       ref="contextMenu"
       id="__context_menu__wrapper"
-      class="__context_menu__wrapper __context-menu-disable absolute z-9000 flex flex-col gap-1 rounded-md bg-neutral-800 py-1 text-white drop-shadow-lg"
+      class="__context_menu__wrapper __context-menu-disable absolute z-9000 flex flex-col gap-1 overflow-hidden rounded-md bg-neutral-800 py-1 text-white drop-shadow-lg"
       :style="styles"
     >
       <button

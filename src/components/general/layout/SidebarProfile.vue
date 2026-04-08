@@ -33,7 +33,7 @@ function handleProfileNavigation(): void {
       id="__sidebar__entry-profile-button"
       :disabled="Routes.Profile === globalStates?.pages?.current"
       @pointerdown="(event: PointerEvent) => handleButtonAction(event, handleProfileNavigation)"
-      class="relative grid size-12 shrink-0 place-items-center rounded-md text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
+      class="__sidebar__entry-button relative grid size-12 shrink-0 place-items-center rounded-md text-white transition-[background-color] duration-150 disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]"
       aria-label="profile"
     >
       <Image
