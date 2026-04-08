@@ -56,7 +56,7 @@ jobs:
       - name: Declare that this is for Github Pages
         uses: restackio/update-json-file-action@2.1
         with:
-          file: "./vite-pages.json"
+          file: "./kaede-extra.json"
           fields: "{\"useKaedeBase\": true}"
 
       - name: Build

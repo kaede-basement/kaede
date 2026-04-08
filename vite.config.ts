@@ -24,7 +24,7 @@ import eslint from "vite-plugin-eslint2";
 // 'vitest/config' extends 'vite' config
 import { defineConfig } from "vitest/config";
 
-import vitePagesConfiguration from "./vite-pages.json";
+import kaedeExtraConfiguration from "./kaede-extra.json";
 
 function handleSourceFileNames(): {
   "name"     : string;
@@ -42,6 +42,11 @@ function handleSourceFileNames(): {
        */
       const relativePath: string = id.slice(process.cwd().length);
 
+      // Avoid having 'const "/src/declarations.ts:90": string;' in the 'declarations.ts'
+      if (relativePath === "/src/declarations.ts") {
+        return source;
+      }
+
       return source
         .split("\n")
         .map((line, index) => {
@@ -58,7 +63,8 @@ function handleSourceFileNames(): {
 }
 
 export default defineConfig({
-  "base"       : vitePagesConfiguration.useKaedeBase ? "/kaede" : undefined,
+  // Use '/kaede' base path for GitHub Pages
+  "base"       : kaedeExtraConfiguration.useKaedeBase ? "/kaede" : undefined,
   // Better support for Tauri CLI output
   "clearScreen": false,
   // Enable environment variables
