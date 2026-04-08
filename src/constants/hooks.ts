@@ -18,3 +18,9 @@ export const HookResponseStatus = {
 export const ExtraHookResponseStatus = {
   "ContinueLoop": "continue-hooks-loop",
 } as const;
+
+export default {
+  HookMappings,
+  HookResponseStatus,
+  ExtraHookResponseStatus,
+} as const;

@@ -248,3 +248,22 @@ export const ContextMenuItems = [
     },
   },
 ] as const;
+
+export default {
+  ApplicationName,
+  ApplicationNamespace,
+  ApplicationRootID,
+  DefaultLocale,
+  GlobalStatesContextKey,
+  TranslationsContextKey,
+  InstanceStatesContextKey,
+  AuthStatesContextKey,
+  LaunchStatesContextKey,
+  InstanceLogsContextKey,
+  LaunchInstanceContextKey,
+  CloseInstanceContextKey,
+  CSSThemeExtensions,
+  DefaultGlobalStatesPagesStates,
+  InstanceCreationSections,
+  ContextMenuItems,
+} as const;

@@ -28,3 +28,9 @@ export const LogInfo = {
     "5": "ERROR",
   },
 } as const;
+
+export default {
+  BrowserStorageKey,
+  BrowserStorageStoreKey,
+  LogInfo,
+} as const;

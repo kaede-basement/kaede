@@ -20,3 +20,8 @@ export const SidebarRouteGroupItems = [
     "Icon": "i-lucide-settings",
   },
 ] as const;
+
+export default {
+  Routes,
+  SidebarRouteGroupItems,
+} as const;

@@ -19,6 +19,7 @@
 import { vi } from "vitest";
 
 import type { KaedeNamespaceType } from "./src/declarations";
+import type { GlobalStatesType } from "./src/types/application/global-states.type";
 import type { InstanceStatesType } from "./src/types/application/instance-states.type";
 import type { AccountType } from "./src/types/configs/account.type";
 import type { TranslationsType } from "./src/types/translations/translations.type";
@@ -27,9 +28,9 @@ import type { TranslationsType } from "./src/types/translations/translations.typ
 vi.stubGlobal("window", {
   "__KAEDE__": {
     "__internals": {
-      "getGlobalStates"     : (): void => {},
+      "getGlobalStates"     : (): GlobalStatesType => ({} as GlobalStatesType),
       "changeGlobalStates"  : (): void => {},
-      "getInstanceStates"   : (): void => {},
+      "getInstanceStates"   : (): InstanceStatesType => ({} as InstanceStatesType),
       "changeInstanceStates": (): void => {},
       "requestPermissions"  : async (): Promise<Array<boolean>> => ([]),
       "syncConfig"          : async (): Promise<void> => {},

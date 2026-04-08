@@ -10,3 +10,9 @@ export const AllEventListeners = {
 } as const;
 export const EventListeners: Record<string, Record<EventListenersType, unknown>> = {};
 export const EventSubscribers: Set<string> = new Set;
+
+export default {
+  AllEventListeners,
+  EventListeners,
+  EventSubscribers,
+} as const;

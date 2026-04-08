@@ -102,6 +102,7 @@ export const LaunchStatus = {
     "IncompatibleArch"    : "errors-incompatible-arch",
   },
 } as const;
+// TODO remove this one
 export const _LaunchStatus = {
   "General": {
     "Starting": "general-starting",
@@ -203,4 +204,13 @@ export const GeneralSettings = {
     // Used only for Minecraft logs. Launcher logs stay uncut
     "LineLimit": 65_536,
   },
+} as const;
+
+export default {
+  DefaultInstanceIcon,
+  DefaultInstanceSettings,
+  JVMArguments,
+  LaunchStatus,
+  APIEndpoints,
+  GeneralSettings,
 } as const;

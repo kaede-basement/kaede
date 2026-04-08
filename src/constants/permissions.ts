@@ -26,3 +26,10 @@ export const Permissions = {
 export const PermissionsList: Array<PermissionType> = Object
   .values(Permissions)
   .flatMap(scope => Object.values(scope));
+
+export default {
+  GrantedScopes,
+  IgnoredExtensionPermissions,
+  Permissions,
+  PermissionsList,
+} as const;

@@ -29,18 +29,17 @@ import * as TauriProcess from "@tauri-apps/plugin-process";
 import * as TauriUpload from "@tauri-apps/plugin-upload";
 import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
-import type { Child } from "tauri-plugin-shellx-api";
 
-import type * as _Application from "@/constants/application.ts";
-import type * as _ASCIIArt from "@/constants/ascii-art.ts";
-import type * as _Browser from "@/constants/browser.ts";
-import type * as _EventListeners from "@/constants/event-listeners.ts";
+import type _Application from "@/constants/application.ts";
+import type _ASCIIArt from "@/constants/ascii-art.ts";
+import type _Browser from "@/constants/browser.ts";
+import type _EventListeners from "@/constants/event-listeners.ts";
 import type _FileStructure from "@/constants/file-structure.ts";
-import type * as _Hooks from "@/constants/hooks.ts";
-import type * as _Launcher from "@/constants/launcher.ts";
-import type * as _Meta from "@/constants/meta.ts";
-import type * as _Permissions from "@/constants/permissions.ts";
-import type * as _Routes from "@/constants/routes.ts";
+import type _Hooks from "@/constants/hooks.ts";
+import type _Launcher from "@/constants/launcher.ts";
+import type _Meta from "@/constants/meta.ts";
+import type _Permissions from "@/constants/permissions.ts";
+import type _Routes from "@/constants/routes.ts";
 import type Browser from "@/lib/browser";
 import type Configs from "@/lib/configs";
 import type DevelopmentModeHelpers from "@/lib/development-mode-helpers";
@@ -1660,7 +1659,11 @@ declare global {
            */
           "after": HookReturnType<
             {
-              "process": Child;
+              "process": {
+                "pid"  : number;
+                "kill" : () => Promise<void>;
+                "write": (data: string | Uint8Array | number[]) => Promise<void>;
+              };
               // [javaBinary, launchCommand]
               "command": [string, string];
               "auth"   : {

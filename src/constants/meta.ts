@@ -59,3 +59,11 @@ export const InstallablePatches: Array<{
   { "id": "quilt", "uid": Patches.Quilt, "name": "Quilt", "icon": QuiltIcon },
   { "id": "liteloader", "uid": Patches.LiteLoader, "name": "LiteLoader", "icon": LiteLoaderIcon },
 ];
+
+export default {
+  Patches,
+  PrettyPatchLabels,
+  PatchUIDs,
+  CustomPatches,
+  InstallablePatches,
+} as const;

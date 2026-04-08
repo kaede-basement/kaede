@@ -29,3 +29,7 @@ export function getASCIIArt(portable: boolean, launchCount: number): string {
     "\n"
   );
 }
+
+export default {
+  getASCIIArt,
+} as const;
