@@ -61,7 +61,8 @@ export type GlobalStatesPagesType = {
         "windowWidth"  : number;
         "icon"        ?: string;
         "add"          : {
-          "jvmArguments": Array<string>;
+          "jvmArguments" : Array<string>;
+          "gameArguments": Array<string>;
         };
       };
       "full"          : boolean;

@@ -23,9 +23,11 @@ import { getClassPaths } from "@/lib/launcher/scopes/arguments/get-class-paths.t
 import { getGameArguments } from "@/lib/launcher/scopes/arguments/get-game-arguments.ts";
 import { getJavaBinary } from "@/lib/launcher/scopes/arguments/get-java-binary.ts";
 import { getJvmArguments } from "@/lib/launcher/scopes/arguments/get-jvm-arguments.ts";
+import { joinArguments } from "@/lib/launcher/scopes/arguments/join-arguments.ts";
 import {
   replaceLaunchArguments,
 } from "@/lib/launcher/scopes/arguments/replace-launch-arguments.ts";
+import { splitArguments } from "@/lib/launcher/scopes/arguments/split-arguments.ts";
 
 export default {
   getAdditionalStartArguments,
@@ -33,5 +35,7 @@ export default {
   getGameArguments,
   getJavaBinary,
   getJvmArguments,
+  joinArguments,
   replaceLaunchArguments,
+  splitArguments,
 } as const;

@@ -13,7 +13,8 @@ export const DefaultInstanceSettings: Omit<InstanceStateType, "patchVersions"> =
   "entry"       : Patches.Minecraft,
   "javaBinary"  : "java",
   "add"         : {
-    "jvmArguments": ["-Xms4096m", "-Xmx6144m"],
+    "jvmArguments" : ["-Xms4096m", "-Xmx6144m"],
+    "gameArguments": [],
   },
   "remove"    : {},
   "playTime"  : 0,

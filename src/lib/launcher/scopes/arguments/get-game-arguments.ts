@@ -48,6 +48,7 @@ export async function getGameArguments({
     necessaries.instance.windowHeight.toString(),
     "--width",
     necessaries.instance.windowWidth.toString(),
+    ...(necessaries.instance.add?.gameArguments ?? []),
   );
 
   const afterHooksResult: "continue" | Array<string> | undefined =

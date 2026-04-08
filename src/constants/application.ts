@@ -6,6 +6,7 @@ import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
+import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/scopes/log.ts";
 import ATLauncherIcon from "@/resources/ATLauncherIcon.svg";
 import CraftingTableIcon from "@/resources/CraftingTableIcon.webp";
@@ -56,7 +57,7 @@ export const DefaultGlobalStatesPagesStates: GlobalStatesType["pages"]["states"]
               return;
             }
 
-            const jvmArguments: Array<string> = value.split(" ");
+            const jvmArguments: Array<string> = Launcher.Arguments.splitArguments(value);
 
             GlobalStateHelpers.Pages.addToState("add-instance", {
               "instance": {
@@ -74,13 +75,51 @@ export const DefaultGlobalStatesPagesStates: GlobalStatesType["pages"]["states"]
             const currentInstance = GlobalStateHelpers.Pages?.getState("add-instance")?.instance;
 
             if (!currentInstance) {
-              return DefaultInstanceSettings.add?.jvmArguments?.join?.(" ");
+              return Launcher.Arguments.joinArguments(DefaultInstanceSettings.add?.jvmArguments);
             }
 
-            return currentInstance.add.jvmArguments.join(" ");
+            return Launcher.Arguments.joinArguments(currentInstance.add.jvmArguments);
           },
           "debounceTime": 300,
           "tooltip"     : "Specify your JVM arguments here",
+          "type"        : "text",
+        },
+      },
+      {
+        "input": {
+          "onInput": (
+            value: string,
+            currentInstance: GlobalStatesType["pages"]["states"]["add-instance"]["instance"],
+          ): void => {
+            if (!currentInstance) {
+              return;
+            }
+
+            const gameArguments: Array<string> = Launcher.Arguments.splitArguments(value);
+
+            GlobalStateHelpers.Pages.addToState("add-instance", {
+              "instance": {
+                ...currentInstance,
+                "add": {
+                  ...currentInstance.add,
+                  "gameArguments": gameArguments,
+                },
+              },
+            });
+          },
+          "placeholder"  : "Game arguments",
+          "iconClassName": "i-lucide-gamepad-2",
+          "defaultValue" : (): string | undefined => {
+            const currentInstance = GlobalStateHelpers.Pages?.getState("add-instance")?.instance;
+
+            if (!currentInstance) {
+              return Launcher.Arguments.joinArguments(DefaultInstanceSettings.add?.gameArguments);
+            }
+
+            return Launcher.Arguments.joinArguments(currentInstance.add.gameArguments);
+          },
+          "debounceTime": 300,
+          "tooltip"     : "Specify your game arguments here",
           "type"        : "text",
         },
       },

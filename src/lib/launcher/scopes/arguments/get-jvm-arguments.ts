@@ -32,9 +32,9 @@ export async function getJvmArguments({
 
   log.debug(logPrefix, "Adding default JVM arguments");
   jvmArguments.push(
-    "-Xmx4096m",
     ...Object.values(JVMArguments.Default),
     ...finalizedPatch["+jvmArgs"],
+    ...(necessaries.instance.add?.jvmArguments ?? []),
   );
 
   let logFilePath: string = "";
