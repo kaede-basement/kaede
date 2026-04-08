@@ -17,18 +17,18 @@
  */
 
 /* eslint-disable max-lines */
-import * as TauriOAuth2 from "@fabianlars/tauri-plugin-oauth";
-import * as TauriApi from "@tauri-apps/api";
-import * as TauriDialog from "@tauri-apps/plugin-dialog";
-import * as TauriFs from "@tauri-apps/plugin-fs";
-import * as TauriHttp from "@tauri-apps/plugin-http";
-import * as TauriNotification from "@tauri-apps/plugin-notification";
-import * as TauriOpener from "@tauri-apps/plugin-opener";
-import * as TauriOs from "@tauri-apps/plugin-os";
-import * as TauriProcess from "@tauri-apps/plugin-process";
-import * as TauriUpload from "@tauri-apps/plugin-upload";
-import * as TauriDiscordRpc from "tauri-plugin-drpc";
-import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
+import type * as TauriOAuth2 from "@fabianlars/tauri-plugin-oauth";
+import type * as TauriApi from "@tauri-apps/api";
+import type * as TauriDialog from "@tauri-apps/plugin-dialog";
+import type * as TauriFs from "@tauri-apps/plugin-fs";
+import type * as TauriHttp from "@tauri-apps/plugin-http";
+import type * as TauriNotification from "@tauri-apps/plugin-notification";
+import type * as TauriOpener from "@tauri-apps/plugin-opener";
+import type * as TauriOs from "@tauri-apps/plugin-os";
+import type * as TauriProcess from "@tauri-apps/plugin-process";
+import type * as TauriUpload from "@tauri-apps/plugin-upload";
+import type * as TauriDiscordRpc from "tauri-plugin-drpc";
+import type * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 
 import type _Application from "@/constants/application.ts";
 import type _ASCIIArt from "@/constants/ascii-art.ts";
