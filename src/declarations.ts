@@ -1738,3 +1738,8 @@ declare global {
 
 /* Export the Kaede namespace type */
 export type KaedeNamespaceType = Window["__KAEDE__"];
+
+/* Export the Tauri namespace types (for plugins) */
+export type __TauriTypes = Window["__TAURI__"];
+export type __TauriPluginTypes = Window["__TAURI_PLUGINS_COMMUNITY__"];
+export type __TauriInternals = Window["__TAURI_INTERNALS__"];
