@@ -12,7 +12,7 @@
     "test": "vitest run ./src",
     "lint": "eslint .",
     "typecheck": "vue-tsc -b",
-    "generate:types": "dts-bundle-generator ./src/declarations.ts -o ./dist/types/kaede-lib.d.ts --project tsconfig.app.json --inline-declare-global"
+    "generate:types": "dts-bundle-generator ./src/declarations.ts -o ./types/kaede-lib.d.ts --project tsconfig.app.json --inline-declare-global"
   },
   "dependencies": {
     "@fabianlars/tauri-plugin-oauth": "2",
