@@ -31,8 +31,16 @@ import * as TauriDiscordRpc from "tauri-plugin-drpc";
 import * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 import type { Child } from "tauri-plugin-shellx-api";
 
-import type FileStructure from "@/constants/file-structure.ts";
-import type { APIEndpoints } from "@/constants/launcher.ts";
+import type * as _Application from "@/constants/application.ts";
+import type * as _ASCIIArt from "@/constants/ascii-art.ts";
+import type * as _Browser from "@/constants/browser.ts";
+import type * as _EventListeners from "@/constants/event-listeners.ts";
+import type _FileStructure from "@/constants/file-structure.ts";
+import type * as _Hooks from "@/constants/hooks.ts";
+import type * as _Launcher from "@/constants/launcher.ts";
+import type * as _Meta from "@/constants/meta.ts";
+import type * as _Permissions from "@/constants/permissions.ts";
+import type * as _Routes from "@/constants/routes.ts";
 import type Browser from "@/lib/browser";
 import type Configs from "@/lib/configs";
 import type DevelopmentModeHelpers from "@/lib/development-mode-helpers";
@@ -163,6 +171,75 @@ declare global {
       };
 
       /**
+       * Global constants.
+       *
+       * Changing any field of the listed objects
+       * will alter behaviour of that field for everyone.
+       *
+       * Example:
+       *
+       * ```ts
+       * // Somewhere in a plugin.
+       * // This assignment changes the config filename for everyone,
+       * // meaning that now the config file will be stored
+       * // under 'config.json5' instead of 'config.json'
+       * window[ApplicationNamespace].libs.FileStructure.Files.Config = "config.json5";
+       * ```
+       */
+      "constants": {
+
+        /**
+         * Application constants
+         */
+        "Application": typeof _Application;
+
+        /**
+         * Includes a default ASCII art generator
+         */
+        "ASCIIArt": typeof _ASCIIArt;
+
+        /**
+         * Constants related to the 'Browser' lib in 'libs' (non-application)
+         */
+        "Browser": typeof _Browser;
+
+        /**
+         * Event listeners for the sandboxed plugins
+         */
+        "EventListeners": typeof _EventListeners;
+
+        /**
+         * Launcher file structure
+         */
+        "FileStructure": typeof _FileStructure;
+
+        /**
+         * Useful objects for the extension system hooks
+         */
+        "Hooks": typeof _Hooks;
+
+        /**
+         * Minecraft launch related constants
+         */
+        "Launcher": typeof _Launcher;
+
+        /**
+         * Launcher meta related constants
+         */
+        "Meta": typeof _Meta;
+
+        /**
+         * Useful objects for the sandboxed permission system
+         */
+        "Permissions": typeof _Permissions;
+
+        /**
+         * Constants related to the application pages
+         */
+        "Routes": typeof _Routes;
+      };
+
+      /**
        * Global utilities.
        *
        * Changing any field of the listed objects
@@ -188,12 +265,7 @@ declare global {
       "libs": {
 
         /**
-         * Launcher API endpoints
-         */
-        "APIEndpoints": typeof APIEndpoints;
-
-        /**
-         * A support for the Browser environment
+         * A support for the Browser environment (non-application)
          */
         "Browser": typeof Browser;
 
@@ -206,11 +278,6 @@ declare global {
          * Launcher development mode related collection of utilities
          */
         "DevelopmentModeHelpers": typeof DevelopmentModeHelpers;
-
-        /**
-         * Launcher file structure
-         */
-        "FileStructure": typeof FileStructure;
 
         /**
          * Launcher errors-related collection of utilities

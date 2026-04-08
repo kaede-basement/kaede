@@ -1,3 +1,4 @@
+import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
 
 /*
@@ -17,7 +18,15 @@ export async function runInUnrestricted(id: string, code: string): Promise<void>
     __PRE_BUNDLED_FILENAME__,
     `Executing the '${id}' extension code in the unrestricted environment`,
   );
-  await compiled();
+  try {
+    await compiled();
+  } catch (error: unknown) {
+    return log.error(
+      __PRE_BUNDLED_FILENAME__,
+      `Failed to execute the '${id}' extension code in the unrestricted environment:`,
+      Errors.prettify(error),
+    );
+  }
 
   const endTime = performance.now();
   const timeDifference = (endTime - startTime).toFixed(2);

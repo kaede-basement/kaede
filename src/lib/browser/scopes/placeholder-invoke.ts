@@ -30,8 +30,6 @@ export async function placeholderInvoke(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   options: any,
 ): Promise<unknown> {
-  console.log(command, payload, options);
-
   switch (command) {
     case "plugin:upload|download": {
       const response: Response = await fetch(payload.url);
@@ -176,6 +174,8 @@ export async function placeholderInvoke(
       };
     }
     default: {
+      console.log(command, payload, options);
+
       return;
     }
   }

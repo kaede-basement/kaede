@@ -3,9 +3,16 @@ import * as DiscordRPC from "tauri-plugin-drpc";
 import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 import * as ShellXPlugin from "tauri-plugin-shellx-api";
 
-import { ApplicationNamespace } from "@/constants/application.ts";
-import FileStructure from "@/constants/file-structure.ts";
-import { APIEndpoints } from "@/constants/launcher.ts";
+import * as _Application from "@/constants/application.ts";
+import * as _ASCIIArt from "@/constants/ascii-art.ts";
+import * as _Browser from "@/constants/browser.ts";
+import * as _EventListeners from "@/constants/event-listeners.ts";
+import _FileStructure from "@/constants/file-structure.ts";
+import * as _Hooks from "@/constants/hooks.ts";
+import * as _Launcher from "@/constants/launcher.ts";
+import * as _Meta from "@/constants/meta.ts";
+import * as _Permissions from "@/constants/permissions.ts";
+import * as _Routes from "@/constants/routes.ts";
 import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
@@ -27,6 +34,8 @@ import type { TranslationsType } from "@/types/translations/translations.type.ts
 function placeholderFunction(): void {}
 
 export function declareWindow(): void {
+  const ApplicationNamespace = _Application.ApplicationNamespace;
+
   window.__TAURI_PLUGINS_COMMUNITY__ = {
     "discord": {
       ...DiscordRPC,
@@ -66,12 +75,22 @@ export function declareWindow(): void {
       "rippleColor"     : "#ffffff15",
       "sparklesColorRGB": "255 255 255",
     },
+    "constants": {
+      "Application"   : _Application,
+      "ASCIIArt"      : _ASCIIArt,
+      "Browser"       : _Browser,
+      "EventListeners": _EventListeners,
+      "FileStructure" : _FileStructure,
+      "Hooks"         : _Hooks,
+      "Launcher"      : _Launcher,
+      "Meta"          : _Meta,
+      "Permissions"   : _Permissions,
+      "Routes"        : _Routes,
+    },
     "libs": {
-      APIEndpoints,
       Browser,
       Configs,
       DevelopmentModeHelpers,
-      FileStructure,
       Errors,
       ExtensionsManager,
       General,
