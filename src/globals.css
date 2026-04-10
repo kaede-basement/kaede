@@ -32,6 +32,11 @@ html {
   user-select: none;
 }
 
+.__sidebar__entry-divider {
+  /* Force all sidebar divider elements not to shrink */
+  flex-shrink: 0;
+}
+
 .text-justify-last {
   /* 'last' - the last line of text */
   text-align-last: justify;

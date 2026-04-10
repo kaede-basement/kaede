@@ -106,7 +106,7 @@ function handleButtonAction(event: PointerEvent, action: () => void): void {
 
   action();
   closeTooltip();
-  // Close the log viewer
+  // Close the log viewer in case of a page change
   GlobalStateHelpers.Logs.toggle("show", false);
 }
 </script>
