@@ -934,7 +934,7 @@ declare function grantStaticPermissions({ id, permissions, }: {
 	"id": string;
 	"permissions"?: Array<PermissionType>;
 }): void;
-declare function handleCssTheme(styles: string): void;
+declare function handleCssTheme(styles: string): HTMLStyleElement;
 declare function handleEvent(type: EventListenersType, value: unknown): void;
 declare function handlePermission(permission: PermissionType, id: string): void;
 declare function catchAsyncResponseHooks<T>({ scope, toPass, timing, }: {
