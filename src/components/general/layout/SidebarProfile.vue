@@ -26,7 +26,7 @@ function handleProfileNavigation(): void {
   <div
     id="__sidebar__inner-profile"
     @mouseover="handleMouseOver"
-    class="shrink-0 rounded-md p-2 backdrop-blur-md"
+    class="shrink-0 rounded-md p-2"
     :style="innerStyles"
   >
     <button
