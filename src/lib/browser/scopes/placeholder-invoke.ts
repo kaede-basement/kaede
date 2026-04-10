@@ -31,6 +31,31 @@ export async function placeholderInvoke(
   options: any,
 ): Promise<unknown> {
   switch (command) {
+    case "plugin:window|show": {
+      return;
+    }
+    case "plugin:opener|reveal_item_in_dir": {
+      const location: string = (payload?.paths?.[0] ?? "")
+        .split("/")
+        .slice(0, -1)
+        .join("/");
+      const storedPaths: Array<string> = await listStores(location);
+
+      return alert(
+        `Directory (${location})` +
+        "\n" + "\n" +
+        storedPaths
+          .map(path => `- ${path}`)
+          .join("\n"),
+      );
+    }
+    case "plugin:dialog|message": {
+      return alert(
+        `${payload?.title} (${payload?.kind})` +
+        "\n" + "\n" +
+        payload?.message,
+      );
+    }
     case "plugin:upload|download": {
       const response: Response = await fetch(payload.url);
       const body: string = await response.text();
@@ -88,6 +113,9 @@ export async function placeholderInvoke(
       }
 
       return missing;
+    }
+    case "plugin:fs|mkdir": {
+      return;
     }
     case "plugin:fs|exists": {
       const paths: Array<string> = await listStores(payload.path);
