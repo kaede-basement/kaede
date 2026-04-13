@@ -21,6 +21,12 @@ A Tauri-based Minecraft launcher written in TypeScript with a permission-based p
 
 </div>
 
+## Reason
+
+The idea of applications ([Tachiyomi](https://github.com/tachiyomiorg)) and games ([Mindustry](https://github.com/Anuken/Mindustry)) having addons always fascinated me. The addition of features at runtime with one's own code, the modification of UI to one's own liking, and the ability to use others' plugins - sounds so awesome to me!
+
+However, the existing Minecraft Launchers lack a user plugin system. While it is debatable whether extensible launchers for Minecraft are even needed, I still decided to make this project, primarily for myself.
+
 ## Plans
 
 Kaede is in early stages of development. Look at the [plan](./PLAN.md) to see more about this launcher >.<
@@ -44,7 +50,9 @@ For launcher plugins, themes, or translations:
 - [Making a Theme](./EXTENSIONS.md#making-a-theme)
 - [Translating the Launcher](https://github.com/kaede-basement/translations)
 
-Pull requests are welcome. AI code is not welcome. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome. AI code is not welcome (with the exception being user plugins). For major changes, please open an issue first to discuss what you would like to change.
+
+In case if you want to run this launcher with [Wails](https://wails.io/) (or any other backend), see [the following file](../src/lib/README.md#browser).
 
 ## Demonstration
 
@@ -198,6 +206,10 @@ bun run build
 ## License
 
 [![license-badge]](https://github.com/kaede-basement/kaede/blob/main/LICENSE)
+
+## Credits
+
+Please refer to [this file](./CREDITS.md).
 
 <!-- Variables -->
 
