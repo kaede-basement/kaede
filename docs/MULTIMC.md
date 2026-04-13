@@ -42,8 +42,8 @@ Also, take into consideration RyRy's[^1] explanations:
 Initially, I wanted to write the code parts as a pseudocode following the [CLRS conventions](https://course.ccs.neu.edu/cs3000/resources/latex_pseudocode.pdf). However, it would have taken plenty of time, so this walkthrough will only feature TypeScript. To make it easier for one to understand type schemas, they need to know:
 
 - The `?` symbol represents an optional field, e.g. `{ "a"?: string }`.
-- The `|` symbol represents a logical `XOR`.
-- The `&` symbol represents a logical `AND`.
+- The `|` symbol represents a logical `XOR` (either of the types are true/present but not both).
+- The `&` symbol represents a logical `AND` (both types are true/present).
 
 Despite `|` and `&` being called 'Union' and 'Intersection' types, respectively, they do **not** represent the Set operators:
 
@@ -59,7 +59,7 @@ type First = { "a": number } | { "b": string };
 
 type Second = { "a": number } & { "b": string };
 // Implies:
-// { "a": 0, "b": "Moondrop Aria" };
+// { "a": 0, "b": "Moondrop Aria" }; <-- both fields 'a' and 'b' are present
 //
 // However, does not imply these:
 // { "a": 0 };
