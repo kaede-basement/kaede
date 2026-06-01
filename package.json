@@ -63,7 +63,7 @@
     "unocss": "^66.4.2",
     "vite": "^7.0.4",
     "vite-plugin-eslint2": "^5.0.4",
-    "vitest": "^3.2.4",
+    "vitest": "^4.1.8",
     "vue-tsc": "^2.2.12"
   }
 }
