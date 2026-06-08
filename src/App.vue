@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core";
-import { computed, defineAsyncComponent, provide, shallowReactive, watchEffect } from "vue";
+import { computed, provide, shallowReactive, watchEffect } from "vue";
 
 import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
 import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
@@ -35,6 +35,11 @@ import {
   InstanceStatesContextKey,
   TranslationsContextKey,
 } from "@/constants/application.ts";
+import {
+  LazyDevelopmentMode,
+  LazyExtensionLoader,
+  LazyLogViewer,
+} from "@/constants/ui/pages.ts";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import General from "@/lib/general";
@@ -55,19 +60,6 @@ import type {
   TranslationsStateType,
   TranslationsType,
 } from "@/types/translations/translations.type.ts";
-
-/**
- * These components will load only when needed. Each page is defined as async component too.
- */
-const LogViewer = defineAsyncComponent(
-  () => import("@/components/logging/LogViewer.vue"),
-);
-const ExtensionLoader = defineAsyncComponent(
-  () => import("@/components/general/extensions/ExtensionLoader.vue"),
-);
-const DevelopmentMode = defineAsyncComponent(
-  () => import("@/components/general/development-mode/DevelopmentMode.vue"),
-);
 
 /**
  * Contains all global application states.
@@ -248,10 +240,10 @@ watchEffect(() => {
         />
 
         <Transition name="pop">
-          <LogViewer v-if="globalStates.logs.show" />
+          <LazyLogViewer v-if="globalStates.logs.show" />
         </Transition>
 
-        <DevelopmentMode
+        <LazyDevelopmentMode
           v-if="globalStates.development"
           :development="globalStates.development"
         />
@@ -271,7 +263,7 @@ watchEffect(() => {
   <ErrorBoundary>
     <template #default>
       <CssThemeLoader />
-      <ExtensionLoader v-if="globalStates.extensions.enabled" />
+      <LazyExtensionLoader v-if="globalStates.extensions.enabled" />
     </template>
 
     <template #error="{ currentError }">
