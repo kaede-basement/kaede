@@ -117,6 +117,7 @@ if (listenToEvents) {
     ></div>
     <input
       ref="target"
+      autocomplete="off"
       :id="`${idRoot}-input`"
       :class="[
         classNames?.input,

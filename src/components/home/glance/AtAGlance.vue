@@ -102,6 +102,7 @@ onClickOutside(target, () => {
       <Transition name="pop">
         <input
           v-if="editing === 'title'"
+          autocomplete="off"
           id="__home-page__header-title-editor-wrapper"
           class="absolute left-0 top-13 z-10 rounded-md bg-neutral-950 p-1 text-lg leading-none outline-none focus:outline-none"
           :value="currentGlance.title"
@@ -120,6 +121,7 @@ onClickOutside(target, () => {
       <Transition name="pop">
         <input
           v-if="editing === 'subtitle'"
+          autocomplete="off"
           id="__home-page__header-title-editor-wrapper"
           class="absolute left-0 top-10 z-10 rounded-md bg-neutral-950 p-1 text-lg leading-none outline-none focus:outline-none"
           :value="currentGlance.subtitle"
