@@ -2,12 +2,20 @@ import { nextTick } from "vue";
 
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
+import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 
-export function __changeInstanceState<Key extends keyof InstanceStatesType>(
+/**
+ * Changes a specified field in the instance states with the provided value
+ * while handling all attached hooks.
+ *
+ * @param key   - A one-level deep key of an instance states object,
+ *                i.e. an instance id.
+ * @param value - A value that is stored in a field with the provided key.
+ */
+export function changeInstanceState<Key extends keyof InstanceStatesType>(
   key: Key,
   value: InstanceStatesType[Key],
-  setValue: (key: Key, value: InstanceStatesType[Key]) => void,
 ): void {
   const hooksResult: "continue" | InstanceStatesType[Key] | undefined =
     ExtensionsManager.catchSyncResponseHooks<InstanceStatesType[Key]>({
@@ -17,7 +25,7 @@ export function __changeInstanceState<Key extends keyof InstanceStatesType>(
     });
 
   if (hooksResult !== "continue" && hooksResult !== undefined) {
-    setValue(key, hooksResult);
+    instanceStates[key] = value;
 
     return;
   }
@@ -28,7 +36,7 @@ export function __changeInstanceState<Key extends keyof InstanceStatesType>(
     `Key: ${key};`,
     `value: \n${JSON.stringify(value, null, 2)}`,
   );
-  setValue(key, value);
+  instanceStates[key] = value;
 
   nextTick().then(async () => {
     await ExtensionsManager.catchAsyncVoidHooks({

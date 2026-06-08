@@ -3,12 +3,20 @@ import { nextTick } from "vue";
 import { HookMappings } from "@/constants/hooks.ts";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
+import { globalStates } from "@/states/global.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
-export function __changeGlobalState<Key extends keyof GlobalStatesType>(
+/**
+ * Changes a specified field in the global states with the provided value
+ * while handling all attached hooks.
+ *
+ * @param key   - A one-level deep key of a global states object,
+ *                e.g. 'development', 'extensions', or 'layout'.
+ * @param value - A value that is stored in a field with the provided key.
+ */
+export function changeGlobalState<Key extends keyof GlobalStatesType>(
   key: Key,
   value: GlobalStatesType[Key],
-  setValue: (key: Key, value: GlobalStatesType[Key]) => void,
 ): void {
   const mappedKey = HookMappings[key];
   const hooksResult: "continue" | GlobalStatesType[Key] | undefined =
@@ -19,7 +27,7 @@ export function __changeGlobalState<Key extends keyof GlobalStatesType>(
     });
 
   if (hooksResult !== "continue" && hooksResult !== undefined) {
-    setValue(key, hooksResult);
+    globalStates[key] = value;
 
     return;
   }
@@ -30,7 +38,7 @@ export function __changeGlobalState<Key extends keyof GlobalStatesType>(
     `Key: ${key};`,
     `value: \n${JSON.stringify(value, null, 2)}`,
   );
-  setValue(key, value);
+  globalStates[key] = value;
 
   nextTick().then(async () => {
     await ExtensionsManager.catchAsyncVoidHooks({
