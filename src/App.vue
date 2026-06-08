@@ -67,48 +67,10 @@ import type {
 const translations = computed((): TranslationsType => globalStates.translations);
 
 /**
- * Provides a reference to the instance-level reactive global states
- * for all component children.
- */
-provide<ContextGlobalStatesType>(GlobalStatesContextKey, globalStates);
-
-/**
  * Provides a reference to the instance-level reactive translations state
  * for all component children.
  */
 provide<TranslationsStateType>(TranslationsContextKey, translations);
-
-/**
- * Provides a reference to the instance-level reactive Minecraft instance states
- * for all component children.
- */
-provide<ContextInstanceStatesType>(InstanceStatesContextKey, instanceStates);
-
-/**
- * Provides a reference to the '__internals' field of Kaede globals
- * to avoid expensive 'window' look-ups
- */
-const __internals = window[ApplicationNamespace].__internals;
-
-/**
- * Provides a reference to the function that returns a reference to the global states object.
- */
-__internals.getGlobalStates = getGlobalStates;
-
-/**
- * Provides a reference to the function that changes the value of a global states field.
- */
-__internals.changeGlobalStates = scopedChangeGlobalStates;
-
-/**
- * Provides a reference to the function that returns a reference to the instance states object.
- */
-__internals.getInstanceStates = getInstanceStates;
-
-/**
- * Provides a reference to the function that changes the value of an instance states field.
- */
-__internals.changeInstanceStates = scopedChangeInstanceStates;
 
 /**
  * Handles 'F5', 'Ctrl+R', and 'Command+R' key binds that reload the launcher.
