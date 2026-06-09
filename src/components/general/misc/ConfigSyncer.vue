@@ -1,34 +1,21 @@
 <script setup lang="ts">
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { useIntervalFn } from "@vueuse/core";
-import { inject, ref, watchEffect } from "vue";
+import { ref, watchEffect } from "vue";
 
-import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
 import FileStructure from "@/constants/file-structure.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type {
-  ContextGlobalStatesType,
-  GlobalStatesType,
-} from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const syncing = ref<boolean>(false);
 
 async function handleConfigSync(): Promise<void> {
-  if (globalStates === undefined) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Config sync was triggered but no global states are present",
-    );
-
-    return;
-  }
-
   const t1 = performance.now();
 
   syncing.value = true;
@@ -103,7 +90,7 @@ async function handleConfigSync(): Promise<void> {
 const { pause, resume } = useIntervalFn(handleConfigSync, 30_000);
 
 // Make the config sync function accessible to everyone
-window[ApplicationNamespace].__internals.syncConfig = handleConfigSync;
+GlobalInternals.syncConfig = handleConfigSync;
 
 // Use auto config sync only if user has enabled it
 watchEffect(() => {

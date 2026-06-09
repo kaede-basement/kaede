@@ -1,5 +1,5 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 
 export function getCachedPortable(): boolean {
-  return window[ApplicationNamespace].__internals.initialPortable;
+  return GlobalInternals.initialPortable;
 }

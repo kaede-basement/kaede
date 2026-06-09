@@ -1,5 +1,5 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { ExtraHookResponseStatus, HookResponseStatus } from "@/constants/hooks.ts";
+import type { KaedeNamespaceType } from "@/declarations.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ExtensionStatusType } from "@/types/extensions/hook-return.type.ts";
 
@@ -11,7 +11,7 @@ export function handleHookResponse<T>({
   index,
   times,
 }: {
-  "scope"   : keyof (Window[typeof ApplicationNamespace]["hooks"]);
+  "scope"   : keyof KaedeNamespaceType["hooks"];
   "status"  : ExtensionStatusType;
   "response": T | undefined;
   "timing"  : "before" | "after";

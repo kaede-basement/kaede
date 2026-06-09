@@ -1,4 +1,4 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import {
   getConfigGlobalStates,
 } from "@/lib/global-state-helpers/scopes/get-config-global-states.ts";
@@ -12,11 +12,11 @@ import { showContextMenu } from "@/lib/global-state-helpers/scopes/show-context-
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export default {
-  "get"   : (): GlobalStatesType => window[ApplicationNamespace].__internals.getGlobalStates(),
+  "get"   : (): GlobalStatesType => GlobalInternals.getGlobalStates(),
   "change": <Key extends keyof GlobalStatesType>(
     key: Key,
     value: GlobalStatesType[Key],
-  ): void => window[ApplicationNamespace].__internals.changeGlobalStates(key, value),
+  ): void => GlobalInternals.changeGlobalStates(key, value),
   "getFromConfig": getConfigGlobalStates,
   "getDefault"   : getDefaultGlobalStates,
   Layout,

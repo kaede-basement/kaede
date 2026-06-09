@@ -1,4 +1,4 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { addInstanceWithSync } from "@/lib/instances/scopes/add-instance-with-sync.ts";
 import { createInstance } from "@/lib/instances/scopes/create-instance.ts";
 import { extractSavedFromPages } from "@/lib/instances/scopes/extract-saved-from-pages.ts";
@@ -10,11 +10,11 @@ import { saveInstanceStatesToFile } from "@/lib/instances/scopes/save-instance-s
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 
 export default {
-  "get"   : (): InstanceStatesType => window[ApplicationNamespace].__internals.getInstanceStates(),
+  "get"   : (): InstanceStatesType => GlobalInternals.getInstanceStates(),
   "change": <Key extends keyof InstanceStatesType>(
     key: Key,
     value: InstanceStatesType[Key],
-  ): void => window[ApplicationNamespace].__internals.changeInstanceStates(key, value),
+  ): void => GlobalInternals.changeInstanceStates(key, value),
   "add"          : addInstanceWithSync,
   "create"       : createInstance,
   "getFromConfig": getConfigInstanceStates,

@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalObject } from "@/extendable/global-object.ts";
 
 export function showContextMenu(event: MouseEvent): void {
-  window[ApplicationNamespace].libs.ContextMenu.show(event);
+  GlobalObject.libs.ContextMenu.show(event);
 }

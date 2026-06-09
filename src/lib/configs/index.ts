@@ -1,4 +1,4 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { getAccounts } from "@/lib/configs/scopes/get-accounts.ts";
 import { getCachedInitial } from "@/lib/configs/scopes/get-cached-initial.ts";
 import { getConfigFile } from "@/lib/configs/scopes/get-config-file.ts";
@@ -14,8 +14,8 @@ export default {
   "getSafe"   : getSafeConfigFile,
   "initialize": initializeConfigFile,
   "regenerate": regenerateConfigFile,
-  "sync"      : async (): Promise<void> => {
-    return window[ApplicationNamespace].__internals.syncConfig();
+  "sync"      : (): Promise<void> => {
+    return GlobalInternals.syncConfig();
   },
   getAccounts,
   getCachedInitial,

@@ -17,5 +17,30 @@
  */
 
 import type { KaedeInternalsType } from "@/declarations.ts";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import type { AccountType } from "@/types/configs/account.type.ts";
+import type { ConfigType } from "@/types/configs/config.type.ts";
+import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
-export const GlobalInternals: KaedeInternalsType = {};
+function placeholderFunction(): void {}
+
+export const GlobalInternals: KaedeInternalsType = {
+
+  /* All these fields will be overwritten */
+  "getGlobalStates"     : placeholderFunction as () => GlobalStatesType,
+  "changeGlobalStates"  : placeholderFunction,
+  "getInstanceStates"   : placeholderFunction as () => InstanceStatesType,
+  "changeInstanceStates": placeholderFunction,
+  "requestPermissions"  : placeholderFunction as () => Promise<Array<boolean>>,
+  "syncConfig"          : placeholderFunction as () => Promise<void>,
+  "joinDelimiter"       : "",
+  "launcherVersion"     : "",
+  "initialConfig"       : {} as ConfigType,
+  "temporaryAccounts"   : [] as Array<AccountType>,
+  "initialTranslations" : {} as TranslationsType,
+  "initialInstances"    : {} as InstanceStatesType,
+  "initialPortable"     : false,
+  "initialBaseDirectory": "",
+  "logsInBrowser"       : [],
+};

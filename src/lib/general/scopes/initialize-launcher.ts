@@ -1,8 +1,8 @@
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
-import { ApplicationNamespace } from "@/constants/application.ts";
 import FileStructure from "@/constants/file-structure.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
@@ -27,7 +27,7 @@ export async function initializeLauncher({
      * The 'startTime' variable is not accessible by the deeply nested
      * 'ExtensionLoader.vue' component without exposing that variable through the 'window' object.
      */
-    window[ApplicationNamespace].__internals.startTime = startTime;
+    GlobalInternals.startTime = startTime;
   } else {
     /*
      * Webview window is still hidden, so make it visible now
@@ -45,7 +45,7 @@ export async function initializeLauncher({
   }
 
   // Cache the default java major version
-  window[ApplicationNamespace].__internals.javaMajor = await General.getJavaMajor();
+  GlobalInternals.javaMajor = await General.getJavaMajor();
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Checking if all directories present");
   const directoriesStartTime = performance.now();

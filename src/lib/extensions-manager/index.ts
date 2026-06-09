@@ -1,4 +1,4 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import {
   onGlobalStateChange,
 } from "@/lib/extensions-manager/scopes/events/on-global-state-change.ts";
@@ -35,7 +35,7 @@ export default {
   "requestPermissions": (
     permissions: Array<PermissionType>,
     extension: string,
-  ): Promise<Array<boolean>> => window[ApplicationNamespace].__internals.requestPermissions(
+  ): Promise<Array<boolean>> => GlobalInternals.requestPermissions(
     permissions,
     extension,
   ),

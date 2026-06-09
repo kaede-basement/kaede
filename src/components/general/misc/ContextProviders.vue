@@ -3,12 +3,14 @@ import { type Child } from "tauri-plugin-shellx-api";
 import { markRaw, provide, reactive, ref, type ShallowReactive, shallowReactive } from "vue";
 
 import {
-  ApplicationNamespace,
-  AuthStatesContextKey, CloseInstanceContextKey, InstanceLogsContextKey,
+  AuthStatesContextKey,
+  CloseInstanceContextKey,
+  InstanceLogsContextKey,
   LaunchInstanceContextKey,
   LaunchStatesContextKey,
 } from "@/constants/application.ts";
 import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Errors from "@/lib/errors";
 import ExtensionsManager from "@/lib/extensions-manager";
 import General from "@/lib/general";
@@ -25,7 +27,7 @@ import type {
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
 const accounts = ref<Array<AccountType>>(
-  window[ApplicationNamespace].__internals.temporaryAccounts,
+  GlobalInternals.temporaryAccounts,
 );
 const launches = reactive<Record<string, LauncherStatusesType>>({});
 const logs = shallowReactive<Record<string, Array<string>>>({});
@@ -33,7 +35,7 @@ const logs = shallowReactive<Record<string, Array<string>>>({});
 const childProcesses: Record<string, Child> = {};
 
 // Do not expose accounts data to globals since extensions will easily access it
-window[ApplicationNamespace].__internals.temporaryAccounts = [];
+GlobalInternals.temporaryAccounts = [];
 
 function onClose(instanceId: string): void {
   const statuses: LauncherStatusesType = launches[instanceId];
@@ -97,7 +99,7 @@ async function launchInstance(instanceId?: string): Promise<void> {
 
       currentLogsArray.push(line);
     };
-    const javaMajor: number = window[ApplicationNamespace].__internals.javaMajor
+    const javaMajor: number = GlobalInternals.javaMajor
       ?? await General.getJavaMajor();
 
     const { success, process }: LaunchResponseType = await Launcher.handleLaunch({

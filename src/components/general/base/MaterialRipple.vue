@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Ripple } from "m3ripple-vue";
-import { computed, inject } from "vue";
+import { computed } from "vue";
 
-import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { GlobalObject } from "@/extendable/global-object.ts";
+import { globalStates } from "@/states/global.ts";
 
 const { id, label, disabled, colors } = defineProps<{
   "id"      ?: string;
@@ -15,15 +15,13 @@ const { id, label, disabled, colors } = defineProps<{
   };
 }>();
 
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
-
 const enableRipple = computed((): boolean => {
-  return globalStates?.layout?.enableMaterialYouRipple ?? false;
+  return globalStates.layout?.enableMaterialYouRipple ?? false;
 });
 
 const defaultColors = {
-  "ripple"  : window[ApplicationNamespace].variables.rippleColor,
-  "sparkles": window[ApplicationNamespace].variables.sparklesColorRGB,
+  "ripple"  : GlobalObject.variables.rippleColor,
+  "sparkles": GlobalObject.variables.sparklesColorRGB,
 };
 </script>
 

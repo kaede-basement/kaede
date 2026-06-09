@@ -1,7 +1,7 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 
 export function cachedJoin(...paths: Array<string>): string {
-  const delimiter = window[ApplicationNamespace].__internals.joinDelimiter;
+  const delimiter = GlobalInternals.joinDelimiter;
   const cleanedPaths: Array<string> = [];
 
   for (const path of paths) {

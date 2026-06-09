@@ -8,7 +8,7 @@ import ContextMenu from "@/components/general/layout/ContextMenu.vue";
 import LaunchProgress from "@/components/general/layout/LaunchProgress.vue";
 import Sidebar from "@/components/general/layout/Sidebar.vue";
 import ContextProviders from "@/components/general/misc/ContextProviders.vue";
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalObject } from "@/extendable/global-object.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 
 const { toShowSidebar, toShowContextMenu, toShowNativeContextMenu, page } = defineProps<{
@@ -55,8 +55,8 @@ function showContextMenu(event: MouseEvent): void {
   contextMenu.value.y = event.clientY;
 }
 
-window[ApplicationNamespace].libs.ContextMenu.show = showContextMenu;
-window[ApplicationNamespace].libs.ContextMenu.close = closeContextMenu;
+GlobalObject.libs.ContextMenu.show = showContextMenu;
+GlobalObject.libs.ContextMenu.close = closeContextMenu;
 
 useEventListener(window, "pointerdown", (event: PointerEvent) => {
   const target = event.target as HTMLElement;

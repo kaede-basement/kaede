@@ -16,12 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { BrowserStorageStoreKey } from "@/constants/browser.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { getDatabaseStore } from "@/lib/browser/scopes/get-database-store.ts";
 
 export async function listStores(path?: string): Promise<Array<string>> {
-  const database: IDBDatabase | undefined = window[ApplicationNamespace].__internals.indexedDB;
+  const database: IDBDatabase | undefined = GlobalInternals.indexedDB;
 
   if (!database) {
     return [];

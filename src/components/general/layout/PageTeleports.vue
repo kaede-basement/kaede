@@ -2,8 +2,8 @@
 import { ref } from "vue";
 
 import PagesSelector from "@/components/general/layout/PagesSelector.vue";
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { Routes } from "@/constants/routes.ts";
+import { GlobalObject } from "@/extendable/global-object.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 
@@ -45,8 +45,8 @@ function unmountPage(page: Exclude<RouteType, "none">): void {
   teleportStates.value[page].value = undefined;
 }
 
-window[ApplicationNamespace].libs.Pages.mount = mountPageTo;
-window[ApplicationNamespace].libs.Pages.unmount = unmountPage;
+GlobalObject.libs.Pages.mount = mountPageTo;
+GlobalObject.libs.Pages.unmount = unmountPage;
 </script>
 
 <template>

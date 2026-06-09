@@ -1,6 +1,6 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
 export function getCachedInitial(): ConfigType {
-  return window[ApplicationNamespace].__internals.initialConfig;
+  return GlobalInternals.initialConfig;
 }

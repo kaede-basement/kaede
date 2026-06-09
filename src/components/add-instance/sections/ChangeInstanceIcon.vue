@@ -20,22 +20,18 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { copyFile } from "@tauri-apps/plugin-fs";
-import { computed, inject } from "vue";
+import { computed } from "vue";
 
 import Image from "@/components/general/base/Image.vue";
-import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
 import FileStructure from "@/constants/file-structure.ts";
 import { DefaultInstanceSettings } from "@/constants/launcher.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type {
-  ContextGlobalStatesType,
-  GlobalStatesType,
-} from "@/types/application/global-states.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+import { globalStates } from "@/states/global.ts";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 const currentInstance = computed(
   (): GlobalStatesType["pages"]["states"]["add-instance"]["instance"] => (
@@ -74,7 +70,7 @@ async function handleIconPick(): Promise<void> {
     return;
   }
 
-  const delimiter = window[ApplicationNamespace].__internals.joinDelimiter;
+  const delimiter = GlobalInternals.joinDelimiter;
   const splitPath: Array<string> = selectedIconPath.split(delimiter);
   const fileName: string = splitPath[splitPath.length - 1];
   const copyDestination: string = General.cachedJoin(

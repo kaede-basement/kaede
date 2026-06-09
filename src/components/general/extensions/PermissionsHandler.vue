@@ -3,8 +3,8 @@ import { ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import AllowButton from "@/components/general/extensions/permissions/AllowButton.vue";
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { IgnoredExtensionPermissions } from "@/constants/permissions.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { __requestPermissions } from "@/lib/extensions-manager/scopes/request-permissions.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
@@ -60,7 +60,7 @@ function handleUserRequest(state: boolean): void {
   requestedPermissionState.value.resolve(state);
 }
 
-window[ApplicationNamespace].__internals.requestPermissions = requestPermissions;
+GlobalInternals.requestPermissions = requestPermissions;
 </script>
 
 <template>

@@ -16,14 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { handleDatabase } from "@/lib/browser/scopes/handle-database.ts";
 import { placeholderInvoke } from "@/lib/browser/scopes/placeholder-invoke.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 
 export async function handleTauriEnvironment(): Promise<void> {
   const { database } = await handleDatabase();
 
-  window[ApplicationNamespace].__internals.indexedDB = database;
+  GlobalInternals.indexedDB = database;
   window.__TAURI_INTERNALS__ = {
     "plugins": {
       "path": {

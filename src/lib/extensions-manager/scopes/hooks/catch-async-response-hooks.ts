@@ -1,5 +1,6 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { ExtraHookResponseStatus, HookResponseStatus } from "@/constants/hooks.ts";
+import type { KaedeNamespaceType } from "@/declarations.ts";
+import { GlobalObject } from "@/extendable/global-object.ts";
 import { handleHookResponse } from "@/lib/extensions-manager/scopes/hooks/handle-hook-response.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ExtensionStatusType, HookReturnType } from "@/types/extensions/hook-return.type.ts";
@@ -10,12 +11,12 @@ export async function catchAsyncResponseHooks<T>({
   toPass,
   timing,
 }: {
-  "scope" : keyof (Window[typeof ApplicationNamespace]["hooks"]);
+  "scope" : keyof KaedeNamespaceType["hooks"];
   "toPass": unknown;
   "timing": "before" | "after";
 }): Promise<"continue" | T | undefined> {
   const timeMeasurementStartBefore = performance.now();
-  const currentScopeHooks = window[ApplicationNamespace].hooks[scope];
+  const currentScopeHooks = GlobalObject.hooks[scope];
 
   if (!IsKeyInObject(timing, currentScopeHooks)) {
     return;

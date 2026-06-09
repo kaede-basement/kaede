@@ -182,7 +182,7 @@ declare global {
        * // This assignment changes the config filename for everyone,
        * // meaning that now the config file will be stored
        * // under 'config.json5' instead of 'config.json'
-       * window[ApplicationNamespace].libs.FileStructure.Files.Config = "config.json5";
+       * window.__KAEDE__.libs.FileStructure.Files.Config = "config.json5";
        * ```
        */
       "constants": {
@@ -258,7 +258,7 @@ declare global {
        * // with a reference to the 'customDebugFunction' function,
        * // so all upcoming 'log#debug' calls will use the 'customDebugFunction' function
        * // even if calls were not made via accessing the 'window' object
-       * window[ApplicationNamespace].libs.Logging.log.debug = customDebugFunction;
+       * window.__KAEDE__.libs.Logging.log.debug = customDebugFunction;
        * ```
        */
       "libs": {

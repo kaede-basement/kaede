@@ -16,9 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { BrowserStorageStoreKey } from "@/constants/browser.ts";
 import FileStructure from "@/constants/file-structure.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { getDatabaseStore } from "@/lib/browser/scopes/get-database-store.ts";
 import General from "@/lib/general";
 
@@ -26,9 +26,8 @@ let firstTime: boolean = true;
 
 export function handleLogsFlush(): void {
   setInterval(async () => {
-    const KaedeInternals = window[ApplicationNamespace].__internals;
-    const database: IDBDatabase | undefined = KaedeInternals.indexedDB;
-    const currentLogs: Array<string> | undefined = KaedeInternals.logsInBrowser;
+    const database: IDBDatabase | undefined = GlobalInternals.indexedDB;
+    const currentLogs: Array<string> | undefined = GlobalInternals.logsInBrowser;
 
     if (!database || !currentLogs) {
       return;

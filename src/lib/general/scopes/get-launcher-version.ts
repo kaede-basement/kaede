@@ -1,5 +1,5 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 
 export function getLauncherVersion(): string {
-  return window[ApplicationNamespace].__internals.launcherVersion;
+  return GlobalInternals.launcherVersion;
 }

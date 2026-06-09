@@ -1,6 +1,6 @@
 import { join } from "@tauri-apps/api/path";
 
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 
 const Placeholder = "buh";
@@ -12,5 +12,5 @@ export async function cachePathJoin(): Promise<void> {
   const delimiter = joined.slice(Placeholder.length, -1 * Placeholder.length);
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Current path delimiter:", delimiter);
-  window[ApplicationNamespace].__internals.joinDelimiter = delimiter;
+  GlobalInternals.joinDelimiter = delimiter;
 }

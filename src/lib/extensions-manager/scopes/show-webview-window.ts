@@ -1,11 +1,11 @@
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
-import { ApplicationNamespace } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 
 export async function showWebviewWindow(show: boolean | undefined): Promise<void> {
   if (show) {
-    const startTime: number | undefined = window[ApplicationNamespace].__internals?.startTime;
+    const startTime: number | undefined = GlobalInternals?.startTime;
 
     log.debug(
       __PRE_BUNDLED_FILENAME__,

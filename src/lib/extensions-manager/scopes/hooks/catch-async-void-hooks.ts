@@ -1,4 +1,5 @@
-import { ApplicationNamespace } from "@/constants/application.ts";
+import type { KaedeNamespaceType } from "@/declarations.ts";
+import { GlobalObject } from "@/extendable/global-object.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
@@ -8,12 +9,12 @@ export async function catchAsyncVoidHooks({
   toPass,
   timing,
 }: {
-  "scope" : keyof (Window[typeof ApplicationNamespace]["hooks"]);
+  "scope" : keyof KaedeNamespaceType["hooks"];
   "toPass": unknown;
   "timing": "before" | "after";
 }): Promise<void> {
   const timeMeasurementStartAfter = performance.now();
-  const currentScopeHooks = window[ApplicationNamespace].hooks[scope];
+  const currentScopeHooks = GlobalObject.hooks[scope];
 
   if (!IsKeyInObject(timing, currentScopeHooks)) {
     return;

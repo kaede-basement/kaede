@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { onClickOutside, useDebounceFn } from "@vueuse/core";
-import { computed, inject, nextTick, ref, useTemplateRef } from "vue";
+import { computed, nextTick, ref, useTemplateRef } from "vue";
 
-import { ApplicationNamespace, GlobalStatesContextKey } from "@/constants/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Configs from "@/lib/configs";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
 import type { AtAGlanceType } from "@/types/misc/at-a-glance.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const target = useTemplateRef<HTMLDivElement>("target");
 
@@ -30,10 +28,10 @@ const currentGlance = computed((): AtAGlanceType => {
       __PRE_BUNDLED_FILENAME__,
       "No custom 'At a Glance' text in the config, using defaults",
     );
-    const currentTitle = window[ApplicationNamespace].__internals.atAGlance?.title;
+    const currentTitle = GlobalInternals.atAGlance?.title;
     const newAtAGlance = General.getAtAGlance(currentTitle);
 
-    window[ApplicationNamespace].__internals.atAGlance = newAtAGlance;
+    GlobalInternals.atAGlance = newAtAGlance;
 
     return newAtAGlance;
   }

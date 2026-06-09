@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ApplicationNamespace } from "@/constants/application.ts";
 import { LogInfo } from "@/constants/browser.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { handleBodyRead } from "@/lib/browser/scopes/handle-body-read.ts";
 import { listStores } from "@/lib/browser/scopes/list-stores.ts";
 import { readStoragePath } from "@/lib/browser/scopes/read-storage-path.ts";
@@ -186,7 +186,7 @@ export async function placeholderInvoke(
         `webview:${payload.location}` + LogInfo.delimiter +
         payload.message;
 
-      window[ApplicationNamespace].__internals.logsInBrowser?.push?.(message);
+      GlobalInternals.logsInBrowser?.push?.(message);
 
       return;
     }
