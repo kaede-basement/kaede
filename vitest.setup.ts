@@ -18,7 +18,7 @@
 
 import { vi } from "vitest";
 
-import type { KaedeNamespaceType } from "./src/declarations";
+import type { KaedeInternalsType, KaedeNamespaceType } from "./src/declarations";
 import type { GlobalStatesType } from "./src/types/application/global-states.type";
 import type { InstanceStatesType } from "./src/types/application/instance-states.type";
 import type { AccountType } from "./src/types/configs/account.type";
@@ -26,165 +26,72 @@ import type { TranslationsType } from "./src/types/translations/translations.typ
 
 // Overwrite the 'window' object for tests only
 vi.stubGlobal("window", {
+  "__KAEDE_INTERNALS__": {
+    "getGlobalStates"     : (): GlobalStatesType => ({} as GlobalStatesType),
+    "changeGlobalStates"  : (): void => {},
+    "getInstanceStates"   : (): InstanceStatesType => ({} as InstanceStatesType),
+    "changeInstanceStates": (): void => {},
+    "requestPermissions"  : async (): Promise<Array<boolean>> => ([]),
+    "syncConfig"          : async (): Promise<void> => {},
+    "joinDelimiter"       : "",
+    "launcherVersion"     : "",
+    "initialPortable"     : false,
+    "initialBaseDirectory": "",
+    "initialConfig"       : {},
+    "temporaryAccounts"   : [] as Array<AccountType>,
+    "initialTranslations" : {} as TranslationsType,
+    "initialInstances"    : {} as InstanceStatesType,
+    "logsInBrowser"       : [],
+  },
   "__KAEDE__": {
-    "__internals": {
-      "getGlobalStates"     : (): GlobalStatesType => ({} as GlobalStatesType),
-      "changeGlobalStates"  : (): void => {},
-      "getInstanceStates"   : (): InstanceStatesType => ({} as InstanceStatesType),
-      "changeInstanceStates": (): void => {},
-      "requestPermissions"  : async (): Promise<Array<boolean>> => ([]),
-      "syncConfig"          : async (): Promise<void> => {},
-      "joinDelimiter"       : "",
-      "launcherVersion"     : "",
-      "initialPortable"     : false,
-      "initialBaseDirectory": "",
-      "initialConfig"       : {},
-      "temporaryAccounts"   : [] as Array<AccountType>,
-      "initialTranslations" : {} as TranslationsType,
-      "initialInstances"    : {} as InstanceStatesType,
-      "logsInBrowser"       : [],
-    },
     "variables": {
       "rippleColor"     : "",
       "sparklesColorRGB": "255 255 255",
     },
-
-    /*
-     * We need to explicitly define everything since
-     * 'vitest' will fail even if we just use one object for these fields
-     */
     "hooks": {
-      "onConfigFileGet": {
-        "before": [],
-        "after" : [],
-      },
-      "onDefaultConfigGet": {
-        "before": [],
-      },
-      "onPagesChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onLayoutChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onLogsChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onSidebarItemsChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onContextMenuItemsChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onDevelopmentChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onMiscChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onMinecraftChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onTranslationsChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onExtensionsChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onInstanceChange": {
-        "before": [],
-        "after" : [],
-      },
-      "onPreLaunchInformation": {
-        "before": [],
-        "after" : [],
-      },
-      "onVersionMeta": {
-        "before": [],
-        "after" : [],
-      },
-      "onLibrariesParsing": {
-        "before": [],
-        "after" : [],
-      },
-      "onMinecraftAssetsGet": {
-        "before": [],
-        "after" : [],
-      },
-      "onMinecraftPatchesGet": {
-        "before": [],
-        "after" : [],
-      },
-      "onMinecraftClientGet": {
-        "before": [],
-        "after" : [],
-      },
-      "onMinecraftLoggingGet": {
-        "before": [],
-        "after" : [],
-      },
-      "onMinecraftLibrariesGet": {
-        "before": [],
-        "after" : [],
-      },
-      "onNativesExtract": {
-        "before": [],
-        "after" : [],
-      },
-      "onJavaBinaryGet": {
-        "before": [],
-      },
-      "onJVMArgumentsGet": {
-        "before": [],
-        "after" : [],
-      },
-      "onClassPathsGet": {
-        "before": [],
-      },
-      "onGameArgumentsGet": {
-        "before": [],
-        "after" : [],
-      },
-      "onAdditionalStartArgumentsGet": {
-        "before": [],
-      },
-      "onLaunchArgumentsReplace": {
-        "before": [],
-        "after" : [],
-      },
-      "onMinecraftLaunch": {
-        "before": [],
-        "after" : [],
-      },
-      "onMinecraftKill": {
-        "before": [],
-        "after" : [],
-      },
-      "onMinecraftPatchResolve": {
-        "before": [],
-        "after" : [],
-      },
+      "onConfigFileGet"              : { "before": [], "after": [] },
+      "onDefaultConfigGet"           : { "before": [] },
+      "onPagesChange"                : { "before": [], "after": [] },
+      "onLayoutChange"               : { "before": [], "after": [] },
+      "onLogsChange"                 : { "before": [], "after": [] },
+      "onSidebarItemsChange"         : { "before": [], "after": [] },
+      "onContextMenuItemsChange"     : { "before": [], "after": [] },
+      "onDevelopmentChange"          : { "before": [], "after": [] },
+      "onMiscChange"                 : { "before": [], "after": [] },
+      "onMinecraftChange"            : { "before": [], "after": [] },
+      "onTranslationsChange"         : { "before": [], "after": [] },
+      "onExtensionsChange"           : { "before": [], "after": [] },
+      "onInstanceChange"             : { "before": [], "after": [] },
+      "onPreLaunchInformation"       : { "before": [], "after": [] },
+      "onVersionMeta"                : { "before": [], "after": [] },
+      "onLibrariesParsing"           : { "before": [], "after": [] },
+      "onMinecraftAssetsGet"         : { "before": [], "after": [] },
+      "onMinecraftPatchesGet"        : { "before": [], "after": [] },
+      "onMinecraftClientGet"         : { "before": [], "after": [] },
+      "onMinecraftLoggingGet"        : { "before": [], "after": [] },
+      "onMinecraftLibrariesGet"      : { "before": [], "after": [] },
+      "onNativesExtract"             : { "before": [], "after": [] },
+      "onJavaBinaryGet"              : { "before": [] },
+      "onJVMArgumentsGet"            : { "before": [], "after": [] },
+      "onClassPathsGet"              : { "before": [] },
+      "onGameArgumentsGet"           : { "before": [], "after": [] },
+      "onAdditionalStartArgumentsGet": { "before": [] },
+      "onLaunchArgumentsReplace"     : { "before": [], "after": [] },
+      "onMinecraftLaunch"            : { "before": [], "after": [] },
+      "onMinecraftKill"              : { "before": [], "after": [] },
+      "onMinecraftPatchResolve"      : { "before": [], "after": [] },
     },
   },
 } satisfies {
+  "__KAEDE_INTERNALS__": KaedeInternalsType;
 
   /*
-   * Kaede itself uses only the "__internals", "variables", and "hooks" properties.
+   * Kaede itself uses only the "variables", and "hooks" properties.
    * The remaining fields provide access to the Kaede utilities for plugin developers.
    */
   "__KAEDE__": Pick<
     KaedeNamespaceType,
-    "__internals" | "variables" | "hooks"
+    "variables" | "hooks"
   >;
 });
 
