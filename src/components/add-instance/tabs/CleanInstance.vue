@@ -17,7 +17,7 @@
   -->
 
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed } from "vue";
 
 import ChangeCustomOptions from "@/components/add-instance/sections/ChangeCustomOptions.vue";
 import ChangeInstanceGroups from "@/components/add-instance/sections/ChangeInstanceGroups.vue";
@@ -31,12 +31,9 @@ import ChangeJavaBinary from "@/components/add-instance/sections/ChangeJavaBinar
 import ChangeMemoryAllocation from "@/components/add-instance/sections/ChangeMemoryAllocation.vue";
 import CreateInstance from "@/components/add-instance/sections/CreateInstance.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+import { globalStates } from "@/states/global.ts";
 
 const expanded = computed(
   (): boolean => (

@@ -1,5 +1,3 @@
-import type { ShallowReactive } from "vue";
-
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
@@ -25,4 +23,3 @@ export type InstanceStatesChangerType = <Key extends keyof InstanceStatesType>(
   key  : Key,
   value: InstanceStatesType[Key],
 ) => void;
-export type ContextInstanceStatesType = ShallowReactive<InstanceStatesType>;

@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import { inject, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 
 import PermissionsHandler from "@/components/general/extensions/PermissionsHandler.vue";
 import PageTeleports from "@/components/general/layout/PageTeleports.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
 import Errors from "@/lib/errors";
 import ExtensionsManager from "@/lib/extensions-manager";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
 import type { ExtensionInfoType } from "@/types/extensions/extension-info.type.ts";
 import type { ExtensionMetadataType } from "@/types/extensions/extension-metadata.type.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const knownExtensions = ref<Array<ExtensionMetadataType>>([]);
 const unknownExtensions = ref<Array<ExtensionInfoType>>([]);

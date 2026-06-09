@@ -17,18 +17,15 @@
   -->
 
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
-import { GlobalStatesContextKey } from "@/constants/application.js";
 import General from "@/lib/general/index.js";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances/index.js";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.js";
+import { globalStates } from "@/states/global.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.js";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const currentInstance = computed(
   (): GlobalStatesType["pages"]["states"]["add-instance"]["instance"] => (

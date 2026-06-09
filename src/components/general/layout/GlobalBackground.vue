@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed } from "vue";
 
 import Image from "@/components/general/base/Image.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
+import { globalStates } from "@/states/global.ts";
 import type {
-  ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type { DeepNonNullable } from "@/types/utils/deep-non-nullable.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const image = computed((): DeepNonNullable<GlobalStatesType["layout"]["background"]> => {
   const background = globalStates?.layout?.background;

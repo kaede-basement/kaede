@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, useTemplateRef, watch } from "vue";
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
 
 const { opened, x, y } = defineProps<{
   "opened": boolean;
@@ -27,8 +26,6 @@ const cachedSize = ref<{
   "height": 0,
   "width" : 0,
 });
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const contextMenu = useTemplateRef<HTMLDivElement>("contextMenu");
 

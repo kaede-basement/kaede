@@ -1,29 +1,25 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue";
+import { computed, ref } from "vue";
 
 import Dropdown from "@/components/general/base/Dropdown.vue";
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
-import { GlobalStatesContextKey, InstanceStatesContextKey } from "@/constants/application.ts";
 import { Patches } from "@/constants/meta.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
+import { globalStates } from "@/states/global.ts";
+import { instanceStates } from "@/states/instance.ts";
 import type { DropdownItemType } from "@/types/application/dropdown-item.type.ts";
 import type {
-  ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type {
-  InstanceStatesType,
   InstanceStateType,
 } from "@/types/application/instance-states.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
-const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 
 const selector = ref<boolean>(false);
 const syncing = ref<boolean>(false);

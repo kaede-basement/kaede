@@ -21,19 +21,15 @@ import { computed, inject } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import {
-  GlobalStatesContextKey,
-  InstanceStatesContextKey,
   TranslationsContextKey,
 } from "@/constants/application.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
-import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import { globalStates } from "@/states/global.ts";
+import { instanceStates } from "@/states/instance.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
-const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 
 const currentInstance = computed((): CurrentInstanceType => (

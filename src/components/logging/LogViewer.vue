@@ -30,13 +30,12 @@ import LogControls from "@/components/logging/controls/LogControls.vue";
 import LogHeader from "@/components/logging/header/LogHeader.vue";
 import LogEntry from "@/components/logging/lines/LogEntry.vue";
 import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
-import { GlobalStatesContextKey, InstanceLogsContextKey } from "@/constants/application.ts";
+import { InstanceLogsContextKey } from "@/constants/application.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
 
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceLogs = inject<ShallowReactive<Record<string, string[]>>>(InstanceLogsContextKey);
 
 const virtualList = useTemplateRef("virtualList");

@@ -39,8 +39,6 @@ import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
-import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
-import { __changeInstanceState } from "@/lib/instances/scopes/change-instance-state.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import { globalStates } from "@/states/global.ts";
 import type {

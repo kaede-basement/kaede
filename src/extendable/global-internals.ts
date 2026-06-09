@@ -17,23 +17,24 @@
  */
 
 import type { KaedeInternalsType } from "@/declarations.ts";
-import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+import Instances from "@/lib/instances";
+import { getGlobalStates } from "@/states/global.ts";
+import { getInstanceStates } from "@/states/instance.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
 
-function placeholderFunction(): void {}
-
 export const GlobalInternals: KaedeInternalsType = {
 
   /* All these fields will be overwritten */
-  "getGlobalStates"     : placeholderFunction as () => GlobalStatesType,
-  "changeGlobalStates"  : placeholderFunction,
-  "getInstanceStates"   : placeholderFunction as () => InstanceStatesType,
-  "changeInstanceStates": placeholderFunction,
-  "requestPermissions"  : placeholderFunction as () => Promise<Array<boolean>>,
-  "syncConfig"          : placeholderFunction as () => Promise<void>,
+  "getGlobalStates"     : getGlobalStates,
+  "changeGlobalStates"  : GlobalStateHelpers.change,
+  "getInstanceStates"   : getInstanceStates,
+  "changeInstanceStates": Instances.change,
+  "requestPermissions"  : async (): Promise<Array<boolean>> => [],
+  "syncConfig"          : async (): Promise<void> => {},
   "joinDelimiter"       : "",
   "launcherVersion"     : "",
   "initialConfig"       : {} as ConfigType,

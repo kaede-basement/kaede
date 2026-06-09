@@ -5,17 +5,15 @@ import { computed, inject, ref, watchEffect } from "vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import {
   CloseInstanceContextKey,
-  GlobalStatesContextKey,
-  InstanceStatesContextKey,
   LaunchInstanceContextKey,
   LaunchStatesContextKey,
 } from "@/constants/application.ts";
 import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
+import { instanceStates } from "@/states/instance.ts";
 import type {
-  InstanceStatesType,
   InstanceStateType,
 } from "@/types/application/instance-states.type.ts";
 import type {
@@ -26,8 +24,6 @@ import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance
 
 const killing = ref<boolean>(false);
 
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
-const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );

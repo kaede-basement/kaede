@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useEventListener } from "@vueuse/core";
-import { computed, inject, ref, shallowRef, watchEffect } from "vue";
+import { computed, ref, shallowRef, watchEffect } from "vue";
 
 import CustomButton from "@/components/general/base/CustomButton.vue";
 import LogFilterer from "@/components/logging/controls/LogFilterer.vue";
 import LogSearcher from "@/components/logging/controls/LogSearcher.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
 import FileStructure from "@/constants/file-structure.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
 import type { LogButtonType } from "@/types/logging/log-button.type.ts";
 import type { LogControlsType } from "@/types/logging/log-controls.type.ts";
 
@@ -25,8 +24,6 @@ const {
   setTextSelectionRange,
   logsArray,
 } = defineProps<LogControlsType>();
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const shouldVirtualize = computed((): boolean => globalStates?.logs?.virtualized === true);
 const horizontalScroll = computed((): boolean => globalStates?.logs?.lineBreaks === false);

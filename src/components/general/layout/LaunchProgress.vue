@@ -3,14 +3,13 @@ import { useIntervalFn } from "@vueuse/core";
 import { computed, inject, ref } from "vue";
 
 import {
-  GlobalStatesContextKey,
-  InstanceStatesContextKey,
-  LaunchStatesContextKey, TranslationsContextKey,
+  LaunchStatesContextKey,
+  TranslationsContextKey,
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
-import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import { globalStates } from "@/states/global.ts";
+import { instanceStates } from "@/states/instance.ts";
 import type {
   LauncherStatusesType,
   WrappedInstanceLauncherStatusesType,
@@ -20,8 +19,6 @@ import type { TranslationsStateType } from "@/types/translations/translations.ty
 
 const progressLimit: number = 90;
 
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
-const instanceStates = inject<InstanceStatesType>(InstanceStatesContextKey);
 const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );

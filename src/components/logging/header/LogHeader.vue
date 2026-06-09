@@ -21,14 +21,12 @@ import { inject, type ShallowReactive } from "vue";
 
 import {
   ApplicationName,
-  GlobalStatesContextKey,
   InstanceLogsContextKey,
 } from "@/constants/application.ts";
 import Configs from "@/lib/configs";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
 
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const instanceLogs = inject<ShallowReactive<Record<string, string[]>>>(InstanceLogsContextKey);
 
 async function handleModeSelect(event: Event): Promise<void> {

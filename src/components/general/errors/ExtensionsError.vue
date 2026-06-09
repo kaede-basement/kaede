@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { computed, inject, onMounted, type Ref } from "vue";
+import { computed, onMounted, type Ref } from "vue";
 
-import { GlobalStatesContextKey } from "@/constants/application.ts";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
 import type { NativeErrorType } from "@/types/errors/error-handling.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const { error } = defineProps<{
   "error": Ref<

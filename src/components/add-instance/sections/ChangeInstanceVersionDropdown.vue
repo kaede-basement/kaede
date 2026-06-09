@@ -18,17 +18,16 @@
 
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
-import { computed, inject } from "vue";
+import { computed } from "vue";
 
-import { GlobalStatesContextKey } from "@/constants/application.ts";
 import { APIEndpoints } from "@/constants/launcher.ts";
 import { Patches } from "@/constants/meta.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
+import { globalStates } from "@/states/global.ts";
 import type {
-  ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type {
@@ -40,8 +39,6 @@ const { handleDropdown, currentFilter } = defineProps<{
   "handleDropdown": (state: boolean, event?: PointerEvent) => void;
   "currentFilter" : "release" | "all";
 }>();
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const currentInstance = computed(
   (): GlobalStatesType["pages"]["states"]["add-instance"]["instance"] => (

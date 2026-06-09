@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed } from "vue";
 
-import { GlobalStatesContextKey } from "@/constants/application.ts";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+import { globalStates } from "@/states/global.ts";
 
 const toRemovePaddings = computed((): boolean => {
   const custom = globalStates?.layout?.custom;

@@ -17,21 +17,18 @@
   -->
 
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed } from "vue";
 
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
 import { InstallablePatches, Patches } from "@/constants/meta.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
+import { globalStates } from "@/states/global.ts";
 import type {
-  ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const currentVersionSearch = computed(
   (): GlobalStatesType["pages"]["states"]["add-instance"]["instanceVersionSearch"] => (

@@ -18,26 +18,23 @@
 
 <script setup lang="ts">
 import { onClickOutside } from "@vueuse/core";
-import { computed, inject, ref, useTemplateRef } from "vue";
+import { computed, ref, useTemplateRef } from "vue";
 
 import ChangeInstanceVersionDropdown
   from "@/components/add-instance/sections/ChangeInstanceVersionDropdown.vue";
 import CustomInput from "@/components/general/base/CustomInput.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
 import { Patches } from "@/constants/meta.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Instances from "@/lib/instances";
+import { globalStates } from "@/states/global.ts";
 import type {
-  ContextGlobalStatesType,
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
 const target = useTemplateRef("target");
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 
 const currentFilter = ref<"release" | "all">("release");
 const selector = ref<boolean>(false);

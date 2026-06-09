@@ -4,18 +4,15 @@ import { computed, inject, ref, shallowRef } from "vue";
 import Image from "@/components/general/base/Image.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import SidebarProfile from "@/components/general/layout/SidebarProfile.vue";
-import { GlobalStatesContextKey, TranslationsContextKey } from "@/constants/application.ts";
+import { TranslationsContextKey } from "@/constants/application.ts";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
-import type {
-  ContextGlobalStatesType,
-} from "@/types/application/global-states.type.ts";
+import { globalStates } from "@/states/global.ts";
 import type {
   TranslationKey,
   TranslationsStateType,
 } from "@/types/translations/translations.type.ts";
 
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
 const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 
 const innerStyles = computed(

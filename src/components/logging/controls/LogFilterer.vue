@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed } from "vue";
 
 import CustomInput from "@/components/general/base/CustomInput.vue";
-import { GlobalStatesContextKey } from "@/constants/application.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
-import type { ContextGlobalStatesType } from "@/types/application/global-states.type.ts";
-
-const globalStates = inject<ContextGlobalStatesType>(GlobalStatesContextKey);
+import { globalStates } from "@/states/global.ts";
 
 const filtering = computed((): string => globalStates?.logs?.filtering ?? "");
 
