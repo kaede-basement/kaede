@@ -33,7 +33,7 @@ import type { TranslationsType } from "@/types/translations/translations.type.ts
 
 function placeholderFunction(): void {}
 
-export function declareWindow(): void {
+export function declareGlobals(): void {
   const ApplicationNamespace = _Application.ApplicationNamespace;
 
   window.__TAURI_PLUGINS_COMMUNITY__ = {

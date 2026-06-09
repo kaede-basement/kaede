@@ -29,8 +29,9 @@ import { VueQueryPlugin } from "@tanstack/vue-query";
 import { createApp } from "vue";
 
 import App from "@/App.vue";
-import { ApplicationNamespace, ApplicationRootID, DefaultLocale } from "@/constants/application";
+import { ApplicationRootID, DefaultLocale } from "@/constants/application";
 import { getASCIIArt } from "@/constants/ascii-art.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
 import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
@@ -46,10 +47,12 @@ import type { TranslationsType } from "@/types/translations/translations.type.ts
 
 const startTime = performance.now();
 
-// 'window[ApplicationNamespace]' is accessed not only by extensions but by the application itself
-Globals.declareWindow();
+// The global object is accessed not only by extensions but by the application itself
+Globals.declareGlobals();
 
+// For a live preview: https://kaede-basement.github.io/kaede/
 if (Browser.detectIsBrowser()) {
+  // Handle Tauri API placeholders
   await Browser.handleTauriEnvironment();
 
   Browser.handleLogsFlush();
@@ -98,21 +101,20 @@ const [
 ]);
 
 log.debug(__PRE_BUNDLED_FILENAME__, "Caching internals");
-const __internals = window[ApplicationNamespace].__internals;
 
 // Define launcher's initial values at globals to make them accessible from anywhere
-__internals.initialConfig = config;
-__internals.initialTranslations = translations;
-__internals.initialInstances = instances;
-__internals.initialPortable = portable;
-__internals.initialBaseDirectory = baseDirectory;
+GlobalInternals.initialConfig = config;
+GlobalInternals.initialTranslations = translations;
+GlobalInternals.initialInstances = instances;
+GlobalInternals.initialPortable = portable;
+GlobalInternals.initialBaseDirectory = baseDirectory;
 
 /*
  * Exposing account details to the global object
  * makes retrieving account tokens in extensions a bit easier,
  * so we will delete this field as soon as the app-scoped reactive state will be created
  */
-__internals.temporaryAccounts = accounts;
+GlobalInternals.temporaryAccounts = accounts;
 
 // Enabling debug mode means that debug-level messages will be logged
 if (config.development?.enableDebugMode) {

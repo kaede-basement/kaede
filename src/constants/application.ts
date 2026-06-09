@@ -2,6 +2,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import FileStructure from "@/constants/file-structure.ts";
 import { DefaultInstanceSettings } from "@/constants/launcher.ts";
+import { GlobalObject } from "@/extendable/global-object.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -16,7 +17,6 @@ import ModrinthIcon from "@/resources/ModrinthIcon.webp";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 export const ApplicationName = "Kaede";
-export const ApplicationNamespace = "__KAEDE__";
 export const ApplicationRootID = "#app";
 
 export const DefaultLocale = "en";
@@ -168,7 +168,7 @@ export const ContextMenuItems = [
     "icon"  : "i-lucide-bug",
     "action": (): void => {
       GlobalStateHelpers.Logs.toggle("show", true);
-      window[ApplicationNamespace].libs.ContextMenu.close();
+      GlobalObject.libs.ContextMenu.close();
     },
   },
   {
@@ -177,7 +177,7 @@ export const ContextMenuItems = [
     "action": (): void => {
       const baseDirectory: string = General.getCachedBaseDirectory();
 
-      window[ApplicationNamespace].libs.ContextMenu.close();
+      GlobalObject.libs.ContextMenu.close();
       revealItemInDir(
         General.cachedJoin(
           baseDirectory,
@@ -209,7 +209,7 @@ export const ContextMenuItems = [
       const currentInstanceId: string | null = GlobalStateHelpers.get().layout.currentInstance;
       const baseDirectory: string = General.getCachedBaseDirectory();
 
-      window[ApplicationNamespace].libs.ContextMenu.close();
+      GlobalObject.libs.ContextMenu.close();
 
       if (!currentInstanceId) {
         log.warn("No instance selected; revealing the root directory in explorer");
@@ -249,12 +249,9 @@ export const ContextMenuItems = [
 
 export default {
   ApplicationName,
-  ApplicationNamespace,
   ApplicationRootID,
   DefaultLocale,
-  GlobalStatesContextKey,
   TranslationsContextKey,
-  InstanceStatesContextKey,
   AuthStatesContextKey,
   LaunchStatesContextKey,
   InstanceLogsContextKey,

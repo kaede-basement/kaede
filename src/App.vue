@@ -29,12 +29,7 @@ import Layout from "@/components/general/layout/Layout.vue";
 import Router from "@/components/general/layout/Router.vue";
 import ConfigSyncer from "@/components/general/misc/ConfigSyncer.vue";
 import NonBundledClasses from "@/components/general/misc/NonBundledClasses.vue";
-import {
-  ApplicationNamespace,
-  GlobalStatesContextKey,
-  InstanceStatesContextKey,
-  TranslationsContextKey,
-} from "@/constants/application.ts";
+import { TranslationsContextKey } from "@/constants/application.ts";
 import {
   LazyDevelopmentMode,
   LazyExtensionLoader,
@@ -45,17 +40,9 @@ import DevelopmentModeHelpers from "@/lib/development-mode-helpers";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import { __changeGlobalState } from "@/lib/global-state-helpers/scopes/change-global-state.ts";
-import Instances from "@/lib/instances";
 import { __changeInstanceState } from "@/lib/instances/scopes/change-instance-state.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import { globalStates } from "@/states/global.ts";
-import { instanceStates } from "@/states/instance.ts";
-import type {
-  ContextGlobalStatesType,
-} from "@/types/application/global-states.type.ts";
-import type {
-  ContextInstanceStatesType,
-} from "@/types/application/instance-states.type.ts";
 import type {
   TranslationsStateType,
   TranslationsType,

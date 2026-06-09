@@ -34,12 +34,18 @@ export const LazyDevelopmentMode = defineAsyncComponent(
 /**
  * Page-specific lazy-loaded components
  */
-export const LazyHome = defineAsyncComponent(() => import("@/components/home/Home.vue"));
-export const LazyLibrary = defineAsyncComponent(() => import("@/components/library/Library.vue"));
+export const LazyHome = defineAsyncComponent(
+  () => import("@/components/home/Home.vue"),
+);
+export const LazyLibrary = defineAsyncComponent(
+  () => import("@/components/library/Library.vue"),
+);
 export const LazySettings = defineAsyncComponent(
   () => import("@/components/settings/Settings.vue"),
 );
 export const LazyAddInstance = defineAsyncComponent(
   () => import("@/components/add-instance/AddInstance.vue"),
 );
-export const LazyProfile = defineAsyncComponent(() => import("@/components/profile/Profile.vue"));
+export const LazyProfile = defineAsyncComponent(
+  () => import("@/components/profile/Profile.vue"),
+);

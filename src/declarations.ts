@@ -114,60 +114,60 @@ declare global {
     };
 
     /**
+     * Workarounds for application internals.
+     *
+     * These fields are generally not intended to be modified by extensions
+     */
+    "__KAEDE_INTERNALS__": {
+      // Gets current application global states (use 'libs.GlobalStateHelpers#get')
+      "getGlobalStates"     : () => GlobalStatesType;
+      // Changes application global states (use 'libs.GlobalStateHelpers#change')
+      "changeGlobalStates"  : GlobalStatesChangerType;
+      // Gets current application instance states (use 'libs.Instances#get')
+      "getInstanceStates"   : () => InstanceStatesType;
+      // Changes application instance states (use 'libs.Instances#change')
+      "changeInstanceStates": InstanceStatesChangerType;
+      // Requests plugin permissions from user
+      "requestPermissions"  : (
+        permissions: Array<PermissionType>,
+        extension: string
+      ) => Promise<Array<boolean>>;
+      // Syncs the config file using global states
+      "syncConfig"          : () => Promise<void>;
+      // Platform-specific delimiter obtained by a single invoke of Tauri 'join'
+      "joinDelimiter"       : string;
+      // Launcher version
+      "launcherVersion"     : string;
+      // Config state before launcher initialization
+      "initialConfig"       : ConfigType;
+      // Accounts state before launcher initialization
+      "temporaryAccounts"   : Array<AccountType>;
+      // Translations state before launcher initialization
+      "initialTranslations" : TranslationsType;
+      // Instances metadata state before launcher initialization
+      "initialInstances"    : InstanceStatesType;
+      // Portable state before launcher initialization
+      "initialPortable"     : boolean;
+      // Base directory state before launcher initialization
+      "initialBaseDirectory": string;
+      // A temporary storage for the 'At a Glance' widget
+      "atAGlance"          ?: AtAGlanceType;
+      // A timestamp for the application code initialization
+      "startTime"          ?: number;
+      // A Java major version (for example, 8, 11, or 17)
+      "javaMajor"          ?: number;
+
+      /* Needed for browser environments (non-application) */
+      "logsInBrowser"       : Array<string>;
+      "indexedDB"          ?: IDBDatabase;
+    };
+
+    /**
      * Application namespace.
      *
      * Extensions can extend this namespace
      */
     "__KAEDE__": {
-
-      /**
-       * Workarounds for application internals.
-       *
-       * These fields are not intended to be modified by extensions
-       */
-      "__internals": {
-        // Gets current application global states (use 'libs.GlobalStateHelpers#get')
-        "getGlobalStates"     : () => GlobalStatesType;
-        // Changes application global states (use 'libs.GlobalStateHelpers#change')
-        "changeGlobalStates"  : GlobalStatesChangerType;
-        // Gets current application instance states (use 'libs.Instances#get')
-        "getInstanceStates"   : () => InstanceStatesType;
-        // Changes application instance states (use 'libs.Instances#change')
-        "changeInstanceStates": InstanceStatesChangerType;
-        // Requests plugin permissions from user
-        "requestPermissions"  : (
-          permissions: Array<PermissionType>,
-          extension: string
-        ) => Promise<Array<boolean>>;
-        // Syncs the config file using global states
-        "syncConfig"          : () => Promise<void>;
-        // Platform-specific delimiter obtained by a single invoke of Tauri 'join'
-        "joinDelimiter"       : string;
-        // Launcher version
-        "launcherVersion"     : string;
-        // Config state before launcher initialization
-        "initialConfig"       : ConfigType;
-        // Accounts state before launcher initialization
-        "temporaryAccounts"   : Array<AccountType>;
-        // Translations state before launcher initialization
-        "initialTranslations" : TranslationsType;
-        // Instances metadata state before launcher initialization
-        "initialInstances"    : InstanceStatesType;
-        // Portable state before launcher initialization
-        "initialPortable"     : boolean;
-        // Base directory state before launcher initialization
-        "initialBaseDirectory": string;
-        // A temporary storage for the 'At a Glance' widget
-        "atAGlance"          ?: AtAGlanceType;
-        // A timestamp for the application code initialization
-        "startTime"          ?: number;
-        // A Java major version (for example, 8, 11, or 17)
-        "javaMajor"          ?: number;
-
-        /* Needed for browser environments (non-application) */
-        "logsInBrowser"       : Array<string>;
-        "indexedDB"          ?: IDBDatabase;
-      };
 
       /**
        * Global constants.
@@ -1741,3 +1741,4 @@ declare global {
 
 /* Export the Kaede namespace type */
 export type KaedeNamespaceType = Window["__KAEDE__"];
+export type KaedeInternalsType = Window["__KAEDE_INTERNALS__"];

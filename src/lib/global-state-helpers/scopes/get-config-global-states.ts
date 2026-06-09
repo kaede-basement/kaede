@@ -1,9 +1,9 @@
 import {
-  ApplicationNamespace,
   ContextMenuItems,
   DefaultGlobalStatesPagesStates,
 } from "@/constants/application.ts";
 import { Routes, SidebarRouteGroupItems } from "@/constants/routes.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Configs from "@/lib/configs";
 import General from "@/lib/general";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
@@ -24,7 +24,7 @@ export function getConfigGlobalStates(): GlobalStatesType {
 
   return {
     ...configFile,
-    "translations": window[ApplicationNamespace].__internals.initialTranslations,
+    "translations": GlobalInternals.initialTranslations,
     "pages"       : {
       "current": GlobalStateHelpers.Pages.getRouteFromSearchParameters(searchParameters),
       "states" : DefaultGlobalStatesPagesStates,
