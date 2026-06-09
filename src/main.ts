@@ -40,6 +40,8 @@ import General from "@/lib/general";
 import Globals from "@/lib/globals";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/scopes/log.ts";
+import { declareGlobalStates } from "@/states/global.ts";
+import { declareInstanceStates } from "@/states/instance.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
@@ -115,6 +117,13 @@ GlobalInternals.initialBaseDirectory = baseDirectory;
  * so we will delete this field as soon as the app-scoped reactive state will be created
  */
 GlobalInternals.temporaryAccounts = accounts;
+
+/*
+ * The global and instance states were declared outside the Vue instance,
+ * so they require the value assigning at this point
+ */
+declareGlobalStates();
+declareInstanceStates();
 
 // Enabling debug mode means that debug-level messages will be logged
 if (config.development?.enableDebugMode) {

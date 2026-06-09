@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { shallowReactive } from "vue";
+import { type ShallowReactive, shallowReactive } from "vue";
 
 import Instances from "@/lib/instances";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
@@ -24,11 +24,19 @@ import type { InstanceStatesType } from "@/types/application/instance-states.typ
 /**
  * Contains all Minecraft instance states.
  */
-export const instanceStates = shallowReactive<InstanceStatesType>(Instances.getFromConfig());
+export let instanceStates: ShallowReactive<InstanceStatesType>;
 
 /**
  * Returns a reference to the proxied object of instance states.
  */
 export function getInstanceStates(): InstanceStatesType {
   return instanceStates;
+}
+
+/**
+ * Assign the actual instance states to 'instanceStates'.
+ * This function is called in 'main.ts'
+ */
+export function declareInstanceStates(): void {
+  instanceStates = shallowReactive<InstanceStatesType>(Instances.getFromConfig());
 }

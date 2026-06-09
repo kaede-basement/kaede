@@ -1,4 +1,3 @@
-
 /*
  * Kaede, a Minecraft Launcher
  * Copyright (C) 2026  windstone <notwindstone@gmail.com> and contributors
@@ -17,19 +16,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { shallowReactive } from "vue";
+import { type ShallowReactive,shallowReactive } from "vue";
 
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 /**
  * Contains all global application states.
+ * Will be overwritten in 'main.ts' once the global states are ready
  */
-export const globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getFromConfig());
+export let globalStates: ShallowReactive<GlobalStatesType>;
 
 /**
  * Returns a reference to the proxied object of global states.
  */
 export function getGlobalStates(): GlobalStatesType {
   return globalStates;
+}
+
+/**
+ * Assign the actual global states to 'globalStates'.
+ * This function is called in 'main.ts'
+ */
+export function declareGlobalStates(): void {
+  globalStates = shallowReactive<GlobalStatesType>(GlobalStateHelpers.getFromConfig());
 }

@@ -265,10 +265,7 @@ export type GlobalStatesType = {
 	"pages": GlobalStatesPagesType;
 };
 export type GlobalStatesChangerType = <Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]) => void;
-declare const ApplicationNamespace = "__KAEDE__";
-declare const GlobalStatesContextKey: unique symbol;
 declare const TranslationsContextKey: unique symbol;
-declare const InstanceStatesContextKey: unique symbol;
 declare const AuthStatesContextKey: unique symbol;
 declare const LaunchStatesContextKey: unique symbol;
 declare const InstanceLogsContextKey: unique symbol;
@@ -276,12 +273,9 @@ declare const LaunchInstanceContextKey: unique symbol;
 declare const CloseInstanceContextKey: unique symbol;
 declare const _default$2: {
 	readonly ApplicationName: "Kaede";
-	readonly ApplicationNamespace: "__KAEDE__";
 	readonly ApplicationRootID: "#app";
 	readonly DefaultLocale: "en";
-	readonly GlobalStatesContextKey: typeof GlobalStatesContextKey;
 	readonly TranslationsContextKey: typeof TranslationsContextKey;
-	readonly InstanceStatesContextKey: typeof InstanceStatesContextKey;
 	readonly AuthStatesContextKey: typeof AuthStatesContextKey;
 	readonly LaunchStatesContextKey: typeof LaunchStatesContextKey;
 	readonly InstanceLogsContextKey: typeof InstanceLogsContextKey;
@@ -938,22 +932,22 @@ declare function handleCssTheme(styles: string): HTMLStyleElement;
 declare function handleEvent(type: EventListenersType, value: unknown): void;
 declare function handlePermission(permission: PermissionType, id: string): void;
 declare function catchAsyncResponseHooks<T>({ scope, toPass, timing, }: {
-	"scope": keyof (Window[typeof ApplicationNamespace]["hooks"]);
+	"scope": keyof KaedeNamespaceType["hooks"];
 	"toPass": unknown;
 	"timing": "before" | "after";
 }): Promise<"continue" | T | undefined>;
 declare function catchAsyncVoidHooks({ scope, toPass, timing, }: {
-	"scope": keyof (Window[typeof ApplicationNamespace]["hooks"]);
+	"scope": keyof KaedeNamespaceType["hooks"];
 	"toPass": unknown;
 	"timing": "before" | "after";
 }): Promise<void>;
 declare function catchSyncResponseHooks<T>({ scope, toPass, timing, }: {
-	"scope": keyof (Window[typeof ApplicationNamespace]["hooks"]);
+	"scope": keyof KaedeNamespaceType["hooks"];
 	"toPass": unknown;
 	"timing": "before" | "after";
 }): "continue" | T | undefined;
 declare function catchSyncVoidHooks({ scope, toPass, timing, }: {
-	"scope": keyof (Window[typeof ApplicationNamespace]["hooks"]);
+	"scope": keyof KaedeNamespaceType["hooks"];
 	"toPass": unknown;
 	"timing": "before" | "after";
 }): void;
@@ -969,7 +963,7 @@ export type ExtensionHookResponseType<ResponseType> = ResponseType extends "noth
  */
 export type HookReturnType<ArgumentsType, ResponseType, IsPromise extends ("promise" | "non-promise") = "promise"> = Array<(...arguments_: ArgumentsType[]) => (IsPromise extends "promise" ? Promise<ExtensionHookResponseType<ResponseType>> : ExtensionHookResponseType<ResponseType>)>;
 declare function handleHookResponse<T>({ scope, status, response, timing, index, times, }: {
-	"scope": keyof (Window[typeof ApplicationNamespace]["hooks"]);
+	"scope": keyof KaedeNamespaceType["hooks"];
 	"status": ExtensionStatusType;
 	"response": T | undefined;
 	"timing": "before" | "after";
@@ -1164,12 +1158,12 @@ declare const _default$16: {
 };
 declare function cacheLauncherVersion(): Promise<void>;
 declare function cachePathJoin(): Promise<void>;
-declare function declareWindow(): void;
+declare function declareGlobals(): void;
 declare function getLaunchCount(): Promise<number>;
 declare const _default$17: {
 	readonly cacheLauncherVersion: typeof cacheLauncherVersion;
 	readonly cachePathJoin: typeof cachePathJoin;
-	readonly declareWindow: typeof declareWindow;
+	readonly declareGlobals: typeof declareGlobals;
 	readonly getLaunchCount: typeof getLaunchCount;
 };
 declare function addInstanceWithSync(id: string, content: {
@@ -2093,37 +2087,37 @@ declare global {
 			"shell": object;
 		};
 		/**
+		 * Workarounds for application internals.
+		 *
+		 * These fields are generally not intended to be modified by extensions
+		 */
+		"__KAEDE_INTERNALS__": {
+			"getGlobalStates": () => GlobalStatesType;
+			"changeGlobalStates": GlobalStatesChangerType;
+			"getInstanceStates": () => InstanceStatesType;
+			"changeInstanceStates": InstanceStatesChangerType;
+			"requestPermissions": (permissions: Array<PermissionType>, extension: string) => Promise<Array<boolean>>;
+			"syncConfig": () => Promise<void>;
+			"joinDelimiter": string;
+			"launcherVersion": string;
+			"initialConfig": ConfigType;
+			"temporaryAccounts": Array<AccountType>;
+			"initialTranslations": TranslationsType;
+			"initialInstances": InstanceStatesType;
+			"initialPortable": boolean;
+			"initialBaseDirectory": string;
+			"atAGlance"?: AtAGlanceType;
+			"startTime"?: number;
+			"javaMajor"?: number;
+			"logsInBrowser": Array<string>;
+			"indexedDB"?: IDBDatabase;
+		};
+		/**
 		 * Application namespace.
 		 *
 		 * Extensions can extend this namespace
 		 */
 		"__KAEDE__": {
-			/**
-			 * Workarounds for application internals.
-			 *
-			 * These fields are not intended to be modified by extensions
-			 */
-			"__internals": {
-				"getGlobalStates": () => GlobalStatesType;
-				"changeGlobalStates": GlobalStatesChangerType;
-				"getInstanceStates": () => InstanceStatesType;
-				"changeInstanceStates": InstanceStatesChangerType;
-				"requestPermissions": (permissions: Array<PermissionType>, extension: string) => Promise<Array<boolean>>;
-				"syncConfig": () => Promise<void>;
-				"joinDelimiter": string;
-				"launcherVersion": string;
-				"initialConfig": ConfigType;
-				"temporaryAccounts": Array<AccountType>;
-				"initialTranslations": TranslationsType;
-				"initialInstances": InstanceStatesType;
-				"initialPortable": boolean;
-				"initialBaseDirectory": string;
-				"atAGlance"?: AtAGlanceType;
-				"startTime"?: number;
-				"javaMajor"?: number;
-				"logsInBrowser": Array<string>;
-				"indexedDB"?: IDBDatabase;
-			};
 			/**
 			 * Global constants.
 			 *
@@ -2137,7 +2131,7 @@ declare global {
 			 * // This assignment changes the config filename for everyone,
 			 * // meaning that now the config file will be stored
 			 * // under 'config.json5' instead of 'config.json'
-			 * window[ApplicationNamespace].libs.FileStructure.Files.Config = "config.json5";
+			 * window.__KAEDE__.libs.FileStructure.Files.Config = "config.json5";
 			 * ```
 			 */
 			"constants": {
@@ -2202,7 +2196,7 @@ declare global {
 			 * // with a reference to the 'customDebugFunction' function,
 			 * // so all upcoming 'log#debug' calls will use the 'customDebugFunction' function
 			 * // even if calls were not made via accessing the 'window' object
-			 * window[ApplicationNamespace].libs.Logging.log.debug = customDebugFunction;
+			 * window.__KAEDE__.libs.Logging.log.debug = customDebugFunction;
 			 * ```
 			 */
 			"libs": {
@@ -3442,5 +3436,6 @@ declare global {
 	}
 }
 export type KaedeNamespaceType = Window["__KAEDE__"];
+export type KaedeInternalsType = Window["__KAEDE_INTERNALS__"];
 
 export {};
