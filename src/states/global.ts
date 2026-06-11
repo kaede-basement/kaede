@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { type ShallowReactive,shallowReactive } from "vue";
+import { type ShallowReactive, shallowReactive } from "vue";
 
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";

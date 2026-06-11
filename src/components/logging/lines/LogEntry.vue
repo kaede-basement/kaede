@@ -2,6 +2,7 @@
 import { computed } from "vue";
 
 import LogHighlighter from "@/components/logging/lines/LogHighlighter.vue";
+import { GlobalObject } from "@/extendable/global-object.ts";
 import Errors from "@/lib/errors";
 import Logging from "@/lib/logging";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -66,6 +67,8 @@ const isInRange = computed((): boolean => {
     (rangeEnd >= index)
   );
 });
+const toCollapseTarget: boolean = GlobalObject.variables.logs.targetCollapse;
+const collapsedTargetLength: number = GlobalObject.variables.logs.collapsedTargetLength;
 </script>
 
 <template>
@@ -123,7 +126,9 @@ const isInRange = computed((): boolean => {
         v-if="typeof extractedInformation.target === 'string'"
         :class="['__log-entry__target', Logging.getLogTargetColor(information.target)]"
       >
-        {{ extractedInformation.target }}
+        {{ toCollapseTarget
+            ? `...${extractedInformation.target.slice(-1 * collapsedTargetLength)}`
+            : extractedInformation.target }}
       </span>
       <LogHighlighter
         v-else

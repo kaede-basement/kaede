@@ -27,6 +27,10 @@ export const GlobalObject: KaedeNamespaceType = {
   "variables": {
     "rippleColor"     : "#ffffff15",
     "sparklesColorRGB": "255 255 255",
+    "logs"            : {
+      "targetCollapse"       : true,
+      "collapsedTargetLength": 17,
+    },
   },
   "constants": {} as KaedeNamespaceType["constants"],
   "libs"     : {} as KaedeNamespaceType["libs"],

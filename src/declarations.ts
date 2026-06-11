@@ -357,6 +357,13 @@ declare global {
         "rippleColor"     : string;
         // Applies a sparkles color to the ripple effect
         "sparklesColorRGB": string;
+        // Logs-related variables
+        "logs"            : {
+          // Whether to shorten the target string in logs
+          "targetCollapse"       : boolean;
+          // The number of characters to display in the shortened form of target
+          "collapsedTargetLength": number;
+        };
       };
 
       /**
