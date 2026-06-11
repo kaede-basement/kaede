@@ -125,8 +125,8 @@ GlobalInternals.temporaryAccounts = accounts;
 declareGlobalStates();
 declareInstanceStates();
 
-// Enabling debug mode means that debug-level messages will be logged
 if (config.development?.enableDebugMode) {
+  // Enabling debug mode means that debug-level messages will be logged
   DevelopmentModeHelpers.enableDebugMode(
     config.development,
   );

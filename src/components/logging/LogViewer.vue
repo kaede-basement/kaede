@@ -17,19 +17,17 @@
   -->
 
 <script setup lang="ts">
-import { refThrottled, useWindowSize } from "@vueuse/core";
 import {
   computed, inject, nextTick,
   onMounted, ref, type ShallowReactive,
   shallowRef, useTemplateRef, watchEffect,
 } from "vue";
-import { VirtualisedList } from "vue-virtualised";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import LogControls from "@/components/logging/controls/LogControls.vue";
 import LogHeader from "@/components/logging/header/LogHeader.vue";
-import LogEntry from "@/components/logging/lines/LogEntry.vue";
-import NonVirtualizedLogs from "@/components/logging/NonVirtualizedLogs.vue";
+import NonVirtualizedLogs from "@/components/logging/wrappers/NonVirtualizedLogs.vue";
+import VirtualizedLogs from "@/components/logging/wrappers/VirtualizedLogs.vue";
 import { InstanceLogsContextKey } from "@/constants/application.ts";
 import GlobalStateHelpers from "@/lib/global-state-helpers";
 import Logging from "@/lib/logging";
@@ -69,10 +67,6 @@ const mountedKey = ref<number>(Math.random());
 // Keeps track of index range text selections in virtualized mode
 const currentTextSelection = ref<[number, number] | undefined>(undefined);
 
-const { height } = useWindowSize();
-// Throttled window height is used for the virtualized list height
-const throttledHeight = refThrottled(height, 200);
-
 const filtering = computed((): string => globalStates?.logs?.filtering ?? "");
 const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
   if (filtering.value === "") {
@@ -90,23 +84,6 @@ const filteredLogs = computed((): (Array<[number, string]> | undefined) => {
   return filteredArray;
 });
 
-/*
- * The 1280 is just the maximum width of the container
- *
- * Subtract 128 to exclude the margins and paddings
- *          18  to exclude the approximate scrollbar width
- *          56  to exclude the line number width
- *          12  to exclude the paddings (px-1 & gap-1)
- */
-const virtualScrollContainerTextWidth = Math.min(1280, window.innerWidth - 128) - 18 - 56 - 12;
-
-/*
- * ~7.66 is a magical number that was obtained by dividing one line of a mono text
- * by the count of its characters.
- */
-const charactersPerLine = Math.floor(virtualScrollContainerTextWidth / 7.66);
-const nodeLineSize = 20;
-
 function scrollToIndex(index: number): void {
   searching.value.currentIndex = filteredLogs.value?.[index]?.[0];
   virtualList?.value?.scrollToIndex?.(index);
@@ -121,15 +98,7 @@ function setTextSelectionRange(newValue: [number, number] | undefined): void {
 function selectAllLogs(): void {
   Logging.selectAllText(nonVirtualList.value?.nonVirtualizedLogsTarget);
 }
-function getNodeHeight(node: string | [number, string]): number {
-  const actualNodeLine = typeof node === "string" ? node : node[1];
 
-  if (actualNodeLine.length === 0 || !globalStates?.logs?.lineBreaks) {
-    return nodeLineSize;
-  }
-
-  return nodeLineSize * Math.ceil(actualNodeLine.length / charactersPerLine);
-}
 function searchLogs(searchValue: string): Array<number> {
   const found: Array<number> = [];
   const lowerCaseSearch: string = searchValue.toLowerCase();
@@ -270,30 +239,16 @@ onMounted(async () => {
         id="__log-viewer__virtual-list-wrapper"
         class="group relative max-w-320 w-[calc(100vw-128px)] overflow-auto border border-neutral-300 bg-neutral-950 text-sm font-mono"
       >
-        <VirtualisedList
+        <VirtualizedLogs
           v-if="globalStates?.logs?.virtualized"
-          :key="
-            `${logs.length}-${globalStates?.logs?.lineBreaks}-${filtering}-
-             ${throttledHeight}-${globalStates?.logs?.mode}-${mountedKey}`
-          "
-          :get-node-height="getNodeHeight"
-          :viewport-height="throttledHeight - 248"
-          :nodes="filteredLogs ?? logs"
-          :id="globalStates?.logs?.lineBreaks ? '' : '__virtualized-list-logs'"
           ref="virtualList"
-          class="w-full"
-        >
-          <template #cell="slotProps">
-            <LogEntry
-              :line="slotProps.node"
-              :index="typeof slotProps.node === 'string'
-                ? slotProps.index
-                : slotProps.node[0]"
-              :searching="searching"
-              :selection-indexes="currentTextSelection"
-            />
-          </template>
-        </VirtualisedList>
+          :logs="logs"
+          :filtered-logs="filteredLogs"
+          :filtering="filtering"
+          :mounted-key="mountedKey"
+          :searching="searching"
+          :current-text-selection="currentTextSelection"
+        />
         <NonVirtualizedLogs
           v-else
           ref="nonVirtualList"
