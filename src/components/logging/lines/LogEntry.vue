@@ -126,7 +126,7 @@ const collapsedTargetLength: number = GlobalObject.variables.logs.collapsedTarge
         v-if="typeof extractedInformation.target === 'string'"
         :class="['__log-entry__target', Logging.getLogTargetColor(information.target)]"
       >
-        {{ toCollapseTarget
+        {{ toCollapseTarget && extractedInformation.target.length > 0
             ? `...${extractedInformation.target.slice(-1 * collapsedTargetLength)}`
             : extractedInformation.target }}
       </span>
@@ -142,7 +142,10 @@ const collapsedTargetLength: number = GlobalObject.variables.logs.collapsedTarge
       <span
         :id="`__log-entry__message-${index}`"
         v-if="typeof extractedInformation.message === 'string'"
-        class="__log-entry__message text-neutral-300"
+        :class="[
+          '__log-entry__message',
+          information.level === 'ERROR' ? 'text-red-300' : 'text-neutral-300',
+        ]"
       >
         {{ extractedInformation.message }}
       </span>
