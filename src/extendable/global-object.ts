@@ -28,7 +28,7 @@ export const GlobalObject: KaedeNamespaceType = {
     "rippleColor"     : "#ffffff15",
     "sparklesColorRGB": "255 255 255",
     "logs"            : {
-      "targetCollapse"       : true,
+      "targetCollapse"       : false,
       "collapsedTargetLength": 17,
     },
   },

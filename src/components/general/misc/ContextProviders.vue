@@ -26,9 +26,7 @@ import type {
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
-const accounts = ref<Array<AccountType>>(
-  GlobalInternals.temporaryAccounts,
-);
+const accounts = ref<Array<AccountType>>(GlobalInternals.temporaryAccounts);
 const launches = reactive<Record<string, LauncherStatusesType>>({});
 const logs = shallowReactive<Record<string, Array<string>>>({});
 
@@ -178,7 +176,7 @@ async function closeInstance(instanceId: string): Promise<void> {
 /*
  * AFAIK, even unrestricted extensions should not be able to access this context
  * although they can still just read the 'accounts.json' file
- * or do whatever they want in the system.
+ * or do whatever else they want to do in the system.
  */
 provide<WrappedAccountsType>(AuthStatesContextKey, accounts);
 
