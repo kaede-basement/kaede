@@ -16,37 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { Command } from "tauri-plugin-shellx-api";
 
-import FileStructure from "@/constants/file-structure.ts";
-import Errors from "@/lib/errors";
 import {
   handleServerProcess,
 } from "@/lib/extensions-manager/scopes/txiki/handle-server-process.ts";
-import General from "@/lib/general";
-import { log } from "@/lib/logging/scopes/log.ts";
 
-export async function serveCode(name: string, code: string): Promise<void> {
-  const filePath: string = General.cachedJoin(
-    General.getCachedBaseDirectory(),
-    FileStructure.Folders.Resources.Path,
-    `txiki-${name}-${Date.now()}.txiki`,
-  );
-
-  try {
-    log.debug(__PRE_BUNDLED_FILENAME__, "Writing code contents to host txiki");
-    await writeTextFile(filePath, code);
-  } catch (error: unknown) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to create a code file to host txiki:",
-      Errors.prettify(error),
-    );
-
-    return;
-  }
-
+export async function serveFile(name: string, filePath: string): Promise<void> {
   const command: Command<string> = Command.sidecar("txiki-server", [
     "serve",
     "--port",

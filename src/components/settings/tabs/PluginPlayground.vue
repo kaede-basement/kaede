@@ -48,6 +48,7 @@ import { serverProcesses } from "@/states/servers.ts";
 
 const codeToEvaluate = ref<string>(`// Imports, basically
 const { General, ExtensionsManager } = window.__KAEDE__.libs;
+const FileStructure = window.__KAEDE__.constants.FileStructure;
 
 const answer = await confirm("Do you want to host a txiki.js server?");
 
@@ -55,10 +56,15 @@ if (!answer) {
   return;
 }
 
-const name = "test";
-const code = "return 123;";
+const name = "Discord RPC";
+// Unfortunately, the autocomplete only works when you directly use 'window.__KAEDE_'
+const filePath = General.cachedJoin(
+  General.getCachedBaseDirectory(),
+  FileStructure.Folders.Extensions.Path,
+  "discord-rpc.txiki",
+);
 
-ExtensionsManager.serveCode(name, code);
+ExtensionsManager.serveFile(name, filePath);
 `);
 
 async function handleCode(): Promise<void> {
@@ -159,7 +165,7 @@ onMounted(() => {
         >
           <div
             :id="`__settings-page__plugin-playground__server-info-${server.name}`"
-            class="shrink-0 px-1"
+            class="shrink-0 select-text px-1"
           >
             {{ server.name }}
             <span
