@@ -39,6 +39,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": [
+      "binaries/txiki-server"
+    ],
     "resources": [
       "jarfiles/launcher.jar"
     ],
