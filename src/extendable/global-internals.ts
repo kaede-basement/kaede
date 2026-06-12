@@ -41,4 +41,5 @@ export const GlobalInternals: KaedeInternalsType = {
   "initialPortable"     : false,
   "initialBaseDirectory": "",
   "logsInBrowser"       : [],
+  "serverProcesses"     : [],
 };

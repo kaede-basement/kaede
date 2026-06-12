@@ -29,6 +29,7 @@ import { readAllMetadata } from "@/lib/extensions-manager/scopes/read-all-metada
 import { runInSandbox } from "@/lib/extensions-manager/scopes/run-in-sandbox.ts";
 import { runInUnrestricted } from "@/lib/extensions-manager/scopes/run-in-unrestricted.ts";
 import { showWebviewWindow } from "@/lib/extensions-manager/scopes/show-webview-window.ts";
+import { serveCode } from "@/lib/extensions-manager/scopes/txiki/serve-code.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 export default {
@@ -56,5 +57,6 @@ export default {
   readAllMetadata,
   runInSandbox,
   runInUnrestricted,
+  serveCode,
   showWebviewWindow,
 } as const;

@@ -160,6 +160,16 @@ declare global {
       /* Needed for browser environments (non-application) */
       "logsInBrowser"       : Array<string>;
       "indexedDB"          ?: IDBDatabase;
+
+      /* Stores the server processes */
+      "serverProcesses"     : Array<{
+        "name" : string;
+        "value": {
+          "pid"  : number;
+          "kill" : () => Promise<void>;
+          "write": (data: string | Uint8Array | number[]) => Promise<void>;
+        };
+      }>;
     };
 
     /**
