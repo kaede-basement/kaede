@@ -22,7 +22,11 @@ import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import { serverProcesses } from "@/states/servers.ts";
 
-export async function handleServerProcess(command: Command<string>, name: string): Promise<void> {
+export async function handleServerProcess(
+  command: Command<string>,
+  name: string,
+  port: number,
+): Promise<void> {
   command.stdout.on("data", data => {
     log.debug(__PRE_BUNDLED_FILENAME__, "Received data for a txiki server:" + "\n", data);
   });
@@ -38,6 +42,7 @@ export async function handleServerProcess(command: Command<string>, name: string
 
   GlobalInternals.serverProcesses.push({
     "name" : name,
+    "port" : port,
     "value": await command.spawn(),
   });
   serverProcesses.value = [...GlobalInternals.serverProcesses];

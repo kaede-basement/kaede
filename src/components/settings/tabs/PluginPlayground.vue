@@ -169,10 +169,10 @@ onMounted(() => {
           >
             {{ server.name }}
             <span
-              :id="`__settings-page__plugin-playground__server-pid-${server.name}`"
+              :id="`__settings-page__plugin-playground__server-port-${server.name}`"
               class="shrink-0 text-neutral-400"
             >
-            PID: {{ server.value.pid }}
+            Port: {{ server.port }}
           </span>
           </div>
           <button

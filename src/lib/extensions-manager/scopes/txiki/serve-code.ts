@@ -21,6 +21,7 @@ import { Command } from "tauri-plugin-shellx-api";
 
 import FileStructure from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
+import { getFreePort } from "@/lib/extensions-manager/scopes/txiki/get-free-port.ts";
 import {
   handleServerProcess,
 } from "@/lib/extensions-manager/scopes/txiki/handle-server-process.ts";
@@ -47,12 +48,13 @@ export async function serveCode(name: string, code: string): Promise<void> {
     return;
   }
 
+  const port: number = getFreePort();
   const command: Command<string> = Command.sidecar("txiki-server", [
     "serve",
     "--port",
-    "0",
+    port.toString(),
     filePath,
   ]);
 
-  return handleServerProcess(command, name);
+  return handleServerProcess(command, name, port);
 }

@@ -164,6 +164,7 @@ declare global {
       /* Stores the server processes */
       "serverProcesses"     : Array<{
         "name" : string;
+        "port" : number;
         "value": {
           "pid"  : number;
           "kill" : () => Promise<void>;

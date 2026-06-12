@@ -16,21 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Command } from "tauri-plugin-shellx-api";
+// eslint-disable-next-line unicorn/numeric-separators-style
+let currentPort: number = 42069;
 
-import { getFreePort } from "@/lib/extensions-manager/scopes/txiki/get-free-port.ts";
-import {
-  handleServerProcess,
-} from "@/lib/extensions-manager/scopes/txiki/handle-server-process.ts";
-
-export async function serveFile(name: string, filePath: string): Promise<void> {
-  const port: number = getFreePort();
-  const command: Command<string> = Command.sidecar("txiki-server", [
-    "serve",
-    "--port",
-    port.toString(),
-    filePath,
-  ]);
-
-  return handleServerProcess(command, name, port);
+export function getFreePort(): number {
+  return currentPort++;
 }
