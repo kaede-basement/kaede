@@ -31,6 +31,7 @@
     "@vueuse/core": "^14.0.0",
     "htmlparser2": "^10.0.0",
     "m3ripple-vue": "^0.1.0",
+    "prism-code-editor": "^5.2.0",
     "ses": "^1.14.0",
     "skin3d": "^0.1.3",
     "tauri-plugin-drpc": "^1.0.3",
