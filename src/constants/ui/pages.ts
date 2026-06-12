@@ -49,3 +49,10 @@ export const LazyAddInstance = defineAsyncComponent(
 export const LazyProfile = defineAsyncComponent(
   () => import("@/components/profile/Profile.vue"),
 );
+
+/**
+ * Settings-specific lazy-loaded components
+ */
+export const LazyPluginPlayground = defineAsyncComponent(
+  () => import("@/components/settings/tabs/PluginPlayground.vue"),
+);

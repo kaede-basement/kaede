@@ -2,6 +2,7 @@
 import { ref } from "vue";
 
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
+import { LazyPluginPlayground } from "@/constants/ui/pages.ts";
 
 const currentTab = ref<string>("general");
 
@@ -39,6 +40,8 @@ function handleTab(tab: string): void {
           Plugin Playground
         </button>
       </div>
+      <div v-if="currentTab === 'general'"></div>
+      <LazyPluginPlayground v-else-if="currentTab === 'plugin-playground'" />
     </div>
   </PageWrapper>
 </template>
