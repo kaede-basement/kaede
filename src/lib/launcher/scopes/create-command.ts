@@ -64,10 +64,10 @@ export async function createCommand({
 
   const launchArguments: Array<string> = Arguments.replaceLaunchArguments({
     "auth": {
-      "uuid"    : "3206b5f6acd3419ea2977d120f510767",
+      "uuid"    : "0204254bf42f3ceeb58de7d6f7890452",
       "token"   : "none",
       "username": "windstone_",
-      "type"    : "msa",
+      "type"    : "mojang",
     },
     "builtLaunchArguments": {
       toReplace,
