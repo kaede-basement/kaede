@@ -1,11 +1,6 @@
+import { AsyncFunction } from "@/constants/application.ts";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
-
-/*
- * JavaScript allows 'AsyncFunction' constructors.
- * see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncFunction
- */
-const AsyncFunction = async function (): Promise<void> {}.constructor as FunctionConstructor;
 
 export async function runInUnrestricted(id: string, code: string): Promise<void> {
   const startTime = performance.now();

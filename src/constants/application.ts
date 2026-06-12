@@ -28,6 +28,12 @@ export const InstanceLogsContextKey = Symbol();
 export const LaunchInstanceContextKey = Symbol();
 export const CloseInstanceContextKey = Symbol();
 
+/*
+ * JavaScript allows 'AsyncFunction' constructors.
+ * see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncFunction
+ */
+export const AsyncFunction = async function (): Promise<void> {}.constructor as FunctionConstructor;
+
 export const CSSThemeExtensions = {
   "Enabled" : ".css",
   "Disabled": ".css.disabled",
