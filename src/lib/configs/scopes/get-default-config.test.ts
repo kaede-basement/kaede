@@ -55,7 +55,6 @@ test(testName, async () => {
     },
     "misc": {
       "showAfterExtensionsInitialization": false,
-      "enableDiscordRPC"                 : false,
       "autoConfigSync"                   : false,
     },
   };

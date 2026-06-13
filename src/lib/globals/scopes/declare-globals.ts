@@ -1,6 +1,4 @@
 import { cancel, onInvalidUrl, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
-import * as DiscordRPC from "tauri-plugin-drpc";
-import * as DiscordRPCClasses from "tauri-plugin-drpc/activity.ts";
 import * as ShellXPlugin from "tauri-plugin-shellx-api";
 
 import _Application from "@/constants/application.ts";
@@ -32,10 +30,6 @@ import { getInstanceStates } from "@/states/instance.ts";
 
 export function declareGlobals(): void {
   window.__TAURI_PLUGINS_COMMUNITY__ = {
-    "discord": {
-      ...DiscordRPC,
-      ...DiscordRPCClasses,
-    },
     "oauth2": {
       cancel,
       onInvalidUrl,

@@ -50,7 +50,6 @@ const defaultConfig: ConfigType = {
   },
   "misc": {
     "showAfterExtensionsInitialization": false,
-    "enableDiscordRPC"                 : false,
     "autoConfigSync"                   : false,
   },
 };

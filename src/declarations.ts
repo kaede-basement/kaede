@@ -27,8 +27,6 @@ import type * as TauriOpener from "@tauri-apps/plugin-opener";
 import type * as TauriOs from "@tauri-apps/plugin-os";
 import type * as TauriProcess from "@tauri-apps/plugin-process";
 import type * as TauriUpload from "@tauri-apps/plugin-upload";
-import type * as TauriDiscordRpc from "tauri-plugin-drpc";
-import type * as TauriDiscordRpcClasses from "tauri-plugin-drpc/activity";
 
 import type _Application from "@/constants/application.ts";
 import type _ASCIIArt from "@/constants/ascii-art.ts";
@@ -108,7 +106,6 @@ declare global {
 
     /* Tauri community plugins */
     "__TAURI_PLUGINS_COMMUNITY__": {
-      "discord": typeof TauriDiscordRpc & typeof TauriDiscordRpcClasses;
       "oauth2" : typeof TauriOAuth2;
       "shell"  : object;
     };

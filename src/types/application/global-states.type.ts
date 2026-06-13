@@ -114,7 +114,6 @@ export type GlobalStatesDevelopmentType = {
 };
 export type GlobalStatesMiscType = {
   "showAfterExtensionsInitialization": boolean;
-  "enableDiscordRPC"                 : boolean;
   "autoConfigSync"                   : boolean;
 };
 // Global minecraft settings
