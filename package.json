@@ -31,6 +31,7 @@
     "@tauri-apps/plugin-upload": "~2",
     "@vueuse/core": "^14.0.0",
     "htmlparser2": "^10.0.0",
+    "jshashes": "^1.0.8",
     "m3ripple-vue": "^0.1.0",
     "prism-code-editor": "^5.2.0",
     "ses": "^1.14.0",

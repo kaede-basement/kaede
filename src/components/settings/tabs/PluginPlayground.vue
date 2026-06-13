@@ -39,39 +39,19 @@ import {
 } from "prism-code-editor/autocomplete/javascript";
 import { cursorPosition } from "prism-code-editor/cursor";
 import { indentGuides } from "prism-code-editor/guides";
-import { onMounted, ref } from "vue";
+import { onMounted } from "vue";
 
 import { AsyncFunction } from "@/constants/application.ts";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
+import { codeOutput, codeToEvaluate } from "@/states/plugin-playground.ts";
 import { serverProcesses } from "@/states/servers.ts";
-
-const codeToEvaluate = ref<string>(`// Imports, basically
-const { General, ExtensionsManager } = window.__KAEDE__.libs;
-const FileStructure = window.__KAEDE__.constants.FileStructure;
-
-const answer = await confirm("Do you want to host a txiki.js server?");
-
-if (!answer) {
-  return;
-}
-
-const name = "Discord RPC";
-// Unfortunately, the autocomplete only works when you directly use 'window.__KAEDE_'
-const filePath = General.cachedJoin(
-  General.getCachedBaseDirectory(),
-  FileStructure.Folders.Extensions.Path,
-  "discord-rpc.txiki",
-);
-
-ExtensionsManager.serveFile(name, filePath);
-`);
 
 async function handleCode(): Promise<void> {
   try {
     const userPlugin = new AsyncFunction(codeToEvaluate.value);
 
-    await userPlugin();
+    codeOutput.value = await userPlugin();
   } catch (error: unknown) {
     log.error(
       __PRE_BUNDLED_FILENAME__,
@@ -126,7 +106,7 @@ onMounted(() => {
       id="__settings-page__plugin-playground__description"
       class="text-neutral-300"
     >
-      A place where you can experiment with your Kaede plugins. Any running servers will be shown on the right side.
+      A place where you can experiment with your Kaede plugins. Any running servers will be shown on the right side. Your code and output will be lost as soon as you reload the UI or close the launcher.
     </div>
     <button
       id="__settings-page__plugin-playground__execute"
@@ -145,8 +125,20 @@ onMounted(() => {
       ></div>
       <div
         id="__settings-page__plugin-playground__servers"
-        class="w-full flex shrink-0 flex-col gap-2 sm:w-48"
+        class="w-full flex shrink-0 flex-col select-text gap-2 lg:w-80 sm:w-48"
       >
+        <div
+          id="__settings-page__plugin-playground__code-output"
+          class="rounded-md bg-[#0d1117] px-2 py-1 text-neutral-300"
+        >
+          Output:
+          <div
+            id="__settings-page__plugin-playground__code-output-area"
+            class="whitespace-pre-wrap break-all rounded-md bg-[#171b22] p-1 text-xs text-white"
+          >
+            {{ codeOutput }}
+          </div>
+        </div>
         <div
           id="__settings-page__plugin-playground__server-header"
           class="rounded-md bg-[#0d1117] px-2 py-1 text-neutral-300"
@@ -165,7 +157,7 @@ onMounted(() => {
         >
           <div
             :id="`__settings-page__plugin-playground__server-info-${server.name}`"
-            class="shrink-0 select-text px-1"
+            class="shrink-0 px-1"
           >
             {{ server.name }}
             <span
