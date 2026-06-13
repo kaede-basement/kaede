@@ -16,28 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ref } from "vue";
+// @ts-expect-error No TypeScript declaration file found
+import * as Hashes from "jshashes";
 
-export const codeOutput = ref<string>("");
-export const codeToEvaluate = ref<string>(`// Imports, basically
-const { General, ExtensionsManager } = window.__KAEDE__.libs;
-const FileStructure = window.__KAEDE__.constants.FileStructure;
+export function hashFileContents(image: Uint8Array): string {
+  const SHA256 = new Hashes.SHA256;
 
-const answer = await confirm("Do you want to host a txiki.js server?");
+  SHA256.setUTF8(false);
 
-if (!answer) {
-  return;
+  const contents: Array<string> = [];
+
+  // 'image.map' does not really work in this case
+  for (const byte of image) {
+    contents.push(String.fromCodePoint(byte));
+  }
+
+  return SHA256.hex(contents.join(""));
 }
-
-const name = "Discord RPC";
-// Unfortunately, the autocomplete only works when you directly use 'window.__KAEDE_'
-const filePath = General.cachedJoin(
-  General.getCachedBaseDirectory(),
-  FileStructure.Folders.Extensions.Path,
-  "discord-rpc.tjs",
-);
-
-ExtensionsManager.serveFile(name, filePath);
-
-alert("Done");
-`);

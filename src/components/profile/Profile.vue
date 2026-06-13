@@ -18,10 +18,8 @@ onMounted(async () => {
     return;
   }
 
-  // Register renderer plugin (required before creating viewer)
   use(WebGLRendererPlugin);
 
-  // Create viewer
   const viewer = await createSkinViewer({
     "canvas": canvas.value,
     "skin"  : "https://textures.minecraft.net/texture/6ac65b1fd2d7b3dbaeeb702fad5932c4117a1e5f7d7db2531662baecdc48923",

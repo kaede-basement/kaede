@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { exists, writeTextFile } from "@tauri-apps/plugin-fs";
 import { Command } from "tauri-plugin-shellx-api";
 
 import FileStructure from "@/constants/file-structure.ts";
@@ -29,23 +29,28 @@ import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
 
 export async function serveCode(name: string, code: string): Promise<void> {
+  const hash: string = General.hashStringCrypto(code);
+  const shortHash: string = hash.slice(0, 7);
   const filePath: string = General.cachedJoin(
     General.getCachedBaseDirectory(),
-    FileStructure.Folders.Resources.Path,
-    `txiki-${name}-${Date.now()}.txiki`,
+    FileStructure.Folders.Extensions.Path,
+    `tjs-${name}-${shortHash}.tjs`,
   );
+  const alreadyExists: boolean = await exists(filePath);
 
-  try {
-    log.debug(__PRE_BUNDLED_FILENAME__, "Writing code contents to host txiki");
-    await writeTextFile(filePath, code);
-  } catch (error: unknown) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to create a code file to host txiki:",
-      Errors.prettify(error),
-    );
+  if (!alreadyExists) {
+    try {
+      log.debug(__PRE_BUNDLED_FILENAME__, "Writing code contents to host txiki");
+      await writeTextFile(filePath, code);
+    } catch (error: unknown) {
+      log.error(
+        __PRE_BUNDLED_FILENAME__,
+        "Failed to create a code file to host txiki:",
+        Errors.prettify(error),
+      );
 
-    return;
+      return;
+    }
   }
 
   const port: number = getFreePort();

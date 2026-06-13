@@ -18,9 +18,10 @@ import { getRelativeDate } from "@/lib/general/scopes/get-relative-date.ts";
 import { getSha1Mismatches } from "@/lib/general/scopes/get-sha1-mismatches.ts";
 import { getSidebarInnerStyles } from "@/lib/general/scopes/get-sidebar-inner-styles.ts";
 import { handleJsonFile } from "@/lib/general/scopes/handle-json-file.ts";
-import { hashImageContents } from "@/lib/general/scopes/hash-image-contents.ts";
+import { hashFileContents } from "@/lib/general/scopes/hash-file-contents.ts";
 import { hashOfflineNickname } from "@/lib/general/scopes/hash-offline-nickname.ts";
 import { hashString } from "@/lib/general/scopes/hash-string.ts";
+import { hashStringCrypto } from "@/lib/general/scopes/hash-string-crypto.ts";
 import { initializeLauncher } from "@/lib/general/scopes/initialize-launcher.ts";
 import { unzip } from "@/lib/general/scopes/unzip.ts";
 
@@ -46,9 +47,10 @@ export default {
   getRelativeDate,
   getSidebarInnerStyles,
   handleJsonFile,
-  hashImageContents,
+  hashFileContents,
   hashOfflineNickname,
   hashString,
+  hashStringCrypto,
   initializeLauncher,
   unzip,
 } as const;
