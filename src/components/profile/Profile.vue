@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { createSkinViewer, use } from "@daidr/minecraft-skin-renderer";
 import { WebGLRendererPlugin } from "@daidr/minecraft-skin-renderer/webgl";
-import { fetch } from "@tauri-apps/plugin-http";
 import { inject, onMounted, ref, useTemplateRef } from "vue";
 
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
@@ -15,17 +14,6 @@ const status = ref<string>("loading");
 const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
 onMounted(async () => {
-  const [skinResponse, capeResponse] = await Promise.all([
-    fetch("https://s.namemc.com/i/e8b73a9b9b857a22.png"),
-    fetch("https://optifine.net/capes/windstone_.png"),
-  ]);
-  const [skinBlob, capeBlob] = await Promise.all([
-    skinResponse.blob(),
-    capeResponse.blob(),
-  ]);
-  const skin: string = URL.createObjectURL(skinBlob);
-  const cape: string = URL.createObjectURL(capeBlob);
-
   if (!canvas.value) {
     return;
   }
@@ -36,8 +24,7 @@ onMounted(async () => {
   // Create viewer
   const viewer = await createSkinViewer({
     "canvas": canvas.value,
-    "skin"  : skin,
-    "cape"  : cape,
+    "skin"  : "https://textures.minecraft.net/texture/6ac65b1fd2d7b3dbaeeb702fad5932c4117a1e5f7d7db2531662baecdc48923",
     "slim"  : true,
   });
 
