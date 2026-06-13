@@ -106,8 +106,8 @@ declare global {
 
     /* Tauri community plugins */
     "__TAURI_PLUGINS_COMMUNITY__": {
-      "oauth2" : typeof TauriOAuth2;
-      "shell"  : object;
+      "oauth2": typeof TauriOAuth2;
+      "shell" : object;
     };
 
     /**
