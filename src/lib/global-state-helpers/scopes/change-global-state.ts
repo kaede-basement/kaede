@@ -32,12 +32,10 @@ export function changeGlobalState<Key extends keyof GlobalStatesType>(
     return;
   }
 
-  log.debug(
-    __PRE_BUNDLED_FILENAME__,
-    "Changing the global state.",
-    `Key: ${key};`,
-    `value: \n${JSON.stringify(value, null, 2)}`,
-  );
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
+    `Changing the global state. Key: ${key}; value`,
+    value,
+  ));
   globalStates[key] = value;
 
   nextTick().then(async () => {

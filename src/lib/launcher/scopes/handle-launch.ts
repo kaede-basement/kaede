@@ -61,11 +61,11 @@ export async function handleLaunch({
     logPrefix,
   });
 
-  log.info(
-    // Same as 'necessaries.logPrefix'
-    logPrefix,
-    log.templates.json.contents("Pre-launch information", necessaries),
-  );
+  // Same as 'necessaries.logPrefix'
+  log.info(logPrefix, log.templates.json.contents(
+    "Pre-launch information contents",
+    necessaries,
+  ));
 
   if (necessaries === false) {
     log.warn(
@@ -108,16 +108,13 @@ export async function handleLaunch({
     necessaries,
   });
 
-  log.info(
-    necessaries.logPrefix,
-    log.templates.json.contents(
-      "Finalized patch",
-      {
-        ...finalizedPatch,
-        "artifacts": "[ ... ] (" + finalizedPatch.artifacts.length + " entries)",
-      },
-    ),
-  );
+  log.info(necessaries.logPrefix, log.templates.json.contents(
+    "Finalized patch contents",
+    {
+      ...finalizedPatch,
+      "artifacts": "[ ... ] (" + finalizedPatch.artifacts.length + " entries)",
+    },
+  ));
 
   const responses: Array<boolean> = await Promise.all([
     Fetching.downloadAssets({ necessaries, finalizedPatch }),

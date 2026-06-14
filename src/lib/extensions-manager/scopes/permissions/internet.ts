@@ -8,11 +8,10 @@ export function handleInternetPermission(id: string): void {
     input: RequestInfo | URL,
     init?: RequestInit,
   ): Promise<Response> => {
-    log.debug(
-      __PRE_BUNDLED_FILENAME__,
-      `The '${id}' plugin made a Web fetch call with the next params:`,
-      "\n" + JSON.stringify({ input, init }, null, 2),
-    );
+    log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
+      `The '${id}' plugin made a Web fetch call with the next params`,
+      { input, init },
+    ));
 
     return fetch(input, init);
   };
@@ -20,11 +19,10 @@ export function handleInternetPermission(id: string): void {
     input: URL | Request | string,
     init?: RequestInit & ClientOptions,
   ): Promise<Response> => {
-    log.debug(
-      __PRE_BUNDLED_FILENAME__,
-      `The '${id}' plugin made a Tauri fetch call with the next params:`,
-      "\n" + JSON.stringify({ input, init }, null, 2),
-    );
+    log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
+      `The '${id}' plugin made a Tauri fetch call with the next params`,
+      { input, init },
+    ));
 
     return tauriFetch(input, init);
   };

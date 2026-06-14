@@ -36,14 +36,10 @@ const currentGlance = computed((): AtAGlanceType => {
     return newAtAGlance;
   }
 
-  log.debug(
-    __PRE_BUNDLED_FILENAME__,
-    "Showing a custom 'At a Glance' text:" + "\n" + JSON.stringify(
-      configGlance,
-      null,
-      2,
-    ),
-  );
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
+    "Showing a custom 'At a Glance' text",
+    configGlance,
+  ));
 
   return {
     "title"   : configGlance.title,

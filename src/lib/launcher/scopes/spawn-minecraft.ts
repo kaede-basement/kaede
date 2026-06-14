@@ -71,11 +71,10 @@ export async function spawnMinecraft({
   launchTask.stderr.on("data", onInput);
   launchTask.on("close", payload => {
     onClose(instanceId);
-    log.warn(
-      logPrefix,
-      "Successfully closed. Payload:",
-      "\n" + JSON.stringify(payload, null, 2),
-    );
+    log.warn(logPrefix, log.templates.json.contents(
+      "Successfully closed. Payload",
+      payload,
+    ));
     ExtensionsManager.catchAsyncVoidHooks({
       "scope" : "onMinecraftKill",
       "toPass": process.pid,
@@ -85,11 +84,10 @@ export async function spawnMinecraft({
   launchTask.on("error", payload => {
     statuses.current = LaunchStatus.Errors.UnhandledError;
 
-    log.error(
-      logPrefix,
-      "Something went wrong. Payload:",
-      "\n" + JSON.stringify(payload, null, 2),
-    );
+    log.error(logPrefix, log.templates.json.contents(
+      "Something went wrong. Payload",
+      payload,
+    ));
     ExtensionsManager.catchAsyncVoidHooks({
       "scope" : "onMinecraftKill",
       "toPass": process.pid,

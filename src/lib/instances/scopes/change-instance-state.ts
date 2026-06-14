@@ -30,12 +30,10 @@ export function changeInstanceState<Key extends keyof InstanceStatesType>(
     return;
   }
 
-  log.debug(
-    __PRE_BUNDLED_FILENAME__,
-    "Changing instance state.",
-    `Key: ${key};`,
-    `value: \n${JSON.stringify(value, null, 2)}`,
-  );
+  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
+    `Changing instance state. Key: ${key}; value`,
+    value,
+  ));
   instanceStates[key] = value;
 
   nextTick().then(async () => {

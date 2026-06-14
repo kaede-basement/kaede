@@ -27,11 +27,10 @@ export function parseLogging({
     logging?.file === undefined ||
     logging?.argument === undefined
   ) {
-    log.warn(
-      descriptiveLogPrefix,
-      "The 'logging' field is invalid. Contents:",
-      "\n" + JSON.stringify(logging, null, 2),
-    );
+    log.warn(descriptiveLogPrefix, log.templates.json.contents(
+      "The 'logging' field is invalid. Contents",
+      logging,
+    ));
     statuses.current = LaunchStatus.Logging.FailedToParse;
 
     return false;

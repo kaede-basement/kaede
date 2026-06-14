@@ -3,6 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { capitalize } from "@/lib/general/scopes/capitalize.ts";
 import type { LogMethodType } from "@/types/logging/log-method.type.ts";
 
+const nonDebugModeMessage: string = "  " +
+  "log#debug method points to lod#__debug-undefined. What is happening?";
+
 function invokeLog(
   level: number,
   message: string,
@@ -52,10 +55,15 @@ export const log = {
   "templates": {
     "json": {
       "contents": (label: string, data: unknown): string => (
-        label + " contents:" + "\n" + JSON.stringify(
-          data,
-          null,
-          2,
+
+        /*
+         * Assemble the log message only if debug messages will be logged
+         * since JSON#stringify method may produce an expensive output
+         */
+        label + ":\n" + (
+          log.debug === log["__debug-undefined"]
+            ? nonDebugModeMessage
+            : JSON.stringify(data, null, 2)
         )
       ),
     },
@@ -82,10 +90,19 @@ export const log = {
           index: number,
           time: number,
         ): string => (
+
+          /*
+           * Assemble the log message only if debug messages will be logged
+           * since JSON#stringify method may produce an expensive output
+           */
           [
             `'${key}.${position}' iterate: '${index}' index.`,
             `Hook execution ended in ${time.toFixed(1)} ms.`,
-            `Hook response: \n${JSON.stringify(value, null, 2)}`,
+            `Hook response:\n${
+              log.debug === log["__debug-undefined"]
+                ? nonDebugModeMessage
+                : JSON.stringify(value, null, 2)
+            }`,
           ].join(" ")
         ),
         "no-response": (

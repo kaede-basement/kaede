@@ -136,11 +136,11 @@ if (config.development?.enableDebugMode) {
    * we are sure that the debug messages will be logged
    */
   log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-    "Config",
+    "Config contents",
     config,
   ));
   log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-    "Instances metadata",
+    "Instances metadata contents",
     instances,
   ));
 }

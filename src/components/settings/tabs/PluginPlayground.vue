@@ -41,6 +41,7 @@ import { cursorPosition } from "prism-code-editor/cursor";
 import { indentGuides } from "prism-code-editor/guides";
 import { onMounted } from "vue";
 
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { AsyncFunction } from "@/constants/application.ts";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
@@ -106,14 +107,15 @@ onMounted(() => {
       id="__settings-page__plugin-playground__description"
       class="text-neutral-300"
     >
-      A place where you can experiment with your Kaede plugins. Any running servers will be shown on the right side. Your code and output will be lost as soon as you reload the UI or close the launcher.
+      A place where you can experiment with your Kaede plugins. Your code and output will be lost as soon as you reload the UI or close the launcher.
     </div>
     <button
       id="__settings-page__plugin-playground__execute"
       @click="handleCode"
-      class="flex"
+      class="relative ml-1 w-fit flex rounded-md bg-[#0d1117] px-2 py-1 text-neutral-300"
     >
       Execute the code
+      <MaterialRipple />
     </button>
     <div
       id="__settings-page__plugin-playground__active-zone"
@@ -134,7 +136,7 @@ onMounted(() => {
           Output:
           <div
             id="__settings-page__plugin-playground__code-output-area"
-            class="whitespace-pre-wrap break-all rounded-md bg-[#171b22] p-1 text-xs text-white"
+            class="min-h-6 whitespace-pre-wrap break-all rounded-md bg-[#171b22] p-1 text-xs text-white font-mono"
           >
             {{ codeOutput }}
           </div>

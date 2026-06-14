@@ -66,13 +66,10 @@ function handleLaunch(): void {
   launchInstance(instanceId)
     .then(() => {
       if (!instanceId || !instanceContent) {
-        return log.error(
-          __PRE_BUNDLED_FILENAME__,
-          log.templates.json.contents(
-            "The instance ID or data is invalid. Provided",
-            { instanceId, instanceContent },
-          ),
-        );
+        return log.error(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
+          "The instance ID or data is invalid. Provided contents",
+          { instanceId, instanceContent },
+        ));
       }
 
       Instances.change(instanceId, {

@@ -18,7 +18,7 @@ const selected = computed((): string => (
   <PageWrapper>
     <div
       id="__settings-page__wrapper"
-      class="h-full w-full flex flex-col gap-2 py-2 pr-2"
+      class="h-fit sm:h-full w-full flex flex-col gap-2 py-2 pr-2"
     >
       <Tabs
         :sections="SettingsSections"

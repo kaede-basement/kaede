@@ -121,11 +121,10 @@ export async function resolvePatchVersion({
     !("version" in parsedPatchIndex.versions[0]) ||
     typeof parsedPatchIndex.versions[0].version !== "string"
   ) {
-    log.error(
-      logPrefix,
-      "Failed to shallowly validate the index manifest. Contents:",
-      "\n" + JSON.stringify(parsedPatchIndex, null, 2),
-    );
+    log.error(logPrefix, log.templates.json.contents(
+      "Failed to shallowly validate the index manifest. Contents",
+      parsedPatchIndex,
+    ));
     statuses.current = LaunchStatus.PatchIndex.FailedToValidate;
 
     return false;
