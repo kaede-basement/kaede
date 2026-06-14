@@ -5,5 +5,56 @@
   "windows": [
     "*"
   ],
-  "permissions": []
+  "permissions": [
+    {
+      "identifier": "shellx:allow-execute",
+      "allow": [
+        {
+          "name": "txiki-server",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    },
+    {
+      "identifier": "shellx:allow-spawn",
+      "allow": [
+        {
+          "name": "txiki-server",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    },
+    {
+      "identifier": "shellx:allow-stdin-write",
+      "allow": [
+        {
+          "name": "txiki-server",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    },
+    {
+      "identifier": "shellx:allow-kill",
+      "allow": [
+        {
+          "name": "txiki-server",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    },
+    {
+      "identifier": "shellx:allow-open",
+      "allow": [
+        {
+          "name": "txiki-server",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    }
+  ]
 }
