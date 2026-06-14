@@ -37,7 +37,7 @@ const filePath = General.cachedJoin(
   "discord-rpc.tjs",
 );
 
-ExtensionsManager.serveFile(name, filePath);
+await ExtensionsManager.serveFile(name, filePath);
 
 alert("Done");
 `);

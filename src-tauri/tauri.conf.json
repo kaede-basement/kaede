@@ -40,7 +40,7 @@
     "active": true,
     "targets": "all",
     "externalBin": [
-      "binaries/txiki-server"
+      "txiki-server"
     ],
     "resources": [
       "jarfiles/launcher.jar"
