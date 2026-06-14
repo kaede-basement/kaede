@@ -192,6 +192,22 @@ jobs:
           prerelease: true
           args: ${{ matrix.args }}
 
+      - name: Bundle txiki-server (Windows, non-setup)
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows' && matrix.type == 'portable'
+        run: |
+          New-Item -ItemType Directory -Force -Path portable-build
+          Copy-Item "./src-tauri/target/release/${{ steps.json_properties.outputs.productName }}.exe" -Destination "portable-build/"
+          Copy-Item "./src-tauri/binaries/txiki-server-x86_64-pc-windows-msvc.exe" -Destination "portable-build/binaries/txiki-server-x86_64-pc-windows-msvc.exe"
+          Compress-Archive -Path portable-build\* -DestinationPath "${{ steps.json_properties.outputs.productName }}_${{ steps.json_properties.outputs.version }}.zip"
+
+      - name: Upload binary (Windows, non-setup)
+        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows' && matrix.type == 'portable'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          if-no-files-found: "warn"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-windows-non-setup-${{steps.json_properties.outputs.version}}-${{ matrix.type }}-${{ github.ref_name }}"
+          path: "${{ steps.json_properties.outputs.productName }}_${{ steps.json_properties.outputs.version }}.zip"
+
       - name: Upload binary (Windows, NSIS)
         if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows' && matrix.type != 'portable'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -208,13 +224,14 @@ jobs:
           name: "${{ steps.json_properties.outputs.productName }}-dev-windows-msi-${{steps.json_properties.outputs.version}}-${{ matrix.type }}-${{ github.ref_name }}"
           path: "./src-tauri/target/release/bundle/msi/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64_en-US.msi"
 
-      - name: Upload binary (Windows, non-setup)
-        if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-windows-non-setup-${{steps.json_properties.outputs.version}}-${{ matrix.type }}-${{ github.ref_name }}"
-          path: "./src-tauri/target/release/${{ steps.json_properties.outputs.productName }}.exe"
+      # txiki-server is not being bundled with this step, see the appropriate step above
+      # - name: Upload binary (Windows, non-setup)
+      #   if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'windows'
+      #   uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      #   with:
+      #     if-no-files-found: "warn"
+      #     name: "${{ steps.json_properties.outputs.productName }}-dev-windows-non-setup-${{steps.json_properties.outputs.version}}-${{ matrix.type }}-${{ github.ref_name }}"
+      #     path: "./src-tauri/target/release/${{ steps.json_properties.outputs.productName }}.exe"
 
       - name: Upload binary (Linux, DEB)
         if: (startsWith(github.ref, 'refs/tags/') != true) && matrix.identifier == 'linux'
