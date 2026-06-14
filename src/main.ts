@@ -130,20 +130,16 @@ if (config.development?.enableDebugMode) {
   DevelopmentModeHelpers.enableDebugMode(
     config.development,
   );
-
-  /*
-   * 'JSON#stringify' is a bit expensive, so use it only when
-   * we are sure that the debug messages will be logged
-   */
-  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-    "Config contents",
-    config,
-  ));
-  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-    "Instances metadata contents",
-    instances,
-  ));
 }
+
+log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
+  "Config contents",
+  config,
+));
+log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
+  "Instances metadata contents",
+  instances,
+));
 
 log.debug(__PRE_BUNDLED_FILENAME__, "Creating a Vue instance");
 const AppInstance = createApp(App);
