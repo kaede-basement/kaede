@@ -64,7 +64,7 @@ async function handleCode(): Promise<void> {
 
 onMounted(() => {
   const editor = createEditor(
-    "#__settings-page__plugin-playground__editor",
+    "#__settings-page__plugin-playground-editor",
     {
       "language": "javascript",
       "wordWrap": true,
