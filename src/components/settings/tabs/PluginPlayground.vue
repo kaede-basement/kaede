@@ -100,17 +100,17 @@ onMounted(() => {
 
 <template>
   <div
-    id="__settings-page__plugin-playground__wrapper"
+    id="__settings-page__plugin-playground-wrapper"
     class="h-full w-full flex flex-col gap-2"
   >
     <div
-      id="__settings-page__plugin-playground__description"
+      id="__settings-page__plugin-playground-description"
       class="text-neutral-300"
     >
       A place where you can experiment with your Kaede plugins. Your code and output will be lost as soon as you reload the UI or close the launcher.
     </div>
     <button
-      id="__settings-page__plugin-playground__execute"
+      id="__settings-page__plugin-playground-execute"
       @click="handleCode"
       class="relative ml-1 w-fit flex rounded-md bg-[#0d1117] px-2 py-1 text-neutral-300"
     >
@@ -118,35 +118,35 @@ onMounted(() => {
       <MaterialRipple />
     </button>
     <div
-      id="__settings-page__plugin-playground__active-zone"
+      id="__settings-page__plugin-playground-active-zone"
       class="h-full w-full flex flex-wrap gap-2 px-1 text-sm sm:flex-nowrap"
     >
       <div
-        id="__settings-page__plugin-playground__editor"
+        id="__settings-page__plugin-playground-editor"
         class="h-full w-full overflow-hidden rounded-md outline-2 outline-neutral-300 outline-offset-2 [&>.prism-code-editor]:h-full focus-within:outline"
       ></div>
       <div
-        id="__settings-page__plugin-playground__servers"
+        id="__settings-page__plugin-playground-servers"
         class="w-full flex shrink-0 flex-col select-text gap-2 lg:w-80 sm:w-48"
       >
         <div
-          id="__settings-page__plugin-playground__code-output"
+          id="__settings-page__plugin-playground-code-output"
           class="rounded-md bg-[#0d1117] px-2 py-1 text-neutral-300"
         >
           Output:
           <div
-            id="__settings-page__plugin-playground__code-output-area"
+            id="__settings-page__plugin-playground-code-output-area"
             class="min-h-6 whitespace-pre-wrap break-all rounded-md bg-[#171b22] p-1 text-xs text-white font-mono"
           >
             {{ codeOutput }}
           </div>
         </div>
         <div
-          id="__settings-page__plugin-playground__server-header"
+          id="__settings-page__plugin-playground-server-header"
           class="rounded-md bg-[#0d1117] px-2 py-1 text-neutral-300"
         >
           Here is a list of
-          <span id="__settings-page__plugin-playground__server-header-count" class="text-white">
+          <span id="__settings-page__plugin-playground-server-header-count" class="text-white">
             {{ serverProcesses.length }}
           </span>
           currently running servers
@@ -154,30 +154,30 @@ onMounted(() => {
         <div
           v-for="server in serverProcesses"
           :key="server.name"
-          :id="`__settings-page__plugin-playground__server-wrapper-${server.name}`"
+          :id="`__settings-page__plugin-playground-server-wrapper-${server.name}`"
           class="flex flex-nowrap justify-between rounded-md bg-[#0d1117] p-1"
         >
           <div
-            :id="`__settings-page__plugin-playground__server-info-${server.name}`"
+            :id="`__settings-page__plugin-playground-server-info-${server.name}`"
             class="shrink-0 px-1"
           >
             {{ server.name }}
             <span
-              :id="`__settings-page__plugin-playground__server-port-${server.name}`"
+              :id="`__settings-page__plugin-playground-server-port-${server.name}`"
               class="shrink-0 text-neutral-400"
             >
             Port: {{ server.port }}
           </span>
           </div>
           <button
-            :id="`__settings-page__plugin-playground__server-kill-button-${server.name}`"
+            :id="`__settings-page__plugin-playground-server-kill-button-${server.name}`"
             @click="() => {
               server.value.kill();
             }"
             class="flex hover:text-neutral-400"
           >
             <span
-              :id="`__settings-page__plugin-playground__server-kill-icon-${server.name}`"
+              :id="`__settings-page__plugin-playground-server-kill-icon-${server.name}`"
               class="i-lucide-x size-5 shrink-0"
             ></span>
           </button>

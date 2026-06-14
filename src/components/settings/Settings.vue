@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 import PageWrapper from "@/components/general/layout/PageWrapper.vue";
 import Tabs from "@/components/general/layout/Tabs.vue";
+import GeneralSettings from "@/components/settings/tabs/GeneralSettings.vue";
 import { SettingsSections } from "@/constants/application.ts";
 import { LazyPluginPlayground } from "@/constants/ui/pages.ts";
 import { globalStates } from "@/states/global.ts";
@@ -18,13 +19,13 @@ const selected = computed((): string => (
   <PageWrapper>
     <div
       id="__settings-page__wrapper"
-      class="h-fit sm:h-full w-full flex flex-col gap-2 py-2 pr-2"
+      class="h-fit w-full flex flex-col gap-2 py-2 pr-2 sm:h-full"
     >
       <Tabs
         :sections="SettingsSections"
         :state-key="stateKey"
       />
-      <div v-if="selected === 'general'"></div>
+      <GeneralSettings v-if="selected === 'general'" />
       <LazyPluginPlayground v-else-if="selected === 'plugin-playground'" />
     </div>
   </PageWrapper>

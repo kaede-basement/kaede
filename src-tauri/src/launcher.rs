@@ -10,8 +10,6 @@ use serde::{Deserialize};
 // Keep track of launcher UI reloads
 static mut LAUNCHES_COUNT: i32 = -1;
 
-// Strategy:
-//
 // If the 'latest.log' file exists and is not empty,
 // then rename that file to 'kaede-{number}.log',
 // where the 'number' property is the next biggest and unique log file number.
