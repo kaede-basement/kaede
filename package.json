@@ -17,7 +17,6 @@
   "dependencies": {
     "@daidr/minecraft-skin-renderer": "^0.3.2",
     "@fabianlars/tauri-plugin-oauth": "2",
-    "@module-federation/enhanced": "^0.21.6",
     "@tanstack/vue-query": "^5.90.7",
     "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-dialog": "~2",
@@ -30,7 +29,6 @@
     "@tauri-apps/plugin-process": "~2",
     "@tauri-apps/plugin-upload": "~2",
     "@vueuse/core": "^14.0.0",
-    "htmlparser2": "^10.0.0",
     "jshashes": "^1.0.8",
     "m3ripple-vue": "^0.1.0",
     "prism-code-editor": "^5.2.0",
