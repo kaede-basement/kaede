@@ -40,8 +40,7 @@ export type GlobalStatesPagesType = {
       "group": unknown;
     }>;
     "settings": Partial<{
-      // TODO: general / extensions / etc.
-      "tab": unknown;
+      "tab": string;
     }>;
     "add-instance": Partial<{
       "instanceVersionSearch": {

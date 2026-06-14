@@ -1,0 +1,92 @@
+<!--
+  - Kaede, a Minecraft Launcher
+  - Copyright (C) 2026  windstone <notwindstone@gmail.com> and contributors
+  -
+  - This program is free software: you can redistribute it and/or modify
+  - it under the terms of the GNU General Public License as published by
+  - the Free Software Foundation, either version 3 of the License, or
+  - (at your option) any later version.
+  -
+  - This program is distributed in the hope that it will be useful,
+  - but WITHOUT ANY WARRANTY; without even the implied warranty of
+  - MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  - GNU General Public License for more details.
+  -
+  - You should have received a copy of the GNU General Public License
+  - along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  -->
+
+<script setup lang="ts">
+import { computed } from "vue";
+
+import Image from "@/components/general/base/Image.vue";
+import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import General from "@/lib/general";
+import GlobalStateHelpers from "@/lib/global-state-helpers";
+import { globalStates } from "@/states/global.ts";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { TabSectionType } from "@/types/application/tab-section.type.ts";
+
+const { sections, stateKey } = defineProps<{
+  "sections": Array<TabSectionType>;
+  "stateKey": Extract<
+    keyof GlobalStatesType["pages"]["states"],
+    "add-instance" | "settings"
+  >;
+}>();
+
+const selected = computed((): string => (
+  globalStates?.pages?.states?.[stateKey]?.tab ?? sections[0].id
+));
+const cardStyles = computed(
+  (): ReturnType<typeof General.getSidebarInnerStyles> => (
+    General.getSidebarInnerStyles(
+      globalStates?.layout?.sidebar?.background,
+      globalStates?.layout?.sidebar?.color,
+      globalStates?.layout?.sidebar?.blur,
+    )
+  ),
+);
+
+function handleModeSelect(id: string): void {
+  GlobalStateHelpers.Pages.addToState(stateKey, {
+    "tab": id,
+  });
+}
+</script>
+
+<template>
+  <div
+    :id="`__${stateKey}-page__type-selector`"
+    class="h-fit w-full flex shrink-0 flex-wrap gap-2 rounded-md p-2"
+    :style="cardStyles"
+  >
+    <button
+      v-for="tab in sections"
+      :key="tab.id"
+      :disabled="selected === tab.id"
+      @click="() => tab?.action?.(tab.id) ?? handleModeSelect(tab.id)"
+      :id="`__${stateKey}-page__type-selector-item-${tab.id}`"
+      :class="[
+        `__${stateKey}-page__type-selector-item`,
+        'relative min-w-fit flex flex-1 flex-nowrap items-center justify-center gap-2',
+        'rounded-md py-1 pl-1 pr-2 transition-[background-color] duration-150',
+        'disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]',
+      ]"
+    >
+      <Image
+        :id="`__${stateKey}-page__type-selector-image-${tab.id}`"
+        :src="tab.image"
+        :alt="`An icon of the '${tab.name}' tab selector`"
+        class-names="size-6"
+      />
+      <span
+        :id="`__${stateKey}-page__type-selector-item-label-${tab.id}`"
+        class="shrink-0"
+      >
+        {{ tab.name }}
+      </span>
+      <MaterialRipple />
+    </button>
+  </div>
+</template>

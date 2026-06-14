@@ -15,6 +15,7 @@ import CurseForgeIcon from "@/resources/CurseForgeIcon.webp";
 import FTBIcon from "@/resources/FTBIcon.svg";
 import ModrinthIcon from "@/resources/ModrinthIcon.webp";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { TabSectionType } from "@/types/application/tab-section.type.ts";
 
 export const ApplicationName = "Kaede";
 export const ApplicationRootID = "#app";
@@ -42,7 +43,7 @@ export const CSSThemeExtensions = {
 export const DefaultGlobalStatesPagesStates: GlobalStatesType["pages"]["states"] = {
   "home"        : {},
   "library"     : {},
-  "settings"    : { "tab": "extensions" },
+  "settings"    : { "tab": "general" },
   "add-instance": {
 
     /*
@@ -131,12 +132,24 @@ export const DefaultGlobalStatesPagesStates: GlobalStatesType["pages"]["states"]
   },
   "none": {},
 };
-export const InstanceCreationSections: Array<{
-  "id"     : string;
-  "name"   : string;
-  "image"  : string;
-  "action"?: (id: string) => Promise<void>;
-}> = [
+export const SettingsSections: Array<TabSectionType> = [
+  {
+    "id"   : "general",
+    "name" : "General",
+    "image": CraftingTableIcon,
+  },
+  {
+    "id"   : "extensions",
+    "name" : "Extensions",
+    "image": CraftingTableIcon,
+  },
+  {
+    "id"   : "plugin-playground",
+    "name" : "Plugin Playground",
+    "image": CraftingTableIcon,
+  },
+];
+export const InstanceCreationSections: Array<TabSectionType> = [
   {
     "id"   : "clean-minecraft",
     "name" : "Clean",
