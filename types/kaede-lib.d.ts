@@ -2086,7 +2086,7 @@ declare global {
 		"__TAURI_INTERNALS__": object;
 		"__TAURI__": typeof TauriApi & {
 			"dialog": typeof TauriDialog;
-			"clipboard": typeof TauriClipboard;
+			"clipboardManager": typeof TauriClipboard;
 			"fs": typeof TauriFs;
 			"http": typeof TauriHttp;
 			"notification": typeof TauriNotification;

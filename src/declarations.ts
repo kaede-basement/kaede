@@ -95,15 +95,15 @@ declare global {
 
     /* Tauri exposes these */
     "__TAURI__": typeof TauriApi & {
-      "dialog"      : typeof TauriDialog;
-      "clipboard"   : typeof TauriClipboard;
-      "fs"          : typeof TauriFs;
-      "http"        : typeof TauriHttp;
-      "notification": typeof TauriNotification;
-      "opener"      : typeof TauriOpener;
-      "os"          : typeof TauriOs;
-      "process"     : typeof TauriProcess;
-      "upload"      : typeof TauriUpload;
+      "dialog"          : typeof TauriDialog;
+      "clipboardManager": typeof TauriClipboard;
+      "fs"              : typeof TauriFs;
+      "http"            : typeof TauriHttp;
+      "notification"    : typeof TauriNotification;
+      "opener"          : typeof TauriOpener;
+      "os"              : typeof TauriOs;
+      "process"         : typeof TauriProcess;
+      "upload"          : typeof TauriUpload;
     };
 
     /* Tauri community plugins */
