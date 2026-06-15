@@ -1,6 +1,7 @@
 import { ExtraHookResponseStatus, HookResponseStatus } from "@/constants/hooks.ts";
 import type { KaedeNamespaceType } from "@/declarations.ts";
 import { GlobalObject } from "@/extendable/global-object.ts";
+import Errors from "@/lib/errors";
 import { handleHookResponse } from "@/lib/extensions-manager/scopes/hooks/handle-hook-response.ts";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { ExtensionStatusType, HookReturnType } from "@/types/extensions/hook-return.type.ts";
@@ -31,6 +32,8 @@ export async function catchAsyncResponseHooks<T>({
   ));
   for (const [index, hook] of hooks.entries()) {
     const timeMeasurementStartHook = performance.now();
+    let status: ExtensionStatusType;
+    let response: T | undefined;
 
     log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.execution(
       scope,
@@ -38,10 +41,24 @@ export async function catchAsyncResponseHooks<T>({
       index,
       "async",
     ));
-    const { status, response } = await hook(toPass) as {
-      "status"  : ExtensionStatusType;
-      "response": T | undefined;
-    };
+    try {
+      const data = await hook(toPass) as {
+        "status"  : ExtensionStatusType;
+        "response": T | undefined;
+      };
+
+      status = data.status;
+      response = data.response;
+    } catch (error: unknown) {
+      log.error(
+        __PRE_BUNDLED_FILENAME__,
+        `Caught an error while executing hook for '${scope}.${timing}':`,
+        Errors.prettify(error),
+      );
+
+      continue;
+    }
+
     const handledResponse = handleHookResponse({
       scope,
       status,

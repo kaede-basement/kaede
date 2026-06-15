@@ -1,5 +1,6 @@
 import type { KaedeNamespaceType } from "@/declarations.ts";
 import { GlobalObject } from "@/extendable/global-object.ts";
+import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/scopes/log.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
@@ -36,7 +37,17 @@ export async function catchAsyncVoidHooks({
       index,
       "async",
     ));
-    await hook(toPass);
+    try {
+      await hook(toPass);
+    } catch (error: unknown) {
+      log.error(
+        __PRE_BUNDLED_FILENAME__,
+        `Caught an error while executing hook for '${scope}.${timing}':`,
+        Errors.prettify(error),
+      );
+
+      continue;
+    }
 
     const timeMeasurementEndHook = performance.now();
     const currentAfterHookTime = timeMeasurementEndHook - timeMeasurementStartHook;

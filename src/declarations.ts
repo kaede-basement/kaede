@@ -19,6 +19,7 @@
 /* eslint-disable max-lines */
 import type * as TauriOAuth2 from "@fabianlars/tauri-plugin-oauth";
 import type * as TauriApi from "@tauri-apps/api";
+import type * as TauriClipboard from "@tauri-apps/plugin-clipboard-manager";
 import type * as TauriDialog from "@tauri-apps/plugin-dialog";
 import type * as TauriFs from "@tauri-apps/plugin-fs";
 import type * as TauriHttp from "@tauri-apps/plugin-http";
@@ -95,6 +96,7 @@ declare global {
     /* Tauri exposes these */
     "__TAURI__": typeof TauriApi & {
       "dialog"      : typeof TauriDialog;
+      "clipboard"   : typeof TauriClipboard;
       "fs"          : typeof TauriFs;
       "http"        : typeof TauriHttp;
       "notification": typeof TauriNotification;

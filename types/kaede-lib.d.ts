@@ -2,6 +2,7 @@
 
 import * as TauriOAuth2 from '@fabianlars/tauri-plugin-oauth';
 import * as TauriApi from '@tauri-apps/api';
+import * as TauriClipboard from '@tauri-apps/plugin-clipboard-manager';
 import * as TauriDialog from '@tauri-apps/plugin-dialog';
 import * as TauriFs from '@tauri-apps/plugin-fs';
 import * as TauriHttp from '@tauri-apps/plugin-http';
@@ -10,8 +11,6 @@ import * as TauriOpener from '@tauri-apps/plugin-opener';
 import * as TauriOs from '@tauri-apps/plugin-os';
 import * as TauriProcess from '@tauri-apps/plugin-process';
 import * as TauriUpload from '@tauri-apps/plugin-upload';
-import * as TauriDiscordRpc from 'tauri-plugin-drpc';
-import * as TauriDiscordRpcClasses from 'tauri-plugin-drpc/activity';
 
 declare const PatchUIDs: ("com.azul.java" | "com.mumfrey.liteloader" | "net.adoptium.java" | "net.fabricmc.fabric-loader" | "net.fabricmc.intermediary" | "net.minecraft" | "net.minecraft.java" | "net.minecraftforge" | "net.neoforged" | "org.lwjgl" | "org.lwjgl3" | "org.quiltmc.quilt-loader")[];
 declare const CustomPatches: {
@@ -163,7 +162,7 @@ export type GlobalStatesPagesType = {
 			"group": unknown;
 		}>;
 		"settings": Partial<{
-			"tab": unknown;
+			"tab": string;
 		}>;
 		"add-instance": Partial<{
 			"instanceVersionSearch": {
@@ -231,7 +230,6 @@ export type GlobalStatesDevelopmentType = {
 };
 export type GlobalStatesMiscType = {
 	"showAfterExtensionsInitialization": boolean;
-	"enableDiscordRPC": boolean;
 	"autoConfigSync": boolean;
 };
 export type GlobalStatesMinecraftType = {
@@ -265,6 +263,13 @@ export type GlobalStatesType = {
 	"pages": GlobalStatesPagesType;
 };
 export type GlobalStatesChangerType = <Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]) => void;
+export type TabSectionType = {
+	"id": string;
+	"name": string;
+	"icon"?: string;
+	"image"?: string;
+	"action"?: (id: string) => Promise<void>;
+};
 declare const TranslationsContextKey: unique symbol;
 declare const AuthStatesContextKey: unique symbol;
 declare const LaunchStatesContextKey: unique symbol;
@@ -272,6 +277,7 @@ declare const InstanceLogsContextKey: unique symbol;
 declare const LaunchInstanceContextKey: unique symbol;
 declare const CloseInstanceContextKey: unique symbol;
 declare const _default$2: {
+	readonly AsyncFunction: FunctionConstructor;
 	readonly ApplicationName: "Kaede";
 	readonly ApplicationRootID: "#app";
 	readonly DefaultLocale: "en";
@@ -293,7 +299,7 @@ declare const _default$2: {
 			"group": unknown;
 		}>;
 		settings: Partial<{
-			"tab": unknown;
+			"tab": string;
 		}>;
 		"add-instance": Partial<{
 			"instanceVersionSearch": {
@@ -332,12 +338,8 @@ declare const _default$2: {
 		}>;
 		none: Record<string, unknown>;
 	};
-	readonly InstanceCreationSections: {
-		id: string;
-		name: string;
-		image: string;
-		action?: (id: string) => Promise<void>;
-	}[];
+	readonly InstanceCreationSections: TabSectionType[];
+	readonly SettingsSections: TabSectionType[];
 	readonly ContextMenuItems: readonly [
 		{
 			readonly name: "Restart UI";
@@ -864,7 +866,6 @@ declare const ConfigSchema: Type.TObject<{
 	}>;
 	misc: Type.TObject<{
 		showAfterExtensionsInitialization: Type.TBoolean;
-		enableDiscordRPC: Type.TBoolean;
 		autoConfigSync: Type.TBoolean;
 	}>;
 }>;
@@ -1001,6 +1002,9 @@ declare function runInSandbox({ id, code, }: {
 }): void;
 declare function runInUnrestricted(id: string, code: string): Promise<void>;
 declare function showWebviewWindow(show: boolean | undefined): Promise<void>;
+declare function getFreePort(): number;
+declare function serveCode(name: string, code: string): Promise<void>;
+declare function serveFile(name: string, filePath: string): Promise<void>;
 declare const _default$14: {
 	readonly requestPermissions: (permissions: Array<PermissionType>, extension: string) => Promise<Array<boolean>>;
 	readonly catchAsyncResponseHooks: typeof catchAsyncResponseHooks;
@@ -1009,6 +1013,7 @@ declare const _default$14: {
 	readonly catchSyncVoidHooks: typeof catchSyncVoidHooks;
 	readonly onGlobalStateChange: typeof onGlobalStateChange;
 	readonly onInstanceStateChange: typeof onInstanceStateChange;
+	readonly getFreePort: typeof getFreePort;
 	readonly grantEventListeners: typeof grantEventListeners;
 	readonly grantStaticPermissions: typeof grantStaticPermissions;
 	readonly handleCssTheme: typeof handleCssTheme;
@@ -1020,6 +1025,8 @@ declare const _default$14: {
 	readonly readAllMetadata: typeof readAllMetadata;
 	readonly runInSandbox: typeof runInSandbox;
 	readonly runInUnrestricted: typeof runInUnrestricted;
+	readonly serveCode: typeof serveCode;
+	readonly serveFile: typeof serveFile;
 	readonly showWebviewWindow: typeof showWebviewWindow;
 };
 declare function cachedJoin(...paths: Array<string>): string;
@@ -1094,7 +1101,10 @@ declare function handleJsonFile({ baseDirectory, path, label, getDefaultValue, }
 	"label": string;
 	"getDefaultValue": () => Promise<unknown>;
 }): Promise<unknown>;
+declare function hashFileContents(image: Uint8Array): string;
+declare function hashOfflineNickname(input: string): string;
 declare function hashString(input: string): number;
+declare function hashStringCrypto(input: string): string;
 declare function initializeLauncher({ config, baseDirectory, startTime, }: {
 	"config": ConfigType;
 	"baseDirectory": string;
@@ -1124,16 +1134,20 @@ declare const _default$15: {
 	readonly getRelativeDate: typeof getRelativeDate;
 	readonly getSidebarInnerStyles: typeof getSidebarInnerStyles;
 	readonly handleJsonFile: typeof handleJsonFile;
+	readonly hashFileContents: typeof hashFileContents;
+	readonly hashOfflineNickname: typeof hashOfflineNickname;
 	readonly hashString: typeof hashString;
+	readonly hashStringCrypto: typeof hashStringCrypto;
 	readonly initializeLauncher: typeof initializeLauncher;
 	readonly unzip: typeof unzip;
 };
+declare function changeGlobalState<Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]): void;
 declare function getConfigGlobalStates(): GlobalStatesType;
 declare function getDefaultGlobalStates(): GlobalStatesType;
 declare function showContextMenu(event: MouseEvent): void;
 declare const _default$16: {
 	readonly get: () => GlobalStatesType;
-	readonly change: <Key extends keyof GlobalStatesType>(key: Key, value: GlobalStatesType[Key]) => void;
+	readonly change: typeof changeGlobalState;
 	readonly getFromConfig: typeof getConfigGlobalStates;
 	readonly getDefault: typeof getDefaultGlobalStates;
 	readonly Layout: {
@@ -1171,6 +1185,7 @@ declare function addInstanceWithSync(id: string, content: {
 		"net.minecraft": string;
 	};
 } & Partial<InstanceStateType>): Promise<void>;
+declare function changeInstanceState<Key extends keyof InstanceStatesType>(key: Key, value: InstanceStatesType[Key]): void;
 declare function createInstance(currentInstance: GlobalStatesType["pages"]["states"]["add-instance"]["instance"], uid: ExtendedPatchUIDType): Promise<void>;
 declare function extractSavedFromPages(globalStates: GlobalStatesType | undefined): GlobalStatesType["pages"]["states"]["add-instance"]["instance"];
 export type CurrentInstanceType = {
@@ -1187,7 +1202,7 @@ declare function readStoredInstances(baseDirectory: string): Promise<InstanceSta
 declare function saveInstanceStatesToFile(instances: InstanceStatesType): Promise<void>;
 declare const _default$18: {
 	readonly get: () => InstanceStatesType;
-	readonly change: <Key extends keyof InstanceStatesType>(key: Key, value: InstanceStatesType[Key]) => void;
+	readonly change: typeof changeInstanceState;
 	readonly add: typeof addInstanceWithSync;
 	readonly create: typeof createInstance;
 	readonly getFromConfig: typeof getConfigInstanceStates;
@@ -1763,8 +1778,8 @@ declare const _default$21: {
 				refreshToken: string;
 			} | null;
 			skin: {
-				id: string;
 				url: string;
+				id: string;
 				data: string;
 				variant: "classic" | "slim";
 			};
@@ -1828,7 +1843,6 @@ declare const _default$21: {
 			};
 			misc: {
 				showAfterExtensionsInitialization: boolean;
-				enableDiscordRPC: boolean;
 				autoConfigSync: boolean;
 			};
 		};
@@ -1970,7 +1984,6 @@ declare const _default$21: {
 		}>;
 		misc: import("typebox").TObject<{
 			showAfterExtensionsInitialization: import("typebox").TBoolean;
-			enableDiscordRPC: import("typebox").TBoolean;
 			autoConfigSync: import("typebox").TBoolean;
 		}>;
 	}>>;
@@ -2073,6 +2086,7 @@ declare global {
 		"__TAURI_INTERNALS__": object;
 		"__TAURI__": typeof TauriApi & {
 			"dialog": typeof TauriDialog;
+			"clipboard": typeof TauriClipboard;
 			"fs": typeof TauriFs;
 			"http": typeof TauriHttp;
 			"notification": typeof TauriNotification;
@@ -2082,7 +2096,6 @@ declare global {
 			"upload": typeof TauriUpload;
 		};
 		"__TAURI_PLUGINS_COMMUNITY__": {
-			"discord": typeof TauriDiscordRpc & typeof TauriDiscordRpcClasses;
 			"oauth2": typeof TauriOAuth2;
 			"shell": object;
 		};
@@ -2111,6 +2124,15 @@ declare global {
 			"javaMajor"?: number;
 			"logsInBrowser": Array<string>;
 			"indexedDB"?: IDBDatabase;
+			"serverProcesses": Array<{
+				"name": string;
+				"port": number;
+				"value": {
+					"pid": number;
+					"kill": () => Promise<void>;
+					"write": (data: string | Uint8Array | number[]) => Promise<void>;
+				};
+			}>;
 		};
 		/**
 		 * Application namespace.
@@ -2269,6 +2291,10 @@ declare global {
 			"variables": {
 				"rippleColor": string;
 				"sparklesColorRGB": string;
+				"logs": {
+					"targetCollapse": boolean;
+					"collapsedTargetLength": number;
+				};
 			};
 			/**
 			 * Application hooks
