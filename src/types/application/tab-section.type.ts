@@ -19,6 +19,7 @@
 export type TabSectionType = {
   "id"     : string;
   "name"   : string;
-  "image"  : string;
+  "icon"  ?: string;
+  "image" ?: string;
   "action"?: (id: string) => Promise<void>;
 };

@@ -74,7 +74,13 @@ function handleModeSelect(id: string): void {
         'disabled:bg-[theme(colors.neutral.100/.1)] hover:bg-[theme(colors.neutral.100/.05)]',
       ]"
     >
+      <span
+        v-if="tab.icon"
+        :id="`__${stateKey}-page__type-selector-icon-${tab.id}`"
+        :class="[tab.icon, 'block size-5']"
+      ></span>
       <Image
+        v-else-if="tab.image"
         :id="`__${stateKey}-page__type-selector-image-${tab.id}`"
         :src="tab.image"
         :alt="`An icon of the '${tab.name}' tab selector`"

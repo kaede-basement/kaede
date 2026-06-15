@@ -54,11 +54,14 @@ async function handleCode(): Promise<void> {
 
     codeOutput.value = await userPlugin();
   } catch (error: unknown) {
+    const prettyError: string = Errors.prettify(error);
+
     log.error(
       __PRE_BUNDLED_FILENAME__,
       "Failed to execute the code in playground:",
-      Errors.prettify(error),
+      prettyError,
     );
+    codeOutput.value = prettyError;
   }
 }
 
@@ -131,12 +134,12 @@ onMounted(() => {
       >
         <div
           id="__settings-page__plugin-playground-code-output"
-          class="rounded-md bg-[#0d1117] px-2 py-1 text-neutral-300"
+          class="rounded-md bg-[#0d1117] p-2 text-neutral-300"
         >
           Output:
           <div
             id="__settings-page__plugin-playground-code-output-area"
-            class="min-h-6 whitespace-pre-wrap break-all rounded-md bg-[#171b22] p-1 text-xs text-white font-mono"
+            class="mt-1 min-h-6 whitespace-pre-wrap break-all rounded-md bg-[#171b22] p-1 text-xs text-white font-mono"
           >
             {{ codeOutput }}
           </div>

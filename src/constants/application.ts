@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import FileStructure from "@/constants/file-structure.ts";
@@ -134,19 +135,19 @@ export const DefaultGlobalStatesPagesStates: GlobalStatesType["pages"]["states"]
 };
 export const SettingsSections: Array<TabSectionType> = [
   {
-    "id"   : "general",
-    "name" : "General",
-    "image": CraftingTableIcon,
+    "id"  : "general",
+    "name": "General",
+    "icon": "i-lucide-sliders-horizontal",
   },
   {
-    "id"   : "extensions",
-    "name" : "Extensions",
-    "image": CraftingTableIcon,
+    "id"  : "extensions",
+    "name": "Extensions",
+    "icon": "i-lucide-blocks",
   },
   {
-    "id"   : "plugin-playground",
-    "name" : "Plugin Playground",
-    "image": CraftingTableIcon,
+    "id"  : "plugin-playground",
+    "name": "Plugin Playground",
+    "icon": "i-lucide-square-terminal",
   },
 ];
 export const InstanceCreationSections: Array<TabSectionType> = [
@@ -267,6 +268,7 @@ export const ContextMenuItems = [
 ] as const;
 
 export default {
+  AsyncFunction,
   ApplicationName,
   ApplicationRootID,
   DefaultLocale,
@@ -279,5 +281,6 @@ export default {
   CSSThemeExtensions,
   DefaultGlobalStatesPagesStates,
   InstanceCreationSections,
+  SettingsSections,
   ContextMenuItems,
 } as const;
