@@ -27,33 +27,6 @@ The idea of applications ([Tachiyomi](https://github.com/tachiyomiorg)) and game
 
 However, the existing Minecraft Launchers lack a user plugin system. While it is debatable whether extensible launchers for Minecraft are even needed, I still decided to make this project, primarily for myself.
 
-## Plans
-
-Kaede is in early stages of development. Look at the [plan](./PLAN.md) to see more about this launcher >.<
-
-## Contributing
-
-No prior Rust knowledge is needed to contribute to this project. Most of the code was written in TypeScript using the Tauri API. These files will help in contributing:
-
-- [README for TypeScript-related code](../src/README.md) (the most important one)
-- [README for Rust-related code](../src-tauri/README.md)
-- [Contributing Guidelines](./CONTRIBUTING.md)
-- [MultiMC Patch System](./MULTIMC.md)
-- [Building from Source](#building-from-source)
-
-I also leave comments in the code.
-
-For launcher plugins, themes, or translations:
-
-- [Making a Plugin](./EXTENSIONS.md#making-a-plugin)
-- [Type Declarations for Plugins](../types/README.md)
-- [Making a Theme](./EXTENSIONS.md#making-a-theme)
-- [Translating the Launcher](https://github.com/kaede-basement/translations)
-
-Pull requests are welcome. AI code is not welcome (with the exception being user plugins). For major changes, please open an issue first to discuss what you would like to change.
-
-In case if you want to run this launcher with [Wails](https://wails.io/) (or any other backend), see [the following file](../src/lib/README.md#browser).
-
 ## Demonstration
 
 Screenshots of the launcher with or without user plugins.
@@ -161,6 +134,33 @@ If you want to report a bug or suggest a feature, please open an issue in [GitHu
 ### Discord
 
 [![discord-banner]](https://discord.gg/zE2XcswKK7)
+
+## Plans
+
+Kaede is in early stages of development. Look at the [plan](./PLAN.md) to see more about this launcher >.<
+
+## Contributing
+
+No prior Rust knowledge is needed to contribute to this project. Most of the code was written in TypeScript using the Tauri API. These files will help in contributing:
+
+- [README for TypeScript-related code](../src/README.md) (the most important one)
+- [README for Rust-related code](../src-tauri/README.md)
+- [Contributing Guidelines](./CONTRIBUTING.md)
+- [MultiMC Patch System](./MULTIMC.md)
+- [Building from Source](#building-from-source)
+
+I also leave comments in the code.
+
+For launcher plugins, themes, or translations:
+
+- [Making a Plugin](./EXTENSIONS.md#making-a-plugin)
+- [Type Declarations for Plugins](../types/README.md)
+- [Making a Theme](./EXTENSIONS.md#making-a-theme)
+- [Translating the Launcher](https://github.com/kaede-basement/translations)
+
+Pull requests are welcome. AI code is not welcome (with the exception being user plugins). For major changes, please open an issue first to discuss what you would like to change.
+
+In case if you want to run this launcher with [Wails](https://wails.io/) (or any other backend), see [the following file](../src/lib/README.md#browser).
 
 ## Building from Source
 
