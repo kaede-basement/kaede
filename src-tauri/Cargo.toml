@@ -33,7 +33,7 @@ zip-extensions = "0.8.3"
 tokio = { version = "1", features = ["full"] }
 
 # Non-default installed plugins
-tauri-plugin-fs = "2"
+tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-http = "2"
 tauri-plugin-notification = "2"
