@@ -140,6 +140,11 @@ export const SettingsSections: Array<TabSectionType> = [
     "icon": "i-lucide-sliders-horizontal",
   },
   {
+    "id"  : "languages",
+    "name": "Languages",
+    "icon": "i-lucide-languages",
+  },
+  {
     "id"  : "extensions",
     "name": "Extensions",
     "icon": "i-lucide-blocks",
