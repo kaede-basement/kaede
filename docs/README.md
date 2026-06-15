@@ -69,6 +69,12 @@ More screenshots >>>
 
 ---
 
+Instance creation page
+
+<img src="./demos/kaede_add-instance-page_no-minecraft.webp" alt="Instance creation page">
+
+---
+
 The log viewer
 
 <img src="./demos/kaede_logging-screen_launcher-logs.webp" alt="Logging screen">
