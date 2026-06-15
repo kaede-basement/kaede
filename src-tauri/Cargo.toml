@@ -42,6 +42,7 @@ tauri-plugin-process = "2"
 tauri-plugin-upload = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-oauth = "2"
+tauri-plugin-clipboard-manager = "2"
 
 # Modded shell plugin that allows any commands (...recipe for disaster?)
 tauri-plugin-shellx = "2.0.16"
