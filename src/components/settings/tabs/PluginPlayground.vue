@@ -39,14 +39,26 @@ import {
 } from "prism-code-editor/autocomplete/javascript";
 import { cursorPosition } from "prism-code-editor/cursor";
 import { indentGuides } from "prism-code-editor/guides";
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { AsyncFunction } from "@/constants/application.ts";
 import Errors from "@/lib/errors";
+import General from "@/lib/general";
 import { log } from "@/lib/logging/scopes/log.ts";
+import { globalStates } from "@/states/global.ts";
 import { codeOutput, codeToEvaluate } from "@/states/plugin-playground.ts";
 import { serverProcesses } from "@/states/servers.ts";
+
+const cardStyles = computed(
+  (): ReturnType<typeof General.getSidebarInnerStyles> => (
+    General.getSidebarInnerStyles(
+      globalStates?.layout?.sidebar?.background,
+      globalStates?.layout?.sidebar?.color,
+      globalStates?.layout?.sidebar?.blur,
+    )
+  ),
+);
 
 async function handleCode(): Promise<void> {
   try {
@@ -104,25 +116,18 @@ onMounted(() => {
 <template>
   <div
     id="__settings-page__plugin-playground-wrapper"
-    class="h-full w-full flex flex-col gap-2"
+    class="h-full min-h-fit w-full flex flex-col gap-2 rounded-md p-2"
+    :style="cardStyles"
   >
     <div
       id="__settings-page__plugin-playground-description"
-      class="text-neutral-300"
+      class="shrink-0 text-neutral-300"
     >
       A place where you can experiment with your Kaede plugins. Your code and output will be lost as soon as you reload the UI or close the launcher.
     </div>
-    <button
-      id="__settings-page__plugin-playground-execute"
-      @click="handleCode"
-      class="relative ml-1 w-fit flex rounded-md bg-[#0d1117] px-2 py-1 text-neutral-300"
-    >
-      Execute the code
-      <MaterialRipple />
-    </button>
     <div
       id="__settings-page__plugin-playground-active-zone"
-      class="h-full w-full flex flex-wrap gap-2 px-1 text-sm sm:flex-nowrap"
+      class="h-full w-full flex flex-wrap gap-2 text-sm sm:flex-nowrap"
     >
       <div
         id="__settings-page__plugin-playground-editor"
@@ -132,6 +137,14 @@ onMounted(() => {
         id="__settings-page__plugin-playground-servers"
         class="w-full flex shrink-0 flex-col select-text gap-2 lg:w-80 sm:w-48"
       >
+        <button
+          id="__settings-page__plugin-playground-execute"
+          @click="handleCode"
+          class="relative w-full flex rounded-md bg-[#0d1117] p-2 text-neutral-300"
+        >
+          Execute the code
+          <MaterialRipple />
+        </button>
         <div
           id="__settings-page__plugin-playground-code-output"
           class="rounded-md bg-[#0d1117] p-2 text-neutral-300"
