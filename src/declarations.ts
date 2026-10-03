@@ -150,7 +150,8 @@ declare global {
         // Requests plugin permissions from user
         "requestPermissions": (
           permissions: Array<PermissionType | string> | unknown,
-          extension: string
+          extension: string,
+          artifactSha256: string
         ) => Promise<Array<unknown>>;
         // Platform-specific delimiter
         "joinDelimiter"      : string;

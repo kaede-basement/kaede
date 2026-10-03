@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onUnmounted, ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import AllowButton from "@/components/general/extensions/permissions/AllowButton.vue";
 import { ContextMenu } from "@/constants/application.ts";
 import Permissions from "@/constants/permissions.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
-import { __requestPermissions } from "@/lib/permissions/request-permissions.ts";
-import { globalStates } from "@/states/global.ts";
+import {
+  __cancelPermissionRequests,
+  __requestPermissions,
+} from "@/lib/permissions/request-permissions.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 const requestedPermissionState = ref<{
@@ -25,7 +27,8 @@ function handlePermissionRequest(
   extension?: string,
   resolve?: (state: boolean) => void,
 ): void {
-  if (!permission || !extension || !resolve) {
+  // Only a call without a resolver closes the prompt: an extension ID may be empty
+  if (permission === undefined || extension === undefined || resolve === undefined) {
     requestedPermissionState.value = undefined;
 
     return;
@@ -42,8 +45,9 @@ function requestPermissions(
   // After all, this is the value provided by the extension
   permissions: unknown,
   extension: string,
+  artifactSha256: string,
 ): Promise<Array<unknown>> {
-  return __requestPermissions(permissions, extension, handlePermissionRequest);
+  return __requestPermissions(permissions, extension, artifactSha256, handlePermissionRequest);
 }
 
 function handleUserRequest(state: boolean): void {
@@ -51,20 +55,19 @@ function handleUserRequest(state: boolean): void {
     return;
   }
 
-  const currentPermissions = globalStates.extensions.permissions;
-  const _extension = requestedPermissionState.value.extension;
-  const _permission = requestedPermissionState.value.id;
-
-  if (!currentPermissions[_extension]) {
-    currentPermissions[_extension] = {};
-  }
-
-  currentPermissions[_extension][_permission] = state;
-
+  // '__requestPermissions' stores the answer once it resolves
   requestedPermissionState.value.resolve(state);
 }
 
 GlobalInternals.requestPermissions = requestPermissions;
+
+// Extensions are disabled after this component is gone, and their requests must not wait forever
+onUnmounted(() => {
+  GlobalInternals.requestPermissions = async (): Promise<Array<unknown>> => {
+    throw new Error("The permission prompt is closed");
+  };
+  __cancelPermissionRequests();
+});
 </script>
 
 <template>
