@@ -1,7 +1,15 @@
 name: "Build"
 
 on:
+  # All builds triggered by PRs will be debug and have a default 'APP_VERSION'
+  pull_request:
+    paths-ignore:
+      - ".gitignore"
+      - "**.md"
+      - flake.lock
+
   push:
+    # For debug builds
     paths-ignore:
       - ".gitignore"
       - "**.md"
@@ -11,8 +19,10 @@ on:
       - beta
       - rc
       - release
+    # For release builds
     tags:
       - "*"
+
   workflow_dispatch:
 
 env:
