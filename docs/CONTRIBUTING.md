@@ -29,7 +29,7 @@ All TypeScript files are formatted with [ESLint](https://eslint.org/) using the 
 
 Please also follow the project's conventions for the frontend:
 
-- No AI slops in the launcher code (plugins do not count as the part of the launcher).
+- AI-assisted code is welcome and is held to the same standard as any other code. Coding agents read [AGENTS.md](../AGENTS.md).
 - TypeScript is highly recommended. If type checking drives you insane, ask me for the help :d
 - `.vue` file names should be formatted as `PascalCase`. All other files should use `kebab-case`.
 - Exported constants should be formatted as `PascalCase`.

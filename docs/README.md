@@ -185,7 +185,7 @@ For launcher plugins, themes, or translations:
 - [Making a Theme](./EXTENSIONS.md#making-a-theme)
 - [Translating the Launcher](https://github.com/kaede-basement/translations)
 
-Pull requests are welcome. AI code that impacts regular Tauri builds is not welcome; see [AGENTS.md](../AGENTS.md) for more. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome, including AI-assisted ones; coding agents read [AGENTS.md](../AGENTS.md). For major changes, please open an issue first to discuss what you would like to change.
 
 ## Building from Source
 
