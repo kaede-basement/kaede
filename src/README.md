@@ -11,19 +11,7 @@ This folder contains frontend-specific and backend-specific code. The frontend u
 
 ## Top-level files
 
-- `App.vue` is the Vue entry point file.
-  - HTML-wise, it contains an application layout with error boundaries.
-  - Code-wise, it contains two `shallowReactive` objects that store global states and Minecraft instance states.
-
-> [!IMPORTANT]
-> Gathering application states in one place is discouraged and considered to be amateurish. Not only this practice goes against all software developing principles, but it also introduces less manageable state structure in the whole application.
->
-> **However**, this practice allows Kaede to have global states that are easily accessible and extensible by user plugins. For example, creating a new **reactive** field in the global `shallowReactive` object will (almost*) automatically implement all the needed field hooks, handle the configuration file syncing, and allow other plugins to use that field for their needs.
->
-> Moreover, this approach allows extension hooks to have a well-defined behaviour, since all global states are stored in `App.vue` and do not disappear with the component unmount. One can suggest `Pinia` to manage global stores, but according to [Pinia docs [1]](#references), "you cannot add a new state property if you don't define it in `state()`."
-> 
-> *The globally-accessible `HookMappings` object should be changed to contain a `key: value` mapping for the custom reactive field.
-
+- `App.vue` is the Vue entry point file. It contains an application layout with error boundaries.
 - `declarations.ts` contain the `window` type definitions. Without those definitions, TypeScript does not know about the custom `window.__KAEDE__` namespace. Note: the second argument of the `HookReturnType` type accepts `"nothing"` and any other type (including `void`). However, `void` and `"nothing"` values serve different purposes:
   - `void` means that the hook returns `{ "status": "stop" | "continue", "response": void }`. Hooks with this type can control whether to continue caller's code execution or not (caller is the function that executes these hooks).
   - `"nothing"` means that the hook returns `void` (or anything else, the caller will just not care about it). Hooks with this type cannot abort caller's code execution.
@@ -33,37 +21,28 @@ This folder contains frontend-specific and backend-specific code. The frontend u
 
 ## Top-level folders
 
-Every folder has its own `README` file for more detailed explanations.
+Some folders have their own `README` file for more detailed explanations.
 
 - `__mocks__` contain library mocks that exist purely for the testing environment. [More](./__mocks__/README.md)
 - `components` contain only Vue components. Those components are used in the application UI. [More](./components/README.md)
-- `constants` contain reusable global constants. [More](./constants/README.md)
+- `composables` contain reusable Vue composables (`use*` functions).
+- `constants` contain reusable global constants.
+- `extendable` contains the registries and the global object that plugins can change (`window.__KAEDE__`).
 - `lib` contains the backend part. [More](./lib/README.md)
-- `resources` contain application assets, i.e. images, GIFs, or videos. [More](./resources/README.md)
-- `types` contain reusable TypeScript types and interfaces. [More](./types/README.md)
+- `resources` contain application assets, i.e. images, GIFs, or videos.
+- `states` contain the global reactive states, e.g. `globalStates` in `global.ts`.
+- `types` contain reusable TypeScript types and interfaces.
+
+> [!IMPORTANT]
+> Gathering application states in one place is discouraged and considered to be amateurish. Not only this practice goes against all software developing principles, but it also introduces less manageable state structure in the whole application.
+>
+> **However**, this practice allows Kaede to have global states that are easily accessible and extensible by user plugins. For example, a plugin can add a new field to the deeply `reactive` `globalStates` object, and other plugins can use that field for their needs. A field whose key starts with `config/` is also saved to the configuration file (see `lib/watchers/watch-config-sync.ts`).
+>
+> Moreover, this approach allows extension hooks to have a well-defined behaviour, since all global states are module-level objects in `states/` and do not disappear with the component unmount. One can suggest `Pinia` to manage global stores, but according to [Pinia docs [1]](#references), "you cannot add a new state property if you don't define it in `state()`."
 
 ## Bundle size
 
-Last updated: `a4357d5d8c4585e449ca4d877aaff36a46a550bb` (27.07.2026)
-
-| Part                             | Minified |
-|----------------------------------|----------|
-| `src/`                           | 205.9 KB |
-| `typebox`                        | 115.2 KB |
-| `vue`                            | 110.5 KB |
-| `ses`                            | 76.2 KB  |
-| `@daidr/minecraft-skin-renderer` | 46.8 KB  |
-| `@tanstack/vue-query`            | 35.4 KB  |
-| `vue-virtualised`                | 34.4 KB  |
-| tauri-plugins                    | 26.7 KB  |
-| `prism-code-editor`              | 25.7 KB  |
-| `jshashes`                       | 22.3 KB  |
-| `ark-of-atrahasis`               | 17.0 KB  |
-| `m3ripple-vue`                   | 7.2 KB   |
-| `@vueuse/core`                   | 6.6 KB   |
-| `serialize-javascript`           | 3.3 KB   |
-| bundler code?                    | ~4.1 KB  |
-| Total                            | 737.3 KB |
+Run `bun run generate:bundle-analysis` to build the frontend and write a per-package size report to `bundle-analysis.html`.
 
 # References
 

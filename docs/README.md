@@ -143,7 +143,7 @@ Please understand that these builds are not intended for most users. There may b
 
 The development builds are available through:
 
-- [GitHub Actions](https://github.com/kaede-basement/kaede/actions) (includes builds from pull requests opened by contributors).
+- [GitHub Actions](https://github.com/kaede-basement/kaede/actions) (builds of the development and release branches; pull requests are not built).
 - [nightly.link](https://nightly.link/kaede-basement/kaede/workflows/build/nightly) (this link will always point only to the latest version of the `nightly` branch).
 
 Prebuilt Development builds are provided for Linux, Windows, and macOS.
@@ -229,7 +229,7 @@ bun run build
 
 ## License
 
-[![license-badge]](https://github.com/kaede-basement/kaede/blob/main/LICENSE)
+[![license-badge]](https://github.com/kaede-basement/kaede/blob/nightly/LICENSE)
 
 ## Credits and AI Usage
 

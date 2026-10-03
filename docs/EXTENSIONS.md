@@ -11,28 +11,10 @@ Kaede extensions are pieces of JavaScript code that change the User Interface (U
 
 ### Format
 
-Plugins are stored in the `extensions` folder and represent [ZIP](https://en.wikipedia.org/wiki/ZIP_(file_format)) archive files that use [DEFLATE](https://en.wikipedia.org/wiki/Deflate) compression. They can have either `.zip` or `.kaede` file extension. Every plugin archive should have two files: (1) `index.js` and (2) `metadata.json`. The `index.js` file is the code that will be executed, and `metadata.json` is a plugin metadata that has the following type.
+Plugins are stored in the `extensions` folder and represent [ZIP](https://en.wikipedia.org/wiki/ZIP_(file_format)) archive files that use [DEFLATE](https://en.wikipedia.org/wiki/Deflate) compression. They can have either `.zip` or `.kaede` file extension. Every plugin archive should have two files: (1) `index.js` and (2) `metadata.json`. The `index.js` file is the code that will be executed, and `metadata.json` is a plugin metadata described by `MetadataType` in [`src/types/extensions/extension.type.ts`](../src/types/extensions/extension.type.ts) and validated at runtime by [`ExtensionMetadataSchema`](../src/lib/schemas/types/extensions/index.ts).
 
 > [!NOTE]
 > The SHA256 hash of `index.js` is calculated for Kaede to know which plugin was enabled by the user. Even if the ID of a plugin stays the same but the hash changes, the plugin will be automatically disabled.
-
-```ts
-type MetadataType = {
-  "logo"      : string;
-  "name"      : string;
-  "type"      : "sandbox" | "unrestricted";
-  "source"    : string;
-  "version"   : string;
-  "authors"   : Array<string>;
-  // Use ISO 639-1 two-letter language codes
-  "languages" : Array<string>;
-  "categories": Array<string>;
-} & Partial<{
-  "description": string;
-  "permissions": Array<PermissionType>;
-  "enabled"    : boolean;
-}>;
-```
 
 An example of a valid metadata:
 
@@ -53,11 +35,13 @@ Please note that the file name of a ZIP archive file acts as a plugin ID.
 
 ### Repositories
 
-Plugin repository is a place that stores and distributes plugins. Additional repositories can be added although Kaede has two built-in plugin repositories.
+Plugin repository is a place that stores and distributes plugins. Kaede does not download plugins from repositories: a plugin is installed by putting its archive into the `extensions` folder. There are two plugin repositories.
 
-The first one is a [Kaede User Repository (KUR)](https://github.com/kaede-basement/kur), similar to [Arch User Repository (AUR)](https://aur.archlinux.org/) and [nixpkgs](https://github.com/NixOS/nixpkgs). KUR contains user published extensions.
+The first one is a [Kaede User Repository (KUR)](https://github.com/kaede-basement/kur), similar to [Arch User Repository (AUR)](https://aur.archlinux.org/) and [nixpkgs](https://github.com/NixOS/nixpkgs). KUR is meant for user published extensions.
 
 The second one is a [trusted-extensions repository](https://github.com/kaede-basement/trusted-extensions) where I publish my extensions. Others may publish as well but only by contacting me. A plugin publisher must provide me the plugin source code and build manuals. I will manually review the provided code and provide the feedback if something seems fishy. The reviewing procedure will happen each time a plugin publisher wants to update their extension in the repository.
+
+Kaede downloads `HASHES.json` from the trusted-extensions repository and treats a plugin whose `index.js` SHA256 hash is listed there as trusted: trusted plugins run in the unrestricted environment. Other unrestricted plugins can only be enabled after turning on the "Allow unrestricted untrusted extensions" setting, which is off by default.
 
 ### Safety
 
@@ -107,13 +91,7 @@ Every approach above has its advantages, but there are also disadvantages. Conse
 
 The restricted environment (sandbox) uses a permission-based system. When enabling the plugin for the first time, the list of static permissions will be shown. Static permissions are defined ahead-of-time. In case the plugin wants to extend its capabilities, it can use the `requestPermissions` function that returns a promise that resolves as soon as the user allows the request. `requestPermissions` is a plugin-scoped global variable that is essentially a reference to the function from another lexical environment, i.e., Kaede itself.
 
-// write here uhh i forgot
-
 // remove or move: A restricted environment is achieved by using a [Secure ECMAScript](https://github.com/endojs/endo) framework. Each permission has its own list of globals passed to the plugin. Unfortunately, almost every DOM operation is prohibited since it leads to the sandbox escape.
-
-// remove or move: The second one is an unrestricted environment that allows plugins to do everything that the Kaede can do itself. Trusted extensions are executed in this environment.
-
-// remove or move: Settings have an option to enable the execution of KUR extensions that require an unrestricted environment. Since those extensions may be harmful, the option is disabled by default.
 
 ### Benchmarks
 
@@ -141,7 +119,7 @@ const result = performance.now() - start;
 ```
 
 ```js
-const gui = scopedThis["ui-basic"]("app");
+const gui = scopedThis["ui::basic"]("app");
 const performance = scopedThis["time::performance"].performance;
 const container = gui.createDiv();
 
@@ -198,7 +176,6 @@ A hook system in Kaede is a powerful technique that allows plugins to intercept 
 - tauri community plugins accessing
 - possibility to monkey-patch literally every Kaede functionality
 - a variety of Kaede helper functions
-- other things that i do not remember rn
 
 </details>
 
