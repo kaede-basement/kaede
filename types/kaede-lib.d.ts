@@ -1372,26 +1372,22 @@ declare function onInstanceStateChange<Key extends keyof InstanceStatesType>(key
 declare function grantEventListeners({ id, }: {
 	"id": string;
 }): void;
-declare function lockdownEnvironment(): void;
-declare function runInSandbox({ id, code, permissions, }: {
+declare function runInSandbox({ id, artifactSha256, code, permissions, }: {
 	"id": string;
+	"artifactSha256": string;
 	"code": string;
 	"permissions"?: Array<PermissionType>;
-}): void | {
-	"enable": () => void | Promise<void>;
-	"disable": () => void | Promise<void>;
-};
+}): Promise<void | Record<"enable" | "disable" | "afterDisable", () => Promise<void>>>;
 declare function showWebviewWindow(): Promise<void>;
 declare function updateTrustedHashes(): Promise<void>;
 declare const _default$16: {
-	readonly requestPermissions: (permissions: Array<PermissionType | string> | unknown, extension: string) => Promise<Array<unknown>>;
+	readonly requestPermissions: (permissions: Array<PermissionType | string> | unknown, extension: string, artifactSha256: string) => Promise<Array<[string, boolean]>>;
 	readonly dirtyLifecycle: typeof dirtyLifecycle;
 	readonly readExtensions: typeof readExtensions;
 	readonly runInUnrestricted: typeof runInUnrestricted;
 	readonly onGlobalStateChange: typeof onGlobalStateChange;
 	readonly onInstanceStateChange: typeof onInstanceStateChange;
 	readonly grantEventListeners: typeof grantEventListeners;
-	readonly lockdownEnvironment: typeof lockdownEnvironment;
 	readonly runInSandbox: typeof runInSandbox;
 	readonly showWebviewWindow: typeof showWebviewWindow;
 	readonly updateTrustedHashes: typeof updateTrustedHashes;
@@ -2212,14 +2208,18 @@ declare function concurrentlyDownload({ concurrency, entries, statuses, label, c
 declare const _default$26: {
 	readonly concurrentlyDownload: typeof concurrentlyDownload;
 };
-declare function grantStaticPermissions({ id, permissions, }: {
-	"id": string;
-	"permissions"?: Array<PermissionType>;
-}): Record<string, unknown>;
-declare function handlePermission<Key extends PermissionType>(permission: Key, id: string): unknown;
+declare function grantStaticPermissions({ artifactSha256, permissions, }: {
+	"artifactSha256": string;
+	"permissions"?: Array<PermissionType | string>;
+}): Array<string>;
+export type ParsedPermissionType = {
+	"key": PermissionType;
+	"argument": string | undefined;
+};
+declare function parsePermission(permission: unknown): ParsedPermissionType | undefined;
 declare const _default$27: {
 	readonly grantStaticPermissions: typeof grantStaticPermissions;
-	readonly handlePermission: typeof handlePermission;
+	readonly parsePermission: typeof parsePermission;
 };
 declare function rehydrateProcesses(attach: (handle: ProcessHandleType) => ProcessHandlersType | undefined): Promise<Array<ProcessHandleType>>;
 declare function hydrate(handle: ProcessHandleType<ServerMetaType>): ServerProcessType;
@@ -2853,7 +2853,7 @@ declare global {
 					"visible": boolean;
 					"resizable": boolean;
 				};
-				"requestPermissions": (permissions: Array<PermissionType | string> | unknown, extension: string) => Promise<Array<unknown>>;
+				"requestPermissions": (permissions: Array<PermissionType | string> | unknown, extension: string, artifactSha256: string) => Promise<Array<[string, boolean]>>;
 				"joinDelimiter": string;
 				"launcherVersion": string;
 				"executableHash": string;

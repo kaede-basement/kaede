@@ -16,10 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
-import { parsePermission } from "@/lib/permissions/parse-permission.ts";
+import { expect, test } from "bun:test";
 
-export default {
-  grantStaticPermissions,
-  parsePermission,
-} as const;
+import { findListIndex } from "@/lib/extensions/find-list-index.ts";
+
+const list = [
+  { "enabled": true, "sha256": "artifact-a", "label": "Plugin (plugin)" },
+];
+
+test("finds the entry of the same artifact", () => {
+  expect(findListIndex(list, { "artifactSha256": "artifact-a" })).toBe(0);
+});
+
+test("does not treat the same code with other metadata as already enabled", () => {
+  const replacedMetadata = { "codeSha256": "artifact-a", "artifactSha256": "artifact-b" };
+
+  expect(findListIndex(list, replacedMetadata)).toBe(-1);
+});

@@ -87,7 +87,7 @@ provide<TranslationsStateType>(TranslationsContextKey, translations);
       <!--
         -- Loading this component triggers side-effects, such as:
         -- * defining 'Extensions', 'Permissions', and 'Txiki' at Window;
-        -- * importing 'ses', 'ark-of-atrahasis', and 'serialize-javascript'.
+        -- * importing 'ark-of-atrahasis' and 'serialize-javascript'.
         --
         -- Therefore, if one has disabled extensions,
         -- they will not have any extensions-related packages in their launcher
