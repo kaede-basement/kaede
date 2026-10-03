@@ -131,9 +131,13 @@ type ArcExtensionFile struct {
 	FileName string `json:"fileName"`
 	// The parsed metadata.json, kept as arbitrary JSON exactly like
 	// serde_json::Value.
-	Metadata   any    `json:"metadata"`
-	Code       string `json:"code"`
+	Metadata any    `json:"metadata"`
+	Code     string `json:"code"`
+	// Matched against the trusted hashes list, which lists code hashes.
 	CodeSHA256 string `json:"codeSha256"`
+	// Covers both metadata.json and index.js, so changed metadata makes a
+	// different extension.
+	ArtifactSHA256 string `json:"artifactSha256"`
 }
 
 // ArcExtensionFailure is `ExtensionFailure` of extensions.rs.
@@ -365,7 +369,7 @@ func (a *ArchiveService) ReadExtensions(extensionsDirPath string) (ArcExtensions
 
 	for _, path := range paths {
 		fileName := filepath.Base(path)
-		metadata, code, err := arcReadExtensionArchive(path)
+		metadata, metadataText, code, err := arcReadExtensionArchive(path)
 
 		if err != nil {
 			result.Failures = append(result.Failures, ArcExtensionFailure{
@@ -381,10 +385,11 @@ func (a *ArchiveService) ReadExtensions(extensionsDirPath string) (ArcExtensions
 		digest := sha256.Sum256([]byte(code))
 
 		result.Extensions = append(result.Extensions, ArcExtensionFile{
-			FileName:   fileName,
-			Metadata:   metadata,
-			Code:       code,
-			CodeSHA256: hex.EncodeToString(digest[:]),
+			FileName:       fileName,
+			Metadata:       metadata,
+			Code:           code,
+			CodeSHA256:     hex.EncodeToString(digest[:]),
+			ArtifactSHA256: arcArtifactSHA256(metadataText, code),
 		})
 	}
 
@@ -936,13 +941,23 @@ func arcFileExtension(fileName string) string {
 	return fileName[dot+1:]
 }
 
+// arcArtifactSHA256 is `artifact_sha256` of extensions.rs. Hashing the two
+// per-file digests keeps the boundary between the files unambiguous.
+func arcArtifactSHA256(metadataText string, code string) string {
+	metadataDigest := sha256.Sum256([]byte(metadataText))
+	codeDigest := sha256.Sum256([]byte(code))
+	digest := sha256.Sum256(append(metadataDigest[:], codeDigest[:]...))
+
+	return hex.EncodeToString(digest[:])
+}
+
 // arcReadExtensionArchive reads one extension bundle, returning its parsed
-// metadata and its code.
-func arcReadExtensionArchive(path string) (any, string, error) {
+// metadata, the metadata text, and its code.
+func arcReadExtensionArchive(path string) (any, string, string, error) {
 	archive, err := arcOpenArchive(path)
 
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	defer archive.close()
@@ -952,22 +967,22 @@ func arcReadExtensionArchive(path string) (any, string, error) {
 	metadataText, err := arcReadEntryText(archive.reader, arcMetadataEntry, arcMaxMetadataSize)
 
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	var metadata any
 
 	if err := json.Unmarshal([]byte(metadataText), &metadata); err != nil {
-		return nil, "", fmt.Errorf("'%s' is not valid JSON: %w", arcMetadataEntry, err)
+		return nil, "", "", fmt.Errorf("'%s' is not valid JSON: %w", arcMetadataEntry, err)
 	}
 
 	code, err := arcReadEntryText(archive.reader, arcCodeEntry, arcMaxCodeSize)
 
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
-	return metadata, code, nil
+	return metadata, metadataText, code, nil
 }
 
 /*

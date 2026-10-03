@@ -16,10 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
-import { parsePermission } from "@/lib/permissions/parse-permission.ts";
+import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { ExtensionType } from "@/types/extensions/extension.type.ts";
 
-export default {
-  grantStaticPermissions,
-  parsePermission,
-} as const;
+/*
+ * Matching by the code hash would let an archive with replaced metadata (e.g., more permissions)
+ * inherit the enabled state and skip the permissions confirmation
+ */
+export function findListIndex(
+  list: GlobalStatesType["extensions"]["list"],
+  { artifactSha256 }: Pick<ExtensionType, "artifactSha256">,
+): number {
+  return list.findIndex(({ sha256 }) => sha256 === artifactSha256);
+}

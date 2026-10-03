@@ -29,7 +29,7 @@ import type { TranslationsType } from "./src/types/translations/translations.typ
 const testWindow = {
   "__KAEDE__": {
     "internals": {
-      "requestPermissions" : async (): Promise<Array<boolean>> => ([]),
+      "requestPermissions" : async (): Promise<Array<[string, boolean]>> => ([]),
       "executableHash"     : "",
       "joinDelimiter"      : "",
       "launcherVersion"    : "",
@@ -90,3 +90,12 @@ mock.module("@/lib/logging/log.ts", () => logMock);
 
 // Mock Tauri APIs
 mock.module("@tauri-apps/api/window", () => windowMock);
+
+// Vite builds the sandbox worker; 'bun:test' cannot start it
+mock.module("@/lib/extensions/sandbox/worker/main.ts?worker&inline", () => ({
+  "default": class {
+    constructor() {
+      throw new Error("The sandbox worker is not available in tests");
+    }
+  },
+}));

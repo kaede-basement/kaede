@@ -16,10 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
-import { parsePermission } from "@/lib/permissions/parse-permission.ts";
+/**
+ * Limits for a single sandboxed plugin. Exceeding any of them terminates the plugin
+ */
+export const SandboxLimits = {
+  // The approximate size of one message that a plugin worker sends to the launcher
+  "MessageBytes"      : 8 * 1024 * 1024,
+  // The number of live UI nodes created by one plugin
+  "UINodes"           : 10_000,
+  // The number of UI operations in one batch; the worker splits larger batches
+  "UIOperations"      : 10_000,
+  // How long the plugin code evaluation or a lifecycle handler may run
+  "LifecycleTimeoutMs": 10_000,
+} as const;
 
 export default {
-  grantStaticPermissions,
-  parsePermission,
+  SandboxLimits,
 } as const;

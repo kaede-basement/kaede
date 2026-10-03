@@ -16,10 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
-import { parsePermission } from "@/lib/permissions/parse-permission.ts";
-
-export default {
-  grantStaticPermissions,
-  parsePermission,
-} as const;
+/*
+ * Grants used to be stored under plugin IDs, which come from archive file names.
+ * A file name cannot contain '/', so an artifact key never equals a legacy ID key,
+ * even when someone names an archive after another artifact's hash
+ */
+export function getGrantKey(artifactSha256: string): string {
+  return `artifact/${artifactSha256}`;
+}

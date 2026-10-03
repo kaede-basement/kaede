@@ -16,10 +16,32 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
+import { expect, test } from "bun:test";
+
 import { parsePermission } from "@/lib/permissions/parse-permission.ts";
 
-export default {
-  grantStaticPermissions,
-  parsePermission,
-} as const;
+test("Parse Permission: accepts known permissions", () => {
+  expect(parsePermission("log::write")).toEqual({ "key": "log::write", "argument": undefined });
+  expect(parsePermission("internet::http-get::http://[::1]:8080/a")).toEqual({
+    "key"     : "internet::http-get",
+    "argument": "http://[::1]:8080/a",
+  });
+});
+
+test("Parse Permission: rejects unknown permissions and wrong arguments", () => {
+  for (const permission of [
+    undefined,
+    {},
+    "log",
+    "log::",
+    "log::writer",
+    "time::performanceLOL",
+    "log::write::",
+    "log::write::extra",
+    "internet::http-get",
+    "internet::http-get::",
+    "internet::http-get::not a url",
+  ]) {
+    expect(parsePermission(permission)).toBeUndefined();
+  }
+});
