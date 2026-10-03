@@ -7,6 +7,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use zip::ZipArchive;
 
 use crate::hashes::sha256_hex;
@@ -23,7 +24,10 @@ pub struct ExtensionFile {
     pub file_name: String,
     pub metadata: serde_json::Value,
     pub code: String,
+    // Matched against the trusted hashes list, which lists code hashes
     pub code_sha256: String,
+    // Covers both metadata.json and index.js, so changed metadata makes a different extension
+    pub artifact_sha256: String,
 }
 
 #[derive(Serialize)]
@@ -87,7 +91,20 @@ fn read_entry_text(
     Ok(contents)
 }
 
-fn read_archive(path: &Path) -> Result<(serde_json::Value, String), String> {
+/*
+ * Hashing the two per-file digests keeps the boundary between the files unambiguous:
+ * moving bytes from one file to the other changes the identity
+ */
+fn artifact_sha256(metadata: &str, code: &str) -> String {
+    let mut digests = Vec::with_capacity(64);
+
+    digests.extend_from_slice(&Sha256::digest(metadata.as_bytes()));
+    digests.extend_from_slice(&Sha256::digest(code.as_bytes()));
+
+    sha256_hex(&digests)
+}
+
+fn read_archive(path: &Path) -> Result<(serde_json::Value, String, String), String> {
     let file = File::open(path)
         .map_err(|error| format!("Failed to open {}: {}", path.display(), error))?;
     let mut archive = ZipArchive::new(file)
@@ -97,8 +114,9 @@ fn read_archive(path: &Path) -> Result<(serde_json::Value, String), String> {
     let metadata: serde_json::Value = serde_json::from_str(&metadata_text)
         .map_err(|error| format!("'{}' is not valid JSON: {}", METADATA_ENTRY, error))?;
     let code = read_entry_text(&mut archive, CODE_ENTRY, MAX_CODE_SIZE)?;
+    let artifact_sha256 = artifact_sha256(&metadata_text, &code);
 
-    Ok((metadata, code))
+    Ok((metadata, code, artifact_sha256))
 }
 
 #[tauri::command]
@@ -137,7 +155,7 @@ pub async fn read_extensions(extensions_dir_path: String) -> Result<ExtensionsRe
                 .unwrap_or_default();
 
             match read_archive(&path) {
-                Ok((metadata, code)) => {
+                Ok((metadata, code, artifact_sha256)) => {
                     let code_sha256 = sha256_hex(code.as_bytes());
 
                     extensions.push(ExtensionFile {
@@ -145,6 +163,7 @@ pub async fn read_extensions(extensions_dir_path: String) -> Result<ExtensionsRe
                         metadata,
                         code,
                         code_sha256,
+                        artifact_sha256,
                     })
                 }
                 Err(error) => failures.push(ExtensionFailure { file_name, error }),
@@ -158,4 +177,30 @@ pub async fn read_extensions(extensions_dir_path: String) -> Result<ExtensionsRe
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::artifact_sha256;
+
+    #[test]
+    fn artifact_sha256_is_stable_for_the_same_files() {
+        assert_eq!(
+            artifact_sha256("{\"type\":\"sandbox\"}", "run();"),
+            artifact_sha256("{\"type\":\"sandbox\"}", "run();"),
+        );
+    }
+
+    #[test]
+    fn artifact_sha256_changes_with_metadata_when_code_is_the_same() {
+        assert_ne!(
+            artifact_sha256("{\"type\":\"sandbox\"}", "run();"),
+            artifact_sha256("{\"type\":\"unrestricted\"}", "run();"),
+        );
+    }
+
+    #[test]
+    fn artifact_sha256_changes_when_bytes_move_between_files() {
+        assert_ne!(artifact_sha256("{}a", "b"), artifact_sha256("{}", "ab"));
+    }
 }

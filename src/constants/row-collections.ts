@@ -24,6 +24,7 @@ import { DefaultLocale, DefaultLocaleName } from "@/constants/application.ts";
 import Permissions from "@/constants/permissions.ts";
 import { GlobalObject } from "@/extendable/global-object.ts";
 import Errors from "@/lib/errors";
+import { findListIndex } from "@/lib/extensions/find-list-index.ts";
 import General from "@/lib/general";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/log.ts";
@@ -107,7 +108,7 @@ const extensionHandler = {
       // 'enabled' being true means that the extension is being enabled
       if (enabled) {
         const existing = extensionStates.executed.find(searching => (
-          searching.extension.sha256 === extension.sha256 &&
+          searching.extension.artifactSha256 === extension.artifactSha256 &&
 
           /*
            * Just to be sure... Maybe there will be extensions that can work in both environments
@@ -154,7 +155,8 @@ const extensionHandler = {
     } catch (error: unknown) {
       log.error(
         __PRE_BUNDLED_FILENAME__,
-        `Error while re-enabling extension '${extension.id}' (sha256: ${extension.sha256}):`,
+        `Error while re-enabling extension '${extension.id}' ` +
+        `(artifact sha256: ${extension.artifactSha256}):`,
         Errors.prettify(error),
       );
     }
@@ -172,7 +174,7 @@ const extensionHandler = {
           extension.id,
           extension.code,
           extension.metadata,
-          extension.sha256,
+          extension.artifactSha256,
         );
 
         if (!api) {
@@ -367,12 +369,10 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
     "subtitle": "Enable or disable safe extensions",
     "inner"   : extensionStates
       .valid
-      .filter(({ sha256 }) => trustedExtensionHashes.value.has(sha256))
+      .filter(({ codeSha256 }) => trustedExtensionHashes.value.has(codeSha256))
       .map(currentExtension => {
-        const { id, metadata, sha256 } = currentExtension;
-        const index = globalStates.extensions.list.findIndex(searching => (
-          searching.sha256 === sha256
-        ));
+        const { id, metadata, artifactSha256 } = currentExtension;
+        const index = findListIndex(globalStates.extensions.list, currentExtension);
 
         if (index === -1) {
           return {
@@ -384,7 +384,7 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
         }
 
         const isInExecuted: boolean = extensionStates.executed.some(searching => (
-          searching.extension.sha256 === sha256
+          searching.extension.artifactSha256 === artifactSha256
         ));
         const status: string = isInExecuted ? "<executed> " : "";
 
@@ -415,10 +415,8 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
       .valid
       .filter(({ metadata }) => metadata.type === "sandbox")
       .map(currentExtension => {
-        const { id, metadata, sha256 } = currentExtension;
-        const index = globalStates.extensions.list.findIndex(searching => (
-          searching.sha256 === sha256
-        ));
+        const { id, metadata, artifactSha256 } = currentExtension;
+        const index = findListIndex(globalStates.extensions.list, currentExtension);
 
         if (index === -1) {
           return {
@@ -430,7 +428,7 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
         }
 
         const isInExecuted: boolean = extensionStates.executed.some(searching => (
-          searching.extension.sha256 === sha256
+          searching.extension.artifactSha256 === artifactSha256
         ));
         const status: string = isInExecuted ? "<executed> " : "";
 
@@ -461,15 +459,13 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
     "subtitle": "Enable or disable unsafe extensions",
     "inner"   : extensionStates
       .valid
-      .filter(({ metadata, sha256 }) => (
+      .filter(({ metadata, codeSha256 }) => (
         metadata.type === "unrestricted" &&
-        !trustedExtensionHashes.value.has(sha256)
+        !trustedExtensionHashes.value.has(codeSha256)
       ))
       .map(currentExtension => {
-        const { id, metadata, sha256 } = currentExtension;
-        const index = globalStates.extensions.list.findIndex(searching => (
-          searching.sha256 === sha256
-        ));
+        const { id, metadata, artifactSha256 } = currentExtension;
+        const index = findListIndex(globalStates.extensions.list, currentExtension);
 
         if (index === -1) {
           return {
@@ -481,7 +477,7 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
         }
 
         const isInExecuted: boolean = extensionStates.executed.some(searching => (
-          searching.extension.sha256 === sha256
+          searching.extension.artifactSha256 === artifactSha256
         ));
         const status: string = isInExecuted ? "<executed> " : "";
 
