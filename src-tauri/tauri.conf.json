@@ -27,7 +27,7 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "script-src 'self' 'unsafe-eval'; worker-src blob:",
       "assetProtocol": {
         "enable": true,
         "scope": {

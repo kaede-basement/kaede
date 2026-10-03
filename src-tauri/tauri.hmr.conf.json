@@ -1,0 +1,7 @@
+{
+  "app": {
+    "security": {
+      "csp": "script-src 'self' 'unsafe-eval' http://127.0.0.1:* http://localhost:*; worker-src blob:"
+    }
+  }
+}
