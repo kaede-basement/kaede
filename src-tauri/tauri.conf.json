@@ -23,7 +23,8 @@
         "visible": false,
         "center": true,
         "minWidth": 512,
-        "minHeight": 288
+        "minHeight": 288,
+        "additionalBrowserArgs": "--jitless --no-opt --max-old-space-size=256"
       }
     ],
     "security": {
