@@ -255,7 +255,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-windows-non-setup-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-windows-non-setup-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "portable-build/"
 
       - name: Upload binary (Windows, NSIS)
@@ -263,7 +263,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-windows-nsis-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-windows-nsis-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "./src-tauri/target/release/bundle/nsis/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64-setup.exe"
 
       - name: Upload binary (Windows, MSI)
@@ -271,7 +271,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-windows-msi-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-windows-msi-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "./src-tauri/target/release/bundle/msi/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64_en-US.msi"
 
       # txiki-server is not being bundled with this step, see the appropriate step above
@@ -288,7 +288,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-linux-deb-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-linux-deb-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "./src-tauri/target/release/bundle/deb/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_amd64.deb"
 
       - name: Upload binary (Linux, RPM)
@@ -296,7 +296,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-linux-rpm-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-linux-rpm-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "./src-tauri/target/release/bundle/rpm/${{ steps.json_properties.outputs.productName }}-${{steps.json_properties.outputs.version}}-1.x86_64.rpm"
 
       - name: Upload binary (Linux, AppImage)
@@ -304,7 +304,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-linux-app-image-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-linux-app-image-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "./src-tauri/target/release/bundle/appimage/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_amd64.AppImage"
 
       - name: Upload binary (macOS, x86_64, DMG)
@@ -312,7 +312,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-${{matrix.identifier}}-dmg-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-${{matrix.identifier}}-dmg-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "./src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_x64.dmg"
 
       - name: Upload binary (macOS, x86_64, tarball)
@@ -320,7 +320,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-${{matrix.identifier}}-tarball-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-${{matrix.identifier}}-tarball-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "./src-tauri/target/x86_64-apple-darwin/release/bundle/macos/${{ steps.json_properties.outputs.productName }}.app.tar.gz"
 
       - name: Upload binary (macOS, ARM, DMG)
@@ -328,7 +328,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-${{matrix.identifier}}-dmg-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-${{matrix.identifier}}-dmg-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "./src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/${{ steps.json_properties.outputs.productName }}_${{steps.json_properties.outputs.version}}_aarch64.dmg"
 
       - name: Upload binary (macOS, ARM, tarball)
@@ -336,7 +336,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-${{matrix.identifier}}-tarball-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-${{matrix.identifier}}-tarball-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "./src-tauri/target/aarch64-apple-darwin/release/bundle/macos/${{ steps.json_properties.outputs.productName }}.app.tar.gz"
 
   windows7-build:
