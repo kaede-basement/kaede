@@ -7,6 +7,7 @@ import { GlobalObject } from "@/extendable/global-object.ts";
 import Errors from "@/lib/errors";
 import ExtensionAPI from "@/lib/extension-api";
 import Extensions from "@/lib/extensions";
+import { findListIndex } from "@/lib/extensions/find-list-index.ts";
 import { log } from "@/lib/logging/log.ts";
 import Permissions from "@/lib/permissions";
 import Txiki from "@/lib/txiki";
@@ -30,42 +31,42 @@ onMounted(async () => {
   extensionStates.invalid = invalid;
 
   const list = globalStates.extensions.list;
-  const storage = new Map<string, boolean>(
-    list.map(({ sha256, enabled }) => [sha256, enabled]),
-  );
 
   // Add missing valid extensions
   for (const extension of valid) {
-    if (!storage.has(extension.sha256)) {
+    if (findListIndex(list, extension) === -1) {
       const label: string = `${extension.metadata.name} (${extension.id})`;
 
-      list.push({ "sha256": extension.sha256, "enabled": false, label });
-      storage.set(extension.sha256, false);
+      list.push({ "sha256": extension.artifactSha256, "enabled": false, label });
     }
   }
 
+  const isEnabled = (extension: ExtensionType): boolean => (
+    list[findListIndex(list, extension)].enabled
+  );
   const toExecute: Record<
     ExtensionType["metadata"]["type"],
     Array<ExtensionType>
   > = {
-    "sandbox": valid.filter(({ sha256, metadata }) => (
-      storage.get(sha256) &&
-      metadata.type === "sandbox"
+    "sandbox": valid.filter(extension => (
+      isEnabled(extension) &&
+      extension.metadata.type === "sandbox"
     )),
-    "unrestricted": valid.filter(({ sha256, metadata }) => (
-      storage.get(sha256) &&
-      metadata.type === "unrestricted" && (
-        trustedExtensionHashes.value.has(sha256) ||
+    "unrestricted": valid.filter(extension => (
+      isEnabled(extension) &&
+      extension.metadata.type === "unrestricted" && (
+        trustedExtensionHashes.value.has(extension.codeSha256) ||
         globalStates.extensions.allowUnrestrictedUntrusted
       )
     )),
   };
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing all enabled unrestricted extensions");
-  for (const { id, code, metadata, sha256 } of toExecute.unrestricted) {
+  for (const extension of toExecute.unrestricted) {
+    const { id, code, metadata, artifactSha256 } = extension;
     const needsCleanRun: boolean = await Extensions.dirtyLifecycle(
       extensionStates.executed,
-      { id, code, metadata, sha256 },
+      extension,
       true,
     );
 
@@ -73,13 +74,11 @@ onMounted(async () => {
       continue;
     }
 
-    const api = await Extensions.runInUnrestricted(id, code, metadata, sha256);
+    const api = await Extensions.runInUnrestricted(id, code, metadata, artifactSha256);
 
     // If 'api' is missing, then the extension did not load
     if (!api) {
-      const index = globalStates.extensions.list.findIndex(searching => (
-        searching.sha256 === sha256
-      ));
+      const index = findListIndex(globalStates.extensions.list, extension);
 
       // We need to show that the extension was not enabled
       globalStates.extensions.list[index].enabled = false;
@@ -93,7 +92,7 @@ onMounted(async () => {
      */
     extensionStates.executed = [
       ...extensionStates.executed,
-      { "extension": { id, code, metadata, sha256 }, api },
+      { extension, api },
     ];
   }
 
@@ -109,10 +108,11 @@ onMounted(async () => {
   }
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing all enabled sandboxed extensions");
-  for (const { id, code, metadata, sha256 } of toExecute.sandbox) {
+  for (const extension of toExecute.sandbox) {
+    const { id, artifactSha256, code, metadata } = extension;
     const needsCleanRun: boolean = await Extensions.dirtyLifecycle(
       extensionStates.executed,
-      { id, code, metadata, sha256 },
+      extension,
       true,
     );
 
@@ -122,13 +122,11 @@ onMounted(async () => {
 
     const permissions = metadata.permissions ?? [];
 
-    const api = Extensions.runInSandbox({ id, permissions, code });
+    const api = await Extensions.runInSandbox({ id, artifactSha256, permissions, code });
 
     // If 'api' is missing, then the extension did not load
     if (!api) {
-      const index = globalStates.extensions.list.findIndex(searching => (
-        searching.sha256 === sha256
-      ));
+      const index = findListIndex(globalStates.extensions.list, extension);
 
       // We need to show that the extension was not enabled
       globalStates.extensions.list[index].enabled = false;
@@ -142,7 +140,7 @@ onMounted(async () => {
      */
     extensionStates.executed = [
       ...extensionStates.executed,
-      { "extension": { id, code, metadata, sha256 }, api },
+      { extension, api },
     ];
   }
 
@@ -158,11 +156,11 @@ onUnmounted(async () => {
     try {
       log.debug(
         __PRE_BUNDLED_FILENAME__,
-        `Disabling extension '${extension.id}' (sha256: ${extension.sha256})`,
+        `Disabling extension '${extension.id}' (artifact sha256: ${extension.artifactSha256})`,
       );
-      const currentStatus: boolean = globalStates.extensions.list.find(searching => (
-        searching.sha256 === extension.sha256
-      ))?.enabled ?? false;
+      const currentStatus: boolean = globalStates.extensions.list[
+        findListIndex(globalStates.extensions.list, extension)
+      ]?.enabled ?? false;
 
       if (currentStatus) {
         await api.disable();
@@ -175,7 +173,8 @@ onUnmounted(async () => {
     } catch (error: unknown) {
       log.error(
         __PRE_BUNDLED_FILENAME__,
-        `Error while disabling extension '${extension.id}' (sha256: ${extension.sha256}):`,
+        `Error while disabling extension '${extension.id}' ` +
+        `(artifact sha256: ${extension.artifactSha256}):`,
         Errors.prettify(error),
       );
     }

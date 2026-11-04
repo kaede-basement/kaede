@@ -37,10 +37,11 @@ const MaxMetadataSize: number = 64 * 1024;
 const MaxCodeSize: number = 16 * 1024 * 1024;
 
 type ExtensionFileType = {
-  "fileName"  : string;
-  "metadata"  : unknown;
-  "code"      : string;
-  "codeSha256": string;
+  "fileName"      : string;
+  "metadata"      : unknown;
+  "code"          : string;
+  "codeSha256"    : string;
+  "artifactSha256": string;
 };
 
 type ExtensionFailureType = {
@@ -87,6 +88,21 @@ async function readEntryText(
   return contents;
 }
 
+// Hashing the two per-file digests keeps the boundary between the files unambiguous
+async function artifactSha256(metadataText: string, code: string): Promise<string> {
+  const encoder: TextEncoder = new TextEncoder;
+  const [metadataDigest, codeDigest]: Array<ArrayBuffer> = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(metadataText)),
+    crypto.subtle.digest("SHA-256", encoder.encode(code)),
+  ]);
+  const digests: Uint8Array = new Uint8Array(metadataDigest.byteLength + codeDigest.byteLength);
+
+  digests.set(new Uint8Array(metadataDigest), 0);
+  digests.set(new Uint8Array(codeDigest), metadataDigest.byteLength);
+
+  return digestBytes("SHA-256", digests);
+}
+
 async function readOneExtension(path: string, fileName: string): Promise<ExtensionFileType> {
   const bytes: Uint8Array = await readStoredArchive(path);
   const entries: Array<ZipEntryType> = listZipEntries(bytes);
@@ -105,7 +121,8 @@ async function readOneExtension(path: string, fileName: string): Promise<Extensi
     fileName,
     metadata,
     code,
-    "codeSha256": await digestBytes("SHA-256", (new TextEncoder).encode(code)),
+    "codeSha256"    : await digestBytes("SHA-256", (new TextEncoder).encode(code)),
+    "artifactSha256": await artifactSha256(metadataText, code),
   };
 }
 

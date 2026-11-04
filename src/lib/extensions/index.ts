@@ -29,7 +29,12 @@ import { showWebviewWindow } from "@/lib/extensions/show-webview-window.ts";
 import { updateTrustedHashes } from "@/lib/extensions/update-trusted-hashes.ts";
 
 export default {
-  "requestPermissions": GlobalInternals.requestPermissions,
+  // 'PermissionsHandler.vue' replaces the handler after this module is evaluated
+  "requestPermissions": (
+    ...parameters: Parameters<typeof GlobalInternals.requestPermissions>
+  ): ReturnType<typeof GlobalInternals.requestPermissions> => (
+    GlobalInternals.requestPermissions(...parameters)
+  ),
   dirtyLifecycle,
   readExtensions,
   runInUnrestricted,
