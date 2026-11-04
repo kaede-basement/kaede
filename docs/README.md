@@ -105,6 +105,12 @@ Microsoft Sign-in in Windows 7
 
 ---
 
+Kaede launched in macOS 10.15
+
+<img src="./demos/kaede_vmware_macos-10-15.webp" alt="Playing Hypixel via Kaede launched in macOS 10.15">
+
+---
+
 A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM usage)
 
 <img src="./demos/multi-window__blue-archive-different-bgs.jpg" alt="Multi-Window navigation with different Blue Archive background images">
@@ -126,12 +132,17 @@ A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM u
 
 ### Support
 
-| System       | Arch          | Support                   |
-|--------------|---------------|---------------------------|
-| Windows 8.1+ | x86_64        | Full                      |
-| macOS        | arm64, x86_64 | Full                      |
-| Linux        | x86_64        | Full                      |
-| Windows 7    | x86_64        | [Partial](./WINDOWS-7.md) |
+| System                       | Arch          | Support                   |
+|------------------------------|---------------|---------------------------|
+| Windows 8.1+                 | x86_64        | Full                      |
+| Windows 7                    | x86_64        | [Partial](./WINDOWS-7.md) |
+| macOS 12.3+                  | arm64, x86_64 | Full<sup>1</sup>          |
+| macOS 10.15+                 | arm64, x86_64 | Partial<sup>2</sup>       |
+| Linux with `webkit2gtk-4.1+` | x86_64        | Full                      |
+
+<sup>1</sup> since macOS 12.3, the version of Safari WebView is 15.4+, which **should** be the minimum version that supports everything in Kaede (?)
+
+<sup>2</sup> please use `macos-${architecture}-old` builds
 
 ### Stable Releases
 
@@ -185,7 +196,7 @@ For launcher plugins, themes, or translations:
 - [Making a Theme](./EXTENSIONS.md#making-a-theme)
 - [Translating the Launcher](https://github.com/kaede-basement/translations)
 
-Pull requests are welcome. AI code that impacts regular Tauri builds is not welcome; see [AGENTS.md](../AGENTS.md) for more. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 ## Building from Source
 
