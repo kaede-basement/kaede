@@ -132,13 +132,13 @@ A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM u
 
 ### Support
 
-| System                       | Arch          | Support                   |
-|------------------------------|---------------|---------------------------|
-| Windows 8.1+                 | x86_64        | Full                      |
-| Windows 7                    | x86_64        | [Partial](./WINDOWS-7.md) |
-| macOS 12.3+                  | arm64, x86_64 | Full<sup>1</sup>          |
-| macOS 10.15+                 | arm64, x86_64 | Partial<sup>2</sup>       |
-| Linux with `webkit2gtk-4.1+` | x86_64        | Full                      |
+| System                      | Arch          | Support                   |
+|-----------------------------|---------------|---------------------------|
+| Windows 8.1+                | x86_64        | Full                      |
+| Windows 7                   | x86_64        | [Partial](./WINDOWS-7.md) |
+| macOS 12.3+                 | arm64, x86_64 | Full<sup>1</sup>          |
+| macOS 10.15+                | arm64, x86_64 | Partial<sup>2</sup>       |
+| Linux with `webkit2gtk-4.1` | x86_64        | Full                      |
 
 <sup>1</sup> since macOS 12.3, the version of Safari WebView is 15.4+, which **should** be the minimum version that supports everything in Kaede (?)
 

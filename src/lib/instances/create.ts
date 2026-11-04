@@ -21,7 +21,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
-import Hashing from "@/lib/hashing";
+import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
@@ -85,9 +85,7 @@ export function create(
   }
 
   const randomDigits: number = Math.floor(Math.random() * 1000);
-  const id: string =
-    "instance_" + randomDigits + "_" +
-    Hashing.hashString(currentInstance.name).toString();
+  const id: string = FileManager.sanitizeFileOrFolderName(currentInstance.name + " " + randomDigits);
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
 

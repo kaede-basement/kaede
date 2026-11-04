@@ -23,10 +23,6 @@ Translations are done externally via a [Kaede Translations repository](https://g
 
 Information about extensions can be found [here](./EXTENSIONS.md).
 
-## Code of Conduct
-
-See [this file](./CODE_OF_CONDUCT.md).
-
 ## Code Formatting
 
 All TypeScript files are formatted with [ESLint](https://eslint.org/) using the configuration in `eslint.config.js`. Ensure linting is run on changed files before committing them!

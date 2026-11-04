@@ -18,12 +18,10 @@
 
 import { hashFileContents } from "@/lib/hashing/hash-file-contents.ts";
 import { hashOfflineNickname } from "@/lib/hashing/hash-offline-nickname.ts";
-import { hashString } from "@/lib/hashing/hash-string.ts";
 import { hashStringCrypto } from "@/lib/hashing/hash-string-crypto.ts";
 
 export default {
   hashFileContents,
   hashOfflineNickname,
-  hashString,
   hashStringCrypto,
 } as const;
