@@ -48,14 +48,17 @@ export function join(...paths: Array<string>): string {
 }
 
 /**
- * Replaces all characters that are not Unicode letters, numbers, or dots with an underscore
+ * Replaces all characters that are not Unicode letters, numbers, or dots with an underscore.
+ * Also limits the string length to 127 characters to be safe
  *
  * @param input - an arbitrary string
  * @returns a sanitized file or folder name
  */
 export function sanitizeFileOrFolderName(input: string): string {
   // Refer to https://www.regular-expressions.info/unicode.html#prop
-  return input.replace(/[^\p{L}\p{N}.]/gu, "_");
+  return input
+    .replace(/[^\p{L}\p{N}.]/gu, "_")
+    .slice(0, 127);
 }
 
 /**
