@@ -35,8 +35,11 @@ type MetadataType = {
 }>;
 
 export type ExtensionType = {
-  "id"      : string;
-  "code"    : string;
-  "sha256"  : string;
-  "metadata": MetadataType;
+  "id"            : string;
+  "code"          : string;
+  // The trusted hashes list contains code hashes
+  "codeSha256"    : string;
+  // Keys the enabled extensions list, so that changed metadata needs to be enabled again
+  "artifactSha256": string;
+  "metadata"      : MetadataType;
 };

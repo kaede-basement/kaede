@@ -25,12 +25,12 @@ type ExecutedListType = (typeof extensionStates)["executed"];
 
 export async function dirtyLifecycle(
   executedList: ExecutedListType,
-  { id, sha256, metadata }: ExtensionType,
+  { id, artifactSha256, metadata }: ExtensionType,
   enable: boolean,
   // Represents 'needsCleanRun'
 ): Promise<boolean> {
   const existing = executedList.find(searching => (
-    searching.extension.sha256 === sha256 &&
+    searching.extension.artifactSha256 === artifactSha256 &&
 
     /*
      * Just to be sure... Maybe there will be extensions that can work in both environments
@@ -44,7 +44,7 @@ export async function dirtyLifecycle(
     try {
       log.debug(
         __PRE_BUNDLED_FILENAME__,
-        `${status} extension '${id}' (sha256: ${sha256})`,
+        `${status} extension '${id}' (artifact sha256: ${artifactSha256})`,
       );
       await (
         enable
@@ -54,12 +54,14 @@ export async function dirtyLifecycle(
 
       log.info(
         __PRE_BUNDLED_FILENAME__,
-        `Successfully finished ${status.toLowerCase()} extension '${id}' (sha256: ${sha256})`,
+        `Successfully finished ${status.toLowerCase()} extension '${id}' ` +
+        `(artifact sha256: ${artifactSha256})`,
       );
     } catch (error: unknown) {
       log.error(
         __PRE_BUNDLED_FILENAME__,
-        `Error while ${status.toLowerCase()} extension '${id}' (sha256: ${sha256}):`,
+        `Error while ${status.toLowerCase()} extension '${id}' ` +
+        `(artifact sha256: ${artifactSha256}):`,
         Errors.prettify(error),
       );
     }

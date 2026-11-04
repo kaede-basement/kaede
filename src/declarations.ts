@@ -147,11 +147,12 @@ declare global {
           "visible"  : boolean;
           "resizable": boolean;
         };
-        // Requests plugin permissions from user
+        // Requests plugin permissions from user, resolving to '[permission, granted]' pairs
         "requestPermissions": (
           permissions: Array<PermissionType | string> | unknown,
-          extension: string
-        ) => Promise<Array<unknown>>;
+          extension: string,
+          artifactSha256: string
+        ) => Promise<Array<[string, boolean]>>;
         // Platform-specific delimiter
         "joinDelimiter"      : string;
         // Launcher version

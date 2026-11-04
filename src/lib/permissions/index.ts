@@ -17,9 +17,9 @@
  */
 
 import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
-import { handlePermission } from "@/lib/permissions/handle-permission.ts";
+import { parsePermission } from "@/lib/permissions/parse-permission.ts";
 
 export default {
   grantStaticPermissions,
-  handlePermission,
+  parsePermission,
 } as const;

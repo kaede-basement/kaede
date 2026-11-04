@@ -14,7 +14,7 @@ Kaede extensions are pieces of JavaScript code that change the User Interface (U
 Plugins are stored in the `extensions` folder and represent [ZIP](https://en.wikipedia.org/wiki/ZIP_(file_format)) archive files that use [DEFLATE](https://en.wikipedia.org/wiki/Deflate) compression. They can have either `.zip` or `.kaede` file extension. Every plugin archive should have two files: (1) `index.js` and (2) `metadata.json`. The `index.js` file is the code that will be executed, and `metadata.json` is a plugin metadata that has the following type.
 
 > [!NOTE]
-> The SHA256 hash of `index.js` is calculated for Kaede to know which plugin was enabled by the user. Even if the ID of a plugin stays the same but the hash changes, the plugin will be automatically disabled.
+> Kaede remembers which plugins the user enabled by a SHA256 hash of both `metadata.json` and `index.js`. Even if the ID of a plugin stays the same, changing either file disables the plugin and asks for its permissions again. The trusted-extensions check uses the hash of `index.js` alone.
 
 ```ts
 type MetadataType = {
@@ -82,15 +82,14 @@ Every approach above has its advantages, but there are also disadvantages. Conse
   <tbody>
     <tr>
       <td><strong>Safety</strong></td>
-      <td>Uses Android-like permissions and <a href="https://www.npmjs.com/package/ses" target="_blank">Secure ECMAScript Compartments</a></td>
+      <td>Uses Android-like permissions and a dedicated Web Worker per plugin, whose global object is stripped down to JavaScript built-ins</td>
       <td>Nothing stops the plugin from deleting your whole system after stealing MSA tokens</td>
     </tr>
     <tr>
       <td><strong>Performance</strong></td>
       <td>
-        <blockquote>When using direct eval, especially when the eval source cannot be proven to be in strict mode, the engine — and build tools — have to disable all optimizations related to inlining, because the eval() source can depend on any variable name in its surrounding scope<br />- Source: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#never_use_direct_eval!">MDN</a></blockquote>
-        Also, all provided to the plugin utilities are wrapped into another functions that have lots of checks for security purposes, making code run a little bit slower.<br />
-        However, the code still runs in the same engine context, so it should be faster than a regular interpretation or even code executed in iframes.
+        The plugin runs in its own Web Worker, so a busy plugin does not block the launcher or other plugins.<br />
+        However, every provided utility and every UI operation is a message to the launcher, which checks it before doing the work, so these calls are asynchronous and slower than direct calls.
       </td>
       <td>Faster than the sandboxed plugins and should be really close to a non-dynamically-initialized code.</td>
     </tr>
@@ -105,11 +104,11 @@ Every approach above has its advantages, but there are also disadvantages. Conse
 > [!CAUTION]
 > There is always a small chance the sandbox will be broken, which will allow the plugin to act like an unrestricted plugin
 
-The restricted environment (sandbox) uses a permission-based system. When enabling the plugin for the first time, the list of static permissions will be shown. Static permissions are defined ahead-of-time. In case the plugin wants to extend its capabilities, it can use the `requestPermissions` function that returns a promise that resolves as soon as the user allows the request. `requestPermissions` is a plugin-scoped global variable that is essentially a reference to the function from another lexical environment, i.e., Kaede itself.
+The restricted environment (sandbox) uses a permission-based system. When enabling the plugin for the first time, the list of static permissions will be shown. Static permissions are defined ahead-of-time. In case the plugin wants to extend its capabilities, it can use the `requestPermissions` function that returns a promise that resolves as soon as the user allows the request. `requestPermissions` is a plugin-scoped global function that sends the request to Kaede itself.
 
 // write here uhh i forgot
 
-// remove or move: A restricted environment is achieved by using a [Secure ECMAScript](https://github.com/endojs/endo) framework. Each permission has its own list of globals passed to the plugin. Unfortunately, almost every DOM operation is prohibited since it leads to the sandbox escape.
+// remove or move: A restricted environment is achieved by running each plugin in its own Web Worker without the Tauri API, network, or DOM. Each granted permission adds an object to `scopedThis` whose calls Kaede checks against the grant. UI is built through a proxy of the Ark safe DOM wrapper, inside a container that Kaede creates for the plugin.
 
 // remove or move: The second one is an unrestricted environment that allows plugins to do everything that the Kaede can do itself. Trusted extensions are executed in this environment.
 
@@ -215,7 +214,7 @@ TO-DO explain:
 - safe bidirectional events system (hooks alternative)
 - make a list of permissions and their corresponding functionality grant
 - performance
-- Secure ECMAScript
+- Web Worker isolation
 
 </details>
 

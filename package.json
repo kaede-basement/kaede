@@ -39,7 +39,6 @@
     "marked": "^18.0.9",
     "prism-code-editor": "^5.2.0",
     "serialize-javascript": "^7.0.7",
-    "ses": "^1.14.0",
     "typebox": "^1.0.8",
     "vue": "^3.5.17"
   },
