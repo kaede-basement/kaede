@@ -10,7 +10,7 @@
     "dev:frontend": "vite",
     "build:frontend": "vue-tsc -b && vite build",
     "preview:frontend": "vite preview",
-    "test": "bun test --preload ./scripts/bun.setup.ts src",
+    "test": "bun test --preload ./scripts/setup-tests.ts src",
     "bench": "tsx scripts/run-bench.ts",
     "lint": "eslint .",
     "typecheck": "vue-tsc -b",

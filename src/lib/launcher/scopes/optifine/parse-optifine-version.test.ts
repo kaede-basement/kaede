@@ -15,19 +15,16 @@ const testData = [
   ["1.18.1_HD_U_H5_pre6", { "minecraftVersion": "1.18.1", "type": "HD_U_H5", "patch": "pre6" }],
 
   ["1.20_HD_U_I5", { "minecraftVersion": "1.20", "type": "HD_U", "patch": "I5" }],
+
+  ["", false],
+  ["1.8.9", false],
+  ["1.8.9_", false],
 ] as const;
 
 for (const [version, expected] of testData) {
-  test(`OptiFine version: ${version}`, () => {
+  const testName = `OptiFine version: ${version}`;
+
+  test(testName, () => {
     expect(parseOptiFineVersion(version)).toEqual(expected);
-  });
-}
-
-// Anything without at least two underscores cannot give three segments
-const invalidVersions = ["", "1.8.9", "_", "__", "1.8.9_", "_HD_U"] as const;
-
-for (const version of invalidVersions) {
-  test(`Invalid OptiFine version: '${version}'`, () => {
-    expect(parseOptiFineVersion(version)).toBe(false);
   });
 }

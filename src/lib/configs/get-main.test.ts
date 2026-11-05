@@ -136,19 +136,22 @@ mock.module("@/lib/configs/scopes/regenerate-config-file.ts", () => ({
   "regenerateConfigFile": async (): Promise<unknown> => defaultConfig,
 }));
 
-const tests: Array<{
+const testData: Array<{
+  "label"    : string;
   "arguments": {
     "fetchedConfig": unknown;
   };
   "output": unknown;
 }> = [
   {
+    "label"    : "Empty Object",
     "arguments": {
       "fetchedConfig": {},
     },
     "output": defaultConfig,
   },
   {
+    "label"    : "Extra Fields",
     "arguments": {
       "fetchedConfig": {
         ...defaultConfig,
@@ -171,6 +174,7 @@ const tests: Array<{
     },
   },
   {
+    "label"    : "Number as a String",
     "arguments": {
       "fetchedConfig": {
         ...defaultConfig,
@@ -192,6 +196,7 @@ const tests: Array<{
     "output": defaultConfig,
   },
   {
+    "label"    : "Different 'ui.background.image' Value",
     "arguments": {
       "fetchedConfig": {
         ...defaultConfig,
@@ -216,12 +221,14 @@ const tests: Array<{
     },
   },
   {
+    "label"    : "Non-object (0)",
     "arguments": {
       "fetchedConfig": 0,
     },
     "output": defaultConfig,
   },
   {
+    "label"    : "Non-object (\"\")",
     "arguments": {
       "fetchedConfig": "",
     },
@@ -229,12 +236,14 @@ const tests: Array<{
   },
 ];
 
-test.each(tests)(
-  "Get Config File: %o", async ({ "arguments": testArguments, output }) => {
-    currentFetchedConfig = testArguments.fetchedConfig;
+for (const { label, "arguments": testArguments, output } of testData) {
+  const testName = `Get Config File: ${label}`;
 
-    // Imported dynamically so that the 'mock.module' calls above are registered first
-    const { getMain } = await import("./get-main.ts");
+  // Imported dynamically so that the 'mock.module' calls above are registered first
+  const { getMain } = await import("./get-main.ts");
+
+  test(testName, async () => {
+    currentFetchedConfig = testArguments.fetchedConfig;
 
     // These 'expect' tests throw an error on test fail which completely destroys next tests
     expect(
@@ -242,5 +251,5 @@ test.each(tests)(
     ).toBe(
       JSON.stringify(output),
     );
-  },
-);
+  });
+}
