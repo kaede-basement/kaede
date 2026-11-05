@@ -123,8 +123,10 @@ export default defineConfig({
     "assetsInlineLimit": 0,
   },
   "optimizeDeps": {
-    "esbuildOptions": {
-      "target": process.env.TARGET_OLD_SAFARI === "true" ? ["safari13"] : undefined,
+    "rolldownOptions": {
+      "transform": {
+        "target": process.env.TARGET_OLD_SAFARI === "true" ? ["safari13"] : undefined,
+      },
     },
   },
   // Better support for Tauri CLI output

@@ -1159,7 +1159,7 @@ export const JavaSettingsRows: SettingsRowCollectionType = [
 ];
 export const CustomRows: ShallowReactive<
   Record<string, SettingsRowCollectionType>
-> = shallowReactive({});
+> = shallowReactive<Record<string, SettingsRowCollectionType>>({});
 
 export default {
   DevelopmentSettingsRows,

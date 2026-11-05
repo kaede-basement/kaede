@@ -94,7 +94,7 @@ const ComponentStorage = {
 const PreservedForRestoring = { ...ComponentStorage };
 
 // // @ts-expect-error The registry is missing required properties only for 'dts-bundle-generator'
-export const C: ComponentRegistryType = shallowReactive(ComponentStorage);
+export const C: ComponentRegistryType = shallowReactive<ComponentRegistryType>(ComponentStorage);
 
 export function __registerComponent(name: string, component: Component): void {
   if (name in C) {
