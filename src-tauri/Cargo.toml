@@ -15,7 +15,7 @@ name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.4.0", features = [] }
+tauri-build = { version = "2.7.4", features = [] }
 
 [features]
 default = ["notifications"]
@@ -30,8 +30,8 @@ notifications = ["dep:tauri-plugin-notification"]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.8.4", features = ["protocol-asset", "macos-private-api", "image-ico", "image-png", "tray-icon"] }
-tauri-plugin-log = "2"
+tauri = { version = "2.12.5", features = ["protocol-asset", "macos-private-api", "image-ico", "image-png", "tray-icon"] }
+tauri-plugin-log = "2.10.1"
 
 time = "0.3"
 sha1 = "0.10.6"
@@ -44,30 +44,28 @@ tokio = { version = "1", features = ["fs", "macros", "rt", "time", "io-util"] }
 reqwest = { version = "0.13" }
 
 # Non-default installed plugins
-tauri-plugin-fs = { version = "2", features = ["watch"] }
-tauri-plugin-dialog = "2"
+tauri-plugin-fs = { version = "2.7.1", features = ["watch"] }
+tauri-plugin-dialog = "2.8.4"
 # 'unsafe-headers' lets callers override forbidden headers. We need it
 # to send an empty 'Origin' on the Microsoft OAuth2 token request
 # to avoid the 'AADSTS90023' error
-tauri-plugin-http = { version = "2.5.9", features = ["unsafe-headers"] }
+tauri-plugin-http = { version = "2.8.3", features = ["unsafe-headers"] }
 # See '[features]' section above to know why this is optional
-tauri-plugin-notification = { version = "2", optional = true }
-tauri-plugin-os = "2"
-tauri-plugin-process = "2"
-tauri-plugin-upload = "2"
-tauri-plugin-opener = "2"
-tauri-plugin-oauth = "2"
-tauri-plugin-clipboard-manager = "2"
+tauri-plugin-notification = { version = "2.8.0", optional = true }
+tauri-plugin-os = "2.4.0"
+tauri-plugin-process = "2.4.0"
+tauri-plugin-upload = "2.5.0"
+tauri-plugin-opener = "2.7.2"
+tauri-plugin-oauth = "2.1.0"
+tauri-plugin-clipboard-manager = "2.5.0"
+tauri-plugin-single-instance = "2.5.5"
 
 # Modded shell plugin that allows any commands (...recipe for disaster?)
 tauri-plugin-shellx = "2.0.16"
 
-[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-single-instance = "2"
-
 [profile.release]
-# compile each crate as one unit instead of 16 parallel chunks
-# slower build but more optimizations might be applied
+# Compile each crate as one unit instead of 16 parallel units.
+# The build becomes slower, but more optimizations might be applied
 codegen-units = 1
 # link-time optimization across crates
 lto = true
