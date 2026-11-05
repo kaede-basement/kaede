@@ -11,6 +11,7 @@ on:
       - beta
       - rc
       - release
+
   workflow_dispatch:
 
 env:

@@ -1,16 +1,6 @@
 name: "Build (Wails)"
 
 on:
-  push:
-    paths-ignore:
-      - ".gitignore"
-      - "**.md"
-      - flake.lock
-    branches:
-      - nightly
-      - beta
-      - rc
-      - release
   workflow_dispatch:
 
 env:

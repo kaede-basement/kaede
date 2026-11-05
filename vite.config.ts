@@ -23,8 +23,6 @@ import unocss from "unocss/vite";
 import { defineConfig, type IndexHtmlTransformResult, type Plugin } from "vite";
 import eslint from "vite-plugin-eslint2";
 
-import kaedeExtraConfiguration from "./kaede-extra.json";
-
 function handleSourceFileNames(): {
   "name"     : string;
   "enforce"  : "pre";
@@ -116,31 +114,18 @@ function injectSafariPolyfills(): Plugin {
   };
 }
 
-// In macOS builds, 'oldSafari' is true
-const transpiledForSafari = {
-  "build": kaedeExtraConfiguration.oldSafari ? {
-    "target": ["safari13"],
-  } : {},
-  "esbuild": kaedeExtraConfiguration.oldSafari ? {
-    "esbuildOptions": {
-      "target": ["safari13"],
-    },
-  } : {},
-  "plugins": kaedeExtraConfiguration.oldSafari ? [
-    injectSafariPolyfills(),
-  ] : [],
-};
-
 export default defineConfig({
   // Use '/kaede' base path for GitHub Pages
-  "base" : process.env.BASE_PATH,
+  "base" : process.env.BASE_PATH || undefined,
   "build": {
-    ...transpiledForSafari.build,
+    "target"           : process.env.TARGET_OLD_SAFARI === "true" ? ["safari13"] : undefined,
     // Do not inline any images
     "assetsInlineLimit": 0,
   },
   "optimizeDeps": {
-    ...transpiledForSafari.esbuild,
+    "esbuildOptions": {
+      "target": process.env.TARGET_OLD_SAFARI === "true" ? ["safari13"] : undefined,
+    },
   },
   // Better support for Tauri CLI output
   "clearScreen": false,
@@ -169,7 +154,7 @@ export default defineConfig({
   "plugins": [
     // Replace all '__PRE_BUNDLED_FILENAME__,' variables at build time
     handleSourceFileNames(),
-    ...transpiledForSafari.plugins,
+    ...(process.env.TARGET_OLD_SAFARI === "true" ? [injectSafariPolyfills()] : []),
     // Handle a Vue framework
     vue(),
     // Handle a UnoCSS package
