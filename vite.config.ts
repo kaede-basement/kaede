@@ -41,7 +41,7 @@ function handleSourceFileNames(): {
        */
       const relativePath: string = id.slice(process.cwd().length);
 
-      // Avoid having 'const "/src/declarations.ts:90": string;' in the 'declarations.ts'
+      // Avoid having 'const "/src/declarations.ts:90": string;' in 'declarations.ts'
       if (relativePath === "/src/declarations.ts") {
         return { "code": source, "map": null };
       }
@@ -133,7 +133,7 @@ const transpiledForSafari = {
 
 export default defineConfig({
   // Use '/kaede' base path for GitHub Pages
-  "base" : kaedeExtraConfiguration.useKaedeBase ? "/kaede" : undefined,
+  "base" : process.env.BASE_PATH,
   "build": {
     ...transpiledForSafari.build,
     // Do not inline any images
