@@ -3,83 +3,10 @@ name: "Build (Wails)"
 on:
   workflow_dispatch:
 
-env:
-  # Necessary for most environments as build failure can occur due to OOM issues
-  NODE_OPTIONS: "--max-old-space-size=4096"
-
 jobs:
-  build:
-    strategy:
-      # Failure in one platform build won't impact the others
-      fail-fast: false
-      matrix:
-        build:
-          - name: 'App'
-            platform:  'linux/amd64'
-            os: 'ubuntu-latest'
-          - name: 'App'
-            platform:  'windows/amd64'
-            os: 'windows-latest'
-          - name: 'App'
-            platform:  'darwin/universal'
-            os: 'macos-latest'
-
-    runs-on: ${{ matrix.build.os }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: recursive
-
-      - name: Swap placeholder exports with actual Wails-only utils
-        run: |
-          rm -rf ./src/lib/wails
-          mv ./src/lib/__wails ./src/lib/wails
-        shell: bash
-
-      - name: Setup bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Build Wails
-        uses: dAppCore/build/actions/build/wails3@v4
-        id: build
-        env:
-          NPM_CONFIG_LEGACY_PEER_DEPS: true
-          NPM_CONFIG_IGNORE_SCRIPTS: true
-        with:
-          app-working-directory: 'src-wails'
-          build-name: ${{ matrix.build.name }}
-          build: true
-          upload-artifact: false
-          package: false
-          wails3-tool: go tool wails3
-          wails3-command: build
-
-      - name: Upload the builds (Linux)
-        if: matrix.build.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v7
-        with:
-          name: Linux-Build
-          path: 'src-wails/kaede'
-          retention-days: 7
-          if-no-files-found: error
-
-      - name: Upload the builds (Windows)
-        if: matrix.build.os == 'windows-latest'
-        uses: actions/upload-artifact@v7
-        with:
-          name: Windows-Build
-          path: 'src-wails/kaede.exe'
-          retention-days: 7
-          if-no-files-found: error
-
-      - name: Upload the builds (macOS)
-        if: matrix.build.os == 'macos-latest'
-        uses: actions/upload-artifact@v7
-        with:
-          name: macOS-Build
-          path: 'src-wails/kaede'
-          retention-days: 7
-          if-no-files-found: error
+  build-wails:
+    name: "Build the Wails version"
+    uses: kaede-basement/clanker-experiments/.github/workflows/build-wails.yml@main
+    secrets: inherit
+    permissions:
+      contents: write

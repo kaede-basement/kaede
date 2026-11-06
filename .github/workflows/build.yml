@@ -214,7 +214,7 @@ jobs:
 
   build-for-windows-7:
     name: "Windows 7 build"
-    uses: ./.github/workflows/build-for-windows-7.yml
+    uses: kaede-basement/clanker-experiments/.github/workflows/build-for-windows-7.yml@main
     secrets: inherit
     permissions:
       contents: write
