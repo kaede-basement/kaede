@@ -1,5 +1,5 @@
 use tauri::Manager;
-use log::error;
+use log::{warn, error};
 
 mod downloads;
 mod extensions;
@@ -41,11 +41,13 @@ pub fn run() {
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // If user tries to open the launcher when it is already opened,
-            // then focus the already opened window.
+            // then focus the already opened window
             if let Some(window) = app.get_webview_window("main") {
+				warn!("An already opened Kaede process exists");
                 let _ = window.set_focus();
             }
         }))
+        // 'true' makes the plugin accept any shell command
         .plugin(tauri_plugin_shellx::init(true))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
@@ -55,8 +57,6 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
-            // Just so you know:
-            //
             // Initially, checking whether the application is in a portable mode or not
             // was made by reading the window label to find a 'Portable' string
             //
@@ -64,18 +64,12 @@ pub fn run() {
             // not as slow as I thought at first.
             //
             // Nevertheless, I was enlightened by Prism Launcher
-            // which uses 'portable.txt' to make the launcher portable
+            // that uses 'portable.txt' to make the launcher portable
             let portable = launcher::is_portable();
 
-            let mut path;
-
-            if portable {
-                // Resolves to the launcher executable file directory
-                path = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
-            } else {
-                // Resolves to '${dataDir}/${bundleIdentifier}'
-                path = app.path().app_data_dir()?;
-            }
+            let mut path = if portable {
+				std::env::current_exe().unwrap().parent().unwrap().to_path_buf()
+			} else { app.path().app_data_dir()? };
 
             path.push("logs");
 
@@ -98,30 +92,22 @@ pub fn run() {
             // so deleting that file while application is still working will lead to errors.
             //
             // Clearly, at this point of code Tauri logging plugin has NOT been loaded yet.
-            // This information means that the log file can be manipulated in any way.
+            // This means that the log file can be manipulated in any way.
             //
             // But in JavaScript, the logging plugin has already been loaded.
             // Thus, the logging preparation strategy provided below will fail,
             // requiring the JavaScript code to copy the contents from the log file into another one
-            // instead of just renaming that file. Of course, copying takes more time.
+            // instead of just renaming that file. Of course, copying takes more time than renaming
             if let Err(error) = launcher::prepare_log_file(&path, APP_NAME) {
                 error!("Failed to prepare the log file: {}", error);
             }
 
-            // Handle logging targets differently based on a build mode
-            let logging_builder = if cfg!(debug_assertions) {
-                // Debug mode
-                tauri_plugin_log::Builder::default()
-            } else {
-                // Release mode
-                // Clear any default output targets, such as 'stdout', etc.
-                tauri_plugin_log::Builder::new().clear_targets()
-            };
-
             app.manage(logging::LogTail::new(path.join("latest.log")));
             app.handle().plugin(
-                logging_builder
-                    // Do not log log messages from 'reqwest::connect'
+                tauri_plugin_log::Builder::new()
+                    // Clear any default output targets
+                    .clear_targets()
+                    // Do not log messages from 'reqwest::connect'
                     .filter(|metadata| metadata.target() != "reqwest::connect")
                     // Do not log 'trace' level messages
                     .level(log::LevelFilter::Debug)
@@ -131,6 +117,10 @@ pub fn run() {
                             path: path,
                             file_name: Some(format!("latest")),
                         },
+                    ))
+                    // Also log to terminal
+                    .target(tauri_plugin_log::Target::new(
+                        tauri_plugin_log::TargetKind::Stdout,
                     ))
                     // Make a custom logs format
                     .format(|out, message, record| {
@@ -147,9 +137,9 @@ pub fn run() {
                             message,
                         ))
                     })
-                    // Keep the log file size at 8 MB
+                    // Keep the log file size at 8 MiB
                     .max_file_size(8_388_608)
-                    // Keep the recent log lines if the file size exceeds 8 MBs
+                    // Keep the recent log lines if the file size exceeds 8 MiB
                     .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                     .build(),
             )?;

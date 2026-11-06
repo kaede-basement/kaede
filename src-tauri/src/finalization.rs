@@ -63,8 +63,8 @@ fn ensure_directories(base: &Path, folders: &[String]) -> io::Result<Vec<String>
 }
 
 // JDK vendors may ship a 'release' file next to 'bin/' containing
-// JAVA_VERSION="...". It is useful if we do not want to spawn a Java process
-// to get the java major from that process output
+// JAVA_VERSION="...". It is useful if we do not want to spawn
+// a Java process to get the version major from that process output
 fn detect_java_major(java_binary: &str) -> (Option<u32>, &'static str) {
     let Some(exe) = resolve_java_path(java_binary) else {
         return (None, "unresolved");

@@ -85,7 +85,9 @@ export function create(
   }
 
   const randomDigits: number = Math.floor(Math.random() * 1000);
-  const id: string = FileManager.sanitizeFileOrFolderName(currentInstance.name + " " + randomDigits);
+  const id: string = FileManager.sanitizeFileOrFolderName(
+    currentInstance.name + " " + randomDigits,
+  );
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
 

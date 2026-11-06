@@ -200,7 +200,7 @@ export const GeneralSettings = {
   },
   "Logs": {
     // Used for rendering lines in LogViewer.vue
-    "OuterRegion": 280,
+    "OuterRegion": 208,
     // Used only for Minecraft logs. Launcher logs stay uncut
     "LineLimit"  : 65_536,
   },

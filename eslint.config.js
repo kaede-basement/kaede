@@ -222,7 +222,7 @@ export default defineConfigWithVueTs(
       "@stylistic/curly-newline"                 : ["warn", { "consistent": true }],
       "@stylistic/function-call-argument-newline": ["warn", "consistent"],
       "@stylistic/function-call-spacing"         : ["warn", "never"],
-      "@stylistic/generator-star-spacing"        : ["warn", "before"],
+      "@stylistic/generator-star-spacing"        : ["warn", "after"],
       "@stylistic/implicit-arrow-linebreak"      : ["warn", "beside"],
       "@stylistic/indent"                        : ["warn", 2, { "SwitchCase": 1 }],
       "@stylistic/indent-binary-ops"             : ["warn", 2],
