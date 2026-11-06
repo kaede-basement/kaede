@@ -26,12 +26,14 @@ import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 export function runInSandbox({
   id,
+  artifactSha256,
   code,
   permissions = [],
 }: {
-  "id"          : string;
-  "code"        : string;
-  "permissions"?: Array<PermissionType>;
+  "id"            : string;
+  "artifactSha256": string;
+  "code"          : string;
+  "permissions"?  : Array<PermissionType>;
 }): void | {
   "enable"      : () => void | Promise<void>;
   "disable"     : () => void | Promise<void>;
@@ -49,7 +51,7 @@ export function runInSandbox({
     );
   }
 
-  const scopedThis = Permissions.grantStaticPermissions({ id, permissions });
+  const scopedThis = Permissions.grantStaticPermissions({ id, artifactSha256, permissions });
 
   /*
    * Create a plugin-scoped handler for requesting permissions
@@ -58,7 +60,7 @@ export function runInSandbox({
   const wrappedPermissionsRequest = async (
     permissions: Array<PermissionType>,
   ): Promise<Array<unknown>> => {
-    return await Extensions.requestPermissions(permissions, id);
+    return await Extensions.requestPermissions(permissions, id, artifactSha256);
   };
   const api: {
     "enable"      : () => void | Promise<void>;
