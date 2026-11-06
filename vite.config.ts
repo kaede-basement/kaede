@@ -74,7 +74,7 @@ async function injectSafariPolyfills(): Promise<Plugin> {
     "bundle"     : true,
     "format"     : "iife",
     "platform"   : "browser",
-    // Safari < 14.1 seems to not support destructuring (?)
+    // Safari < 14.1 seems not to support destructuring (?)
     "target"     : ["safari14.1"],
     "globalName" : "structuredClonePolyfill",
     // Do not write the output to the file system

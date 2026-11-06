@@ -16,9 +16,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-module.exports = {
-  "Window"          : class Window {},
-  "getCurrentWindow": () => ({
-    "theme": async () => "dark",
-  }),
+const fn = () => {};
+
+export default {
+  "log": {
+    "debug"    : fn,
+    "info"     : fn,
+    "warn"     : fn,
+    "error"    : fn,
+    "templates": {
+      "hooks": {
+        "iterate": {
+          "start"      : fn,
+          "execution"  : fn,
+          "response"   : fn,
+          "no-response": fn,
+          "end"        : fn,
+        },
+      },
+    },
+  },
 };

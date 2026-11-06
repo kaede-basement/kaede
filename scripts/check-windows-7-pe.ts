@@ -377,6 +377,5 @@ if (filePaths.length === 0) {
 }
 
 for (const filePath of filePaths) {
-  // @ts-expect-error It works
   await checkWindows7Pe(filePath, lenient);
 }

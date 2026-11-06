@@ -22,13 +22,13 @@ const writeableThis = globalThis as unknown as Record<string, unknown>;
 
 writeableThis.__PRE_BUNDLED_FILENAME__ = "bun-test:0";
 
-import("../src/__mocks__/log.cjs")
+import("../src/__mocks__/log.ts")
   .then(module => {
     // Mock the logging utilities
     mock.module("@/lib/logging/log.ts", () => module.default);
   });
-import("../src/__mocks__/api/window.cjs")
+import("../src/__mocks__/api/window.ts")
   .then(module => {
-    // Mock Tauri APIs
+    // Mock the window-related Tauri APIs
     mock.module("@tauri-apps/api/window", () => module.default);
   });
