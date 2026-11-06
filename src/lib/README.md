@@ -4,7 +4,7 @@
 
 ## Browser
 
-Kaede is a Webview-based application that requires a [Tauri](https://v2.tauri.app/) environment. Yet, in browsers, no Tauri environment exists. For one to simply test the UI of this launcher, they would need to install this application on their respective platform. However, since almost everything in Kaede was done using JavaScript, there is a way to replicate Tauri functionality using the built-in browser utilities. The `browser/` directory contains a work that is aimed at replicating Tauri API in browser environments.
+Kaede is a Webview-based application that requires a [Tauri](https://v2.tauri.app/) environment. Yet, in browsers, no Tauri environment exists. For one to simply test the UI of this launcher, they would need to install this application on their respective platform. However, since almost everything in Kaede was done using JavaScript, there is a way to replicate Tauri functionality using the built-in browser utilities. The `__browser/` directory contains a work that is aimed at replicating Tauri API in browser environments. Source code imports the no-op stub in `browser/` instead; the CI workflow for the live demo (`.github/workflows/preview.yml`) replaces `browser/` with `__browser/` before the build, so regular builds do not include the replicas.
 
 Moreover, one may replace the replicas with [Wails](https://wails.io/)/[Electron](https://www.electronjs.org/)/[Electrobun](https://github.com/blackboardsh/electrobun) utils to make Kaede work with a completely different backend.
 
@@ -103,11 +103,13 @@ The custom (`src-tauri/`) commands:
 
 ## Wails
 
-Kaede is a Webview-based application that requires a [Tauri](https://v2.tauri.app/) environment. The `__browser/` directory replaces that environment with browser built-ins so the UI can be previewed without installing anything. This directory does the opposite: it keeps a **real** desktop backend, but a different one. Every Tauri IPC call is translated into a call on a Go service running under [Wails v3](https://v3.wails.io/), which lives in [`src-wails/`](../../../src-wails).
+Kaede is a Webview-based application that requires a [Tauri](https://v2.tauri.app/) environment. The `__browser/` directory replaces that environment with browser built-ins so the UI can be previewed without installing anything. The `__wails/` directory does the opposite: it keeps a **real** desktop backend, but a different one. Every Tauri IPC call is translated into a call on a Go service running under [Wails v3](https://v3.wails.io/), which lives in [`src-wails/`](../../src-wails).
 
-Nothing outside this directory and [`src/main.ts`](../../main.ts) is aware that the backend changed. The frontend keeps importing `@tauri-apps/*` exactly as before.
+As with the browser replicas, source code imports the no-op stub in `wails/`; the Wails build (`.github/workflows/build-wails.yml`) replaces `wails/` with `__wails/` first.
 
-## How it attaches
+Nothing outside `__wails/` and [`src/main.ts`](../main.ts) is aware that the backend changed. The frontend keeps importing `@tauri-apps/*` exactly as before.
+
+### How it attaches
 
 `main.ts` probes for the backend before anything else decides where it is running:
 
@@ -123,15 +125,15 @@ if (Browser.detectIsBrowser()) {
 
 `handleTauriEnvironment` installs `window.__TAURI_INTERNALS__` (whose `invoke` is this bridge), `window.__TAURI_OS_PLUGIN_INTERNALS__`, and `window.__TAURI__` — the last one being what `detectIsBrowser` looks for, so at most one of the two branches ever runs.
 
-### Detection
+#### Detection
 
 A Wails webview injects nothing into the page, so there is no global to test synchronously. Instead the probe tries to import `/wails/runtime.js`, which a Wails v3 application serves from an application-level middleware. Outside of Wails that request answers with the index page or a 404, neither of which parses as a module.
 
 This is also why there is **no `@wailsio/runtime` dependency**: the runtime is taken from the backend that is hosting the page, so it can never drift out of step with the Go binary, and `package.json` is left untouched.
 
-### Calling Go
+#### Calling Go
 
-Wails addresses a bound method by a fully qualified name built from the package path of the receiver. Every service is declared in the `main` package of `src-wails`, so [`call-service.ts`](scopes/call-service.ts) simply prefixes `main.`:
+Wails addresses a bound method by a fully qualified name built from the package path of the receiver. Every service is declared in the `main` package of `src-wails`, so [`call-service.ts`](__wails/scopes/call-service.ts) simply prefixes `main.`:
 
 ```ts
 callService("HashService.Sha256", contents);   // -> main.HashService.Sha256
@@ -139,17 +141,17 @@ callService("HashService.Sha256", contents);   // -> main.HashService.Sha256
 
 Rejections are flattened back to plain strings, because Tauri commands reject with a bare string and the application interpolates rejections straight into log lines.
 
-## Things Tauri has and Wails does not
+### Things Tauri has and Wails does not
 
 | Tauri concept | How it is bridged |
 |---------------|-------------------|
-| `Channel` (`onProgress`, `onEvent`) | Each channel is given an id which travels to Go as a plain string. The backend emits `kaede:stream:<id>`, and [`handle-channels.ts`](scopes/handle-channels.ts) forwards every message into the channel until the owning call settles |
+| `Channel` (`onProgress`, `onEvent`) | Each channel is given an id which travels to Go as a plain string. The backend emits `kaede:stream:<id>`, and [`handle-channels.ts`](__wails/scopes/handle-channels.ts) forwards every message into the channel until the owning call settles |
 | `AppHandle#emit` (`process-output`, …) | Go emits under the original event name. The first `plugin:event|listen` for a name subscribes to the matching Wails event and fans it out through the same callback registry the browser replica uses |
 | Raw `Uint8Array` IPC bodies | Wails marshals `[]byte` to base64, so binary crosses the bridge encoded and is re-materialised into the exact shape the Tauri API promises |
 | `convertFileSrc` / the asset protocol | The backend serves `/kaede-file/?path=…`, so local icons are streamed instead of being held in memory as data URLs |
 | A raw-body command (`hash_sha256`, `hash_md5`) | The payload *is* the array, so the bridge encodes it before the call rather than reading a named argument |
 
-## Mockups
+### Mockups
 
 Unlike the browser replicas, these are not placeholders: each one is backed by a real implementation in Go, so the launcher actually downloads, unpacks, hashes, spawns Java and signs in.
 

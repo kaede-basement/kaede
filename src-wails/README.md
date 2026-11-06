@@ -1,4 +1,4 @@
-[<<< Back](../README.md)
+[<<< Back](../docs/README.md#contributing)
 
 # Wails Backend
 
@@ -26,6 +26,16 @@ Services live in package `main`, so Wails exposes them as `main.<Type>.<Method>`
 
 ## Building
 
+Source code imports the no-op stub in `src/lib/wails/`, so the frontend only talks to this backend once that directory is replaced with `src/lib/__wails/`. CI does this in [`build-wails.yml`](../.github/workflows/build-wails.yml); do the same before building or developing locally:
+
+```sh
+# from the repository root; this changes tracked files
+rm -rf src/lib/wails && mv src/lib/__wails src/lib/wails
+
+# to undo it afterwards
+git restore src/lib/wails src/lib/__wails && git clean -fd src/lib/wails
+```
+
 The backend serves the frontend, so the frontend is built first and copied into `frontend/dist`, where `//go:embed` can reach it.
 
 ```sh
@@ -40,11 +50,7 @@ cd src-wails
 go build -o kaede .
 ```
 
-`wails3 task build` does the same through `Taskfile.yml` if you have the [CLI](https://v3.wails.io/getting-started/installation/):
-
-```sh
-go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.6
-```
+`go tool wails3 build` (what CI runs) does the same through `Taskfile.yml`. The Wails CLI is declared as a `tool` in `go.mod`, so `go tool` builds it at the pinned version and no separate install is needed.
 
 ### Platform requirements
 
@@ -52,7 +58,7 @@ Wails links against the system webview, so a native build needs its development 
 
 | Platform | Requirement |
 |----------|-------------|
-| Linux | `libgtk-3-dev` and `libwebkit2gtk-4.1-dev`, and `CGO_ENABLED=1` |
+| Linux | `libgtk-4-dev` and `libwebkitgtk-6.0-dev`, and `CGO_ENABLED=1` (or `libgtk-3-dev` and `libwebkit2gtk-4.1-dev` with `-tags gtk3`) |
 | macOS | The Xcode command line tools, and `CGO_ENABLED=1` |
 | Windows | Nothing extra — WebView2 is loaded at runtime and the build is pure Go |
 
@@ -64,7 +70,7 @@ GOOS=windows CGO_ENABLED=0 go build ./...
 
 ## Developing
 
-With no `frontend/dist` embedded, the backend proxies to the Vite dev server instead, so the usual frontend loop still works:
+With no `frontend/dist` embedded (and `src/lib/wails/` swapped as above), the backend proxies to the Vite dev server instead, so the usual frontend loop still works:
 
 ```sh
 bun run dev:frontend   # terminal one, serves http://localhost:5173
