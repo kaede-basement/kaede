@@ -49,10 +49,16 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Check out a repository with Browser mocks
+        uses: actions/checkout@v7
+        with:
+          repository: "kaede-basement/clanker-experiments"
+          path: "clanker-experiments"
+
       - name: Swap placeholder exports with actual Browser-only utils
         run: |
           rm -rf ./src/lib/browser
-          mv ./src/lib/__browser ./src/lib/browser
+          mv $GITHUB_WORKSPACE/clanker-experiments/src/lib/__browser ./src/lib/browser
 
       - name: Build
         run: BASE_PATH=/kaede bun run build:frontend
