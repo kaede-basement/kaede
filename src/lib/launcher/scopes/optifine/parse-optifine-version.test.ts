@@ -22,7 +22,7 @@ const testData = [
 ] as const;
 
 for (const [version, expected] of testData) {
-  const testName = `OptiFine version: ${version}`;
+  const testName = `OptiFine Version: ${version}`;
 
   test(testName, () => {
     expect(parseOptiFineVersion(version)).toEqual(expected);

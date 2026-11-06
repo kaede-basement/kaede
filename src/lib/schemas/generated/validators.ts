@@ -10,7 +10,7 @@
  * concludes that the input is invalid, then the TypeBox runtime is lazily imported
  * to show the exact reason the input did not pass the validation.
  *
- * - Schemas are taken from:         'src/lib/schemas/'
+ * - Schemas are taken from:         'src/lib/schemas/types/'
  * - Recompile the validators using: 'bun generate:validators'
  *
  * ⣿⣿⠿⣫⡴⠋⠁⠥⢁⣀⣀⣐⣬⣤⣤⣤⣀⣀⣀⠔⠈⠐⡀⠀⠀⢀⡘⣿⣿⣿

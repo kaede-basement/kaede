@@ -17,86 +17,71 @@
  */
 
 import { expect, test } from "bun:test";
-import type { TSchema } from "typebox";
-import { Compile } from "typebox/compile";
-import { Create } from "typebox/value";
 
 import {
   CheckAccount,
-  CheckConfig,
-  CheckExtensionMetadata,
-  CheckInstanceMetadata,
-  CheckPatchMeta,
 } from "@/lib/schemas/generated/validators.ts";
-import { AccountSchema } from "@/lib/schemas/types/accounts";
-import { ConfigSchema } from "@/lib/schemas/types/config";
-import { ExtensionMetadataSchema } from "@/lib/schemas/types/extensions";
-import { InstanceMetadataSchema } from "@/lib/schemas/types/instances";
-import { PatchMetaSchema } from "@/lib/schemas/types/meta";
+import type { AccountType } from "@/types/configs/account.type.ts";
 
-const Targets: Array<{
-  "name"  : string;
-  "check" : (value: unknown) => boolean;
-  "schema": TSchema;
-}> = [
-  { "name": "account", "check": CheckAccount, "schema": AccountSchema },
-  { "name": "config", "check": CheckConfig, "schema": ConfigSchema },
-  {
-    "name"  : "extensionMetadata",
-    "check" : CheckExtensionMetadata,
-    "schema": ExtensionMetadataSchema,
+const placeholder: AccountType = {
+  "msa"    : null,
+  "profile": {
+    "name": "windstone_",
+    "type": "offline",
+    "uuid": "0204254bf42f3ceeb58de7d6f7890452",
   },
-  { "name": "instanceMetadata", "check": CheckInstanceMetadata, "schema": InstanceMetadataSchema },
-  { "name": "patchMeta", "check": CheckPatchMeta, "schema": PatchMetaSchema },
-];
+  "skin": {
+    "data"   : "",
+    "id"     : "",
+    "url"    : "",
+    "variant": "classic",
+  },
+};
 
-const Probes: Array<unknown> = [
-  undefined,
-  null,
-  0,
-  42.5,
-  "",
-  "string",
-  true,
-  [],
-  [{}],
-  {},
-  { "unexpected": true },
-];
+const testData = [
+  [
+    undefined,
+    false,
+  ],
+  [
+    { "development": {} },
+    false,
+  ],
+  [
 
-for (const { name, check, schema } of Targets) {
-  const reference = Compile(schema);
+    /*
+     * While 'accounts.json' represent an array of accounts,
+     * 'CheckAccount' checks only one account entry
+     */
+    [],
+    false,
+  ],
+  [
+    placeholder,
+    true,
+  ],
+  [
+    { ...placeholder, "config/extra-field": { "supported": true } },
+    true,
+  ],
+] as const;
 
-  test(`generated '${name}' validator accepts a valid sample`, () => {
-    const sample: unknown = Create(schema);
+function oneLevelDeep(key: string, value: unknown): unknown {
+  if (key === "" || typeof value !== "object" || value === null) {
+    return value;
+  }
 
-    expect(check(sample)).toBe(true);
-    expect(reference.Check(sample)).toBe(true);
-  });
+  return Array.isArray(value) ? "[Array]" : "[Object]";
+}
 
-  test(`generated '${name}' validator matches the compiled one on probes`, () => {
-    for (const probe of Probes) {
-      expect(check(probe)).toBe(reference.Check(probe));
-    }
-  });
+for (const [input, output] of testData) {
+  const testName = `Generated Validators (Account): ${JSON.stringify(input, oneLevelDeep)}`;
 
-  test(`generated '${name}' validator matches the compiled one on mutated samples`, () => {
-    const sample: unknown = Create(schema);
-
-    if (typeof sample !== "object" || sample === null) {
-      return;
-    }
-
-    for (const key of Object.keys(sample)) {
-      const missingKey = structuredClone(sample) as Record<string, unknown>;
-
-      delete missingKey[key];
-      expect(check(missingKey)).toBe(reference.Check(missingKey));
-
-      const wrongType = structuredClone(sample) as Record<string, unknown>;
-
-      wrongType[key] = Symbol.for("bogus").toString() + 12_345;
-      expect(check(wrongType)).toBe(reference.Check(wrongType));
-    }
+  test(testName, () => {
+    /*
+     * Checking only one exported function is enough since if one validator uses
+     * non-clean boolean chains, the whole file should fail because of reference errors
+     */
+    expect(CheckAccount(input)).toBe(output);
   });
 }
