@@ -204,4 +204,6 @@ generateValidators()
   })
   .catch(error => {
     console.error(`An error happened while generating validators: ${error}`);
+
+    throw error;
   });

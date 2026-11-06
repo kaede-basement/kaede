@@ -22,7 +22,20 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
+    /*
+     * Handle '@/...' imports.
+     *
+     * Since we include 'scripts/*.ts' in this config, 'vue-tsc -b' goes through
+     * the referenced imports in those script files, finds '@/lib/schemas/types/accounts',
+     * and reports the imports as errors, because it cannot recognize path aliases.
+     *
+     * UPD: ok we do not anymore, but let this stay
+     */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
     "types": ["bun"]
   },
-  "include": ["vite.config.ts", "scripts/*.ts"]
+  "include": ["vite.config.ts"]
 }
