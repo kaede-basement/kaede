@@ -121,6 +121,93 @@ export default defineConfig({
     "target"           : process.env.TARGET_OLD_SAFARI === "true" ? ["safari13"] : undefined,
     // Do not inline any images
     "assetsInlineLimit": 0,
+
+    /*
+     * UPD: ok Vite 8 chunk emit works properly with the uncommented configuration
+     *
+     * Vite 8 is genuinely fucking retarded. Not only its new rolldown bundler sucks
+     * at emitting chunks, it does not even provide any meaningful performance
+     * improvements (builds take 4.5 seconds with vite 8 and 6.5 seconds with vite 7).
+     * Moreover, sometimes for some unknown reason 'CraftingTableIcon.webp' is removed
+     * from the final bundle with Vite 8 (???) What is this stupid ass magic?
+     *
+     * Related issue:
+     * - https://github.com/rolldown/rolldown/issues/10731
+     *
+     * With the following configuration, I managed to get to this output:
+     *
+     * dist/assets/rolldown-runtime-XKyaHtl9.js       0.72 kB │ gzip:   0.42 kB
+     * dist/assets/PluginPlayground-BNKn4pzs.js      32.06 kB │ gzip:  13.66 kB
+     * dist/assets/markdown-libs-CoPiLIXy.js         77.65 kB │ gzip:  26.06 kB
+     * dist/assets/schemas-runtime-D_dwmU6M.js       90.17 kB │ gzip:  25.66 kB
+     * dist/assets/ExtensionLoader-CO26_PAF.js      120.26 kB │ gzip:  38.71 kB
+     * dist/assets/index-HBI0PBZ0.js                538.10 kB │ gzip: 163.35 kB
+     *
+     * The file size of every bundle and every CSS file produced by Vite 8
+     * is bigger than the ones produced Vite 7, which is another issue, but...
+     * There is a bigger fish to fry - why does 'rolldown-runtime-XKyaHtl9.js'
+     * not being inlined if it is 0.72 KiB? It is genuinely just faster to inline
+     * it rather than wait for a static import
+     *
+     * Additional news: even with the explicit 'schemas-runtime' chunk group, I see:
+     *
+     * ```
+     * var t=`/assets/FabricIcon-djNUUgT3.webp`,
+     *      n=`/assets/ForgeIcon-BIoIlPkW.webp`,
+     *      r=`/assets/LiteLoaderIcon-D3tKxKuv.webp`,i
+     * ```
+     *
+     * in the generated schemas-runtime bundle. Which leads the initial loading to include
+     * 'index', 'rolldown-runtime', and 'schemas-runtime' bundles even though the schemas
+     * were supposed to be included only when the schemas validation fails, and the user
+     * needs to see a specific reason for that (thus, including the whole schemas instead
+     * of just compiled boolean chains that are like 2-3 KiB at max). Vite 7 only makes
+     * a single import of the 'index' bundle in the initial loading. Uhh, whatever...
+     *
+     * "rolldownOptions"  : {
+     *   "output": {
+     *     "codeSplitting": {
+     *       "groups": [
+     *         {
+     *           "name"    : "markdown-libs",
+     *           // '[\\/]' matches both forward slash and backslash path delimiters
+     *           "test"    : /node_modules[\\/](marked|dompurify)/,
+     *           "priority": 20,
+     *         },
+     *         {
+     *           "name"    : "schemas-runtime",
+     *           "test"    : /src[\\/]lib[\\/]schemas[\\/]types/,
+     *           "priority": 15,
+     *         },
+     *         {
+     *           "name": "main-bundle",
+     *           "tags": ["$initial"],
+     *         },
+     *       ],
+     *     },
+     *   },
+     * },
+     */
+    "rolldownOptions": {
+      "output": {
+        "codeSplitting": {
+          "groups": [
+            // Inline both 'marked' and 'dompurify' into a single separate chunk
+            {
+              "name"    : "markdown-libs",
+              // '[\\/]' matches both forward slash and backslash path delimiters
+              "test"    : /node_modules[\\/](marked|dompurify)/,
+              "priority": 20,
+            },
+            {
+              "name": "main-bundle",
+              // '$initial' matches modules statically imported by the entry bundle
+              "tags": ["$initial"],
+            },
+          ],
+        },
+      },
+    },
   },
   "optimizeDeps": {
     "rolldownOptions": {
@@ -150,7 +237,7 @@ export default defineConfig({
   // Handle '@/...' imports
   "resolve": {
     "alias": {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   "plugins": [
