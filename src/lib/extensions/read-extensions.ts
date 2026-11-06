@@ -28,10 +28,11 @@ import type { ExtensionType } from "@/types/extensions/extension.type.ts";
 
 type ReadExtensionsType = {
   "extensions": Array<{
-    "fileName"  : string;
-    "metadata"  : unknown;
-    "codeSha256": string;
-    "code"      : string;
+    "fileName"      : string;
+    "metadata"      : unknown;
+    "codeSha256"    : string;
+    "artifactSha256": string;
+    "code"          : string;
   }>;
   "failures": Array<{
     "fileName": string;
@@ -121,9 +122,10 @@ export async function readExtensions(): Promise<{
     if (valid && permissionsValid) {
       validated.push({
         id,
-        "code"    : extension.code,
-        "sha256"  : extension.codeSha256,
-        "metadata": valid,
+        "code"          : extension.code,
+        "codeSha256"    : extension.codeSha256,
+        "artifactSha256": extension.artifactSha256,
+        "metadata"      : valid,
       });
     } else {
       invalid.push({
