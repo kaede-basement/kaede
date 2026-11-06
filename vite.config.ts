@@ -19,6 +19,7 @@
 import path from "node:path";
 
 import vue from "@vitejs/plugin-vue";
+import { build } from "esbuild";
 import unocss from "unocss/vite";
 import { defineConfig, type IndexHtmlTransformResult, type Plugin } from "vite";
 import eslint from "vite-plugin-eslint2";
@@ -62,7 +63,31 @@ function handleSourceFileNames(): {
   };
 }
 
-function injectSafariPolyfills(): Plugin {
+async function injectSafariPolyfills(): Promise<Plugin> {
+  /*
+   * Since the structuredClone polyfill is just 3 KiB, we can inline it,
+   * but first we need to build it as an immediately invoked function expression
+   */
+  const { outputFiles } = await build({
+    "entryPoints": ["node_modules/@ungap/structured-clone/esm/index.js"],
+    // Bundle all imports
+    "bundle"     : true,
+    "format"     : "iife",
+    "platform"   : "browser",
+    // Safari < 14.1 seems to not support destructuring (?)
+    "target"     : ["safari14.1"],
+    "globalName" : "structuredClonePolyfill",
+    // Do not write the output to the file system
+    "write"      : false,
+    "minify"     : true,
+  });
+
+  if (!outputFiles) {
+    throw new Error("Could not build the structuredClone polyfill");
+  }
+
+  const [{ "text": polyfillCode }] = outputFiles;
+
   return {
     "name"              : "inject-safari-polyfills",
     "transformIndexHtml": {
@@ -97,13 +122,35 @@ function injectSafariPolyfills(): Plugin {
               // Safari < 15.4
               // https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone#browser_compatibility
               if (window.structuredClone === undefined) {
-                window.structuredClone = input => {
-                  // Kaede only used 'structuredClone' to clone a 'ConfigType' object,
-                  // which only contains JSON values. Well, we could use this library:
-                  // https://github.com/ungap/structured-clone
-                  // But I am too lazy to add it properly here
-                  return JSON.parse(JSON.stringify(input));
-                };
+                try {
+                  ${polyfillCode}
+                  // If the polyfill has loaded successfully, then the Safari version
+                  // is between 14.1 and 15.3, so we can use a real polyfill
+                  window.structuredClone = structuredClonePolyfill.default;
+                } catch (error) {
+                  window.structuredClone = function(input) {
+                    // Kaede only uses 'structuredClone' to clone a 'ConfigType' object
+                    // that contains JSON values. Therefore, if the polyfill fails to load,
+                    // let the globally available 'structuredClone' just act like a JSON cloner
+                    return JSON.parse(JSON.stringify(input));
+                  };
+
+                  // May be useful (?)
+                  if (!window.__KAEDE__) { window.__KAEDE__ = { errors: {} } }
+                  if (!window.__KAEDE__.errors) { window.__KAEDE__.errors = {} }
+                  window.__KAEDE__.errors.structuredClonePolyfillFailed = true;
+
+                  window.__TAURI_INTERNALS__
+                    .invoke("plugin:log|log", {
+                      // Error level
+                      "level"   : 5,
+                      "message" : "Failed to load the 'structuredClone' polyfill",
+                      "location": "vite.config.ts:142",
+                    })
+                    .catch(function() {
+                      console.error("Failed to load the 'structuredClone' polyfill:", error);
+                    });
+                }
               }
             `,
             "injectTo": "head-prepend",
@@ -127,7 +174,8 @@ export default defineConfig({
      *
      * Vite 8 is genuinely fucking retarded. Not only its new rolldown bundler sucks
      * at emitting chunks, it does not even provide any meaningful performance
-     * improvements (builds take 4.5 seconds with vite 8 and 6.5 seconds with vite 7).
+     * improvements (builds take 4.5 seconds with vite 8 and 6.5 seconds with vite 7)
+     * since the vite plugins take the most time, not rollup/rolldown bundlers.
      * Moreover, sometimes for some unknown reason 'CraftingTableIcon.webp' is removed
      * from the final bundle with Vite 8 (???) What is this stupid ass magic?
      *
@@ -154,7 +202,7 @@ export default defineConfig({
      * ```
      * var t=`/assets/FabricIcon-djNUUgT3.webp`,
      *      n=`/assets/ForgeIcon-BIoIlPkW.webp`,
-     *      r=`/assets/LiteLoaderIcon-D3tKxKuv.webp`,i
+     *      r=`/assets/LiteLoaderIcon-D3tKxKuv.webp`
      * ```
      *
      * in the generated schemas-runtime bundle. Which leads the initial loading to include
