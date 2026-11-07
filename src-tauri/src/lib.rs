@@ -58,42 +58,36 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            // Initially, checking whether the application is in a portable mode or not
+            // was made by reading the window label to find a 'Portable' string, which
+            // only took '225.60µs' on my laptop, not as slow as I thought.
+            //
+            // Nevertheless, I was enlightened by Prism Launcher
+            // that uses 'portable.txt' to make the launcher portable
+            let (base_directory, portable) = application::get_application_directory_info(app.handle())?;
+            let path = base_directory.join("logs");
+
             // 'app.get_webview_window("main").is_some()' is true at this point since Tauri initializes a WebView
             // creation somewhere right before this 'setup' code. Sleeping the thread for 5 seconds makes
-            // the WebView window wait for 5 seconds until the first JavaScript bundles are sent, apparently (?)
+            // the tauri IPC hang while the WebView itself is already loaded (?)
             //
             // '09:57:54.326 | ... | Hi: true' - 'info!("Hi: {}", app.get_webview_window("main").is_some());'
             // '09:57:59.358 | ... | WebView for Kaede has loaded >.<'
             // '...'
             // '09:58:00.104 | ... | Launcher successfully initialized in: 5810.9 ms'
             //
-            // Since 'get_initial_state' fetches the hash of the executable only when the WebView
+            // Since 'get_initial_state' fetches the hash of the executable only when the frontend
             // makes a call to it, I decided that we can offload the hash calculation to a one-time
-            // action that runs while the WebView is created
+            // action that runs *while* the WebView is loading, i.e., before the frontend itself
+            // can make such a call
             tauri::async_runtime::spawn(async {
                 hashing::APPLICATION_HASH.get_or_init(hashing::get_executable_hash).await;
             });
-
-            // tauri::async_runtime::spawn();
-
-            // Initially, checking whether the application is in a portable mode or not
-            // was made by reading the window label to find a 'Portable' string
-            //
-            // Those chained calls took only '225.60µs' on my laptop though,
-            // not as slow as I thought at first.
-            //
-            // Nevertheless, I was enlightened by Prism Launcher
-            // that uses 'portable.txt' to make the launcher portable
-            let portable = application::is_portable();
-
-            let mut path = if portable {
-				std::env::current_exe().unwrap().parent().unwrap().to_path_buf()
-			} else { app.path().app_data_dir()? };
-
-            path.push("logs");
+            // Besides hashing, we can also read configs ahead-of-time
+            app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist
-            let _ = std::fs::create_dir_all(&path)?;
+            std::fs::create_dir_all(&path)?;
 
             // Prepare the log file.
             //

@@ -72,7 +72,7 @@ async function run(): Promise<void> {
     await Browser.handleTauriEnvironment();
   }
 
-  const { basic, parsed } = await Initialization.start();
+  const { basic, parsed, executableHash } = await Initialization.start();
   const baseDirectory = basic.baseDirectory;
 
   // Caching
@@ -80,7 +80,7 @@ async function run(): Promise<void> {
   GlobalInternals.portable = basic.portable;
   GlobalInternals.joinDelimiter = basic.separator;
   GlobalInternals.launcherVersion = basic.launcherVersion;
-  GlobalInternals.executableHash = basic.executableHash;
+  GlobalInternals.executableHash = executableHash;
   GlobalInternals.launchCount = basic.launchCount;
 
   // Show a pretty ASCII art with the launcher name :3
@@ -90,7 +90,7 @@ async function run(): Promise<void> {
       basic.portable,
       basic.launchCount,
       basic.launcherVersion,
-      basic.executableHash,
+      executableHash,
     ),
   );
 

@@ -1,6 +1,27 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::fs;
 use tokio::task::JoinSet;
+
+use crate::file_system::ParsedFile;
+
+pub fn extract_locale(config: &ParsedFile) -> String {
+    let ParsedFile::Loaded { data } = config else {
+        return "en".to_string();
+    };
+
+    data.get("locale")
+        .and_then(Value::as_str)
+        .filter(|locale| {
+            !locale.is_empty()
+                && locale
+                .chars()
+                // I do not want to see '../accounts'
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        })
+        .unwrap_or("en")
+        .to_string()
+}
 
 #[derive(Serialize)]
 pub struct ItemInfo {
