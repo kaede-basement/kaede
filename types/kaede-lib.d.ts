@@ -1325,6 +1325,7 @@ declare class ExtensionAPI {
 	constructor(id: string);
 	enable(): Promise<void>;
 	disable(): Promise<void>;
+	afterDisable(): Promise<void>;
 	subscribe(event: unknown, callback: (data: unknown) => Promise<unknown>): ExtensionAPI;
 	unsubscribe(event: unknown, callback: (data: unknown) => Promise<unknown>): ExtensionAPI;
 }
@@ -1351,6 +1352,7 @@ export type ExtensionType = {
 export type SandboxedAPI = {
 	"enable": () => void | Promise<void>;
 	"disable": () => void | Promise<void>;
+	"afterDisable": () => void | Promise<void>;
 };
 declare const extensionStates: ShallowReactive<{
 	"valid": Array<ExtensionType>;
@@ -1380,6 +1382,7 @@ declare function runInSandbox({ id, code, permissions, }: {
 }): void | {
 	"enable": () => void | Promise<void>;
 	"disable": () => void | Promise<void>;
+	"afterDisable": () => void | Promise<void>;
 };
 declare function showWebviewWindow(): Promise<void>;
 declare function updateTrustedHashes(): Promise<void>;
@@ -2453,7 +2456,6 @@ declare class Txiki {
 }
 declare function watchConfigSync(): () => void;
 declare function watchCustomFont(): () => void;
-declare function watchErrors(): () => void;
 declare function watchInstancesSync(): () => void;
 declare function watchProcesses(): Promise<() => void>;
 export type CleanupType<T extends GlobalStatesType[keyof GlobalStatesType]> = Partial<Record<keyof T, () => void>>;
@@ -2465,7 +2467,6 @@ declare function watchLogModeStates(logs: ShallowReactive<Record<string, {
 declare const _default$31: {
 	readonly watchConfigSync: typeof watchConfigSync;
 	readonly watchCustomFont: typeof watchCustomFont;
-	readonly watchErrors: typeof watchErrors;
 	readonly watchInstancesSync: typeof watchInstancesSync;
 	readonly watchProcesses: typeof watchProcesses;
 	readonly watchDevelopmentStates: typeof watchDevelopmentStates;
@@ -2502,6 +2503,7 @@ declare const _default$32: {
 			"api": ExtensionAPI | {
 				enable: () => void | Promise<void>;
 				disable: () => void | Promise<void>;
+				afterDisable: () => void | Promise<void>;
 			};
 		}>;
 	}>;

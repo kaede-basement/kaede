@@ -18,7 +18,6 @@
 
 import { type Component, defineAsyncComponent, shallowReactive } from "vue";
 
-// /*
 import AddInstance from "@/components/add-instance/AddInstance.vue";
 import ContextMenu from "@/components/general/layout/ContextMenu.vue";
 import GlobalBackground from "@/components/general/layout/GlobalBackground.vue";
@@ -33,7 +32,6 @@ import Home from "@/components/home/Home.vue";
 import Library from "@/components/library/Library.vue";
 import Profile from "@/components/profile/Profile.vue";
 import Settings from "@/components/settings/Settings.vue";
-// */
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { log } from "@/lib/logging/log.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
@@ -56,21 +54,17 @@ type ComponentRegistryType = {
   "Settings"        : Component;
 };
 
-// /*
 export const LazyExtensionLoader = defineAsyncComponent(() => (
   import("@/components/general/extensions/ExtensionLoader.vue")
 ));
 export const LazyPluginPlayground = defineAsyncComponent(() => (
   import("@/components/settings/tabs/PluginPlayground.vue")
 ));
-// */
 
 /*
  * Extensions can use this registry to replace existing components with their own ones.
- * When generating types using 'dts-bundle-generator', make sure to remove any Vue components
  */
 const ComponentStorage = {
-  // /*
   ContextMenu,
   GlobalBackground,
   LaunchProgress,
@@ -85,7 +79,6 @@ const ComponentStorage = {
   Library,
   Profile,
   Settings,
-  // */
 } as const;
 
 /**
