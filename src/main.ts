@@ -111,6 +111,24 @@ async function run(): Promise<void> {
     Configs.getAccounts({ baseDirectory, "parsedFile": parsed.accounts }),
   ]);
 
+  // At this point, we can make WebView visible
+  if (config.extensions.showAppAfterExtensionsLoad !== true) {
+    getCurrentWebviewWindow()
+      .show()
+      .then(() => {
+        log.info(
+          __PRE_BUNDLED_FILENAME__,
+          `Successfully made WebView visible at time mark: ${performance.now().toFixed(1)} ms`,
+        );
+      })
+      .catch(error => {
+        log.error(
+          __PRE_BUNDLED_FILENAME__,
+          `An error occurred while making WebView visible: ${Errors.prettify(error)}`,
+        );
+      });
+  }
+
   // Define launcher's initial values at globals to make them accessible from anywhere
   GlobalInternals.initialConfig = config;
   GlobalInternals.initialTranslations = translations;
@@ -173,7 +191,7 @@ async function run(): Promise<void> {
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing launcher");
   await Initialization
-    .finish({ config, baseDirectory })
+    .finish({ baseDirectory })
     .catch((error: unknown) => {
       log.error(__PRE_BUNDLED_FILENAME__, "Failed to initialize launcher:", Errors.prettify(error));
     });
