@@ -57,6 +57,20 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            // 'app.get_webview_window("main").is_some()' is true at this point since Tauri initializes a WebView
+            // creation somewhere right before this 'setup' code. Sleeping the thread for 5 seconds makes
+            // the WebView window wait for 5 seconds until the first JavaScript bundles are sent, apparently (?)
+            //
+            // '09:57:54.326 | ... | Hi: true' - 'info!("Hi: {}", app.get_webview_window("main").is_some());'
+            // '09:57:59.358 | ... | WebView for Kaede has loaded >.<'
+            // '...'
+            // '09:58:00.104 | ... | Launcher successfully initialized in: 5810.9 ms'
+            let executable_hash = tauri::async_runtime::spawn(
+                launcher::get_executable_hash()
+            );
+            eprintln!("Hash: {executable_hash}");
+            // tauri::async_runtime::spawn();
+
             // Initially, checking whether the application is in a portable mode or not
             // was made by reading the window label to find a 'Portable' string
             //

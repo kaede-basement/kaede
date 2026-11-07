@@ -100,6 +100,12 @@ pub struct InitialState {
     pub parsed: InitialStateParsedFiles,
 }
 
+pub async fn get_executable_hash() -> Option<String> {
+    let exe_path = std::env::current_exe().ok()?;
+
+    crate::hashes::sha256_file(&exe_path).ok()
+}
+
 #[tauri::command]
 pub async fn get_initial_state(app: tauri::AppHandle) -> Result<InitialState, String> {
     let portable = is_portable();
@@ -118,9 +124,7 @@ pub async fn get_initial_state(app: tauri::AppHandle) -> Result<InitialState, St
     };
 
     let executable_hash = tokio::task::spawn_blocking(|| {
-        let exe_path = std::env::current_exe().ok()?;
-
-        crate::hashes::sha256_file(&exe_path).ok()
+        get_executable_hash()
     });
 
     let (config, accounts, instances) = tokio::join!(
