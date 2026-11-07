@@ -22,11 +22,13 @@ const writeableThis = globalThis as unknown as Record<string, unknown>;
 
 writeableThis.__PRE_BUNDLED_FILENAME__ = "bun-test:0";
 
+// @ts-expect-error '.ts' imports work properly, but the error persists because no tsconfig is used
 import("../src/__mocks__/log.ts")
   .then(module => {
     // Mock the logging utilities
     mock.module("@/lib/logging/log.ts", () => module.default);
   });
+// @ts-expect-error '.ts' imports work properly, but the error persists because no tsconfig is used
 import("../src/__mocks__/api/window.ts")
   .then(module => {
     // Mock the window-related Tauri APIs

@@ -25,6 +25,13 @@ glob("src/**/*.bench.ts", (error, matches) => {
   }
 
   for (const match of matches) {
-    execSync(`tsx ${match}`, { "stdio": "inherit" });
+    /*
+     * It is extremely inconvenient to use 'tsx' or 'node' as they always fail on
+     * unsupported file extensions, like '.webp', when importing functions from the
+     * Kaede source code, and I could not make a proper loader for this, so we just
+     * use 'bun' with JavaScriptCore. V8 is faster and a better representation for
+     * the WebView performance in Windows, but... whatever.
+     */
+    execSync(`bun --preload ./scripts/setup-tests.ts ${match}`, { "stdio": "inherit" });
   }
 });

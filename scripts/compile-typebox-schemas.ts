@@ -31,6 +31,7 @@ import {
   PatchMetaSchema,
 } from "../src/lib/schemas/types";
 
+// @ts-expect-error 'import.meta' works properly, but the error persists because no tsconfig is used
 const fileDirectory: string = path.join(import.meta.dirname, "../src/lib/schemas/generated");
 const filePath:  string = path.join(fileDirectory, "validators.ts");
 
@@ -158,8 +159,6 @@ async function generateValidators(): Promise<void> {
     .join("\n")
     .trim();
 
-  // Make sure the directory exists before writing a file there
-  await fs.mkdir(fileDirectory, { "recursive": true });
   await fs.writeFile(filePath, fileContents, { "encoding": "utf8" });
 
   return console.log(
