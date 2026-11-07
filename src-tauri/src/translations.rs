@@ -10,8 +10,8 @@ pub struct ItemInfo {
 
 // Translations have the following structure.
 // - Info
-//   - Code (the language code, e.g., ru)
-//   - Name (the language label, e.g., Русский)
+//   - Code (the language code, e.g., 'ru')
+//   - Name (the language label, e.g., 'Русский')
 //   - ...
 // - Messages
 //   - ...

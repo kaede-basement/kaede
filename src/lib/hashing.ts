@@ -18,14 +18,43 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
+export const Algorithms = {
+  "SHA256": "sha256",
+  "SHA1"  : "sha1",
+  "MD5"   : "md5",
+} as const;
+
+export type HashAlgorithmType = (typeof Algorithms)[keyof typeof Algorithms];
+
+function hashPath(path: string, algorithm: HashAlgorithmType): Promise<string> {
+  return invoke<string>("hash_path", { path, algorithm });
+}
+
+function hashPayload(payload: Uint8Array | string, algorithm: HashAlgorithmType): Promise<string> {
+  const bytes: Uint8Array = typeof payload === "string"
+    ? (new TextEncoder).encode(payload)
+    : payload;
+
+  switch (algorithm) {
+    case Algorithms.SHA256: {
+      return invoke<string>("hash_request_sha256", bytes);
+    }
+    case Algorithms.SHA1: {
+      return invoke<string>("hash_request_sha1", bytes);
+    }
+    case Algorithms.MD5: {
+      return invoke<string>("hash_request_md5", bytes);
+    }
+  }
+}
+
 /*
  * Source - https://stackoverflow.com/a/51732778
  * Posted by Mahesh Bongani
  * Retrieved 2026-06-13, License - CC BY-SA 4.0
  */
-export async function hashOfflineNickname(input: string): Promise<string> {
-  const encoded: Uint8Array = (new TextEncoder).encode(`OfflinePlayer:${input}`);
-  const hashed: string = await invoke<string>("hash_md5", encoded);
+async function hashOfflineNickname(input: string): Promise<string> {
+  const hashed: string = await hashPayload(`OfflinePlayer:${input}`, Algorithms.MD5);
   const bytes: Array<number> = [];
 
   for (let index = 0; index < hashed.length; index += 2) {
@@ -50,3 +79,10 @@ export async function hashOfflineNickname(input: string): Promise<string> {
     .map(byte => byte.toString(16).padStart(2, "0"))
     .join("");
 }
+
+export default {
+  Algorithms,
+  hashPath,
+  hashPayload,
+  hashOfflineNickname,
+} as const;

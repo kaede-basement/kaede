@@ -3,6 +3,7 @@ import { mkdir } from "@tauri-apps/plugin-fs";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
+import { Algorithms } from "@/lib/hashing.ts";
 import Hooks from "@/lib/hooks";
 import { log } from "@/lib/logging/log.ts";
 import Network from "@/lib/network";
@@ -43,8 +44,8 @@ export async function downloadClient({
   );
   statuses.current = LaunchStatus.Client.Checking;
   const mismatches: Array<string> = await FileManager.verifyPaths({
-    "paths": [client],
-    "sha1" : instance.checksum,
+    "paths"    : [client],
+    "algorithm": instance.checksum ? Algorithms.SHA1 : undefined,
   });
   const isMismatch: boolean =
     mismatches.length > 0 &&

@@ -3,9 +3,10 @@ use log::{warn, error};
 
 mod downloads;
 mod extensions;
+mod file_system;
 mod finalization;
-mod hashes;
-mod launcher;
+mod hashing;
+mod application;
 mod logging;
 mod modrinth;
 mod processes;
@@ -65,10 +66,14 @@ pub fn run() {
             // '09:57:59.358 | ... | WebView for Kaede has loaded >.<'
             // '...'
             // '09:58:00.104 | ... | Launcher successfully initialized in: 5810.9 ms'
-            let executable_hash = tauri::async_runtime::spawn(
-                launcher::get_executable_hash()
-            );
-            eprintln!("Hash: {executable_hash}");
+            //
+            // Since 'get_initial_state' fetches the hash of the executable only when the WebView
+            // makes a call to it, I decided that we can offload the hash calculation to a one-time
+            // action that runs while the WebView is created
+            tauri::async_runtime::spawn(async {
+                hashing::APPLICATION_HASH.get_or_init(hashing::get_executable_hash).await;
+            });
+
             // tauri::async_runtime::spawn();
 
             // Initially, checking whether the application is in a portable mode or not
@@ -79,7 +84,7 @@ pub fn run() {
             //
             // Nevertheless, I was enlightened by Prism Launcher
             // that uses 'portable.txt' to make the launcher portable
-            let portable = launcher::is_portable();
+            let portable = application::is_portable();
 
             let mut path = if portable {
 				std::env::current_exe().unwrap().parent().unwrap().to_path_buf()
@@ -112,7 +117,7 @@ pub fn run() {
             // Thus, the logging preparation strategy provided below will fail,
             // requiring the JavaScript code to copy the contents from the log file into another one
             // instead of just renaming that file. Of course, copying takes more time than renaming
-            if let Err(error) = launcher::prepare_log_file(&path, APP_NAME) {
+            if let Err(error) = application::prepare_log_file(&path, APP_NAME) {
                 error!("Failed to prepare the log file: {}", error);
             }
 
@@ -128,8 +133,8 @@ pub fn run() {
                     // Make a new output target that will save logs in a log file
                     .target(tauri_plugin_log::Target::new(
                         tauri_plugin_log::TargetKind::Folder {
-                            path: path,
-                            file_name: Some(format!("latest")),
+                            path,
+                            file_name: Some("latest".to_string()),
                         },
                     ))
                     // Also log to terminal
@@ -164,18 +169,20 @@ pub fn run() {
         .manage(downloads::CancelFlags::default())
         // Register custom Tauri commands
         .invoke_handler(tauri::generate_handler![
+            application::get_initial_state,
             downloads::concurrently_download,
             downloads::cancel_downloads,
             extensions::read_extensions,
+            file_system::verify_paths,
+            file_system::verify_paths_hash,
             finalization::finalize_initialization,
+            // TODO move to java::get_java_major and java::detect_java_installations
             finalization::get_java_major,
             finalization::detect_java_installations,
-            hashes::hash_md5,
-            hashes::hash_sha1_file,
-            hashes::hash_sha256,
-            launcher::get_initial_state,
-            launcher::get_missing_files,
-            launcher::verify_file_paths,
+            hashing::hash_path,
+            hashing::hash_request_sha256,
+            hashing::hash_request_sha1,
+            hashing::hash_request_md5,
             logging::stream_logs,
             logging::stop_log_stream,
             modrinth::install_mrpack,

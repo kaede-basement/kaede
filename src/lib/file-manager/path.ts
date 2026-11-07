@@ -19,6 +19,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
+import type { HashAlgorithmType } from "@/lib/hashing.ts";
 
 /**
  * @returns a string that represents an absolute path to the base directory
@@ -65,24 +66,25 @@ export function sanitizeFileOrFolderName(input: string): string {
  * Verifies an array of paths by either checking for the path presence
  * or calculating and comparing SHA1 hashes
  *
- * @param paths - an array of absolute file paths
- * @param sha1 - an optional boolean that tells whether to verify by SHA1 or not
+ * @param paths     - an array of absolute file paths
+ * @param algorithm - an optional hash algorithm that tells to verify by the passed algorithm
  * @returns an array of absolute file paths that were invalid
  */
 export function verifyPaths({
   paths,
-  sha1,
+  algorithm,
 }: {
-  "paths": Array<{ "path": string; "hash": string }>;
-  "sha1"?: boolean;
+  "paths"     : Array<{ "path": string; "hash": string }>;
+  "algorithm"?: HashAlgorithmType;
 }): Promise<Array<string>> {
-  if (sha1) {
-    return invoke("verify_file_paths", {
+  if (algorithm) {
+    return invoke("verify_paths_hash", {
       "artifacts": paths,
+      "algorithm": algorithm,
     });
   }
 
-  return invoke("get_missing_files", {
+  return invoke("verify_paths", {
     "paths": paths.map(({ path }) => path),
   });
 }

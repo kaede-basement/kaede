@@ -20,6 +20,7 @@ import FileStructure from "@/constants/file-structure.ts";
 import { APIEndpoints, GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
+import { Algorithms } from "@/lib/hashing.ts";
 import { fetchMetadata } from "@/lib/launcher/scopes/fetching/fetch-metadata.ts";
 import { shallowlyValidateMeta } from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
 import { log } from "@/lib/logging/log.ts";
@@ -162,8 +163,8 @@ export async function downloadAssets({
   const startTime: number = performance.now();
   const hashesToReDownload: Set<string> = new Set(
     await FileManager.verifyPaths({
-      "paths": mappedAssetObjects,
-      "sha1" : instance.checksum,
+      "paths"    : mappedAssetObjects,
+      "algorithm": instance.checksum ? Algorithms.SHA1 : undefined,
     }),
   );
   const endTime: number = performance.now();
