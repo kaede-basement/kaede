@@ -289,7 +289,7 @@ export default defineConfig({
     },
   },
   "plugins": [
-    // Replace all '__PRE_BUNDLED_FILENAME__,' variables at build time
+    // Replace all '__PRE_BUNDLED_FILENAME__' variables at build time
     handleSourceFileNames(),
     ...(process.env.TARGET_OLD_SAFARI === "true" ? [injectSafariPolyfills()] : []),
     // Handle a Vue framework

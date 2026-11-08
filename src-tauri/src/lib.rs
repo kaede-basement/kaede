@@ -1,12 +1,13 @@
 use tauri::Manager;
 use log::{warn, error};
 
+mod application;
 mod downloads;
 mod extensions;
 mod file_system;
 mod finalization;
 mod hashing;
-mod application;
+mod image;
 mod logging;
 mod modrinth;
 mod processes;
@@ -177,6 +178,7 @@ pub fn run() {
             hashing::hash_request_sha256,
             hashing::hash_request_sha1,
             hashing::hash_request_md5,
+            image::resize_image,
             logging::stream_logs,
             logging::stop_log_stream,
             modrinth::install_mrpack,

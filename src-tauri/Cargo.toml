@@ -25,6 +25,8 @@ default = ["notifications"]
 # which does not exist on Windows 7, so we target that ancient platform with '--no-default-features'
 # while defining here what exactly are 'default' features
 notifications = ["dep:tauri-plugin-notification"]
+# This is used for image reisizing as old Safari does not support WebP
+old-safari = []
 
 [dependencies]
 serde_json = "1.0"
@@ -42,6 +44,7 @@ rayon = "1.11.0"
 zip = { version = "3.0", default-features = false, features = ["deflate"] }
 tokio = { version = "1", features = ["fs", "macros", "rt", "time", "io-util"] }
 reqwest = { version = "0.13" }
+image = { version = "0.25.10", default-features = false, features = ["png", "webp", "jpeg"] }
 
 # Non-default installed plugins
 tauri-plugin-fs = { version = "2.7.1", features = ["watch"] }

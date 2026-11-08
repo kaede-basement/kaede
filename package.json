@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
+    "dev:preview": "tauri dev --config src-tauri/tauri.preview.conf.json",
     "build": "tauri build",
     "build:debug": "tauri build --debug",
     "build:hmr": "NODE_ENV=development tauri build --config src-tauri/tauri.hmr.conf.json",
