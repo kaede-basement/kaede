@@ -1,6 +1,12 @@
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "compilerOptions": {
+    "lib": [
+      "ESNext",
+      "dom",
+      "esnext.disposable"
+    ],
+
     "baseUrl": ".",
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
 
@@ -20,7 +26,7 @@
 
     /* Fixes TS2307: Cannot find module '@/resources/ATLauncherIcon.svg' or its corresponding type declarations. */
     /* The same for '.vue' files */
-    "types": ["vite/client", "./scripts/vue-shim.d.ts"]
+    "types": ["vite/client", "./types/vue-shim.d.ts"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

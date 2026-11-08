@@ -919,7 +919,7 @@ declare const _default$9: {
 			readonly Libraries: 8;
 		};
 		readonly Logs: {
-			readonly OuterRegion: 280;
+			readonly OuterRegion: 208;
 			readonly LineLimit: 65536;
 		};
 	};
@@ -1399,7 +1399,6 @@ declare const _default$16: {
 	readonly showWebviewWindow: typeof showWebviewWindow;
 	readonly updateTrustedHashes: typeof updateTrustedHashes;
 };
-declare function getBaseDirectory(): string;
 declare function handleJsonFile({ baseDirectory, path, label, getDefaultValue, invalidation, }: {
 	"baseDirectory": string;
 	"path": Array<string>;
@@ -1410,7 +1409,35 @@ declare function handleJsonFile({ baseDirectory, path, label, getDefaultValue, i
 		"getNewValue": () => Promise<unknown>;
 	};
 }): Promise<unknown>;
+declare const Algorithms: {
+	readonly SHA256: "sha256";
+	readonly SHA1: "sha1";
+	readonly MD5: "md5";
+};
+export type HashAlgorithmType = (typeof Algorithms)[keyof typeof Algorithms];
+declare function hashPath(path: string, algorithm: HashAlgorithmType): Promise<string>;
+declare function hashPayload(payload: Uint8Array | string, algorithm: HashAlgorithmType): Promise<string>;
+declare function hashOfflineNickname(input: string): Promise<string>;
+declare const _default$17: {
+	readonly Algorithms: {
+		readonly SHA256: "sha256";
+		readonly SHA1: "sha1";
+		readonly MD5: "md5";
+	};
+	readonly hashPath: typeof hashPath;
+	readonly hashPayload: typeof hashPayload;
+	readonly hashOfflineNickname: typeof hashOfflineNickname;
+};
+declare function getBaseDirectory(): string;
 declare function join(...paths: Array<string>): string;
+declare function sanitizeFileOrFolderName(input: string): string;
+declare function verifyPaths({ paths, algorithm, }: {
+	"paths": Array<{
+		"path": string;
+		"hash": string;
+	}>;
+	"algorithm"?: HashAlgorithmType;
+}): Promise<Array<string>>;
 declare function unzip({ from, to, }: {
 	"from": Array<{
 		"path": string;
@@ -1418,19 +1445,13 @@ declare function unzip({ from, to, }: {
 	}>;
 	"to": string;
 }): Promise<boolean>;
-declare function verifyPaths({ paths, sha1, }: {
-	"paths": Array<{
-		"path": string;
-		"hash": string;
-	}>;
-	"sha1"?: boolean;
-}): Promise<Array<string>>;
-declare const _default$17: {
+declare const _default$18: {
 	readonly getBaseDirectory: typeof getBaseDirectory;
 	readonly handleJsonFile: typeof handleJsonFile;
 	readonly join: typeof join;
-	readonly unzip: typeof unzip;
+	readonly sanitizeFileOrFolderName: typeof sanitizeFileOrFolderName;
 	readonly verifyPaths: typeof verifyPaths;
+	readonly unzip: typeof unzip;
 };
 declare function capitalize(input: string): string;
 declare function checkDaysDifference(from: Date, to: Date): number;
@@ -1444,7 +1465,7 @@ declare function getRelativeDate({ days, hours, minutes, seconds, milliseconds, 
 	"milliseconds"?: number;
 	"from"?: Date;
 }): Date;
-declare const _default$18: {
+declare const _default$19: {
 	readonly capitalize: typeof capitalize;
 	readonly checkDaysDifference: typeof checkDaysDifference;
 	readonly isFontSourceUrl: typeof isFontSourceUrl;
@@ -1457,7 +1478,7 @@ declare function declareActionRegistry(): void;
 declare function declareGlobals(): void;
 export type ActionType<T> = (properties: T) => (void | false) | Promise<void | false>;
 export type GenericAction = ActionType<any>;
-declare const _default$19: {
+declare const _default$20: {
 	readonly declareActionRegistry: typeof declareActionRegistry;
 	readonly declareGlobals: typeof declareGlobals;
 	readonly Actions: import("vue").ShallowReactive<Record<string, GenericAction>>;
@@ -1497,16 +1518,6 @@ declare const _default$19: {
 	readonly registerComponent: typeof __registerComponent;
 	readonly restoreComponent: typeof __restoreComponent;
 	readonly getComponent: (id: string) => Component | undefined;
-};
-declare function hashFileContents(image: Uint8Array): Promise<string>;
-declare function hashOfflineNickname(input: string): Promise<string>;
-declare function hashString(input: string): number;
-declare function hashStringCrypto(input: string): Promise<string>;
-declare const _default$20: {
-	readonly hashFileContents: typeof hashFileContents;
-	readonly hashOfflineNickname: typeof hashOfflineNickname;
-	readonly hashString: typeof hashString;
-	readonly hashStringCrypto: typeof hashStringCrypto;
 };
 declare function catchAsyncResponseHooks<T>({ scope, toPass, timing, }: {
 	"scope": keyof KaedeNamespaceType["hooks"];
@@ -1557,15 +1568,13 @@ declare const _default$21: {
 	readonly catchSyncVoidHooks: typeof catchSyncVoidHooks;
 	readonly handleHookResponse: typeof handleHookResponse;
 };
-declare function finish({ config, baseDirectory, }: {
-	"config": ConfigType;
+declare function finish({ baseDirectory, }: {
 	"baseDirectory": string;
 }): Promise<void>;
 declare function recreateWebView(): Promise<void>;
 export type InitialStateType = {
 	"basic": {
 		"launcherVersion": string;
-		"executableHash": string;
 		"baseDirectory": string;
 		"launchCount": number;
 		"separator": string;
@@ -1577,6 +1586,7 @@ export type InitialStateType = {
 		"instances": ParsedFile;
 		"translations": ParsedFile;
 	};
+	"executableHash": string;
 };
 declare function start(): Promise<InitialStateType>;
 declare const _default$22: {
@@ -3012,19 +3022,19 @@ declare global {
 				/**
 				 * Launcher file management related collection of utilities
 				 */
-				"FileManager": typeof _default$17;
+				"FileManager": typeof _default$18;
 				/**
 				 * Launcher general-purpose collection of utilities
 				 */
-				"General": typeof _default$18;
+				"General": typeof _default$19;
 				/**
 				 * Launcher 'window' object related collection of utilities
 				 */
-				"Globals": typeof _default$19;
+				"Globals": typeof _default$20;
 				/**
 				 * Hashing functions
 				 */
-				"Hashing": typeof _default$20;
+				"Hashing": typeof _default$17;
 				/**
 				 * Launcher hook system related collection of utilities
 				 */

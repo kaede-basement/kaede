@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// 'dts-bundle-generator' compiles with plain TypeScript, which cannot read '.vue' files
+// 'dts-bundle-generator' cannot read '.vue' files
 declare module "*.vue" {
   import type { DefineComponent } from "vue";
 
