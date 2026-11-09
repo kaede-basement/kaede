@@ -93,6 +93,13 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: echo "APP_VERSION=${{ github.ref_name }}" >> "$GITHUB_ENV"
 
+      # Tags need it too: the Windows release zip name uses it
+      - name: Clear the GitHub ref name from invalid characters
+        shell: bash
+        run: |
+          CLEAR_REF_NAME="${GITHUB_REF_NAME//\//-}"
+          echo "CLEAR_REF_NAME=$CLEAR_REF_NAME" >> "$GITHUB_ENV"
+
       - name: Bump the version in `tauri.conf.json`
         uses: restackio/update-json-file-action@2.1
         with:
@@ -169,7 +176,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') && matrix.identifier == 'windows'
         shell: pwsh
         run: |
-          $name = "${{ steps.json_properties.outputs.productName }}-dev-windows-non-setup-${{ steps.json_properties.outputs.version }}-${{ github.ref_name }}.zip"
+          $name = "${{ steps.json_properties.outputs.productName }}-dev-windows-non-setup-${{ steps.json_properties.outputs.version }}-${{ env.CLEAR_REF_NAME }}.zip"
           Compress-Archive -Path "windows-portable-build/*" -DestinationPath $name
           echo "ZIP_NAME=$name" >> $env:GITHUB_ENV
 
@@ -186,7 +193,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-portable-windows-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-portable-windows-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           path: "windows-portable-build/"
 
       - name: Upload the binaries
@@ -194,7 +201,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-${{ matrix.identifier }}-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-${{ matrix.identifier }}-${{steps.json_properties.outputs.version}}-${{ env.CLEAR_REF_NAME }}"
           # The wildcard matching handles these paths:
           #
           # - src-tauri/target/release/bundle/nsis/
