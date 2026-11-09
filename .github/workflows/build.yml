@@ -28,6 +28,8 @@ on:
 env:
   # A default value, will be overwritten later if tag exists
   APP_VERSION: "0.0.1"
+  # Artifact names cannot contain '/', which a pull request's 'github.ref_name' ('29/merge') has
+  ARTIFACT_REF: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
 
 jobs:
   tauri:
@@ -186,7 +188,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-portable-windows-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-portable-windows-${{steps.json_properties.outputs.version}}-${{ env.ARTIFACT_REF }}"
           path: "windows-portable-build/"
 
       - name: Upload the binaries
@@ -194,7 +196,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: "warn"
-          name: "${{ steps.json_properties.outputs.productName }}-dev-${{ matrix.identifier }}-${{steps.json_properties.outputs.version}}-${{ github.ref_name }}"
+          name: "${{ steps.json_properties.outputs.productName }}-dev-${{ matrix.identifier }}-${{steps.json_properties.outputs.version}}-${{ env.ARTIFACT_REF }}"
           # The wildcard matching handles these paths:
           #
           # - src-tauri/target/release/bundle/nsis/
