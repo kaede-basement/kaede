@@ -8,6 +8,7 @@ mod file_system;
 mod finalization;
 mod hashing;
 mod image;
+mod ipc_batch;
 mod logging;
 mod modrinth;
 mod processes;
@@ -33,6 +34,13 @@ pub fn run() {
     }
 
     let builder = tauri::Builder::default();
+
+    // Tauri's default IPC sends every invoke as its own 'fetch', which is slow in WebView2.
+    // 'hybrid_ipc.js' sends small calls through 'postMessage' instead, and the calls made
+    // in one tick go as one message to 'ipc_batch'.
+    // macOS keeps the default transport since it was not tested there
+    #[cfg(any(windows, target_os = "linux"))]
+    let builder = builder.invoke_system(include_str!("hybrid_ipc.js"));
 
     // The "notifications" feature is disabled for Windows 7 builds
     #[cfg(feature = "notifications")]
@@ -179,6 +187,10 @@ pub fn run() {
             hashing::hash_request_sha1,
             hashing::hash_request_md5,
             image::resize_image,
+            // Used by 'hybrid_ipc.js'. If app commands ever get an ACL manifest
+            // ('tauri_build::AppManifest'), these two must be allowed for every window
+            ipc_batch::ipc_batch,
+            ipc_batch::ipc_batch_take,
             logging::stream_logs,
             logging::stop_log_stream,
             modrinth::install_mrpack,
