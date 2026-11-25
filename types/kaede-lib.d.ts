@@ -1533,8 +1533,11 @@ declare function catchSyncVoidHooks({ scope, toPass, timing, }: {
 }): void;
 export type ExtensionResponseStatusType = typeof HookResponseStatus;
 export type ExtensionStatusType = ExtensionResponseStatusType[keyof ExtensionResponseStatusType];
-export type ExtensionHookResponseType<ResponseType> = ResponseType extends "nothing" ? void : {
-	"status": ExtensionStatusType;
+export type ExtensionHookResponseType<ResponseType> = [ResponseType] extends ["nothing"] ? void : {
+	"status": "continue";
+	"response"?: ResponseType | Promise<ResponseType>;
+} | {
+	"status": "stop";
 	"response": ResponseType | Promise<ResponseType>;
 };
 /**
@@ -1888,8 +1891,11 @@ export type MinecraftMetaType = {
 };
 export type MinecraftProcessType = ProcessHandleType<MinecraftMetaType>;
 export type LaunchResponseType = {
-	"success": boolean;
-	"process": MinecraftProcessType | undefined;
+	"success": false;
+	"process"?: undefined;
+} | {
+	"success": true;
+	"process": MinecraftProcessType;
 };
 declare function handleLaunch({ instanceId, instance, statuses, userPreferences, onClose, onInput, }: {
 	"instanceId": string;
@@ -4094,7 +4100,7 @@ declare global {
 					 *
 					 * If the hook returns a 'stop' status,
 					 * it should also return:
-					 * @param output - a replacement launch result or void
+					 * @param output - a failed launch result to veto, or a successful replacement result
 					 * in the 'response' field.
 					 *
 					 * If the hook returns a 'continue' status,
@@ -4124,7 +4130,7 @@ declare global {
 						"versionMeta": SpecificPatchMetaType;
 						"parsed": Array<MappedArtifactType>;
 						"javaBinary": string;
-					}, LaunchResponseType | void>;
+					}, LaunchResponseType>;
 					/**
 					 * Executes 'async' or 'sync' functions after the minecraft instance was launched.
 					 *

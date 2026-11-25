@@ -4,7 +4,7 @@ import { expect, test } from "bun:test";
 
 for (const [name, ...files] of [
   ["idle UI lifecycle", "idle-ui", "skin-renderer", "avatar", "download-progress"],
-  ["instance context lifecycle", "instance-context"],
+  ["instance context lifecycle", "instance-context", "instance-rehydrate"],
 ]) test(name, () => {
   const result = Bun.spawnSync([
     process.execPath,

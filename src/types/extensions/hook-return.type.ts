@@ -3,9 +3,12 @@ import type { HookResponseStatus } from "@/constants/application.ts";
 type ExtensionResponseStatusType = typeof HookResponseStatus;
 
 export type ExtensionStatusType = ExtensionResponseStatusType[keyof ExtensionResponseStatusType];
-export type ExtensionHookResponseType<ResponseType> = ResponseType extends "nothing" ? void : {
+export type ExtensionHookResponseType<ResponseType> = [ResponseType] extends ["nothing"] ? void : {
+  "status"   : "continue";
+  "response"?: ResponseType | Promise<ResponseType>;
+} | {
   // 'stop' aborts a function that executed current hook
-  "status"  : ExtensionStatusType;
+  "status"  : "stop";
   // If the 'status' is 'stop', function will return this field
   "response": ResponseType | Promise<ResponseType>;
 };

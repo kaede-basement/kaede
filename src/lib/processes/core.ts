@@ -28,6 +28,8 @@ export const ProcessHandlers = new Map<string, ProcessHandlersType>;
 
 type Lifetime = { "startedAt": number; "endedAt"?: number };
 const live = new Map<string, Lifetime>;
+const recentExitLimit = 64;
+const recentExits = new Map<string, Lifetime>;
 const originalLifetimes = new WeakMap<ProcessHandleType, Lifetime>;
 const pendingSelections = new Set<Map<string, Lifetime>>;
 
@@ -41,7 +43,7 @@ export function trackSpawnLifetimes(): {
 
   return {
     "get": process => live.get(process.token) ?? exits.get(process.token) ??
-      originalLifetimes.get(process),
+      recentExits.get(process.token) ?? originalLifetimes.get(process),
     "close": () => pendingSelections.delete(exits),
   };
 }
@@ -100,13 +102,14 @@ export function dispatchProcessExit(payload: ExitPayload): void {
     handlers?.onExit?.(payload);
   } finally {
     // An early exit can confirm the spawn inside onExit before the IPC reply arrives.
-    const lifetime = live.get(payload.token);
+    const lifetime = live.get(payload.token) ?? recentExits.get(payload.token) ??
+      { "startedAt": endedAt };
 
-    if (lifetime) {
-      lifetime.endedAt = endedAt;
-      live.delete(payload.token);
-      for (const exits of pendingSelections) exits.set(payload.token, lifetime);
-    }
+    lifetime.endedAt ??= endedAt;
+    live.delete(payload.token);
+    recentExits.set(payload.token, lifetime);
+    if (recentExits.size > recentExitLimit) recentExits.delete(recentExits.keys().next().value!);
+    for (const exits of pendingSelections) exits.set(payload.token, lifetime);
   }
 }
 

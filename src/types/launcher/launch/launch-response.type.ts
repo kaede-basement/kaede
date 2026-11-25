@@ -7,6 +7,9 @@ export type MinecraftMetaType = {
 export type MinecraftProcessType = ProcessHandleType<MinecraftMetaType>;
 
 export type LaunchResponseType = {
-  "success": boolean;
-  "process": MinecraftProcessType | undefined;
+  "success" : false;
+  "process"?: undefined;
+} | {
+  "success": true;
+  "process": MinecraftProcessType;
 };

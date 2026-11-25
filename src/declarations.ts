@@ -1277,7 +1277,7 @@ declare global {
            *
            * If the hook returns a 'stop' status,
            * it should also return:
-           * @param output - a replacement launch result or void
+           * @param output - a failed launch result to veto, or a successful replacement result
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -1308,7 +1308,7 @@ declare global {
               "parsed"     : Array<MappedArtifactType>;
               "javaBinary" : string;
             },
-            LaunchResponseType | void
+            LaunchResponseType
           >;
 
           /**

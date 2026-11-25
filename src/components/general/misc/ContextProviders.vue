@@ -62,6 +62,16 @@ function onClose(instanceId: string, endedAt = performance.now()): void {
   globalStates.logs.mode = instanceId;
 }
 
+function finishSelectedProcess(
+  instanceId: string, process: MinecraftProcessType, endedAt?: number,
+): void {
+  if (activeRun(instanceId)?.process !== process) return;
+  onClose(instanceId, endedAt);
+  void Hooks.catchAsyncVoidHooks({
+    "scope": "onMinecraftKill", "toPass": process.pid, "timing": "after",
+  });
+}
+
 function createLogSink(instanceId: string): (lines: Array<string>) => void {
   const stored: Array<string> = [];
 
@@ -160,12 +170,12 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
 
       if (startPlaytime(instanceId, process, false, lifetime?.startedAt, !!handlers)) {
         if (lifetime?.endedAt !== undefined) {
-          onClose(instanceId, lifetime.endedAt);
+          finishSelectedProcess(instanceId, process, lifetime.endedAt);
         } else if (handlers) {
           const { onExit } = handlers;
 
           handlers.onExit = (payload): void => {
-            if (activeRun(instanceId)?.statuses === statuses) onClose(instanceId);
+            finishSelectedProcess(instanceId, process);
             onExit?.(payload);
           };
         }
@@ -202,7 +212,7 @@ async function closeInstance(instanceId: string): Promise<void> {
         reason !== `no managed process with pid ${run.process.pid}`)) throw error;
     }
     if (run.exit) await run.exit.promise;
-    else if (activeRun(instanceId) === run) onClose(instanceId);
+    else finishSelectedProcess(instanceId, run.process);
   }).catch(error => {
     log.error(__PRE_BUNDLED_FILENAME__, `Failed to kill ${instanceId}:`, Errors.prettify(error));
   });
@@ -212,7 +222,7 @@ async function rehydrateLaunchedInstances(): Promise<void> {
   await Watchers.watchProcesses();
   const tracked = missingRunHandlers();
 
-  let preferred: Map<string, string> | undefined;
+  const preferred = restoredRunTokens();
 
   function attach(handle: ProcessHandleType, endedAt?: number): ProcessHandlersType | undefined {
     if (handle.kind !== "minecraft") {
@@ -222,8 +232,6 @@ async function rehydrateLaunchedInstances(): Promise<void> {
     const process = handle as MinecraftProcessType;
     const { instanceId } = process.meta;
 
-    // Missing checkpoints have been reconciled by the time the first handle is attached.
-    preferred ??= restoredRunTokens();
     const token = preferred.get(instanceId);
 
     if (token !== undefined && token !== process.token) return;
@@ -231,16 +239,7 @@ async function rehydrateLaunchedInstances(): Promise<void> {
 
     return {
       "onOutput": createLogSink(instanceId),
-      "onExit"  : (payload): void => {
-        if (activeRun(instanceId)?.process.token === handle.token) {
-          onClose(instanceId, endedAt);
-        }
-        Hooks.catchAsyncVoidHooks({
-          "scope" : "onMinecraftKill",
-          "toPass": payload.pid,
-          "timing": "after",
-        });
-      },
+      "onExit"  : (): void => finishSelectedProcess(instanceId, process, endedAt),
     };
   }
 
