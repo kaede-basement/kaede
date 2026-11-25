@@ -17,9 +17,12 @@
  */
 
 import { confirm } from "@tauri-apps/plugin-dialog";
+import { mkdir } from "@tauri-apps/plugin-fs";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
+import FileManager from "@/lib/file-manager";
+import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import Extractors from "@/lib/launcher/scopes/extractors";
 import Fetching from "@/lib/launcher/scopes/fetching";
@@ -57,6 +60,12 @@ export async function handleLaunch({
   "onInput"        : (lines: Array<string>) => void;
 }): Promise<LaunchResponseType> {
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
+  const { instanceDirectory } = Instances.getMinecraftDirectory({
+    "baseDirectory": FileManager.getBaseDirectory(),
+    instanceId,
+  });
+
+  await mkdir(instanceDirectory, { "recursive": true });
   const necessaries: PreLaunchInformationType | false = Extractors.getNecessaries({
     instanceId,
     instance,
@@ -73,6 +82,10 @@ export async function handleLaunch({
     );
 
     return failed;
+  }
+
+  if (necessaries.directories.instance !== instanceDirectory) {
+    await mkdir(necessaries.directories.instance, { "recursive": true });
   }
 
   log.info(logPrefix, log.templates.json.contents(

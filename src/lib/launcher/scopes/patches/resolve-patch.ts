@@ -34,15 +34,20 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
-export async function resolvePatch({
-  necessaries,
-  metadata,
-  patchMeta,
-}: {
+export async function resolvePatch(request: {
   "necessaries": PreLaunchInformationType;
   "metadata"   : PatchDependencyType;
   "patchMeta" ?: SpecificPatchMetaType;
 }): Promise<SpecificPatchMetaType | false> {
+  return await resolveDependency(request) || false;
+}
+
+// Undefined denotes an explicit hook skip. False denotes a resolution failure.
+export async function resolveDependency({
+  necessaries,
+  metadata,
+  patchMeta,
+}: Parameters<typeof resolvePatch>[0]): Promise<SpecificPatchMetaType | false | undefined> {
   const beforeHooksResult: "continue" | SpecificPatchMetaType | false | undefined =
     await Hooks.catchAsyncResponseHooks<SpecificPatchMetaType | false>({
       "scope" : "onMinecraftPatchResolve",
@@ -51,7 +56,7 @@ export async function resolvePatch({
     });
 
   if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
-    return beforeHooksResult;
+    return beforeHooksResult || undefined;
   }
 
   const { directories, statuses, logPrefix } = necessaries;
@@ -160,7 +165,7 @@ export async function resolvePatch({
     });
 
   if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
-    return afterHooksResult;
+    return afterHooksResult || undefined;
   }
 
   if (validPatch === false) {

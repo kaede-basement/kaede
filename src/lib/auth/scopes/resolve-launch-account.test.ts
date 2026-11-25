@@ -1,25 +1,30 @@
-import { expect, mock, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 
+import Configs from "@/lib/configs";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
-const first = { "profile": { "uuid": "a" }, "msa": null } as AccountType;
-const second = { "profile": { "uuid": "b" }, "msa": null } as AccountType;
-const refreshed = { ...second, "profile": { ...second.profile, "name": "updated" } };
-const writeAccounts = mock(async () => true);
+import * as refresh from "./ensure-fresh-account.ts";
+import { resolveAccountAtIndex } from "./resolve-launch-account.ts";
 
-mock.module("@/states/global.ts", () => ({ "globalStates": { "selected": { "account": 1 } } }));
-mock.module("@/lib/configs", () => ({ "default": { writeAccounts } }));
-mock.module("./ensure-fresh-account.ts", () => ({
-  "ensureFreshAccount": mock(async () => ({ "account": refreshed, "status": "refreshed" })),
-}));
+test("refresh merges by UUID against the latest persisted accounts", async () => {
+  const first = { "profile": { "uuid": "a" }, "msa": null } as AccountType;
+  const second = { "profile": { "uuid": "b" }, "msa": null } as AccountType;
+  const added = { "profile": { "uuid": "c" }, "msa": null } as AccountType;
+  const refreshed = { ...second, "profile": { ...second.profile, "name": "updated" } };
 
-const { resolveLaunchAccount } = await import("./resolve-launch-account.ts");
+  using fresh = spyOn(refresh, "ensureFreshAccount").mockResolvedValue({
+    "account": refreshed, "status": "refreshed",
+  });
+  using latest = spyOn(Configs, "getAccounts").mockResolvedValue([added, second, first]);
+  using write = spyOn(Configs, "writeAccounts").mockResolvedValue(true);
 
-test("refreshing the second profile preserves the first profile and account order", async () => {
-  const accounts = [first, second];
-  const result = await resolveLaunchAccount(accounts);
+  const result = await resolveAccountAtIndex([first, second], 1);
 
-  expect(result?.accounts).toEqual([first, refreshed]);
-  expect(accounts).toEqual([first, second]);
-  expect(writeAccounts).toHaveBeenCalledWith({ "accounts": [first, refreshed] });
+  expect(fresh).toHaveBeenCalledWith(second);
+  expect(result?.accounts).toEqual([added, refreshed, first]);
+  expect(write).toHaveBeenCalledWith({ "accounts": [added, refreshed, first] });
+
+  latest.mockResolvedValue([added, first]);
+  expect(await resolveAccountAtIndex([first, second], 1)).toBeUndefined();
+  expect(write).toHaveBeenCalledTimes(1);
 });

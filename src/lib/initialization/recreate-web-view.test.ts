@@ -1,25 +1,32 @@
-import { expect, mock, test } from "bun:test";
+import * as webviews from "@tauri-apps/api/webviewWindow";
+import { expect, mock, spyOn, test } from "bun:test";
 
-const created = mock(() => {});
+import { recreateWebView } from "./recreate-web-view.ts";
 
-mock.module("@tauri-apps/api/webviewWindow", () => ({
-  "WebviewWindow": class {
-    constructor() {
-      created();
-    }
-
-    async once(event: string, callback: (payload: Error) => void): Promise<void> {
-      if (event === "tauri://error") {
+test("hard reload retries after creation and destruction failures", async () => {
+  const destroy = mock(async () => {}).mockRejectedValueOnce(new Error("old window busy"));
+  const cleanup = mock(async () => {});
+  let event = "tauri://error";
+  const replacement = {
+    "destroy": cleanup,
+    "once"   : async (name: string, callback: (error?: Error) => void): Promise<void> => {
+      if (name === event) {
         callback(new Error("creation failed"));
       }
-    }
-  },
-}));
+    },
+  } as unknown as webviews.WebviewWindow;
 
-const { recreateWebView } = await import("./recreate-web-view.ts");
+  using current = spyOn(webviews, "getCurrentWebviewWindow")
+    .mockReturnValue({ destroy, "label": "main" } as unknown as webviews.WebviewWindow);
+  const constructors = webviews as unknown as { "WebviewWindow": () => webviews.WebviewWindow };
 
-test("a creation error allows another hard reload attempt", async () => {
+  using create = spyOn(constructors, "WebviewWindow").mockReturnValue(replacement);
+
   await expect(recreateWebView()).rejects.toThrow("creation failed");
-  await expect(recreateWebView()).rejects.toThrow("creation failed");
-  expect(created).toHaveBeenCalledTimes(2);
+  event = "tauri://created";
+  await expect(recreateWebView()).rejects.toThrow("old window busy");
+  expect(cleanup).toHaveBeenCalledTimes(1);
+  await recreateWebView();
+  expect(current).toHaveBeenCalledTimes(3);
+  expect(create).toHaveBeenCalledTimes(3);
 });

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { resolvePatch } from "@/lib/launcher/scopes/patches/resolve-patch.ts";
+import { resolveDependency } from "@/lib/launcher/scopes/patches/resolve-patch.ts";
 import type { PatchDependencyType } from "@/types/launcher/meta/patch-index.type.ts";
 import type {
   PreLaunchInformationType,
@@ -30,58 +30,101 @@ export async function resolveSubPatches({
   "necessaries": PreLaunchInformationType;
   "patchMeta"  : SpecificPatchMetaType;
 }): Promise<Array<SpecificPatchMetaType>> {
-  const patches = new Map<string, SpecificPatchMetaType>([[patchMeta.uid, patchMeta]]);
-  const dependents = (new Map<string, number>);
+  type UID = PatchDependencyType["uid"];
+  type Resolution = Awaited<ReturnType<typeof resolveDependency>>;
 
-  for (const patch of patches.values()) {
-    const missing: Array<PatchDependencyType> = [];
+  const selected = new Map<UID, Resolution>([[patchMeta.uid, patchMeta]]);
+  const cache = new Map<string, Resolution>;
+  const previousSelections = new Set<string>;
 
-    for (const required of patch.requires ?? []) {
-      if (!dependents.has(required.uid) && !patches.has(required.uid)) {
-        missing.push(required);
+  // A newly discovered exact requirement can replace a suggested version and its entire subtree.
+  for (;;) {
+    const reachable = new Set<UID>([patchMeta.uid]);
+    const requirements = new Map<UID, PatchDependencyType>;
+    const dependents = new Map<UID, number>;
+    let conflict: UID | undefined;
+
+    for (const uid of reachable) {
+      const patch = selected.get(uid);
+
+      if (!patch) {
+        continue;
       }
-      dependents.set(required.uid, (dependents.get(required.uid) ?? 0) + 1);
+
+      for (const dependency of patch.requires ?? []) {
+        reachable.add(dependency.uid);
+        dependents.set(dependency.uid, (dependents.get(dependency.uid) ?? 0) + 1);
+        const previous = requirements.get(dependency.uid);
+
+        if (!previous || (dependency.equals !== undefined && previous.equals === undefined)) {
+          requirements.set(dependency.uid, dependency);
+        } else if (dependency.equals !== undefined && previous.equals !== dependency.equals) {
+          conflict = dependency.uid;
+        }
+      }
     }
 
-    const resolved = await Promise.all(missing.map(async metadata => {
-      const result = await resolvePatch({ necessaries, metadata, patchMeta });
+    const choices = [...requirements.values()].filter(({ uid }) => uid !== patchMeta.uid);
+    const keys = choices.map(({ uid, equals, suggests }) => {
+      return JSON.stringify([uid, equals, suggests]);
+    });
+    const results = await Promise.all(choices.map(async (metadata, index) => {
+      const key = keys[index];
 
-      if (!result) {
-        throw new Error(`Failed to resolve required patch ${metadata.uid}`);
+      if (!cache.has(key)) {
+        cache.set(key, await resolveDependency({ necessaries, metadata, patchMeta }));
       }
 
-      return result;
+      return cache.get(key);
     }));
 
-    for (const [index, result] of resolved.entries()) {
-      patches.set(missing[index].uid, result);
-    }
-  }
+    const changed = choices.some(({ uid }, index) => {
+      return !selected.has(uid) || selected.get(uid) !== results[index];
+    });
 
-  // Finalization applies the result in reverse, so every dependent must precede its dependencies.
-  const ordered = dependents.has(patchMeta.uid) ? [] : [patchMeta];
+    if (changed) {
+      const signature = JSON.stringify([...keys].sort());
 
-  for (const patch of ordered) {
-    for (const { uid, equals } of patch.requires ?? []) {
-      const dependency = patches.get(uid)!;
-      const version = necessaries.user.versions?.[uid] ?? equals;
-
-      if (version !== undefined && version !== dependency.version) {
-        throw new Error(`Conflicting required version of ${uid}: ${version}`);
+      if (previousSelections.has(signature)) {
+        throw new Error("Conflicting Minecraft patch dependency selections");
       }
+      previousSelections.add(signature);
+      for (const [index, { uid }] of choices.entries()) {
+        selected.set(uid, results[index]);
+      }
+      continue;
+    }
 
-      const remaining = dependents.get(uid)! - 1;
+    if (conflict) {
+      throw new Error(`Conflicting exact requirements for ${conflict}`);
+    }
 
-      dependents.set(uid, remaining);
-      if (remaining === 0) {
-        ordered.push(dependency);
+    for (const uid of reachable) {
+      if (selected.get(uid) === false) {
+        throw new Error(`Failed to resolve required patch ${uid}`);
       }
     }
-  }
 
-  if (ordered.length !== patches.size) {
-    throw new Error("Cycle in required Minecraft patches");
-  }
+    // Finalization walks this order backwards. A dependency follows all its dependents.
+    const ordered = dependents.has(patchMeta.uid) ? [] : [patchMeta];
 
-  return ordered;
+    for (const patch of ordered) {
+      for (const { uid } of patch.requires ?? []) {
+        const remaining = dependents.get(uid)! - 1;
+
+        dependents.set(uid, remaining);
+        const dependency = selected.get(uid);
+
+        if (remaining === 0 && dependency) {
+          ordered.push(dependency);
+        }
+      }
+    }
+
+    if (ordered.length !== [...reachable].filter(uid => selected.get(uid)).length) {
+      throw new Error("Cycle in required Minecraft patches");
+    }
+
+    return ordered;
+  }
 }

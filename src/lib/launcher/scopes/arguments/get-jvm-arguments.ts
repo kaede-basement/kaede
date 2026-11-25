@@ -8,6 +8,8 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
+import { removeArguments } from "./remove-arguments.ts";
+
 export async function getJvmArguments({
   necessaries,
   finalizedPatch,
@@ -15,7 +17,7 @@ export async function getJvmArguments({
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<Array<string>> {
-  let jvmArguments: Array<string> = [];
+  const jvmArguments: Array<string> = [];
 
   const beforeHooksResult: "continue" | Array<string> | undefined =
     await Hooks.catchAsyncResponseHooks<Array<string>>({
@@ -96,9 +98,7 @@ export async function getJvmArguments({
     jvmArguments.push(loggingArguments);
   }
 
-  const removed = new Set(necessaries.instance.remove?.jvmArguments);
-
-  jvmArguments = jvmArguments.filter(argument => !removed.has(argument));
+  removeArguments(jvmArguments, necessaries.instance.remove?.jvmArguments);
 
   const afterHooksResult: "continue" | Array<string> | undefined =
     await Hooks.catchAsyncResponseHooks<Array<string>>({

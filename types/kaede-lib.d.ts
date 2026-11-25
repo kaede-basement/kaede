@@ -810,7 +810,7 @@ declare const _default$9: {
 	readonly JVMArguments: {
 		readonly Default: {
 			readonly Log4J: "-Dlog4j2.formatMsgNoLookups=true";
-			readonly SystemProxies: "-Djava.net.useSystemProxiestrue";
+			readonly SystemProxies: "-Djava.net.useSystemProxies=true";
 			readonly FMLIgnoreCertificates: "-Dfml.ignoreInvalidMinecraftCertificates=true";
 			readonly FMLIgnorePatchDiscrepancies: "-Dfml.ignorePatchDiscrepancies=true";
 			readonly LibrariesDirectory: "-DlibraryDirectory=${libraries_directory}";
@@ -2062,7 +2062,7 @@ declare function unifyPlatformWithArch(name: SpecificPatchLibraryOSNameType | Sp
 	"platform": PreLaunchInformationType["platform"];
 	"arch": PreLaunchInformationType["arch"] | "any";
 };
-declare function resolvePatch({ necessaries, metadata, patchMeta, }: {
+declare function resolvePatch(request: {
 	"necessaries": PreLaunchInformationType;
 	"metadata": PatchDependencyType;
 	"patchMeta"?: SpecificPatchMetaType;
@@ -2094,7 +2094,6 @@ declare function shallowlyValidateMeta({ meta }: {
 	"meta": unknown;
 }): AssetObjectsType | false;
 declare const _default$24: {
-	readonly __unused: {};
 	readonly detectJavaInstallations: typeof detectJavaInstallations;
 	readonly fetchJavaMajor: typeof fetchJavaMajor;
 	readonly Arguments: {

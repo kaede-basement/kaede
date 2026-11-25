@@ -1,4 +1,4 @@
-import { verifyPaths } from "@/lib/file-manager/path.ts";
+import FileManager from "@/lib/file-manager";
 import { Algorithms } from "@/lib/hashing.ts";
 import Network from "@/lib/network";
 import type { DownloadReportType } from "@/types/launcher/artifacts/download.type.ts";
@@ -13,7 +13,7 @@ export async function downloadMissing({
   "entries"  : Array<{ "path": string; "url": string; "hash": string }>;
   "checksum"?: boolean;
 }): Promise<DownloadReportType> {
-  const missing = new Set(await verifyPaths({
+  const missing = new Set(await FileManager.verifyPaths({
     "paths"    : checksum ? entries.map(({ path, hash }) => ({ path, hash })) : entries,
     "algorithm": checksum ? Algorithms.SHA1 : undefined,
   }));

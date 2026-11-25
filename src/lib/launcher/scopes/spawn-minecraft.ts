@@ -47,6 +47,7 @@ export async function spawnMinecraft({
   "onClose"    : (instanceId: string) => void;
   "onInput"    : (lines: Array<string>) => void;
 }): Promise<LaunchResponseType> {
+  await mkdir(necessaries.directories.instance, { "recursive": true });
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await Hooks.catchAsyncResponseHooks<LaunchResponseType>({
       "scope" : "onMinecraftLaunch",
@@ -68,7 +69,6 @@ export async function spawnMinecraft({
   let process: MinecraftProcessType;
 
   try {
-    await mkdir(directories.instance, { "recursive": true });
     process = await Processes.spawnProcess<MinecraftMetaType>({
       "program": { "type": "path", "value": command.java },
       "args"   : command.arguments,

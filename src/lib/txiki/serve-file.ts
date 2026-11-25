@@ -42,5 +42,6 @@ export async function serveFile(
       "Failed to spawn a txiki server:",
       Errors.prettify(error),
     );
+    throw error;
   }
 }

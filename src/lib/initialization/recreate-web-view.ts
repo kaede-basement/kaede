@@ -16,8 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 
@@ -31,7 +30,7 @@ export async function recreateWebView(): Promise<void> {
   pending = true;
 
   try {
-    const current = getCurrentWindow();
+    const current = getCurrentWebviewWindow();
     const id = current.label === "reloaded" ? "switched-reloaded" : "reloaded";
     const webview = new WebviewWindow(id, GlobalInternals.webViewRecreation);
 
@@ -39,7 +38,12 @@ export async function recreateWebView(): Promise<void> {
       webview.once("tauri://created", () => resolve()).catch(reject);
       webview.once("tauri://error", reject).catch(reject);
     });
-    await current.destroy();
+    try {
+      await current.destroy();
+    } catch (error) {
+      await webview.destroy();
+      throw error;
+    }
   } finally {
     pending = false;
   }

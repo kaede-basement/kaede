@@ -37,7 +37,13 @@ export async function resolveLaunchAccount(
   "auth"    : LaunchAuthType;
   "accounts": Array<AccountType>;
 } | undefined> {
-  const selectedIndex: number = globalStates.selected.account;
+  return resolveAccountAtIndex(accounts, globalStates.selected.account);
+}
+
+export async function resolveAccountAtIndex(
+  accounts: Array<AccountType>,
+  selectedIndex: number,
+): ReturnType<typeof resolveLaunchAccount> {
   const activeAccount: AccountType | undefined = accounts[selectedIndex];
 
   if (!activeAccount) {
@@ -71,14 +77,18 @@ export async function resolveLaunchAccount(
     };
   }
 
-  if (accounts[selectedIndex]?.profile.uuid !== account.profile.uuid ||
-    activeAccount.profile.uuid !== account.profile.uuid) {
+  if (activeAccount.profile.uuid !== account.profile.uuid) {
     throw new Error("The refreshed account does not match the selected profile");
   }
 
-  const updatedAccounts = [...accounts];
+  const updatedAccounts = await Configs.getAccounts();
+  const index = updatedAccounts.findIndex(({ profile }) => profile.uuid === account.profile.uuid);
 
-  updatedAccounts[selectedIndex] = account;
+  if (index === -1) {
+    return undefined;
+  }
+
+  updatedAccounts[index] = account;
 
   if (!await Configs.writeAccounts({ "accounts": updatedAccounts })) {
     throw new Error("Failed to save the refreshed account");
