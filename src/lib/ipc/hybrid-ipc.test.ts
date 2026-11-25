@@ -197,3 +197,27 @@ test("blocked protocol retries the binary view and stays on postMessage", async 
   expect(ipc.posts[1].payload.calls[0].cmd).toBe("again");
   expect(fetches).toBe(1);
 });
+
+test.each(["resolve", "reject"])("fallback waits for the earlier fetch to %s", async outcome => {
+  const requests: { "resolve": (value: Response) => void; "reject": (error: Error) => void }[] = [];
+  const ipc = transport(() => new Promise((resolve, reject) => requests.push({ resolve, reject })));
+
+  ipc.send("first", new Uint8Array([1]), 1);
+  ipc.send("second", {}, 3);
+  requests[1].reject(new Error("blocked second"));
+  await Bun.sleep(0);
+  ipc.send("third", {}, 5);
+  await Bun.sleep(0);
+  expect(ipc.posts).toHaveLength(0);
+  if (outcome === "resolve") {
+    const headers = { "Tauri-Response": "ok", "Content-Type": "text/plain" };
+
+    requests[0].resolve(new Response("first result", { headers }));
+  } else {
+    requests[0].reject(new Error("blocked first"));
+  }
+  await Bun.sleep(0);
+  expect(ipc.posts.flatMap(batch => batch.payload.calls.map(call => call.cmd)))
+    .toEqual(outcome === "resolve" ? ["second", "third"] : ["first", "second", "third"]);
+  expect(requests).toHaveLength(2);
+});

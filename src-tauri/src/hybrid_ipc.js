@@ -93,7 +93,21 @@
   // Commands sent over fetch that have not settled. While there is one, later calls take fetch too,
   // so they reach Rust in the order they were made, as on Tauri's own transport: a batch sent
   // through postMessage would overtake them.
-  let fetchesInFlight = 0
+  // Map iteration follows submission order. An unresolved fetch has a null slot;
+  // failures and calls submitted after the switch fill their slots with prepared retries.
+  const orderedCalls = new Map()
+
+  function flushFallback() {
+    for (const [slot, item] of orderedCalls) {
+      if (item === null) break
+      orderedCalls.delete(slot)
+      try {
+        sendOverPostMessage(item)
+      } catch (e) {
+        internals.runCallback(item.message.error, e)
+      }
+    }
+  }
 
   // `ordered`: false for a fetch that only collects data for an earlier call (a large response, a
   // Channel's messages), whose order against other commands does not matter.
@@ -105,10 +119,7 @@
       body: raw ? payload : json,
       headers: transportHeaders(message, raw)
     })
-    if (ordered) fetchesInFlight++
-    const settle = () => {
-      if (ordered) fetchesInFlight--
-    }
+    if (ordered) orderedCalls.set(message, null)
     request
       .then((response) => {
         const id = response.headers.get('Tauri-Response') === 'ok' ? callback : error
@@ -123,18 +134,24 @@
       })
       .then(
         ([id, data]) => {
-          settle()
+          if (ordered) {
+            orderedCalls.delete(message)
+            if (customProtocolFailed) flushFallback()
+          }
           internals.runCallback(id, data)
         },
         (e) => {
-          settle()
           console.warn('IPC custom protocol failed, Tauri will now use the postMessage interface instead', e)
           customProtocolFailed = true
           try {
-            sendOverPostMessage(prepare(message))
+            const item = prepare(message)
+            if (ordered) orderedCalls.set(message, item)
+            else sendOverPostMessage(item)
           } catch (e2) {
+            orderedCalls.delete(message)
             internals.runCallback(error, e2)
           }
+          if (ordered) flushFallback()
         }
       )
   }
@@ -216,7 +233,7 @@
     const own = options && options.headers
     const message = { cmd, callback, error, payload, json, headers: own ? new Headers(own) : null }
     const channelData = cmd === FETCH_CHANNEL_DATA_COMMAND
-    const overFetch = channelData || isRaw(payload) || !topFrame || fetchesInFlight > 0
+    const overFetch = channelData || isRaw(payload) || !topFrame || orderedCalls.size > 0
     if (overFetch && !customProtocolFailed) {
       sendQueued()
       return sendOverFetch(message, !channelData)
@@ -226,7 +243,11 @@
       sendQueued()
       return sendOverFetch(message)
     }
-    sendOverPostMessage(item)
+    if (customProtocolFailed && !channelData && orderedCalls.size > 0) {
+      orderedCalls.set(message, item)
+    } else {
+      sendOverPostMessage(item)
+    }
   }
 
   Object.defineProperty(internals, 'postMessage', {

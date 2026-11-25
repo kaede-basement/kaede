@@ -67,12 +67,22 @@ impl Transport {
 static LARGE: RwLock<LargeStore> = RwLock::new(LargeStore { pages: BTreeMap::new() });
 static NEXT_LARGE: AtomicU64 = AtomicU64::new(0);
 
-type Responses = Mutex<BTreeMap<u64, InvokeResponseBody>>;
+type Responses = Mutex<Option<BTreeMap<u64, InvokeResponseBody>>>;
 
 struct Page {
     id: String,
     listener: tauri::EventId,
     responses: Weak<Responses>,
+}
+
+impl Page {
+    fn publish(&self, large: Vec<(u64, InvokeResponseBody)>) -> bool {
+        let Some(responses) = self.responses.upgrade() else { return false };
+        let mut bucket = responses.lock().unwrap();
+        let Some(entries) = bucket.as_mut() else { return false };
+        entries.extend(large);
+        true
+    }
 }
 
 struct LargeStore {
@@ -88,18 +98,28 @@ impl LargeStore {
         self.pages.retain(|_, page| page.responses.strong_count() != 0);
     }
 
+    fn invalidate(&mut self, label: &str) -> Option<tauri::EventId> {
+        let page = self.pages.remove(label)?;
+        // Unlisten may be deferred during event dispatch. Close the bucket under the
+        // publication lock so pending deliveries cannot repopulate it.
+        if let Some(responses) = page.responses.upgrade() {
+            *responses.lock().unwrap() = None;
+        }
+        Some(page.listener)
+    }
+
     fn take(&self, label: &str, page: &str, id: u64) -> Result<InvokeResponseBody, String> {
         self.current(label, page)
             .and_then(|entry| entry.responses.upgrade())
-            .and_then(|responses| responses.lock().unwrap().remove(&id))
+            .and_then(|responses| responses.lock().unwrap().as_mut()?.remove(&id))
             .ok_or_else(|| format!("ipc_batch_take: no response {id} for this page"))
     }
 }
 
 pub fn page_left(webview: &Webview) {
-    let old = LARGE.write().unwrap().pages.remove(webview.label());
-    if let Some(old) = old {
-        webview.unlisten(old.listener);
+    let listener = LARGE.write().unwrap().invalidate(webview.label());
+    if let Some(listener) = listener {
+        webview.unlisten(listener);
     }
 }
 
@@ -117,7 +137,7 @@ fn page_loaded(webview: &Webview, page: String) -> Result<Arc<Page>, String> {
         return Ok(current.clone());
     }
     page_left(webview);
-    let responses = Arc::new(Responses::default());
+    let responses = Arc::new(Responses::new(Some(BTreeMap::new())));
     let weak = Arc::downgrade(&responses);
     // Tauri removes webview-scoped Rust listeners on both independent webview close
     // and parent window destruction. The listener owns the bodies until then or navigation.
@@ -351,15 +371,18 @@ fn deliver(page: &Page) {
     };
     if !large.is_empty() {
         let webview = &webviews[0];
-        let Some(responses) = page.responses.upgrade() else {
-            LARGE.write().unwrap().prune_closed();
-            return;
-        };
         if !is_registered(webview) {
-            page_left(webview);
+            // A replacement webview with the same label can already own another page.
+            let current = LARGE.read().unwrap().pages.get(webview.label())
+                .is_some_and(|current| current.listener == page.listener);
+            if current {
+                page_left(webview);
+            }
             return;
         }
-        responses.lock().unwrap().extend(large);
+        if !page.publish(large) {
+            return;
+        }
     }
     let script = delivery_script(&page.id, &items);
     if let Err(e) = webviews[0].eval(script) {
@@ -420,26 +443,30 @@ mod tests {
     #[test]
     fn large_tokens_are_scoped_to_the_live_page_and_consumed_once() {
         let mut store = LargeStore { pages: BTreeMap::new() };
-        let owner = Arc::new(Responses::default());
+        let owner = Arc::new(Responses::new(Some(BTreeMap::new())));
         let page = |id: &str, responses: &Arc<Responses>| Arc::new(Page {
             id: id.to_owned(), listener: 1, responses: Arc::downgrade(responses),
         });
         store.pages.insert("main".into(), page("old", &owner));
-        let responses = store.current("main", "old").unwrap().responses.upgrade().unwrap();
-        responses.lock().unwrap().insert(1, InvokeResponseBody::Raw(vec![0, 255]));
+        let old = store.current("main", "old").unwrap().clone();
+        let bytes = vec![0xa5; MAX_EVAL_RAW_BYTES + 1];
+        let body = || InvokeResponseBody::Raw(bytes.clone());
+        assert!(old.publish(vec![(1, body()), (3, body())]));
         assert!(store.take("other", "old", 1).is_err());
         assert!(store.take("main", "new", 1).is_err());
-        assert!(matches!(store.take("main", "old", 1), Ok(InvokeResponseBody::Raw(b)) if b == [0, 255]));
+        assert!(matches!(store.take("main", "old", 1), Ok(InvokeResponseBody::Raw(b)) if b == bytes));
         assert!(store.take("main", "old", 1).is_err());
-        responses.lock().unwrap().insert(3, InvokeResponseBody::Raw(vec![3]));
-        drop(responses);
-        let next = Arc::new(Responses::default());
+
+        // The event handler still owns the bucket while its unlisten is pending.
+        assert_eq!(store.invalidate("main"), Some(old.listener));
+        assert!(owner.lock().unwrap().is_none());
+        assert!(!old.publish(vec![(4, body())]));
+        let next = Arc::new(Responses::new(Some(BTreeMap::new())));
         store.pages.insert("main".into(), page("new", &next));
         assert!(store.take("main", "old", 3).is_err());
         assert!(store.take("main", "new", 3).is_err());
-        assert!(Arc::ptr_eq(&store.current("main", "new").unwrap().responses.upgrade().unwrap(), &next));
-        next.lock().unwrap().insert(2, InvokeResponseBody::Raw(vec![1]));
         let late_responder = store.current("main", "new").unwrap().clone();
+        assert!(late_responder.publish(vec![(2, body())]));
         drop(next);
         assert!(late_responder.responses.upgrade().is_none());
         assert!(store.current("main", "new").is_none());
