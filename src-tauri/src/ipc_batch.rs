@@ -200,18 +200,22 @@ thread_local! {
 }
 
 /// Marks this thread as dispatching until dropped, on a panic too.
-struct Dispatching;
+struct Dispatching(bool);
 
 impl Dispatching {
     fn start() -> Self {
-        DISPATCHING.set(true);
-        Self
+        Self(DISPATCHING.replace(true))
     }
 }
 
 impl Drop for Dispatching {
     fn drop(&mut self) {
-        DISPATCHING.set(false);
+        DISPATCHING.set(self.0);
+        if !self.0 {
+            for page in DEFERRED.take() {
+                deliver(&page);
+            }
+        }
     }
 }
 
@@ -241,7 +245,7 @@ pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool
     let app = webview.app_handle();
     let transport = Transport::initialize(app)?;
     let page = page_loaded(&webview, page)?;
-    let dispatching = Dispatching::start();
+    let _dispatching = Dispatching::start();
     for call in calls {
         let error = call.error;
         match request(call, &acl_url, origin_header.as_ref(), app.invoke_key(), &transport.invoke_key_header) {
@@ -256,10 +260,6 @@ pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool
             }
             Err(e) => queue(webview.clone(), &page, error_item(error, &e), None),
         }
-    }
-    drop(dispatching);
-    for page in DEFERRED.take() {
-        deliver(&page);
     }
     Ok(())
 }
@@ -465,6 +465,28 @@ fn delivery_script(page: &str, items: &[String]) -> String {
 mod tests {
     use super::*;
     use serde_json::{Value, json};
+
+    #[test]
+    fn nested_dispatch_flushes_only_on_outer_exit() {
+        let page = Arc::new(Page { id: "nested".into(), listener: 4001,
+            window_label: "test".into(), responses: Weak::new() });
+        let outer = Dispatching::start();
+        DEFERRED.with_borrow_mut(|pages| pages.push(page.clone()));
+        let unwind = std::panic::catch_unwind(|| {
+            let _inner = Dispatching::start();
+            DEFERRED.with_borrow_mut(|pages| pages.push(page.clone()));
+            panic!("nested dispatch unwinds");
+        });
+        assert!(unwind.is_err());
+        assert!(DISPATCHING.get());
+        DEFERRED.with_borrow_mut(|pages| {
+            assert_eq!(pages.len(), 2);
+            pages.push(page);
+        });
+        drop(outer);
+        assert!(!DISPATCHING.get());
+        assert!(DEFERRED.with_borrow(Vec::is_empty));
+    }
 
     #[test]
     fn delivery_round_trips_both_json_layers() {

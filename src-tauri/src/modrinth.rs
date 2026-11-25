@@ -70,7 +70,7 @@ struct RawIndex {
     files: Vec<RawFile>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManifestFile {
     // Relative to the Minecraft directory, e.g., "mods/sodium.jar"
@@ -100,15 +100,19 @@ pub struct MrpackManifest {
 
 #[tauri::command]
 pub async fn install_mrpack(
+    app: tauri::AppHandle,
+    reservation: u64,
     archive_path: PathBuf,
     target_dir_path: PathBuf,
     cancel_id: String,
     on_progress: Channel<(usize, usize)>,
     store: State<'_, ModStore>,
-    flags: State<'_, CancelFlags>,
 ) -> Result<MrpackManifest, String> {
-    let (mut cancel, decision) = flags.start_install(&cancel_id)?;
-    let result = install(
+    use tauri::{Listener, Manager};
+    let flags = app.state::<CancelFlags>();
+    let (mut cancel, decision, listener) = flags.start_install(&cancel_id, reservation)?;
+    app.unlisten(listener);
+    install(
         archive_path,
         target_dir_path,
         &store,
@@ -118,10 +122,7 @@ pub async fn install_mrpack(
             let _ = on_progress.send((ok, total));
         },
     )
-    .await;
-    flags.deregister(&cancel_id);
-    check_cancel(&cancel)?;
-    result
+    .await
 }
 
 #[tauri::command]
@@ -163,14 +164,11 @@ async fn install_manifest(
     cancel: &mut watch::Receiver<bool>,
     progress: impl Fn(usize, usize),
 ) -> Result<MrpackManifest, String> {
-    let _guard = tokio::select! {
-        guard = store.installs.read() => guard,
-        _ = cancel.wait_for(|x| *x) => return Err("Installation cancelled".into()),
-    };
+    let store = store.lease().await?;
     let mut blobs = Vec::with_capacity(manifest.files.len());
     progress(0, manifest.files.len());
     if !manifest.files.is_empty() {
-        store.prepare().map_err(|e| e.to_string())?;
+        store.prepare().await?;
     }
     {
         use futures_util::{stream::FuturesUnordered, StreamExt};
@@ -179,12 +177,14 @@ async fn install_manifest(
         let mut missing = manifest.files.iter().enumerate();
         let mut pending = FuturesUnordered::new();
         let mut error = None;
+        let (stop, local) = watch::channel(*cancel.borrow());
         loop {
             while pending.len() < CONCURRENT_OBJECTS && error.is_none() {
                 let Some((index, file)) = missing.next() else {
                     break;
                 };
-                let mut cancel = cancel.clone();
+                let mut cancel = local.clone();
+                let store = store.clone();
                 pending.push(async move {
                     store
                         .ensure(file, &mut cancel)
@@ -192,12 +192,22 @@ async fn install_manifest(
                         .map(|blob| (index, blob))
                 });
             }
-            match pending.next().await {
+            let next = tokio::select! {
+                biased;
+                _ = cancel.wait_for(|x| *x), if error.is_none() => {
+                    stop.send_replace(true);
+                    error = Some("Installation cancelled".into());
+                    continue;
+                }
+                next = pending.next() => next,
+            };
+            match next {
                 Some(Ok(blob)) => {
                     blobs.push(blob);
                     progress(blobs.len(), manifest.files.len());
                 }
                 Some(Err(reason)) => {
+                    stop.send_replace(true);
                     error.get_or_insert(reason);
                 }
                 None => break,
@@ -209,6 +219,7 @@ async fn install_manifest(
     }
     let cancel = cancel.clone();
     tokio::task::spawn_blocking(move || {
+        let _lease = store;
         let parent = target.parent().ok_or("Missing instance parent")?;
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         if target.try_exists().map_err(|e| e.to_string())? {
@@ -266,7 +277,6 @@ pub async fn repair_legacy_mrpack(
         },
     )
     .await;
-    flags.deregister(&cancel_id);
     check_cancel(&cancel)?;
     result
 }
@@ -391,21 +401,28 @@ async fn repair(
     let Some((manifest, mut extraction, overrides, total)) = prepared else {
         return Ok(RepairOutcome::ArchiveUnavailable);
     };
-    let _guard = tokio::select! {
-        guard = store.installs.read() => guard,
-        _ = cancel.wait_for(|value| *value) => return Err("Installation cancelled".into()),
-    };
+    let store = store.lease().await?;
     let mut store_ready = false;
     for (index, file) in manifest.files.iter().enumerate() {
         check_cancel(cancel)?;
-        if let Some(dest) = missing_destination(&mut extraction, &file.path)? {
+        let name = file.path.clone();
+        let (next, dest) = tokio::task::spawn_blocking(move || {
+            let dest = missing_destination(&mut extraction, &name);
+            (extraction, dest)
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+        extraction = next;
+        if let Some(dest) = dest? {
             if !store_ready {
-                store.prepare().map_err(|e| e.to_string())?;
+                store.prepare().await?;
                 store_ready = true;
             }
             let blob = store.ensure(file, cancel).await?;
             check_cancel(cancel)?;
+            let lease = store.clone();
             tokio::task::spawn_blocking(move || {
+                let _lease = lease;
                 accept_existing(materialize_blob(&blob, &dest), &dest)
             })
             .await
@@ -793,6 +810,162 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn terminal_integrity_failure_drains_stalled_sibling() {
+        use tokio::io::AsyncWriteExt;
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let addr = listener.local_addr().unwrap();
+        let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
+        let mut stalled_shard = PathBuf::new();
+        for body in ["bad", "stall"] {
+            let (mut file, blob) = seed_blob(root.path(), body.as_bytes());
+            if body == "stall" {
+                stalled_shard = blob.parent().unwrap().to_owned();
+            }
+            std::fs::remove_file(blob).unwrap();
+            file.url = format!("http://{addr}/{body}");
+            file.path = body.into();
+            manifest.files.push(file);
+        }
+        let (_tx, mut cancel) = watch::channel(false);
+        let target = root.path().join("instance");
+        let attempt = install_manifest(
+            archive(&[]),
+            manifest,
+            target.clone(),
+            &store,
+            InstallDecision::default(),
+            &mut cancel,
+            |_, _| {},
+        );
+        let server = async {
+            let (first, route) = accept_request(&listener).await;
+            let (second, _) = accept_request(&listener).await;
+            let (mut stall, bad) = if route.contains("/stall") {
+                (first, second)
+            } else {
+                (second, first)
+            };
+            stall
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\ns")
+                .await
+                .unwrap();
+            while tokio::fs::read_dir(&stalled_shard)
+                .await
+                .unwrap()
+                .next_entry()
+                .await
+                .unwrap()
+                .is_none()
+            {
+                tokio::task::yield_now().await;
+            }
+            respond(bad, b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nxxx").await;
+            stall
+        };
+        let (result, _held) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            tokio::join!(attempt, server)
+        })
+        .await
+        .unwrap();
+        assert!(result.err().unwrap().contains("Hash mismatch"));
+        assert!(!*cancel.borrow());
+        assert!(!target.exists());
+    }
+
+    #[tokio::test]
+    async fn clear_admits_install_to_new_tree_while_old_body_stalls() {
+        use tokio::io::AsyncWriteExt;
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let (mut file, blob) = seed_blob(root.path(), b"blob");
+        std::fs::remove_file(&blob).unwrap();
+        file.url = format!("http://{}", listener.local_addr().unwrap());
+        let manifest = || {
+            let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
+            manifest.files.push(file.clone());
+            manifest
+        };
+        let initial = std::sync::Arc::downgrade(&store.lease().await.unwrap());
+        let (_tx, mut cancel) = watch::channel(false);
+        let mut second_cancel = cancel.clone();
+        let a = root.path().join("a");
+        let b = root.path().join("b");
+        let install_a = install_manifest(
+            archive(&[]),
+            manifest(),
+            a.clone(),
+            &store,
+            InstallDecision::default(),
+            &mut cancel,
+            |_, _| {},
+        );
+        let exercise = async {
+            let (mut stalled, _) = accept_request(&listener).await;
+            stalled
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nb")
+                .await
+                .unwrap();
+            let clear = store.clear();
+            tokio::pin!(clear);
+            assert!(futures_util::poll!(&mut clear).is_pending());
+            while std::sync::Weak::ptr_eq(
+                &std::sync::Arc::downgrade(&store.lease().await.unwrap()),
+                &initial,
+            ) {
+                tokio::task::yield_now().await;
+            }
+            let (result, ()) = tokio::join!(
+                install_manifest(
+                    archive(&[]),
+                    manifest(),
+                    b.clone(),
+                    &store,
+                    InstallDecision::default(),
+                    &mut second_cancel,
+                    |_, _| {}
+                ),
+                async {
+                    let (socket, _) = accept_request(&listener).await;
+                    respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nblob").await;
+                }
+            );
+            assert!(result.is_ok());
+            assert_eq!(
+                std::fs::read(b.join("minecraft/mods/item.jar")).unwrap(),
+                b"blob"
+            );
+            assert!(futures_util::poll!(&mut clear).is_pending());
+            stalled.write_all(b"lob").await.unwrap();
+            clear.await.unwrap();
+        };
+        let (result, ()) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            tokio::join!(install_a, exercise)
+        })
+        .await
+        .unwrap();
+        assert!(result.is_ok());
+        assert_eq!(
+            std::fs::read(a.join("minecraft/mods/item.jar")).unwrap(),
+            b"blob"
+        );
+        assert!(!blob.exists());
+        drop(listener);
+        let active = store.lease().await.unwrap();
+        let (_tx, mut cancel) = watch::channel(false);
+        assert_eq!(
+            std::fs::read(active.ensure(&file, &mut cancel).await.unwrap()).unwrap(),
+            b"blob"
+        );
+    }
+
+    #[tokio::test]
     async fn installs_reject_contradictions_and_evict_same_size_corruption() {
         for corrupt in [false, true] {
             let root = tempfile::tempdir().unwrap();
@@ -848,6 +1021,7 @@ mod tests {
         file.url = format!("{url}/first");
         file.mirrors = vec![format!("{url}/second")];
         let (_stop, mut cancel) = watch::channel(false);
+        let store = store.lease().await.unwrap();
         let (result, ()) = tokio::join!(store.ensure(&file, &mut cancel), async {
             for response in [
                 b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".as_slice(),

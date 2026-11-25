@@ -8,7 +8,7 @@ use std::{
     fs::File,
     io::{self, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 use tauri::{ipc::Channel, State};
@@ -24,15 +24,22 @@ pub enum LogStreamEvent {
 
 pub struct LogTail {
     path: PathBuf,
-    current: Mutex<Subscription>,
+    current: Arc<Mutex<Subscription>>,
 }
 
 #[derive(Default)]
 struct Subscription {
     generation: u64,
-    viewer: Option<u64>,
-    active: bool,
+    active: Option<ActiveViewer>,
+    sending: Option<ActiveViewer>,
     stopped: VecDeque<u64>,
+}
+
+#[derive(Clone)]
+struct ActiveViewer {
+    send: Arc<tokio::sync::Mutex<()>>,
+    generation: u64,
+    viewer: Option<u64>,
 }
 
 impl Subscription {
@@ -49,21 +56,28 @@ impl Subscription {
     }
     fn begin(&mut self, viewer: Option<u64>) -> Option<u64> {
         if viewer.is_some_and(|id| self.stopped.contains(&id))
-            || self.active && self.viewer.is_some() && (viewer.is_none() || viewer == self.viewer)
+            || self
+                .active
+                .as_ref()
+                .is_some_and(|a| a.viewer.is_some() && (viewer.is_none() || viewer == a.viewer))
         {
             return None;
         }
-        self.remember(self.viewer);
+        let old = self.active.take().and_then(|a| a.viewer);
+        self.remember(old);
         self.generation += 1;
-        self.viewer = viewer;
-        self.active = true;
+        self.active = Some(ActiveViewer {
+            generation: self.generation,
+            viewer,
+            send: Arc::default(),
+        });
         Some(self.generation)
     }
 
     fn stop(&mut self, viewer: Option<u64>) -> bool {
         self.remember(viewer);
-        if self.active && self.viewer == viewer {
-            self.active = false;
+        if self.active.as_ref().is_some_and(|a| a.viewer == viewer) {
+            self.active = None;
             true
         } else {
             false
@@ -80,7 +94,7 @@ impl Drop for ActiveSubscription<'_> {
     fn drop(&mut self) {
         let mut current = self.current.lock().unwrap();
         if current.generation == self.generation {
-            current.active = false;
+            current.active = None;
         }
     }
 }
@@ -89,7 +103,7 @@ impl LogTail {
     pub fn new(path: PathBuf) -> Self {
         Self {
             path,
-            current: Mutex::default(),
+            current: Arc::default(),
         }
     }
 }
@@ -172,8 +186,108 @@ impl Cursor {
 }
 
 #[tauri::command]
-pub fn stop_log_stream(state: State<'_, LogTail>, subscription_id: Option<u64>) -> bool {
-    state.current.lock().unwrap().stop(subscription_id)
+pub async fn stop_log_stream(
+    state: State<'_, LogTail>,
+    subscription_id: Option<u64>,
+) -> Result<bool, String> {
+    Ok(state.stop(subscription_id).await)
+}
+
+impl LogTail {
+    async fn stop(&self, viewer: Option<u64>) -> bool {
+        let (stopped, sending) = {
+            let mut current = self.current.lock().unwrap();
+            let stopped = current.stop(viewer);
+            (
+                stopped,
+                current
+                    .sending
+                    .clone()
+                    .filter(|s| stopped || s.viewer == viewer),
+            )
+        };
+        if let Some(sending) = sending {
+            drop(sending.send.lock().await);
+        }
+        stopped
+    }
+
+    async fn stream(
+        &self,
+        channel: Channel<LogStreamEvent>,
+        viewer: Option<u64>,
+    ) -> Result<(), String> {
+        let (generation, sending) = {
+            let mut current = self.current.lock().unwrap();
+            let Some(generation) = current.begin(viewer) else {
+                return Ok(());
+            };
+            (generation, current.sending.clone())
+        };
+        let _active = ActiveSubscription {
+            current: &self.current,
+            generation,
+        };
+        if let Some(sending) = sending {
+            drop(sending.send.lock().await);
+        }
+        let mut cursor = Cursor::default();
+        let path = self.path.clone();
+        loop {
+            let current = self.current.clone();
+            let path = path.clone();
+            let channel = channel.clone();
+            let result = tokio::task::spawn_blocking(move || -> io::Result<_> {
+                let (events, more) = cursor.poll(&path)?;
+                for event in events {
+                    let guard = {
+                        let mut current = current.lock().unwrap();
+                        let Some(active) = current
+                            .active
+                            .as_ref()
+                            .filter(|a| a.generation == generation)
+                        else {
+                            return Ok(None);
+                        };
+                        // This generation has one polling worker. Only retired generations have waiters.
+                        let guard = active
+                            .send
+                            .clone()
+                            .try_lock_owned()
+                            .expect("single log sender");
+                        current.sending = Some(active.clone());
+                        guard
+                    };
+                    if channel.send(event).is_err() {
+                        return Ok(None);
+                    }
+                    drop(guard);
+                }
+                Ok(Some((cursor, more)))
+            })
+            .await
+            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())?;
+            let Some((next, more)) = result else {
+                return Ok(());
+            };
+            if self
+                .current
+                .lock()
+                .unwrap()
+                .active
+                .as_ref()
+                .map(|a| a.generation)
+                != Some(generation)
+            {
+                return Ok(());
+            }
+            cursor = next;
+            if !more {
+                tokio::time::sleep(TICK).await;
+            }
+        }
+    }
 }
 
 #[tauri::command]
@@ -182,46 +296,64 @@ pub async fn stream_logs(
     on_event: Channel<LogStreamEvent>,
     subscription_id: Option<u64>,
 ) -> Result<(), String> {
-    let Some(generation) = state.current.lock().unwrap().begin(subscription_id) else {
-        return Ok(());
-    };
-    let _active = ActiveSubscription {
-        current: &state.current,
-        generation,
-    };
-    let mut cursor = Cursor::default();
-    let mut path = state.path.clone();
-    loop {
-        let (poll, next_cursor, next_path) = tokio::task::spawn_blocking(move || {
-            let result = cursor.poll(&path);
-            (result, cursor, path)
-        })
-        .await
-        .map_err(|e| e.to_string())?;
-        let (events, more) = poll.map_err(|e| e.to_string())?;
-        cursor = next_cursor;
-        path = next_path;
-        {
-            let mut current = state.current.lock().unwrap();
-            if !current.active || current.generation != generation {
-                return Ok(());
-            }
-            for event in events {
-                if on_event.send(event).is_err() {
-                    current.active = false;
-                    return Ok(());
-                }
-            }
-        }
-        if !more {
-            tokio::time::sleep(TICK).await;
-        }
-    }
+    state.stream(on_event, subscription_id).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn admitted_send_does_not_block_stop_or_replacement() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(file.path(), "hello\n").unwrap();
+        let tail = LogTail::new(file.path().into());
+        let (entered, mut started) = tokio::sync::mpsc::unbounded_channel();
+        let (release, wait) = std::sync::mpsc::channel();
+        let wait = Mutex::new(wait);
+        let original = tail.stream(
+            Channel::new(move |_| {
+                entered.send(()).unwrap();
+                wait.lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(5))
+                    .unwrap();
+                Ok(())
+            }),
+            Some(1),
+        );
+        tokio::pin!(original);
+        tokio::select! { _ = &mut original => panic!("send finished"), _ = started.recv() => {} }
+        let stop = tail.stop(Some(1));
+        tokio::pin!(stop);
+        assert!(futures_util::poll!(&mut stop).is_pending());
+        let (events, mut received) = tokio::sync::mpsc::unbounded_channel();
+        let replacement = tail.stream(
+            Channel::new(move |event| {
+                events.send(event).unwrap();
+                Ok(())
+            }),
+            Some(2),
+        );
+        tokio::pin!(replacement);
+        assert!(futures_util::poll!(&mut replacement).is_pending());
+        tokio::spawn(async move { release.send(()).unwrap() })
+            .await
+            .unwrap();
+        assert!(stop.await);
+        original.await.unwrap();
+        assert!(started.try_recv().is_err());
+        let event = tokio::select! { _ = &mut replacement => panic!("replacement finished"), e = received.recv() => e.unwrap() };
+        let tauri::ipc::InvokeResponseBody::Json(json) = event else {
+            panic!()
+        };
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&json).unwrap()["type"],
+            "snapshot"
+        );
+        assert!(tail.stop(Some(2)).await);
+        replacement.await.unwrap();
+    }
+
     #[test]
     fn replaced_viewer_cannot_stop_current_stream() {
         let mut sub = Subscription::default();

@@ -3,37 +3,209 @@ use crate::{
     hashing::{modpack_hashes, HashAlgorithm},
     modrinth::ManifestFile,
 };
+use std::sync::Arc;
 use std::{
     fs, io,
+    io::Read,
     path::{Path, PathBuf},
 };
-use tokio::sync::{watch, Mutex, RwLock};
+use tokio::sync::{watch, Mutex};
 
+#[derive(Clone)]
 pub struct ModStore {
     cache: PathBuf,
-    pub installs: RwLock<()>,
-    // A digest and all its mirrors always acquire the same lock.
+    active: Arc<Mutex<Option<Arc<ObjectTree>>>>,
+    clears: Arc<Mutex<()>>,
+}
+
+pub struct ObjectTree {
+    root: PathBuf,
     shards: [Mutex<()>; 256],
+    retired: watch::Sender<()>,
+    _lease: watch::Receiver<()>,
+}
+
+const INITIAL: &str = "objects";
+const ALTERNATE: &str = "objects-next";
+const SELECTOR: &str = ".kaede-active-object-tree";
+
+fn other(name: &str) -> &'static str {
+    if name == INITIAL {
+        ALTERNATE
+    } else {
+        INITIAL
+    }
+}
+
+fn selected_tree(cache: &Path) -> io::Result<Option<&'static str>> {
+    let path = cache.join(SELECTOR);
+    match fs::symlink_metadata(&path) {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e),
+        Ok(meta) if !meta.is_file() || is_reparse_point(&meta) => {
+            return Err(io::Error::other("Invalid object tree selector"))
+        }
+        Ok(_) => (),
+    }
+    let mut name = String::new();
+    fs::File::open(path)?
+        .take(ALTERNATE.len() as u64 + 1)
+        .read_to_string(&mut name)?;
+    match name.as_str() {
+        INITIAL => Ok(Some(INITIAL)),
+        ALTERNATE => Ok(Some(ALTERNATE)),
+        _ => Err(io::Error::other("Invalid object tree selector")),
+    }
+}
+
+fn remove_tree(path: &Path) -> io::Result<()> {
+    plain_directory(path.parent().unwrap())?;
+    match fs::symlink_metadata(path) {
+        Ok(meta) if ordinary_directory(&meta) => fs::remove_dir_all(path),
+        Ok(_) => Err(io::Error::other("Invalid object directory")),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 impl ModStore {
     pub fn new(base: &Path) -> Self {
         Self {
             cache: base.join("cache"),
-            installs: RwLock::new(()),
-            shards: std::array::from_fn(|_| Mutex::new(())),
+            active: Arc::default(),
+            clears: Arc::default(),
         }
     }
 
-    pub fn prepare(&self) -> io::Result<()> {
-        plain_directory(&self.cache)?;
-        let objects = self.cache.join("objects");
-        plain_directory(&objects)?;
-        plain_directory(&objects.join("sha512"))
+    pub async fn lease(&self) -> Result<Arc<ObjectTree>, String> {
+        let mut active = self.active.clone().lock_owned().await;
+        if let Some(tree) = &*active {
+            return Ok(tree.clone());
+        }
+        let cache = self.cache.clone();
+        tokio::task::spawn_blocking(move || -> io::Result<_> {
+            plain_directory(&cache)?;
+            let selected = selected_tree(&cache)?;
+            let tree = ObjectTree::new(cache.join(selected.unwrap_or(INITIAL)));
+            *active = Some(tree.clone());
+            Ok(tree)
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+    }
+
+    pub async fn recover(&self) -> Result<(), String> {
+        let _serial = self.clears.lock().await;
+        let cache = self.cache.clone();
+        tokio::task::spawn_blocking(move || -> io::Result<()> {
+            match fs::symlink_metadata(&cache) {
+                Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+                Err(e) => return Err(e),
+                Ok(meta) if !ordinary_directory(&meta) => {
+                    return Err(io::Error::other("Invalid cache directory"))
+                }
+                Ok(_) => (),
+            }
+            if let Some(active) = selected_tree(&cache)? {
+                remove_tree(&cache.join(other(active)))?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+    }
+
+    pub(crate) async fn clear(&self) -> Result<(), String> {
+        // Once the selector changes, retirement must run even if the caller goes away.
+        let store = self.clone();
+        tokio::spawn(async move { store.retire_tree().await })
+            .await
+            .map_err(|e| e.to_string())?
+    }
+
+    async fn retire_tree(&self) -> Result<(), String> {
+        let _serial = self.clears.lock().await;
+        let old = self.lease().await?;
+        let name = other(old.root.file_name().unwrap().to_str().unwrap());
+        let cache = self.cache.clone();
+        let next = tokio::task::spawn_blocking(move || -> io::Result<_> {
+            plain_directory(&cache)?;
+            if let Some(selected) = selected_tree(&cache)? {
+                if selected == name {
+                    return Err(io::Error::other("Object tree changed outside the launcher"));
+                }
+                // A prior clear may have reported an unlink error.
+                remove_tree(&cache.join(name))?;
+            } else {
+                match fs::symlink_metadata(cache.join(name)) {
+                    Err(e) if e.kind() == io::ErrorKind::NotFound => (),
+                    Err(e) => return Err(e),
+                    Ok(_) => {
+                        return Err(io::Error::other("Alternate cache directory already exists"))
+                    }
+                }
+            }
+            let mut selector = crate::file_system::staging_file(&cache)?;
+            std::io::Write::write_all(&mut selector, name.as_bytes())?;
+            selector.as_file().sync_all()?;
+            selector.persist(cache.join(SELECTOR))?;
+            Ok(ObjectTree::new(cache.join(name)))
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+        *self.active.lock().await = Some(next);
+        let retired = old.retired.clone();
+        let path = old.root.clone();
+        drop(old);
+        retired.closed().await;
+        tokio::task::spawn_blocking(move || remove_tree(&path))
+            .await
+            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())
+    }
+}
+
+impl ObjectTree {
+    fn new(root: PathBuf) -> Arc<Self> {
+        let (retired, lease) = watch::channel(());
+        Arc::new(Self {
+            root,
+            shards: std::array::from_fn(|_| Mutex::new(())),
+            retired,
+            _lease: lease,
+        })
+    }
+    pub async fn prepare(self: &Arc<Self>) -> Result<(), String> {
+        let tree = self.clone();
+        tokio::task::spawn_blocking(move || {
+            plain_directory(tree.root.parent().unwrap())?;
+            plain_directory(&tree.root)?;
+            plain_directory(&tree.root.join("sha512"))
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
     }
 
     pub async fn ensure(
-        &self,
+        self: &Arc<Self>,
+        file: &ManifestFile,
+        cancel: &mut watch::Receiver<bool>,
+    ) -> Result<PathBuf, String> {
+        let tree = self.clone();
+        let file = file.clone();
+        crate::downloads::supervise(cancel, move |mut local| async move {
+            tree.ensure_object(&file, &mut local).await
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    }
+
+    async fn ensure_object(
+        self: Arc<Self>,
         file: &ManifestFile,
         cancel: &mut watch::Receiver<bool>,
     ) -> Result<PathBuf, String> {
@@ -44,36 +216,47 @@ impl ModStore {
             _ = cancel.wait_for(|x| *x) => return Err("Installation cancelled".into()),
             guard = self.shards[shard].lock() => guard,
         };
-        let parent = self.cache.join("objects/sha512").join(prefix);
-        plain_directory(&parent).map_err(|e| e.to_string())?;
+        let parent = self.root.join("sha512").join(prefix);
         let path = parent.join(&file.sha512);
         let hashes = [
             (HashAlgorithm::Sha512, file.sha512.as_str()),
             (HashAlgorithm::Sha1, file.sha1.as_str()),
         ];
-        match fs::symlink_metadata(&path) {
-            Ok(meta) if !meta.is_file() => {
-                return Err(format!("Invalid object: {}", path.display()))
-            }
-            Ok(meta) => {
-                let source = path.clone();
-                let actual = tokio::task::spawn_blocking(move || modpack_hashes(&source))
-                    .await
-                    .map_err(|e| e.to_string())?
-                    .map_err(|e| e.to_string())?;
-                if actual.0 == file.sha512 {
-                    if actual.1 != file.sha1 || meta.len() != file.file_size {
-                        return Err(format!(
-                            "Contradictory manifest integrity for {}",
-                            file.path
-                        ));
+        let cached = {
+            let path = path.clone();
+            let expected_hash = file.sha512.clone();
+            let expected_sha1 = file.sha1.clone();
+            let expected_size = file.file_size;
+            let name = file.path.clone();
+            tokio::task::spawn_blocking(move || {
+                plain_directory(&parent).map_err(|e| e.to_string())?;
+                match fs::symlink_metadata(&path) {
+                    Ok(meta) if !meta.is_file() || is_reparse_point(&meta) => {
+                        return Err(format!("Invalid object: {}", path.display()))
                     }
-                    return Ok(path);
+                    Ok(meta) => {
+                        let actual = modpack_hashes(&path).map_err(|e| e.to_string())?;
+                        if actual.0 == expected_hash {
+                            if actual.1 != expected_sha1 || meta.len() != expected_size {
+                                return Err(format!(
+                                    "Contradictory manifest integrity for {}",
+                                    name
+                                ));
+                            }
+                            return Ok(true);
+                        }
+                        fs::remove_file(&path).map_err(|e| e.to_string())?;
+                    }
+                    Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(e.to_string()),
                 }
-                fs::remove_file(&path).map_err(|e| e.to_string())?;
-            }
-            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
-            Err(e) => return Err(e.to_string()),
+                Ok(false)
+            })
+            .await
+            .map_err(|e| e.to_string())??
+        };
+        if cached {
+            return Ok(path);
         }
         let client = client().await?;
         let mut failures = Vec::new();
@@ -100,45 +283,23 @@ impl ModStore {
             failures.join(", ")
         ))
     }
-
-    async fn clear(&self) -> Result<(), String> {
-        let _guard = self.installs.write().await;
-        let cache = self.cache.clone();
-        tokio::task::spawn_blocking(move || {
-            match fs::symlink_metadata(&cache) {
-                Ok(m) if ordinary_directory(&m) => (),
-                Ok(_) => return Err("Invalid cache directory".into()),
-                Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
-                Err(e) => return Err(e.to_string()),
-            }
-            let objects = cache.join("objects");
-            match fs::symlink_metadata(&objects) {
-                Ok(meta) if ordinary_directory(&meta) => (),
-                Ok(_) => return Err("Invalid object directory".into()),
-                Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
-                Err(e) => return Err(e.to_string()),
-            }
-            match fs::remove_dir_all(objects) {
-                Ok(()) => Ok(()),
-                Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-                Err(e) => Err(e.to_string()),
-            }
-        })
-        .await
-        .map_err(|e| e.to_string())?
-    }
 }
 
-fn ordinary_directory(meta: &fs::Metadata) -> bool {
+fn is_reparse_point(meta: &fs::Metadata) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
         const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
-        if meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-            return false;
-        }
+        meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
     }
-    meta.is_dir()
+    #[cfg(not(windows))]
+    {
+        meta.file_type().is_symlink()
+    }
+}
+
+fn ordinary_directory(meta: &fs::Metadata) -> bool {
+    meta.is_dir() && !is_reparse_point(meta)
 }
 
 fn plain_directory(path: &Path) -> io::Result<()> {
@@ -200,6 +361,24 @@ pub fn materialize_blob(src: &Path, dst: &Path) -> io::Result<()> {
 mod tests {
     use super::*;
     #[tokio::test]
+    async fn reopening_store_finishes_interrupted_retirement() {
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        store.clear().await.unwrap();
+        let selected = store.lease().await.unwrap();
+        selected.prepare().await.unwrap();
+        fs::write(selected.root.join("verified"), b"object").unwrap();
+        fs::create_dir(store.cache.join(INITIAL)).unwrap();
+        fs::write(store.cache.join(INITIAL).join("obsolete"), b"old").unwrap();
+        drop(store);
+        let store = ModStore::new(root.path());
+        store.recover().await.unwrap();
+        let current = store.lease().await.unwrap();
+        assert_eq!(fs::read(current.root.join("verified")).unwrap(), b"object");
+        assert!(!store.cache.join(INITIAL).exists());
+    }
+
+    #[tokio::test]
     async fn clear_only_removes_objects_and_waits_for_install() {
         let root = tempfile::tempdir().unwrap();
         let store = ModStore::new(root.path());
@@ -207,13 +386,30 @@ mod tests {
         for file in ["index.json", "pack.mrpack", "objects/sha512/blob"] {
             fs::write(store.cache.join(file), file).unwrap();
         }
-        let guard = store.installs.read().await;
+        let guard = store.lease().await.unwrap();
         let clear = store.clear();
         tokio::pin!(clear);
         assert!(futures_util::poll!(&mut clear).is_pending());
+        let next = loop {
+            tokio::select! {
+                biased;
+                _ = &mut clear => panic!("clear passed a live lease"),
+                tree = store.lease() => {
+                    let tree = tree.unwrap();
+                    if tree.root != guard.root { break tree; }
+                }
+            }
+            tokio::task::yield_now().await;
+        };
+        next.prepare().await.unwrap();
+        fs::write(next.root.join("new"), "new").unwrap();
+        let dst = root.path().join("materialized");
+        materialize_blob(&guard.root.join("sha512/blob"), &dst).unwrap();
+        assert_eq!(fs::read(dst).unwrap(), b"objects/sha512/blob");
         drop(guard);
         clear.await.unwrap();
         assert!(!store.cache.join("objects").exists());
+        assert_eq!(fs::read(next.root.join("new")).unwrap(), b"new");
         for file in ["index.json", "pack.mrpack"] {
             assert_eq!(fs::read_to_string(store.cache.join(file)).unwrap(), file);
         }

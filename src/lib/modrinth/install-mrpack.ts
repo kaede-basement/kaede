@@ -97,14 +97,15 @@ export async function installMrpack({
 
   ActiveInstall.value = { instanceId, cancel };
   try {
-    await invoke("prepare_mrpack_install", { cancelId });
+    const reservation = await invoke<number>("prepare_mrpack_install", { cancelId });
+
     ready = true;
     if (requested) {
       await cancel();
     }
 
     return await invoke("install_mrpack", {
-      archivePath, onProgress, cancelId, "targetDirPath": instanceRootDirectory,
+      archivePath, onProgress, cancelId, reservation, "targetDirPath": instanceRootDirectory,
     });
   } finally {
     ActiveInstall.value = undefined;

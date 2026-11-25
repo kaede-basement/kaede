@@ -42,18 +42,20 @@ pub fn run() {
     // in one tick go as one message to 'ipc_batch'.
     // macOS keeps the default transport since it was not tested there
     #[cfg(any(windows, target_os = "linux"))]
-    let builder = builder
-        .invoke_system(include_str!("hybrid_ipc.js"))
-        .on_page_load(|webview, load| {
-            if load.event() == tauri::webview::PageLoadEvent::Started {
-                ipc_batch::page_left(webview);
-            }
-        })
-        .on_window_event(|window, event| {
-            if matches!(event, tauri::WindowEvent::Destroyed) {
-                ipc_batch::window_destroyed(window.label());
-            }
-        });
+    let builder = builder.invoke_system(include_str!("hybrid_ipc.js"));
+    let builder = builder.on_page_load(|webview, load| {
+        if load.event() == tauri::webview::PageLoadEvent::Started {
+            webview.state::<downloads::CancelFlags>().page_left(webview);
+            #[cfg(any(windows, target_os = "linux"))]
+            ipc_batch::page_left(webview);
+        }
+    });
+    #[cfg(any(windows, target_os = "linux"))]
+    let builder = builder.on_window_event(|window, event| {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            ipc_batch::window_destroyed(window.label());
+        }
+    });
 
     // The "notifications" feature is disabled for Windows 7 builds
     #[cfg(feature = "notifications")]
@@ -108,7 +110,13 @@ pub fn run() {
                 }
             });
             // Besides hashing, we can also read configs ahead-of-time
-            app.manage(mod_store::ModStore::new(&base_directory));
+            let store = mod_store::ModStore::new(&base_directory);
+            app.manage(store.clone());
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = store.recover().await {
+                    log::error!("Cannot retire interrupted mod cache tree: {e}");
+                }
+            });
             app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist
