@@ -3,7 +3,7 @@ import FileManager from "@/lib/file-manager";
 import Parsers from "@/lib/launcher/scopes/parsers/index.ts";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
 import { log } from "@/lib/logging/log.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { MappedLibraryType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -19,12 +19,13 @@ export function parseLibrary({
   "library"    : SpecificPatchLibraryType;
   "isMaven"    : boolean;
   "patchUid"   : string;
-}): Required<MappedArtifactType> | false {
+}): MappedLibraryType | false {
   const { directories, logPrefix } = necessaries;
   const descriptiveLogPrefix: string = patchUid + ":" + library?.name + ":" + logPrefix;
   const name: string | undefined = library?.name;
   const baseUrl: string | undefined = library?.url;
   const url: string | undefined = library?.downloads?.artifact?.url;
+  const size = library?.downloads?.artifact?.size;
   const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
   if (name === undefined) {
@@ -51,6 +52,7 @@ export function parseLibrary({
       "url"    : "",
       // The hash is still verified though
       "hash"   : hash ?? "ignore",
+      size,
       "first"  : false,
       "exclude": library?.extract?.exclude ?? [],
       directory,
@@ -118,7 +120,8 @@ export function parseLibrary({
       "id"     : artifactID,
       "status" : isMaven ? "mavenFile" : "library",
       "url"    : builtUrl,
-      "hash"   : "ignore",
+      "hash"   : hash ?? "ignore",
+      size,
       "first"  : false,
       "exclude": library?.extract?.exclude ?? [],
       directory,
@@ -143,5 +146,6 @@ export function parseLibrary({
     url,
     path,
     hash,
+    size,
   };
 }

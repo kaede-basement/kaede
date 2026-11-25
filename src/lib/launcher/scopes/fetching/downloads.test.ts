@@ -14,6 +14,7 @@ import { downloadAssets } from "./download-assets.ts";
 import { downloadClient } from "./download-client.ts";
 import { downloadLibraries } from "./download-libraries.ts";
 import { downloadLogging } from "./download-logging.ts";
+import { downloadMissing } from "./download-missing.ts";
 import { settleDownloadStages } from "./settle-download-stages.ts";
 
 // Other tests may have already replaced a public library with a partial implementation.
@@ -155,4 +156,25 @@ test("a failed sibling cancels a client still verifying its jar", async () => {
     },
   ])).toBe(false);
   expect(network).not.toHaveBeenCalled();
+});
+
+test("first downloads carry hashes and sizes even with warm-path checksums disabled", async () => {
+  const entries = [
+    { "path": "one", "url": "first", "hash": "A".repeat(40), "size": 42 },
+    { "path": "two", "url": "second", "hash": "ignore", "size": 0 },
+  ];
+
+  using overrides = new DisposableStack;
+  overrides.use(override(FileManager, "verifyPaths", async () => ["one", "two"]));
+  using download = spyOn(Network, "concurrentlyDownload").mockResolvedValue({
+    "failed": 0, "success": 2, "cancelled": false, "failures": [],
+  });
+  await downloadMissing({
+    entries, "checksum"   : false, "concurrency": 2, "label"      : "test",
+    "statuses"   : {} as PreLaunchInformationType["statuses"],
+  });
+  expect(download.mock.calls[0][0].entries).toEqual([
+    { ...entries[0], "algorithm": "sha1" },
+    { "path": "two", "url": "second", "size": 0 },
+  ]);
 });

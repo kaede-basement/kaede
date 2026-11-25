@@ -33,7 +33,19 @@ export function create(
   currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
   uid: ExtendedPatchUIDType,
   modpackPath?: string,
-): string | undefined {
+): string | undefined;
+export function create(
+  currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
+  uid: ExtendedPatchUIDType,
+  modpackPath: string,
+  beforeRegister: (id: string) => Promise<void>,
+): Promise<string> | undefined;
+export function create(
+  currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
+  uid: ExtendedPatchUIDType,
+  modpackPath?: string,
+  beforeRegister?: (id: string) => Promise<void>,
+): string | Promise<string> | undefined {
   if (!currentInstance) {
     log.error(
       __PRE_BUNDLED_FILENAME__,
@@ -84,14 +96,13 @@ export function create(
     toAdd[Patches.FabricIntermediary] = currentInstance.patchVersions[Patches.Minecraft];
   }
 
-  const randomDigits: number = Math.floor(Math.random() * 1000);
-  const id: string = FileManager.sanitizeFileOrFolderName(
-    currentInstance.name + " " + randomDigits,
-  );
+  const id = FileManager.sanitizeFileOrFolderName(beforeRegister
+    ? crypto.randomUUID() + " " + currentInstance.name
+    : currentInstance.name + " " + Math.floor(Math.random() * 1000));
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
 
-  instanceStates[id] = {
+  const instance = {
     ...DefaultInstanceSettings,
     ...globalStates.minecraft,
     ...currentInstance,
@@ -102,19 +113,14 @@ export function create(
     "entry": uid,
   };
 
-  if (modpackPath) {
-    instanceStates[id].modpackPath = modpackPath;
+  function register(): string {
+    instanceStates[id] = { ...instance, ...(modpackPath ? { modpackPath } : {}) };
+    log.info(__PRE_BUNDLED_FILENAME__, "Created an instance with the entry patch:", uid);
+    globalStates.pages["add-instance"].instance = undefined;
+    Router.navigate(Routes.Library);
+
+    return id;
   }
 
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    "Successfully created an instance with the entry patch:",
-    uid,
-  );
-
-  globalStates.pages["add-instance"].instance = undefined;
-
-  Router.navigate(Routes.Library);
-
-  return id;
+  return beforeRegister ? beforeRegister(id).then(register) : register();
 }

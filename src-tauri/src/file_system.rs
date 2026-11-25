@@ -107,14 +107,33 @@ pub async fn load_config_files(base_directory: PathBuf) -> Result<InitialStatePa
 pub struct Artifact {
     path: String,
     hash: String,
+    size: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum ExpectedPath {
+    Plain(String),
+    Sized { path: String, size: Option<u64> },
+}
+
+fn matches_size(path: &Path, size: Option<u64>) -> bool {
+    path.metadata()
+        .is_ok_and(|meta| meta.is_file() && size.map_or(true, |s| s == meta.len()))
 }
 
 #[tauri::command]
-pub async fn verify_paths(paths: Vec<String>) -> Result<Vec<String>, String> {
+pub async fn verify_paths(paths: Vec<ExpectedPath>) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
         paths
             .into_par_iter()
-            .filter(|path| !Path::new(path).exists())
+            .filter_map(|entry| {
+                let (path, size) = match entry {
+                    ExpectedPath::Plain(path) => (path, None),
+                    ExpectedPath::Sized { path, size } => (path, size),
+                };
+                (!matches_size(Path::new(&path), size)).then_some(path)
+            })
             .collect()
     })
     .await
@@ -132,11 +151,9 @@ pub async fn verify_paths_hash(
             .filter_map(|artifact| {
                 let path = Path::new(&artifact.path);
 
-                let valid = if artifact.hash == "ignore" {
-                    path.exists()
-                } else {
-                    verify_file_hash(path, &algorithm, &artifact.hash).unwrap_or(false)
-                };
+                let valid = matches_size(path, artifact.size)
+                    && (artifact.hash == "ignore"
+                        || verify_file_hash(path, &algorithm, &artifact.hash).unwrap_or(false));
                 (!valid).then_some(artifact.path)
             })
             .collect();
@@ -153,7 +170,7 @@ fn verify_file_hash(
     expected_hash: &str,
 ) -> io::Result<bool> {
     match algorithm.hash(path) {
-        Ok(hash) => Ok(hash == expected_hash),
+        Ok(hash) => Ok(hash.eq_ignore_ascii_case(expected_hash)),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
         Err(e) => Err(e),
     }
@@ -162,6 +179,20 @@ fn verify_file_hash(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn fast_verification_accepts_legacy_paths_and_checks_file_sizes() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("item");
+        std::fs::write(&file, b"ok").unwrap();
+        let paths = serde_json::from_value(
+            serde_json::json!([file,dir.path(),{"path":file,"size":2},{"path":file,"size":3}]),
+        )
+        .unwrap();
+        assert_eq!(
+            verify_paths(paths).await.unwrap(),
+            vec![dir.path().to_str().unwrap(), file.to_str().unwrap()]
+        );
+    }
     #[cfg(windows)]
     #[test]
     fn published_file_has_no_temporary_attribute() {

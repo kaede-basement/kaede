@@ -16,16 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
-import { GeneralSettings } from "@/constants/launcher.ts";
 import { MrpackDependencies } from "@/constants/modrinth.ts";
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
-import { downloadMissing } from "@/lib/launcher/scopes/fetching/download-missing.ts";
-import { log } from "@/lib/logging/log.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
-import type { DownloadReportType } from "@/types/launcher/artifacts/download.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 
@@ -65,58 +61,30 @@ export async function installMrpack({
   archivePath,
   instanceId,
   statuses,
-  sha1,
+  checksum,
 }: {
   "archivePath": string;
   "instanceId" : string;
   "statuses"   : LauncherStatusesType;
-  "sha1"      ?: boolean;
-}): Promise<{ "manifest": MrpackManifestType | undefined; "report": DownloadReportType }> {
-  const { instanceDirectory } = Instances.getMinecraftDirectory({
+  "checksum"   : boolean;
+}): Promise<MrpackManifestType> {
+  const { instanceRootDirectory } = Instances.getMinecraftDirectory({
     "baseDirectory": FileManager.getBaseDirectory(),
     instanceId,
   });
+  const onProgress = new Channel<[number, number]>;
 
-  const manifest = await invoke<MrpackManifestType>("install_mrpack", {
+  // eslint-disable-next-line unicorn/prefer-add-event-listener
+  onProgress.onmessage = ([success, total]): void => {
+    statuses.downloads.success = success;
+    statuses.downloads.total = total;
+  };
+
+  return invoke("install_mrpack", {
     archivePath,
-    "targetDirPath": instanceDirectory,
+    checksum,
+    onProgress,
+    "cancelId"     : `${instanceId}-download`,
+    "targetDirPath": instanceRootDirectory,
   });
-
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    `Extracted ${manifest.overrides} overrides of '${manifest.name}'`,
-    `(${manifest.versionId}) and indexed ${manifest.files.length} files`,
-  );
-
-  const entries: Array<{ "url": string; "path": string; "hash": string }> = manifest
-    .files
-    .map(({ path, url, sha1 }) => ({
-      url,
-      "hash": sha1,
-      "path": FileManager.join(instanceDirectory, path),
-    }));
-
-  const report = await downloadMissing({
-    statuses,
-    entries,
-    "checksum"   : sha1,
-    "concurrency": GeneralSettings.ConcurrentDownloads.Libraries,
-    "label"      : "modrinth modpack",
-    "cancelId"   : `${instanceId}-download`,
-  });
-
-  if (report.cancelled || report.failed > 0) {
-    log.info(__PRE_BUNDLED_FILENAME__, `Could not finish installing '${manifest.name}'`);
-
-    return { "manifest": undefined, report };
-  }
-
-  statuses.launching = 0;
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    `Installed '${manifest.name}' (${manifest.versionId}):`,
-    `${report.success} succeeded, ${report.failed} failed`,
-  );
-
-  return { manifest, report };
 }

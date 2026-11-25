@@ -74,7 +74,7 @@ export function verifyPaths({
   paths,
   algorithm,
 }: {
-  "paths"     : Array<{ "path": string; "hash": string }>;
+  "paths"     : Array<{ "path": string; "hash": string; "size"?: number }>;
   "algorithm"?: HashAlgorithmType;
 }): Promise<Array<string>> {
   if (algorithm) {
@@ -85,6 +85,6 @@ export function verifyPaths({
   }
 
   return invoke("verify_paths", {
-    "paths": paths.map(({ path }) => path),
+    "paths": paths.map(({ path, size }) => ({ path, size })),
   });
 }

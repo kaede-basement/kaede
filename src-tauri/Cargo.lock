@@ -2363,7 +2363,9 @@ dependencies = [
 name = "kaede"
 version = "0.0.0"
 dependencies = [
+ "futures-util",
  "image",
+ "libc",
  "log",
  "md-5",
  "rayon",
