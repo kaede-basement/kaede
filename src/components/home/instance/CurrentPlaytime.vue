@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { useIntervalFn } from "@vueuse/core";
+import { computed, inject, ref, watch } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -8,6 +9,7 @@ import {
 } from "@/constants/application.ts";
 import Instances from "@/lib/instances";
 import { globalStates } from "@/states/global.ts";
+import { RunStartedAt } from "@/states/instance.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
@@ -18,9 +20,26 @@ const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.selected?.currentInstance)
 ));
+const runStart = computed(() => RunStartedAt.get(currentInstance.value?.id ?? ""));
+const now = ref(Date.now());
+const { pause, resume } = useIntervalFn(() => {
+  now.value = Date.now();
+}, 1000, {
+  "immediate"        : false,
+  "immediateCallback": true,
+});
+
+watch(runStart, startedAt => {
+  if (startedAt === undefined) {
+    pause();
+  } else {
+    resume();
+  }
+}, { "immediate": true });
+
 const playTime = computed((): string => {
-  const currentMillisecondsTime: number | undefined =
-    currentInstance.value?.instance?.playTime;
+  const elapsed = runStart.value === undefined ? 0 : Math.max(0, now.value - runStart.value);
+  const currentMillisecondsTime = (currentInstance.value?.instance?.playTime ?? 0) + elapsed;
 
   if (!currentMillisecondsTime) {
     return "0 seconds";

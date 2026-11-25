@@ -2,6 +2,7 @@
 import {
   inject,
   markRaw,
+  onUnmounted,
   provide,
   reactive,
   type ShallowReactive,
@@ -19,6 +20,7 @@ import {
 } from "@/constants/application.ts";
 import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
+import { GlobalObject } from "@/extendable/global-object.ts";
 import Auth from "@/lib/auth";
 import Errors from "@/lib/errors";
 import Hooks from "@/lib/hooks";
@@ -28,41 +30,52 @@ import { log } from "@/lib/logging/log.ts";
 import { rehydrateProcesses } from "@/lib/processes/core.ts";
 import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
+import { commitPlaytime, instanceStates, startPlaytime } from "@/states/instance.ts";
 import type { LaunchAuthType } from "@/types/auth/microsoft-auth.type.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
 import type { LaunchContextType } from "@/types/launcher/launch/launch-context.type.ts";
-import type {
-  LaunchResponseType,
-  MinecraftMetaType,
-  MinecraftProcessType,
-} from "@/types/launcher/launch/launch-response.type.ts";
+import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 import type {
   LauncherStatusesType,
   WrappedInstanceLauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
-const providedAccounts = inject<Array<AccountType>>(AuthOneTimeFetchContextKey) ?? [];
-
-const accounts = shallowRef<Array<AccountType>>(providedAccounts);
+const accounts = shallowRef(inject<Array<AccountType>>(AuthOneTimeFetchContextKey) ?? []);
 const launches = reactive<Record<string, LauncherStatusesType>>({});
 const logs = shallowReactive<Record<string, { "list": Array<string> }>>({});
 
 const childProcesses: Record<string, MinecraftProcessType> = {};
 
-function onClose(instanceId: string): void {
-  const statuses: LauncherStatusesType | undefined = launches[instanceId];
+const pendingLaunches = new Map<string, (process: MinecraftProcessType) => void>;
 
+function startRun(instanceId: string, process: MinecraftProcessType, rehydrated = false): void {
+  childProcesses[instanceId] = process;
+  startPlaytime(instanceId, process.token, rehydrated);
+}
+
+const afterLaunch = GlobalObject.hooks.onMinecraftLaunch.after;
+const recordSpawn: typeof afterLaunch[number] = async ({ instanceId, process }) => {
+  pendingLaunches.get(instanceId)?.(process as MinecraftProcessType);
+};
+
+afterLaunch.unshift(recordSpawn);
+onUnmounted(() => {
+  const index = afterLaunch.indexOf(recordSpawn);
+
+  if (index !== -1) {
+    afterLaunch.splice(index, 1);
+  }
+});
+
+function onClose(instanceId: string): void {
+  commitPlaytime(instanceId);
   delete childProcesses[instanceId];
 
-  if (statuses) {
-    statuses.launching = 0;
-    statuses.current = LaunchStatus.General.Aborted;
-
-    // Open instance logs since the instance was closed
-    globalStates.logs.show = true;
-    globalStates.logs.mode = instanceId;
-  }
+  launches[instanceId].launching = 0;
+  launches[instanceId].current = LaunchStatus.General.Aborted;
+  globalStates.logs.show = true;
+  globalStates.logs.mode = instanceId;
 }
 
 function createLogSink(instanceId: string): (lines: Array<string>) => void {
@@ -92,10 +105,7 @@ function createLogSink(instanceId: string): (lines: Array<string>) => void {
 }
 
 async function resolveLaunchAccount(): Promise<LaunchAuthType | undefined> {
-  const resolved: {
-    "auth"    : LaunchAuthType;
-    "accounts": Array<AccountType>;
-  } | undefined = await Auth.resolveLaunchAccount(accounts.value);
+  const resolved = await Auth.resolveLaunchAccount(accounts.value);
 
   if (resolved !== undefined) {
     accounts.value = resolved.accounts;
@@ -104,36 +114,17 @@ async function resolveLaunchAccount(): Promise<LaunchAuthType | undefined> {
   return resolved?.auth;
 }
 
-const getJavaMajor = async (javaPath?: string): Promise<number> => {
-  if (javaPath || !GlobalInternals.javaMajor) {
-    return Launcher.fetchJavaMajor(javaPath);
-  }
+const getJavaMajor = (javaPath?: string): number | Promise<number> => (
+  !javaPath && GlobalInternals.javaMajor
+    ? GlobalInternals.javaMajor
+    : Launcher.fetchJavaMajor(javaPath)
+);
 
-  return GlobalInternals.javaMajor;
-};
-
-async function launchInstance(instanceId?: string, options?: Partial<{
-  "javaPath"  : string;
-  "overridden": CurrentInstanceType;
-}>): Promise<void> {
-  if (!instanceId) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "The instance launch button was pressed but no instance is present",
-    );
-  }
-
-  const currentInstance: CurrentInstanceType =
-    options?.overridden ?? Instances.findCurrent(instanceId);
-
-  if (!currentInstance || !currentInstance.instance) {
-    return log.error(__PRE_BUNDLED_FILENAME__, "No current instance found");
-  }
-
-  launches[instanceId] = {
+function launchStatus(instanceId: string, running: boolean): LauncherStatusesType {
+  return {
     instanceId,
-    "launching": 1,
-    "current"  : undefined,
+    "launching": running ? 2 : 1,
+    "current"  : running ? LaunchStatus.General.Success : LaunchStatus.General.Starting,
     "downloads": {
       "current": markRaw(new Map<string, [number, number]>),
       "success": 0,
@@ -141,19 +132,47 @@ async function launchInstance(instanceId?: string, options?: Partial<{
       "total"  : 0,
     },
   };
+}
 
-  const statuses: LauncherStatusesType = launches[instanceId];
-  const startTime: number = performance.now();
+async function launchInstance(instanceId?: string, options?: Partial<{
+  "javaPath"  : string;
+  "overridden": CurrentInstanceType;
+}>): Promise<void> {
+  if (!instanceId) {
+    return log.error(__PRE_BUNDLED_FILENAME__, "No instance selected for launch");
+  }
 
-  statuses.current = LaunchStatus.General.Starting;
+  if (!await ensureHydrated() || pendingLaunches.has(instanceId) || childProcesses[instanceId]) {
+    return;
+  }
+
+  const currentInstance = options?.overridden ?? Instances.findCurrent(instanceId);
+
+  if (!currentInstance || !currentInstance.instance) {
+    return log.error(__PRE_BUNDLED_FILENAME__, "No current instance found");
+  }
+
+  launches[instanceId] = launchStatus(instanceId, false);
+  let exitedAt: number | undefined;
+  const recordProcess = (process: MinecraftProcessType): void => {
+    if (exitedAt === undefined) {
+      startRun(instanceId, process);
+    } else if (instanceStates[instanceId]) {
+      instanceStates[instanceId].lastLaunch = exitedAt;
+    }
+  };
+
+  pendingLaunches.set(instanceId, recordProcess);
+  const statuses = launches[instanceId];
 
   try {
     const onInput = createLogSink(instanceId);
 
-    const [javaMajor, account]: [number, LaunchAuthType | undefined] =
-      await Promise.all([getJavaMajor(options?.javaPath), resolveLaunchAccount()]);
+    const [javaMajor, account] = await Promise.all([
+      getJavaMajor(options?.javaPath), resolveLaunchAccount(),
+    ]);
 
-    const { success, process }: LaunchResponseType = await Launcher.handleLaunch({
+    const { success, process } = await Launcher.handleLaunch({
       "instance"       : currentInstance.instance,
       "userPreferences": {
         "javaBinary": options?.javaPath ?? currentInstance.instance.javaBinary,
@@ -163,14 +182,22 @@ async function launchInstance(instanceId?: string, options?: Partial<{
       },
       instanceId,
       statuses,
-      onClose,
+      "onClose": () => {
+        if (exitedAt === undefined) {
+          exitedAt = Date.now();
+          onClose(instanceId);
+        }
+      },
       onInput,
     });
 
-    statuses.launching = success ? 2 : 0;
-
-    if (process !== undefined) {
-      childProcesses[instanceId] = process;
+    if (exitedAt === undefined) {
+      statuses.launching = success ? 2 : 0;
+      if (success && process && !childProcesses[instanceId]) {
+        recordProcess(process);
+      }
+    } else {
+      statuses.current = LaunchStatus.General.Aborted;
     }
   } catch (error: unknown) {
     statuses.launching = 0;
@@ -183,32 +210,21 @@ async function launchInstance(instanceId?: string, options?: Partial<{
     );
   }
 
-  const endTime: number = performance.now();
-  const totalTime: string = (endTime - startTime).toFixed(2);
-
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    `The '${instanceId}' launch process was done in ${totalTime} ms.`,
-    `Is success: '${statuses.launching === 2}'`,
-  );
+  pendingLaunches.delete(instanceId);
 }
 
 async function closeInstance(instanceId: string): Promise<void> {
-  const process: MinecraftProcessType | undefined = childProcesses[instanceId];
+  const process = childProcesses[instanceId];
 
   if (!process) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `The '${instanceId}' instance kill action was called but no process is present`,
-    );
+    return log.error(__PRE_BUNDLED_FILENAME__, `No running process to kill for ${instanceId}`);
   }
 
-  const beforeHooksResult: "continue" | void | undefined =
-    await Hooks.catchAsyncResponseHooks<void>({
-      "scope" : "onMinecraftKill",
-      "toPass": process,
-      "timing": "before",
-    });
+  const beforeHooksResult = await Hooks.catchAsyncResponseHooks<void>({
+    "scope" : "onMinecraftKill",
+    "toPass": process,
+    "timing": "before",
+  });
 
   if (beforeHooksResult !== "continue") {
     return;
@@ -226,74 +242,51 @@ async function closeInstance(instanceId: string): Promise<void> {
 }
 
 async function rehydrateLaunchedInstances(): Promise<void> {
-  try {
-    /*
-     * 'watchProcesses' that is run in 'main.ts' might still be in a Promise state,
-     * so we ensure it is awaited here
-     */
-    await Watchers.watchProcesses();
+  await Watchers.watchProcesses();
 
-    const handles = await rehydrateProcesses(handle => {
-      if (handle.kind !== "minecraft") {
-        return;
-      }
-
-      const { instanceId } = handle.meta as MinecraftMetaType;
-
-      launches[instanceId] = {
-        instanceId,
-        "launching": 2,
-        "current"  : LaunchStatus.General.Success,
-        "downloads": {
-          "current": markRaw(new Map<string, [number, number]>),
-          "success": 0,
-          "failed" : 0,
-          "total"  : 0,
-        },
-      };
-
-      return {
-        "onOutput": createLogSink(instanceId),
-        "onExit"  : (payload): void => {
-          onClose(instanceId);
-          Hooks.catchAsyncVoidHooks({
-            "scope" : "onMinecraftKill",
-            "toPass": payload.pid,
-            "timing": "after",
-          });
-        },
-      };
-    });
-
-    let count: number = 0;
-
-    for (const handle of handles) {
-      if (handle.kind !== "minecraft") {
-        continue;
-      }
-
-      const _handle = handle as MinecraftProcessType;
-
-      childProcesses[_handle.meta.instanceId] = _handle;
-      count += 1;
+  await rehydrateProcesses(handle => {
+    if (handle.kind !== "minecraft") {
+      return;
     }
 
-    if (count > 0) {
-      log.info(
-        __PRE_BUNDLED_FILENAME__,
-        `Rehydrated ${count} still-running instance(s) after a reload`,
-      );
-    }
-  } catch (error: unknown) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to rehydrate launched instances:",
-      Errors.prettify(error),
-    );
-  }
+    const process = handle as MinecraftProcessType;
+    const { instanceId } = process.meta;
+
+    startRun(instanceId, process, true);
+    launches[instanceId] = launchStatus(instanceId, true);
+
+    return {
+      "onOutput": createLogSink(instanceId),
+      "onExit"  : (payload): void => {
+        if (childProcesses[instanceId]?.token !== handle.token) {
+          return;
+        }
+        onClose(instanceId);
+        Hooks.catchAsyncVoidHooks({
+          "scope" : "onMinecraftKill",
+          "toPass": payload.pid,
+          "timing": "after",
+        });
+      },
+    };
+  });
 }
 
-void rehydrateLaunchedInstances();
+let hydration: Promise<boolean> | undefined;
+
+function ensureHydrated(): Promise<boolean> {
+  hydration ??= rehydrateLaunchedInstances().then(() => true)
+    .catch(error => {
+      hydration = undefined;
+      log.error(__PRE_BUNDLED_FILENAME__, "Process rehydration failed:", Errors.prettify(error));
+
+      return false;
+    });
+
+  return hydration;
+}
+
+void ensureHydrated();
 
 /*
  * AFAIK, even unrestricted extensions should not be able to access this context
@@ -318,6 +311,7 @@ provide<ShallowReactive<Record<string, { "list": Array<string> }>>>(InstanceLogs
 provide<LaunchContextType>(LaunchInstanceContextKey, launchInstance);
 provide<(instanceId: string) => Promise<void>>(CloseInstanceContextKey, closeInstance);
 
+GlobalInternals.logs.instanceStatuses = launches;
 GlobalInternals.instanceContext = { launches, logs, launchInstance, closeInstance };
 
 Watchers.watchLogModeStates(logs);

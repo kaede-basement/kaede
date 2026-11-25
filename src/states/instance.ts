@@ -16,37 +16,57 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { type ShallowReactive, shallowReactive } from "vue";
+import { type Reactive, reactive } from "vue";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 
+export const RunStartedAt = reactive(new Map<string, number>);
+
 /**
  * Contains all Minecraft instance states.
  */
-export let instanceStates: ShallowReactive<InstanceStatesType>;
+export let instanceStates: Reactive<InstanceStatesType>;
 
 /**
  * Assign the actual instance states to 'instanceStates'.
  * This function is called in 'main.ts'
  */
 export function declareInstanceStates(): void {
-  /*
-   * We can avoid using 'structuredClone' here since 'GlobalInternals.initialInstances'
-   * is shallowReactive, meaning a simple one-level deep spreading will detach reactive
-   * fields, so any new changes should not touch 'GlobalInternals.initialInstances'
-   */
-  instanceStates = shallowReactive<InstanceStatesType>({ ...GlobalInternals.initialInstances });
+  instanceStates = reactive(structuredClone(GlobalInternals.initialInstances));
+}
 
-  /*
-   * I genuinely do not know why importing 'GlobalObject' leads
-   * to fucking module evaluation errors, completely breaking
-   * the whole fucking app?????????
-   * Therefore, we directly assign the new reference of instance states
-   * to the 'window' by accessing the Kaede namespace
-   */
-  const states = window.__KAEDE__.states as Record<string, unknown>;
+export function startPlaytime(instanceId: string, token: string, rehydrated = false): void {
+  const storageKey = `kaede.run.${instanceId}`;
+  const saved = rehydrated ? localStorage.getItem(storageKey) : null;
+  const launched = !rehydrated || saved?.startsWith(token + ":launched:");
+  const prefix = token + (launched ? ":launched:" : ":observed:");
+  const savedTime = saved?.startsWith(prefix) ? Number(saved.slice(prefix.length)) : Number.NaN;
+  const startedAt = Number.isFinite(savedTime) ? savedTime : Date.now();
 
-  states.instanceStates = instanceStates;
-  // GlobalObject.states.instanceStates = instanceStates;
+  if (!Number.isFinite(savedTime)) {
+    localStorage.setItem(storageKey, prefix + startedAt);
+  }
+  RunStartedAt.set(instanceId, startedAt);
+  const instance = instanceStates[instanceId];
+
+  if (instance && launched) {
+    instance.lastLaunch = startedAt;
+  }
+}
+
+export function commitPlaytime(instanceId: string): void {
+  const startedAt = RunStartedAt.get(instanceId);
+
+  if (startedAt === undefined) {
+    return;
+  }
+
+  RunStartedAt.delete(instanceId);
+  localStorage.removeItem(`kaede.run.${instanceId}`);
+  const instance = instanceStates[instanceId];
+
+  if (instance) {
+    instance.playTime += Math.max(0, Date.now() - startedAt);
+  }
 }
