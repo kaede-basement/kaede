@@ -261,7 +261,7 @@ impl ObjectTree {
         }
         let client = client().await.map_err(DownloadError::Other)?;
         let mut failures = Vec::new();
-        let mut first_integrity_failure = None;
+        let mut observed_error: Option<DownloadError> = None;
         for url in std::iter::once(&file.url).chain(&file.mirrors) {
             match stream_file(
                 client,
@@ -276,15 +276,17 @@ impl ObjectTree {
             {
                 Ok(()) => return Ok(path),
                 Err(DownloadError::Cancelled) => {
-                    return Err(first_integrity_failure
-                        .map(DownloadError::Integrity)
-                        .unwrap_or(DownloadError::Cancelled))
+                    return Err(observed_error.unwrap_or(DownloadError::Cancelled))
                 }
-                Err(DownloadError::Integrity(error)) => {
-                    first_integrity_failure.get_or_insert_with(|| error.clone());
-                    failures.push(error);
+                Err(error) => {
+                    if observed_error
+                        .as_ref()
+                        .map_or(true, |old| error.priority() > old.priority())
+                    {
+                        observed_error = Some(error.clone());
+                    }
+                    failures.push(error.install_message());
                 }
-                Err(DownloadError::Other(error)) => failures.push(error),
             }
         }
         let details = format!(
@@ -292,11 +294,13 @@ impl ObjectTree {
             file.path,
             failures.join(", ")
         );
-        Err(if first_integrity_failure.is_some() {
-            DownloadError::Integrity(details)
-        } else {
-            DownloadError::Other(details)
-        })
+        Err(
+            if matches!(observed_error, Some(DownloadError::Integrity(_))) {
+                DownloadError::Integrity(details)
+            } else {
+                DownloadError::Other(details)
+            },
+        )
     }
 }
 
@@ -335,24 +339,28 @@ pub async fn clear_mod_cache(store: tauri::State<'_, ModStore>) -> Result<(), St
 }
 
 pub fn materialize_blob(src: &Path, dst: &Path) -> io::Result<()> {
+    crate::file_system::persist_temp_path(stage_blob(src, dst)?, dst, false).map_err(|e| e.error)
+}
+
+pub fn stage_blob(src: &Path, dst: &Path) -> io::Result<tempfile::TempPath> {
     let parent = dst
         .parent()
         .ok_or_else(|| io::Error::other("Missing destination directory"))?;
     #[cfg(target_os = "macos")]
     {
         use std::{ffi::CString, os::unix::ffi::OsStrExt};
-        let stage = tempfile::tempdir_in(parent)?;
-        let copy = stage.path().join("clone");
         let from = CString::new(src.as_os_str().as_bytes())?;
-        let to = CString::new(copy.as_os_str().as_bytes())?;
-        // Both strings live for the call and clonefile creates a new file.
-        if unsafe { libc::clonefile(from.as_ptr(), to.as_ptr(), 0) } == 0 {
-            return crate::file_system::persist_temp_path(
-                tempfile::TempPath::from_path(copy),
-                dst,
-                false,
-            )
-            .map_err(|error| error.error);
+        let cloned = tempfile::Builder::new().make_in(parent, |copy| {
+            let to = CString::new(copy.as_os_str().as_bytes())?;
+            // clonefile creates the destination exclusively.
+            if unsafe { libc::clonefile(from.as_ptr(), to.as_ptr(), 0) } == 0 {
+                Ok(())
+            } else {
+                Err(io::Error::last_os_error())
+            }
+        });
+        if let Ok(stage) = cloned {
+            return Ok(stage.into_temp_path());
         }
     }
     let stage = crate::file_system::staging_file(parent)?;
@@ -369,7 +377,7 @@ pub fn materialize_blob(src: &Path, dst: &Path) -> io::Result<()> {
     if !cloned {
         fs::copy(src, stage.path())?;
     }
-    crate::file_system::persist_temp_path(stage.into_temp_path(), dst, false).map_err(|e| e.error)
+    Ok(stage.into_temp_path())
 }
 
 #[cfg(test)]

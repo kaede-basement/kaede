@@ -4,14 +4,14 @@ use serde::Serialize;
 /// ATTENTION: AI-generated (by Qwen 3.8-Max and Claude Fable 5 on 'max' reasoning)
 ///
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     fs::File,
     io::{self, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tauri::{ipc::Channel, State};
+use tauri::{ipc::Channel, Manager, ResourceTable, State};
 const TICK: Duration = Duration::from_millis(100);
 
 #[derive(Serialize, Clone)]
@@ -24,30 +24,73 @@ pub enum LogStreamEvent {
 
 pub struct LogTail {
     path: PathBuf,
-    registry: Mutex<Registry>,
+    last_issued: Mutex<u64>,
 }
 
-const SERVER_ID_BASE: u64 = 1 << 40;
 const MAX_SAFE_ID: u64 = (1 << 53) - 1;
 
-#[derive(Default)]
-struct Registry {
-    last_issued: u64,
-    windows: HashMap<String, Arc<Mutex<Subscription>>>,
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Viewer {
+    Legacy(Option<u64>),
+    Token(u64),
 }
 
-impl Registry {
-    fn window(&mut self, label: &str, viewer: Option<u64>) -> Option<&Arc<Mutex<Subscription>>> {
-        if viewer.is_some_and(|id| id >= SERVER_ID_BASE) {
-            self.windows.get(label)
-        } else {
-            Some(self.windows.entry(label.to_owned()).or_default())
+impl Viewer {
+    fn from_args(subscription_id: Option<u64>, token: Option<u64>) -> Self {
+        token.map_or(Self::Legacy(subscription_id), Self::Token)
+    }
+}
+
+#[derive(Default)]
+struct LogWindow(Mutex<Subscription>);
+impl tauri::Resource for LogWindow {}
+
+impl LogWindow {
+    async fn stop(&self, viewer: Viewer) -> bool {
+        let (stopped, sending) = {
+            let mut current = self.0.lock().unwrap();
+            let stopped = current.stop(viewer);
+            (
+                stopped,
+                current
+                    .sending
+                    .clone()
+                    .filter(|s| stopped || s.viewer == viewer),
+            )
+        };
+        if let Some(sending) = sending {
+            drop(sending.send.lock().await);
         }
+        stopped
+    }
+
+    fn resource(table: &ResourceTable) -> Option<tauri::ResourceId> {
+        table
+            .names()
+            .find(|(_, name)| name == std::any::type_name::<Self>())
+            .map(|(id, _)| id)
+    }
+}
+
+pub fn page_changed(table: &mut ResourceTable, destroyed: bool) {
+    let mut next = Subscription::default();
+    if let Some(old) = LogWindow::resource(table).and_then(|id| table.take::<LogWindow>(id).ok()) {
+        let mut old = old.0.lock().unwrap();
+        old.retired = true;
+        if let Some(active) = old.active.take() {
+            old.remember(active.viewer);
+        }
+        next.stopped_legacy = std::mem::take(&mut old.stopped_legacy);
+        next.sending = old.sending.clone();
+    }
+    if !destroyed {
+        table.add(LogWindow(Mutex::new(next)));
     }
 }
 
 #[derive(Default)]
 struct Subscription {
+    retired: bool,
     generation: u64,
     active: Option<ActiveViewer>,
     sending: Option<ActiveViewer>,
@@ -60,7 +103,7 @@ struct Subscription {
 struct ActiveViewer {
     send: Arc<tokio::sync::Mutex<()>>,
     generation: u64,
-    viewer: Option<u64>,
+    viewer: Viewer,
 }
 
 impl Subscription {
@@ -89,8 +132,8 @@ impl Subscription {
         true
     }
 
-    fn remember(&mut self, viewer: Option<u64>) {
-        if let Some(id) = viewer.filter(|id| *id < SERVER_ID_BASE) {
+    fn remember(&mut self, viewer: Viewer) {
+        if let Viewer::Legacy(Some(id)) = viewer {
             if !self.stopped_legacy.contains(&id) {
                 const RECENT: usize = 64;
                 if self.stopped_legacy.len() == RECENT {
@@ -100,21 +143,26 @@ impl Subscription {
             }
         }
     }
-    fn begin(&mut self, viewer: Option<u64>) -> Option<u64> {
-        if let Some(id) = viewer.filter(|id| *id >= SERVER_ID_BASE) {
+    fn begin(&mut self, viewer: Viewer) -> Option<u64> {
+        if self.retired {
+            return None;
+        }
+        if let Viewer::Token(id) = viewer {
             if !self.consume_issued(id) {
                 return None;
             }
-        } else if viewer.is_some_and(|id| self.stopped_legacy.contains(&id))
-            || self
-                .active
-                .as_ref()
-                .is_some_and(|a| a.viewer.is_some() && (viewer.is_none() || viewer == a.viewer))
+        } else if matches!(viewer, Viewer::Legacy(Some(id)) if self.stopped_legacy.contains(&id))
+            || self.active.as_ref().is_some_and(|a| match a.viewer {
+                Viewer::Token(_) => true,
+                Viewer::Legacy(Some(_)) => viewer == Viewer::Legacy(None) || viewer == a.viewer,
+                Viewer::Legacy(None) => false,
+            })
         {
             return None;
         }
-        let old = self.active.take().and_then(|a| a.viewer);
-        self.remember(old);
+        if let Some(old) = self.active.take() {
+            self.remember(old.viewer);
+        }
         self.generation += 1;
         self.active = Some(ActiveViewer {
             generation: self.generation,
@@ -124,9 +172,9 @@ impl Subscription {
         Some(self.generation)
     }
 
-    fn stop(&mut self, viewer: Option<u64>) -> bool {
+    fn stop(&mut self, viewer: Viewer) -> bool {
         self.remember(viewer);
-        if let Some(id) = viewer.filter(|id| *id >= SERVER_ID_BASE) {
+        if let Viewer::Token(id) = viewer {
             self.consume_issued(id);
         }
         if self.active.as_ref().is_some_and(|a| a.viewer == viewer) {
@@ -156,7 +204,7 @@ impl LogTail {
     pub fn new(path: PathBuf) -> Self {
         Self {
             path,
-            registry: Mutex::default(),
+            last_issued: Default::default(),
         }
     }
 }
@@ -238,105 +286,79 @@ impl Cursor {
     }
 }
 
-pub struct WindowLabel(String);
+pub struct LogCaller(Option<Arc<LogWindow>>);
 
-impl<R: tauri::Runtime> tauri::ipc::CommandArg<'_, R> for WindowLabel {
+impl<R: tauri::Runtime> tauri::ipc::CommandArg<'_, R> for LogCaller {
     fn from_command(item: tauri::ipc::CommandItem<'_, R>) -> Result<Self, tauri::ipc::InvokeError> {
+        let window = item.message.webview_ref().window_ref();
+        let table = window.resources_table();
         Ok(Self(
-            item.message.webview_ref().window_ref().label().to_owned(),
+            LogWindow::resource(&table).and_then(|id| table.get(id).ok()),
         ))
     }
 }
 
 #[tauri::command]
 pub fn next_log_subscription_id(
-    window: WindowLabel,
-    state: State<'_, LogTail>,
+    window: LogCaller,
+    state: State<'_, Arc<LogTail>>,
 ) -> Result<u64, String> {
-    state.issue_viewer_id(&window.0)
+    state.issue_viewer_id(&window.0.ok_or("Window closed")?)
 }
 
-#[tauri::command]
-pub async fn stop_log_stream(
-    window: WindowLabel,
-    state: State<'_, LogTail>,
-    subscription_id: Option<u64>,
-) -> Result<bool, String> {
-    Ok(state.stop(&window.0, subscription_id).await)
+fn bind_viewer(
+    invoke: &crate::Invoke,
+    name: &'static str,
+) -> Result<(LogCaller, Viewer), tauri::ipc::InvokeError> {
+    let caller = crate::argument(invoke, name, "window")?;
+    let legacy = crate::argument(invoke, name, "subscriptionId")?;
+    let token = crate::argument(invoke, name, "token")?;
+    Ok((caller, Viewer::from_args(legacy, token)))
+}
+
+pub(crate) fn stop_log_stream(
+    invoke: &crate::Invoke,
+) -> Result<impl std::future::Future<Output = Result<bool, String>>, tauri::ipc::InvokeError> {
+    let (caller, viewer) = bind_viewer(invoke, "stop_log_stream")?;
+    Ok(async move {
+        let Some(window) = caller.0 else {
+            return Ok(false);
+        };
+        Ok(window.stop(viewer).await)
+    })
 }
 
 impl LogTail {
-    fn issue_viewer_id(&self, label: &str) -> Result<u64, String> {
-        let mut registry = self.registry.lock().unwrap();
-        let id = registry.last_issued.max(SERVER_ID_BASE - 1) + 1;
-        if id > MAX_SAFE_ID {
+    fn issue_viewer_id(&self, window: &Arc<LogWindow>) -> Result<u64, String> {
+        let mut current = window.0.lock().unwrap();
+        if current.retired {
+            return Err("Window closed".into());
+        }
+        let mut last = self.last_issued.lock().unwrap();
+        if *last == MAX_SAFE_ID {
             return Err("Log viewer IDs exhausted".into());
         }
-        registry.last_issued = id;
-        registry
-            .windows
-            .entry(label.to_owned())
-            .or_default()
-            .lock()
-            .unwrap()
-            .issue(id);
+        *last += 1;
+        let id = *last;
+        current.issue(id);
         Ok(id)
-    }
-
-    pub fn retire_window(&self, label: &str, destroyed: bool) {
-        let mut registry = self.registry.lock().unwrap();
-        if let Some(window) = registry.windows.get(label) {
-            let mut window = window.lock().unwrap();
-            window.active = None;
-            window.pending_issued.clear();
-            window.stopped_legacy.clear();
-        }
-        if destroyed {
-            registry.windows.remove(label);
-        }
-    }
-
-    async fn stop(&self, label: &str, viewer: Option<u64>) -> bool {
-        let (stopped, sending) = {
-            let mut registry = self.registry.lock().unwrap();
-            let Some(window) = registry.window(label, viewer) else {
-                return false;
-            };
-            let mut current = window.lock().unwrap();
-            let stopped = current.stop(viewer);
-            (
-                stopped,
-                current
-                    .sending
-                    .clone()
-                    .filter(|s| stopped || s.viewer == viewer),
-            )
-        };
-        if let Some(sending) = sending {
-            drop(sending.send.lock().await);
-        }
-        stopped
     }
 
     async fn stream(
         &self,
-        label: &str,
+        window: &Arc<LogWindow>,
         channel: Channel<LogStreamEvent>,
-        viewer: Option<u64>,
+        viewer: Viewer,
     ) -> Result<(), String> {
         let (window, generation, sending) = {
-            let mut registry = self.registry.lock().unwrap();
-            let Some(window) = registry.window(label, viewer) else {
-                return Ok(());
-            };
-            let mut current = window.lock().unwrap();
+            let mut current = window.0.lock().unwrap();
             let Some(generation) = current.begin(viewer) else {
                 return Ok(());
             };
             (window.clone(), generation, current.sending.clone())
         };
         let _active = ActiveSubscription {
-            current: &window,
+            current: &window.0,
             generation,
         };
         if let Some(sending) = sending {
@@ -352,7 +374,7 @@ impl LogTail {
                 let (events, more) = cursor.poll(&path)?;
                 for event in events {
                     let guard = {
-                        let mut current = current.lock().unwrap();
+                        let mut current = current.0.lock().unwrap();
                         let Some(active) = current
                             .active
                             .as_ref()
@@ -382,7 +404,15 @@ impl LogTail {
             let Some((next, more)) = result else {
                 return Ok(());
             };
-            if window.lock().unwrap().active.as_ref().map(|a| a.generation) != Some(generation) {
+            if window
+                .0
+                .lock()
+                .unwrap()
+                .active
+                .as_ref()
+                .map(|a| a.generation)
+                != Some(generation)
+            {
                 return Ok(());
             }
             cursor = next;
@@ -393,29 +423,43 @@ impl LogTail {
     }
 }
 
-#[tauri::command]
-pub async fn stream_logs(
-    window: WindowLabel,
-    state: State<'_, LogTail>,
-    on_event: Channel<LogStreamEvent>,
-    subscription_id: Option<u64>,
-) -> Result<(), String> {
-    state.stream(&window.0, on_event, subscription_id).await
+pub(crate) fn stream_logs(
+    invoke: &crate::Invoke,
+) -> Result<impl std::future::Future<Output = Result<(), String>>, tauri::ipc::InvokeError> {
+    const NAME: &str = "stream_logs";
+    let (caller, viewer) = bind_viewer(invoke, NAME)?;
+    let channel = crate::argument(invoke, NAME, "onEvent")?;
+    let tail = crate::argument::<State<Arc<LogTail>>>(invoke, NAME, "state")?
+        .inner()
+        .clone();
+    Ok(async move {
+        let Some(window) = caller.0 else {
+            return Ok(());
+        };
+        tail.stream(&window, channel, viewer).await
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn page(table: &mut ResourceTable) -> Arc<LogWindow> {
+        page_changed(table, false);
+        table.get(LogWindow::resource(table).unwrap()).unwrap()
+    }
+
     #[tokio::test]
     async fn admitted_send_does_not_block_stop_or_replacement() {
         let file = tempfile::NamedTempFile::new().unwrap();
         std::fs::write(file.path(), "hello\n").unwrap();
         let tail = LogTail::new(file.path().into());
+        let mut table = ResourceTable::default();
+        let window = page(&mut table);
         let (entered, mut started) = tokio::sync::mpsc::unbounded_channel();
         let (release, wait) = std::sync::mpsc::channel();
         let wait = Mutex::new(wait);
         let original = tail.stream(
-            "b",
+            &window,
             Channel::new(move |_| {
                 entered.send(()).unwrap();
                 wait.lock()
@@ -424,21 +468,21 @@ mod tests {
                     .unwrap();
                 Ok(())
             }),
-            Some(1),
+            Viewer::Legacy(Some(1)),
         );
         tokio::pin!(original);
         tokio::select! { _ = &mut original => panic!("send finished"), _ = started.recv() => {} }
-        let stop = tail.stop("b", Some(1));
+        let stop = window.stop(Viewer::Legacy(Some(1)));
         tokio::pin!(stop);
         assert!(futures_util::poll!(&mut stop).is_pending());
         let (events, mut received) = tokio::sync::mpsc::unbounded_channel();
         let replacement = tail.stream(
-            "b",
+            &window,
             Channel::new(move |event| {
                 events.send(event).unwrap();
                 Ok(())
             }),
-            Some(2),
+            Viewer::Legacy(Some(2)),
         );
         tokio::pin!(replacement);
         assert!(futures_util::poll!(&mut replacement).is_pending());
@@ -456,7 +500,7 @@ mod tests {
             serde_json::from_str::<serde_json::Value>(&json).unwrap()["type"],
             "snapshot"
         );
-        assert!(tail.stop("b", Some(2)).await);
+        assert!(window.stop(Viewer::Legacy(Some(2))).await);
         replacement.await.unwrap();
     }
 
@@ -464,20 +508,22 @@ mod tests {
     async fn delayed_stop_leaves_reopened_viewer_receiving_lines() {
         let file = tempfile::NamedTempFile::new().unwrap();
         let tail = LogTail::new(file.path().into());
-        let a = tail.issue_viewer_id("b").unwrap();
-        let b = tail.issue_viewer_id("b").unwrap();
-        let original = tail.stream("b", Channel::new(|_| Ok(())), Some(a));
+        let mut table = ResourceTable::default();
+        let window = page(&mut table);
+        let a = tail.issue_viewer_id(&window).unwrap();
+        let b = tail.issue_viewer_id(&window).unwrap();
+        let original = tail.stream(&window, Channel::new(|_| Ok(())), Viewer::Token(a));
         tokio::pin!(original);
         assert!(futures_util::poll!(&mut original).is_pending());
-        let delayed_stop = tail.stop("b", Some(a));
+        let delayed_stop = window.stop(Viewer::Token(a));
         let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let replacement = tail.stream(
-            "b",
+            &window,
             Channel::new(move |event| {
                 events.send(event).unwrap();
                 Ok(())
             }),
-            Some(b),
+            Viewer::Token(b),
         );
         tokio::pin!(replacement);
         tokio::time::timeout(Duration::from_secs(5), async {
@@ -487,7 +533,7 @@ mod tests {
             let event = tokio::select! { _ = &mut replacement => panic!("viewer exited"), e = rx.recv() => e.unwrap() };
             let tauri::ipc::InvokeResponseBody::Json(json) = event else { panic!() };
             assert_eq!(serde_json::from_str::<serde_json::Value>(&json).unwrap(), serde_json::json!({"type":"lines","data":["new line"]}));
-            assert!(tail.stop("b", Some(b)).await);
+            assert!(window.stop(Viewer::Token(b)).await);
             replacement.await.unwrap();
             original.await.unwrap();
         }).await.unwrap();
@@ -497,45 +543,49 @@ mod tests {
     async fn delayed_start_cannot_evict_new_viewer_and_reload_retires_quiet_poll() {
         let file = tempfile::NamedTempFile::new().unwrap();
         let tail = LogTail::new(file.path().into());
-        let a = tail.issue_viewer_id("b").unwrap();
-        let foreign = tail.issue_viewer_id("a").unwrap();
-        let b = tail.issue_viewer_id("b").unwrap();
+        let mut table = ResourceTable::default();
+        let window = page(&mut table);
+        let a = tail.issue_viewer_id(&window).unwrap();
+        let mut other = ResourceTable::default();
+        let foreign_window = page(&mut other);
+        let foreign = tail.issue_viewer_id(&foreign_window).unwrap();
+        let b = tail.issue_viewer_id(&window).unwrap();
         tail.stream(
-            "b",
+            &window,
             Channel::new(|_| panic!("foreign ID admitted")),
-            Some(foreign),
+            Viewer::Token(foreign),
         )
         .await
         .unwrap();
-        assert!(!tail.stop("a", Some(b)).await);
+        assert!(!foreign_window.stop(Viewer::Token(b)).await);
         let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        tail.issue_viewer_id("a").unwrap();
-        tail.retire_window("a", false);
-        tail.retire_window("a", true);
+        page(&mut other);
+        page_changed(&mut other, false);
+        page_changed(&mut other, true);
         let stream = tail.stream(
-            "b",
+            &window,
             Channel::new(move |event| {
                 events.send(event).unwrap();
                 Ok(())
             }),
-            Some(b),
+            Viewer::Token(b),
         );
         tokio::pin!(stream);
         tokio::time::timeout(Duration::from_secs(5), async {
             tokio::select! { _ = &mut stream => panic!("stream ended"), _ = rx.recv() => {} }
-            tail.issue_viewer_id("a").unwrap();
-            tail.retire_window("a", false);
-            tail.retire_window("a", true);
-            tail.stream("b", Channel::new(|_| panic!("stale start sent")), Some(a)).await.unwrap();
-            assert!(!tail.stop("b", Some(a)).await);
+            page(&mut other);
+            page_changed(&mut other, false);
+            page_changed(&mut other, true);
+            tail.stream(&window, Channel::new(|_| panic!("stale start sent")), Viewer::Token(a)).await.unwrap();
+            assert!(!window.stop(Viewer::Token(a)).await);
             std::fs::write(file.path(), "still watching\n").unwrap();
             let event = tokio::select! { _ = &mut stream => panic!("stream ended"), e = rx.recv() => e.unwrap() };
             let tauri::ipc::InvokeResponseBody::Json(json) = event else {panic!()};
             assert_eq!(serde_json::from_str::<serde_json::Value>(&json).unwrap()["data"], serde_json::json!(["still watching"]));
-            let pending = tail.issue_viewer_id("b").unwrap();
-            tail.retire_window("b", false);
+            let pending = tail.issue_viewer_id(&window).unwrap();
+            page_changed(&mut table, false);
             stream.await.unwrap();
-            tail.stream("b", Channel::new(|_| panic!("retired page sent")), Some(pending)).await.unwrap();
+            tail.stream(&window, Channel::new(|_| panic!("retired page sent")), Viewer::Token(pending)).await.unwrap();
         }).await.unwrap();
     }
 
@@ -543,27 +593,37 @@ mod tests {
     async fn recreated_window_rejects_retired_ids_and_honors_legacy_stops() {
         let file = tempfile::NamedTempFile::new().unwrap();
         let tail = LogTail::new(file.path().into());
-        let old = tail.issue_viewer_id("main").unwrap();
-        tail.retire_window("main", true);
-        assert!(tail.issue_viewer_id("main").unwrap() > old);
-        assert!(!tail.stop("main", Some(100)).await);
-        for rejected in [old, 100] {
+        let mut table = ResourceTable::default();
+        let window = page(&mut table);
+        let old = tail.issue_viewer_id(&window).unwrap();
+        page_changed(&mut table, true);
+        tail.stream(
+            &window,
+            Channel::new(|_| panic!("destroyed window sent")),
+            Viewer::Legacy(Some(u64::MAX)),
+        )
+        .await
+        .unwrap();
+        let window = page(&mut table);
+        assert!(tail.issue_viewer_id(&window).unwrap() > old);
+        assert!(!window.stop(Viewer::Legacy(Some(100))).await);
+        for rejected in [Viewer::Token(old), Viewer::Legacy(Some(100))] {
             tail.stream(
-                "main",
+                &window,
                 Channel::new(|_| panic!("retired viewer sent")),
-                Some(rejected),
+                rejected,
             )
             .await
             .unwrap();
         }
         let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let stream = tail.stream(
-            "main",
+            &window,
             Channel::new(move |event| {
                 events.send(event).unwrap();
                 Ok(())
             }),
-            Some(12),
+            Viewer::Legacy(Some(12)),
         );
         tokio::pin!(stream);
         tokio::time::timeout(Duration::from_secs(5), async {
@@ -573,30 +633,55 @@ mod tests {
                 assert_eq!(serde_json::from_str::<serde_json::Value>(&json).unwrap(), expected);
                 std::fs::write(file.path(), "hello\n").unwrap();
             }
-            assert!(tail.stop("main", Some(12)).await);
+            assert!(window.stop(Viewer::Legacy(Some(12))).await);
             stream.await.unwrap();
         }).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn navigation_preserves_legacy_stops_and_protects_the_new_token_viewer() {
+        let root = tempfile::tempdir().unwrap();
+        let tail = LogTail::new(root.path().join("log"));
+        let mut table = ResourceTable::default();
+        let old = page(&mut table);
+        for id in [1 << 40, u64::MAX] {
+            let legacy = Viewer::from_args(Some(id), None);
+            assert!(old.0.lock().unwrap().begin(legacy).is_some());
+            assert!(old.stop(legacy).await);
+        }
+        let stopped = Viewer::Legacy(Some(1 << 40));
+        let delayed = tail.stream(&old, Channel::new(|_| panic!("retired page sent")), stopped);
+        let new = page(&mut table);
+        assert!(new.0.lock().unwrap().begin(stopped).is_none());
+        let token = tail.issue_viewer_id(&new).unwrap();
+        let viewer = Viewer::from_args(None, Some(token));
+        assert!(new.0.lock().unwrap().begin(viewer).is_some());
+        delayed.await.unwrap();
+        let same_number = Viewer::from_args(Some(token), None);
+        assert!(new.0.lock().unwrap().begin(same_number).is_none());
+        assert!(!new.stop(same_number).await);
+        assert!(new.stop(viewer).await);
     }
 
     #[test]
     fn replaced_viewer_cannot_stop_current_stream() {
         let mut sub = Subscription::default();
-        assert!(sub.begin(Some(1)) < sub.begin(Some(2)));
-        assert!(!sub.stop(Some(1)));
-        assert!(!sub.stop(None));
-        assert!(sub.stop(Some(2)));
+        assert!(sub.begin(Viewer::Legacy(Some(1))) < sub.begin(Viewer::Legacy(Some(2))));
+        assert!(!sub.stop(Viewer::Legacy(Some(1))));
+        assert!(!sub.stop(Viewer::Legacy(None)));
+        assert!(sub.stop(Viewer::Legacy(Some(2))));
     }
 
     #[test]
     fn stopped_before_begin_and_replaced_ids_stay_inactive() {
         let mut sub = Subscription::default();
-        assert!(!sub.stop(Some(100)));
-        assert_eq!(sub.begin(Some(100)), None);
-        assert!(sub.begin(Some(12)).is_some());
-        assert!(sub.begin(Some(101)).is_some());
-        assert!(sub.begin(Some(102)).is_some());
-        assert!(sub.begin(Some(101)).is_none());
-        assert!(sub.stop(Some(102)));
+        assert!(!sub.stop(Viewer::Legacy(Some(100))));
+        assert_eq!(sub.begin(Viewer::Legacy(Some(100))), None);
+        assert!(sub.begin(Viewer::Legacy(Some(12))).is_some());
+        assert!(sub.begin(Viewer::Legacy(Some(101))).is_some());
+        assert!(sub.begin(Viewer::Legacy(Some(102))).is_some());
+        assert!(sub.begin(Viewer::Legacy(Some(101))).is_none());
+        assert!(sub.stop(Viewer::Legacy(Some(102))));
     }
     #[test]
     fn long_records_are_bounded_and_preserve_utf8() {

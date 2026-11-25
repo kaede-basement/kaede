@@ -247,7 +247,7 @@ pub struct DownloadReport {
     failures: Vec<FailedDownload>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum DownloadError {
     Cancelled,
     Integrity(String),
@@ -297,6 +297,14 @@ pub(crate) struct CancelSignal {
 }
 
 impl CancelSignal {
+    pub(crate) fn publication_permit(&self) -> Result<RwLockReadGuard<'_, bool>, DownloadError> {
+        let gate = self.publish_gate.read().unwrap();
+        if *gate || *self.borrow() || self.has_changed().is_err() {
+            return Err(DownloadError::Cancelled);
+        }
+        Ok(gate)
+    }
+
     pub(crate) fn channel() -> (watch::Sender<bool>, Self) {
         let (sender, receiver) = watch::channel(false);
         (
@@ -519,17 +527,34 @@ impl CancelFlags {
         });
     }
 
-    pub(crate) fn start_install(
+    pub(crate) fn bind_install(
         &self,
         id: &str,
         token: Option<u64>,
+        table: &ResourceTable,
+    ) -> Result<(Registration, InstallDecision), String> {
+        let page = ReservationScope::resource(table)
+            .and_then(|rid| table.get::<ReservationScope>(rid).ok());
+        self.start_install(id, token, page.as_ref().map(|scope| &scope.id))
+    }
+
+    fn start_install(
+        &self,
+        id: &str,
+        token: Option<u64>,
+        caller: Option<&ScopeId>,
     ) -> Result<(Registration, InstallDecision), String> {
         let mut entries = self.0.lock().unwrap();
         let entry = entries.get_mut(id).ok_or("Unknown install reservation")?;
-        let InstallPhase::Prepared { token: own, .. } = entry.install else {
+        let InstallPhase::Prepared {
+            token: own,
+            ref page,
+            ..
+        } = entry.install
+        else {
             return Err("Install not prepared".into());
         };
-        if token.is_some_and(|token| token != own) {
+        if token.map_or(caller != Some(page), |token| token != own) {
             return Err("Expired install reservation".into());
         }
         let decision = InstallDecision::default();
@@ -546,26 +571,37 @@ impl CancelFlags {
         Ok((registration, decision))
     }
 
-    async fn cancel(&self, id: &str) -> Result<bool, String> {
+    fn begin_cancel_sync(&self, id: &str) -> Option<Arc<RwLock<bool>>> {
         let (flag, gate) = {
             let mut entries = self.0.lock().unwrap();
-            let Some(entry) = entries.get_mut(id) else {
-                return Ok(false);
-            };
+            let entry = entries.get_mut(id)?;
             if matches!(&entry.install, InstallPhase::Running(d) if !d.claim())
                 && entry.batches == 0
             {
-                return Ok(false);
+                return None;
             }
             // A prepared install can start between releasing the registry and notifying workers.
             entry.cancel_requested = true;
             (entry.flag.clone(), entry.signal.publish_gate.clone())
         };
         flag.send_replace(true);
-        tokio::task::spawn_blocking(move || *gate.write().unwrap() = true)
-            .await
-            .map_err(|e| e.to_string())?;
-        Ok(true)
+        Some(gate)
+    }
+
+    pub(crate) fn cancel(
+        &self,
+        id: &str,
+    ) -> impl std::future::Future<Output = Result<bool, String>> + Send + 'static {
+        let pending = self.begin_cancel_sync(id);
+        async move {
+            let Some(gate) = pending else {
+                return Ok(false);
+            };
+            tokio::task::spawn_blocking(move || *gate.write().unwrap() = true)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(true)
+        }
     }
 
     pub(crate) fn register(&self, id: &str) -> Registration {
@@ -595,12 +631,12 @@ pub(crate) async fn client() -> Result<&'static reqwest::Client, String> {
 
 pub(crate) type Progress = Arc<Mutex<HashMap<String, FileProgress>>>;
 
-#[tauri::command]
-pub async fn cancel_downloads(
-    state: State<'_, CancelFlags>,
-    cancel_id: String,
-) -> Result<bool, String> {
-    state.cancel(&cancel_id).await
+pub(crate) fn cancel_downloads(
+    invoke: &crate::Invoke,
+) -> Result<impl std::future::Future<Output = Result<bool, String>>, tauri::ipc::InvokeError> {
+    let id: String = crate::argument(invoke, "cancel_downloads", "cancelId")?;
+    let flags: State<CancelFlags> = crate::argument(invoke, "cancel_downloads", "state")?;
+    Ok(flags.cancel(&id))
 }
 
 #[tauri::command]
@@ -816,11 +852,8 @@ impl TransferStop {
     }
 
     fn publication_permit(&self) -> Result<RwLockReadGuard<'_, bool>, DownloadError> {
-        let gate = self.user.publish_gate.read().unwrap();
-        if *gate
-            || *self.user.borrow()
-            || self.user.has_changed().is_err()
-            || self.abandoned.has_changed().is_err()
+        let gate = self.user.publication_permit()?;
+        if self.abandoned.has_changed().is_err()
             || self
                 .siblings
                 .as_ref()
@@ -1089,14 +1122,14 @@ mod tests {
             .reserve_install("pack".into(), 1, prepared, owner.clone())
             .unwrap();
         end_reservation_scope(&mut page);
-        assert!(flags.start_install("pack", None).is_err());
+        assert!(flags.start_install("pack", None, None).is_err());
 
         let reopened = ReservationScope::current(&mut page, "main", &flags);
         flags
             .reserve_install("pack".into(), 2, reopened, owner)
             .unwrap();
         end_reservation_scope(&mut window);
-        assert!(flags.start_install("pack", Some(2)).is_err());
+        assert!(flags.start_install("pack", Some(2), None).is_err());
 
         let mut next_page = ResourceTable::default();
         let next = ReservationScope::current(&mut next_page, "main", &flags);
@@ -1104,9 +1137,23 @@ mod tests {
         flags
             .reserve_install("pack".into(), 3, next, owner)
             .unwrap();
+        assert!(flags.bind_install("pack", None, &page).is_err());
         drop(page);
-        assert!(flags.start_install("pack", Some(2)).is_err());
-        assert!(flags.start_install("pack", None).is_ok());
+        assert!(flags.start_install("pack", Some(2), None).is_err());
+        assert!(flags.bind_install("pack", None, &next_page).is_ok());
+    }
+
+    #[tokio::test]
+    async fn deferred_cancel_completion_is_bound_to_original_registration() {
+        let flags = CancelFlags::default();
+        let original = flags.register("shared");
+        let completion = flags.cancel("shared");
+        assert!(*original.borrow());
+        drop(original);
+        let replacement = flags.register("shared");
+        assert!(completion.await.unwrap());
+        assert!(!*replacement.borrow());
+        assert!(!*replacement.publish_gate.read().unwrap());
     }
 
     #[tokio::test]
@@ -1117,7 +1164,7 @@ mod tests {
             .reserve_install("shared".into(), 1, scope(1), scope(10))
             .unwrap();
         assert!(flags.cancel("shared").await.unwrap());
-        let (run, decision) = flags.start_install("shared", Some(1)).unwrap();
+        let (run, decision) = flags.start_install("shared", Some(1), None).unwrap();
         assert!(*run.borrow() && *batch.borrow());
         assert!(!decision.claim());
         drop((run, batch));
@@ -1129,15 +1176,17 @@ mod tests {
             .reserve_install("shared".into(), 3, scope(3), scope(10))
             .unwrap();
         flags.revoke_scope(&scope(2));
-        assert!(flags.start_install("shared", Some(2)).is_err());
-        let (run, decision) = flags.start_install("shared", Some(3)).unwrap();
+        assert!(flags.start_install("shared", Some(2), None).is_err());
+        let (run, decision) = flags.start_install("shared", Some(3), None).unwrap();
         assert!(!*run.borrow());
         drop(run);
         assert!(!decision.claim());
         flags
             .reserve_install("shared".into(), 4, scope(4), scope(10))
             .unwrap();
-        let (run, published) = flags.start_install("shared", None).unwrap();
+        let (run, published) = flags
+            .start_install("shared", None, Some(&scope(4)))
+            .unwrap();
         let sibling = flags.register("shared");
         assert!(published.claim());
         assert!(flags.cancel("shared").await.unwrap());
@@ -1311,7 +1360,7 @@ mod tests {
             flags
                 .reserve_install("install".into(), 1, scope(1), scope(10))
                 .unwrap();
-            let (registration, decision) = flags.start_install("install", Some(1)).unwrap();
+            let (registration, decision) = flags.start_install("install", Some(1), None).unwrap();
             let barrier = std::sync::Barrier::new(2);
             std::thread::scope(|scope| {
                 let cancel = scope.spawn(|| {

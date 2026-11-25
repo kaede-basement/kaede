@@ -18,6 +18,6 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
-export async function stopStreamingLogs(subscriptionId?: number): Promise<void> {
-  await invoke("stop_log_stream", { subscriptionId });
+export async function stopStreamingLogs(subscriptionId?: number, token?: number): Promise<void> {
+  await invoke("stop_log_stream", { subscriptionId, token });
 }

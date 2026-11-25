@@ -48,7 +48,7 @@ export function useLogStream(): {
   }
 
   let mounted = false;
-  let subscriptionId: number | undefined;
+  let token: number | undefined;
 
   onMounted(async (): Promise<void> => {
     mounted = true;
@@ -57,7 +57,7 @@ export function useLogStream(): {
     if (!mounted) {
       return;
     }
-    subscriptionId = id;
+    token = id;
     const channel = new Channel<LogStreamEventType>;
 
     // eslint-disable-next-line unicorn/prefer-add-event-listener
@@ -85,13 +85,13 @@ export function useLogStream(): {
       }
     };
 
-    await Logging.streamLogs<LogStreamEventType>(channel, id);
+    await Logging.streamLogs<LogStreamEventType>(channel, undefined, id);
   });
 
   onUnmounted(async (): Promise<void> => {
     mounted = false;
-    if (subscriptionId !== undefined) {
-      await Logging.stopStreamingLogs(subscriptionId);
+    if (token !== undefined) {
+      await Logging.stopStreamingLogs(undefined, token);
     }
   });
 

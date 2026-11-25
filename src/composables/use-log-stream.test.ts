@@ -30,8 +30,8 @@ test("a reopened log viewer receives lines after the older stop is delivered", a
     let next = 0;
 
     type Subscription = {
-      "subscriptionId": number;
-      "onEvent"       : Channel<{ "type": "lines"; "data": Array<string> }>;
+      "token"  : number;
+      "onEvent": Channel<{ "type": "lines"; "data": Array<string> }>;
     };
     let active: Subscription | undefined;
 
@@ -43,12 +43,12 @@ test("a reopened log viewer receives lines after the older stop is delivered", a
 
       if (command === "stream_logs") {
         active = subscription;
-        starts.push(subscription.subscriptionId);
+        starts.push(subscription.token);
         started.resolve();
       } else if (command === "stop_log_stream") {
-        stops.push(subscription.subscriptionId);
+        stops.push(subscription.token);
         await release.promise;
-        if (active?.subscriptionId === subscription.subscriptionId) {
+        if (active?.token === subscription.token) {
           active = undefined;
         }
         stopped.resolve();

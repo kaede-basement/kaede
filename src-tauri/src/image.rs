@@ -103,7 +103,7 @@ pub async fn resize_image(
                 .map_err(|error| error.to_string())?;
             stage.flush().map_err(|e| e.to_string())?;
             stage.as_file().sync_all().map_err(|e| e.to_string())?;
-            publish_resize(stage, &output_path, format, to_width, to_height)?;
+            publish_resize(stage, &output_path)?;
         }
 
         Ok(output_path.to_string_lossy().into_owned())
@@ -112,32 +112,18 @@ pub async fn resize_image(
     .map_err(|error| error.to_string())?
 }
 
-fn publish_resize(
-    stage: tempfile::NamedTempFile,
-    path: &Path,
-    format: image::ImageFormat,
-    width: u32,
-    height: u32,
-) -> Result<(), String> {
+fn publish_resize(stage: tempfile::NamedTempFile, path: &Path) -> Result<(), String> {
     if let Err(error) = crate::file_system::persist_temp_path(stage.into_temp_path(), path, false) {
         // A Windows reader can deny delete sharing even for a complete concurrent winner.
-        if !matches!(
-            matches_encoded_image(&error.path, path, format, (width, height)),
-            Ok(true)
-        ) {
+        if !matches!(matches_encoded_image(&error.path, path), Ok(true)) {
             return Err(error.to_string());
         }
     }
     Ok(())
 }
 
-fn matches_encoded_image(
-    staged: &Path,
-    published: &Path,
-    format: image::ImageFormat,
-    dimensions: (u32, u32),
-) -> image::ImageResult<bool> {
-    use std::io::{BufReader, Read, Seek};
+fn matches_encoded_image(staged: &Path, published: &Path) -> std::io::Result<bool> {
+    use std::io::Read;
     let mut expected = std::fs::File::open(staged)?;
     let mut winner = std::fs::File::open(published)?;
     let mut remaining = expected.metadata()?.len();
@@ -155,9 +141,7 @@ fn matches_encoded_image(
         }
         remaining -= count as u64;
     }
-    winner.rewind()?;
-    let reader = image::ImageReader::new(BufReader::new(winner)).with_guessed_format()?;
-    Ok(reader.format() == Some(format) && reader.into_dimensions()? == dimensions)
+    Ok(true)
 }
 
 #[cfg(test)]
@@ -184,7 +168,7 @@ mod tests {
         let publish = || {
             let mut stage = crate::file_system::staging_file(root.path()).unwrap();
             stage.write_all(bytes.get_ref()).unwrap();
-            publish_resize(stage, &path, image::ImageFormat::Png, 4, 4)
+            publish_resize(stage, &path)
         };
         publish().unwrap();
         drop(held);
@@ -195,31 +179,51 @@ mod tests {
     }
 
     #[test]
-    fn large_webp_collision_checks_dimensions_without_decoding_pixels() {
+    fn large_webp_collision_rejects_truncation_without_decoding_pixels() {
         // cwebp -lossless -m 0, solid black 12000 x 12000.
         const WEBP: &[u8] = b"RIFF\x1a\0\0\0WEBPVP8L\x0e\0\0\0\x2f\xdf\xee\xb7\x0b\x07\x10\x11\xfd\x0f\x44\x44\xff\x03";
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("large.webp");
-        let publish = |width| {
+        let publish = || {
             let mut stage = crate::file_system::staging_file(root.path()).unwrap();
             stage.write_all(WEBP).unwrap();
-            publish_resize(stage, &path, image::ImageFormat::WebP, width, 12000)
+            publish_resize(stage, &path)
         };
         std::fs::write(&path, WEBP).unwrap();
-        publish(12000).unwrap();
-        assert!(publish(11999).is_err());
+        publish().unwrap();
         std::fs::write(&path, &WEBP[..WEBP.len() - 1]).unwrap();
-        assert!(publish(12000).is_err());
+        assert!(publish().is_err());
         let mut truncated_chunk = WEBP[..26].to_vec();
         truncated_chunk[4..8].copy_from_slice(&18u32.to_le_bytes());
         std::fs::write(&path, truncated_chunk).unwrap();
-        assert!(publish(12000).is_err());
+        assert!(publish().is_err());
         let mut corrupt = WEBP.to_vec();
         *corrupt.last_mut().unwrap() ^= 1;
         std::fs::write(&path, corrupt).unwrap();
-        assert!(publish(12000).is_err());
+        assert!(publish().is_err());
         std::fs::write(&path, &WEBP[..16]).unwrap();
-        assert!(publish(12000).is_err());
+        assert!(publish().is_err());
+    }
+
+    #[test]
+    fn concurrent_maximum_dimension_webp_publications() {
+        for (width, height) in [(16384, 1), (1, 16384)] {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("winner.webp");
+            let barrier = std::sync::Barrier::new(2);
+            let publish = || {
+                let mut stage = crate::file_system::staging_file(root.path()).unwrap();
+                image::DynamicImage::new_rgb8(width, height)
+                    .write_to(&mut stage, image::ImageFormat::WebP)
+                    .unwrap();
+                barrier.wait();
+                publish_resize(stage, &path).unwrap();
+            };
+            std::thread::scope(|scope| {
+                scope.spawn(publish);
+                publish();
+            });
+        }
     }
 
     #[tokio::test]

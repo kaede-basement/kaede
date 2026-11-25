@@ -2,7 +2,7 @@ use crate::zip::{open_archive, read_limited, relative_name, Extraction};
 use crate::{
     downloads::{CancelFlags, CancelSignal, DownloadError, InstallDecision},
     hashing::HashAlgorithm,
-    mod_store::{materialize_blob, ModStore},
+    mod_store::{materialize_blob, stage_blob, ModStore},
 };
 ///
 /// ATTENTION: AI-generated (by Claude Fable 5 on 'max' reasoning),
@@ -11,7 +11,7 @@ use crate::{
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use tauri::{ipc::Channel, State};
+use tauri::{ipc::Channel, Manager, State};
 use tokio::sync::watch;
 
 use serde::{Deserialize, Serialize};
@@ -98,28 +98,38 @@ pub struct MrpackManifest {
     pub overrides: usize,
 }
 
-#[tauri::command]
-pub async fn install_mrpack(
-    flags: State<'_, CancelFlags>,
-    reservation: Option<u64>,
-    archive_path: PathBuf,
-    target_dir_path: PathBuf,
-    cancel_id: String,
-    on_progress: Channel<(usize, usize)>,
-    store: State<'_, ModStore>,
-) -> Result<MrpackManifest, String> {
-    let (mut cancel, decision) = flags.start_install(&cancel_id, reservation)?;
-    install(
-        archive_path,
-        target_dir_path,
-        &store,
-        decision,
-        &mut cancel,
-        |ok, total| {
-            let _ = on_progress.send((ok, total));
-        },
-    )
-    .await
+pub(crate) fn install_mrpack(
+    invoke: &crate::Invoke,
+) -> Result<
+    impl std::future::Future<Output = Result<MrpackManifest, String>>,
+    tauri::ipc::InvokeError,
+> {
+    const NAME: &str = "install_mrpack";
+    let archive = crate::argument(invoke, NAME, "archivePath")?;
+    let target = crate::argument(invoke, NAME, "targetDirPath")?;
+    let id: String = crate::argument(invoke, NAME, "cancelId")?;
+    let reservation = crate::argument(invoke, NAME, "reservation")?;
+    let progress: Channel<(usize, usize)> = crate::argument(invoke, NAME, "onProgress")?;
+    let webview = invoke.message.webview_ref();
+    let store = crate::argument::<State<ModStore>>(invoke, NAME, "store")?
+        .inner()
+        .clone();
+    let flags: State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
+    let (mut cancel, decision) =
+        flags.bind_install(&id, reservation, &webview.resources_table())?;
+    Ok(async move {
+        install(
+            archive,
+            target,
+            &store,
+            decision,
+            &mut cancel,
+            |ok, total| {
+                let _ = progress.send((ok, total));
+            },
+        )
+        .await
+    })
 }
 
 #[tauri::command]
@@ -320,11 +330,11 @@ fn accept_existing(result: std::io::Result<()>, dest: &Path) -> std::io::Result<
     }
 }
 
-fn restore_override(
+fn stage_override(
     mut entry: impl std::io::Read,
     dest: &Path,
     cancel: &watch::Receiver<bool>,
-) -> Result<(), String> {
+) -> Result<tempfile::TempPath, String> {
     use std::io::Write;
     let mut stage =
         crate::file_system::staging_file(dest.parent().unwrap()).map_err(|e| e.to_string())?;
@@ -339,9 +349,19 @@ fn restore_override(
             .write_all(&buffer[..bytes])
             .map_err(|e| e.to_string())?;
     }
+    Ok(stage.into_temp_path())
+}
+
+fn publish_repair(
+    stage: tempfile::TempPath,
+    dest: &Path,
+    cancel: &CancelSignal,
+) -> Result<(), String> {
+    let _permit = cancel
+        .publication_permit()
+        .map_err(DownloadError::install_message)?;
     accept_existing(
-        crate::file_system::persist_temp_path(stage.into_temp_path(), dest, false)
-            .map_err(|e| e.error),
+        crate::file_system::persist_temp_path(stage, dest, false).map_err(|e| e.error),
         dest,
     )
     .map_err(|e| e.to_string())?;
@@ -392,7 +412,7 @@ async fn repair(
             if entry.is_dir() {
                 extraction.extract(&name, true, None, std::io::empty())?;
             } else if let Some(dest) = missing_destination(&mut extraction, &name)? {
-                restore_override(entry, &dest, &stop)?;
+                publish_repair(stage_override(entry, &dest, &stop)?, &dest, &stop)?;
             }
             report(done + 1, total);
         }
@@ -429,13 +449,14 @@ async fn repair(
                 .map_err(DownloadError::install_message)?;
             check_cancel(cancel)?;
             let lease = store.clone();
+            let stop = cancel.clone();
             tokio::task::spawn_blocking(move || {
                 let _lease = lease;
-                accept_existing(materialize_blob(&blob, &dest), &dest)
+                let stage = stage_blob(&blob, &dest).map_err(|e| e.to_string())?;
+                publish_repair(stage, &dest, &stop)
             })
             .await
-            .map_err(|e| e.to_string())?
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())??;
         }
         progress(overrides + index + 1, total);
     }
@@ -901,47 +922,90 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cancelled_mirror_retry_preserves_first_integrity_failure() {
-        let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
-        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+    async fn cancelled_repair_cannot_publish_staged_overrides_or_blobs() {
+        for cached in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let target = root.path().join("live");
+            let flags = CancelFlags::default();
+            let registration = flags.register("repair");
+            let dest = target.clone();
+            let blob = root.path().join("cached");
+            let (ready, staged) = tokio::sync::oneshot::channel();
+            let (release, resume) = std::sync::mpsc::channel();
+            let worker = tokio::task::spawn_blocking(move || {
+                let stage = if cached {
+                    std::fs::write(&blob, b"verified").unwrap();
+                    stage_blob(&blob, &dest).unwrap()
+                } else {
+                    stage_override(b"override".as_slice(), &dest, &registration).unwrap()
+                };
+                ready.send(()).unwrap();
+                resume
+                    .recv_timeout(std::time::Duration::from_secs(5))
+                    .unwrap();
+                publish_repair(stage, &dest, &registration)
+            });
+            staged.await.unwrap();
+            assert!(flags.cancel("repair").await.unwrap());
+            release.send(()).unwrap();
+            assert_eq!(worker.await.unwrap().unwrap_err(), "Installation cancelled");
+            assert!(!target.exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn cancelled_mirror_retry_preserves_observed_failure() {
+        for (response, diagnostic) in [
+            (
+                b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nxxxx".as_slice(),
+                "Hash mismatch",
+            ),
+            (
+                b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".as_slice(),
+                "404",
+            ),
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let store = ModStore::new(root.path());
+            let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+                .await
+                .unwrap();
+            let addr = listener.local_addr().unwrap();
+            let (mut file, blob) = seed_blob(root.path(), b"good");
+            std::fs::remove_file(&blob).unwrap();
+            file.url = format!("http://{addr}/primary");
+            file.mirrors = vec![format!("http://{addr}/retry")];
+            let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
+            manifest.files.push(file);
+            let target = root.path().join("instance");
+            let (stop, mut cancel) = CancelSignal::channel();
+            let install = install_manifest(
+                archive(&[]),
+                manifest,
+                target.clone(),
+                &store,
+                InstallDecision::default(),
+                &mut cancel,
+                |_, _| {},
+            );
+            let server = async {
+                let (socket, route) = accept_request(&listener).await;
+                assert!(route.contains("/primary"));
+                respond(socket, response).await;
+                let (held, route) = accept_request(&listener).await;
+                assert!(route.contains("/retry"));
+                stop.send_replace(true);
+                held
+            };
+            let (result, _held) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                tokio::join!(install, server)
+            })
             .await
             .unwrap();
-        let addr = listener.local_addr().unwrap();
-        let (mut file, blob) = seed_blob(root.path(), b"good");
-        std::fs::remove_file(&blob).unwrap();
-        file.url = format!("http://{addr}/primary");
-        file.mirrors = vec![format!("http://{addr}/retry")];
-        let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
-        manifest.files.push(file);
-        let target = root.path().join("instance");
-        let (stop, mut cancel) = CancelSignal::channel();
-        let install = install_manifest(
-            archive(&[]),
-            manifest,
-            target.clone(),
-            &store,
-            InstallDecision::default(),
-            &mut cancel,
-            |_, _| {},
-        );
-        let server = async {
-            let (socket, route) = accept_request(&listener).await;
-            assert!(route.contains("/primary"));
-            respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nxxxx").await;
-            let (held, route) = accept_request(&listener).await;
-            assert!(route.contains("/retry"));
-            stop.send_replace(true);
-            held
-        };
-        let (result, _held) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
-            tokio::join!(install, server)
-        })
-        .await
-        .unwrap();
-        assert!(result.err().unwrap().contains("Hash mismatch"));
-        assert!(!target.exists());
-        assert!(!blob.exists());
+            assert!(result.err().unwrap().contains(diagnostic));
+            assert!(!target.exists());
+            assert!(!blob.exists());
+        }
     }
 
     #[tokio::test]

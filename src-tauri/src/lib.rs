@@ -18,6 +18,49 @@ mod system;
 mod translations;
 mod zip;
 
+type Invoke = tauri::ipc::Invoke<tauri::Wry>;
+
+fn argument<'a, T: tauri::ipc::CommandArg<'a, tauri::Wry>>(
+    invoke: &'a Invoke,
+    name: &'static str,
+    key: &'static str,
+) -> Result<T, tauri::ipc::InvokeError> {
+    T::from_command(tauri::ipc::CommandItem {
+        plugin: None,
+        name,
+        key,
+        message: &invoke.message,
+        acl: &invoke.acl,
+    })
+}
+
+fn dispatch<T, F>(
+    invoke: Invoke,
+    bind: impl FnOnce(&Invoke) -> Result<F, tauri::ipc::InvokeError>,
+) -> bool
+where
+    T: tauri::ipc::IpcResponse,
+    F: std::future::Future<Output = Result<T, String>> + Send + 'static,
+{
+    match bind(&invoke) {
+        Ok(work) => invoke
+            .resolver
+            .respond_async(async move { work.await.map_err(Into::into) }),
+        Err(error) => invoke.resolver.invoke_error(error),
+    }
+    true
+}
+
+fn bind_at_dispatch(other: impl Fn(Invoke) -> bool) -> impl Fn(Invoke) -> bool {
+    move |invoke| match invoke.message.command() {
+        "cancel_downloads" => dispatch(invoke, downloads::cancel_downloads),
+        "install_mrpack" => dispatch(invoke, modrinth::install_mrpack),
+        "stream_logs" => dispatch(invoke, logging::stream_logs),
+        "stop_log_stream" => dispatch(invoke, logging::stop_log_stream),
+        _ => other(invoke),
+    }
+}
+
 // Launcher name
 const APP_NAME: &str = "kaede";
 
@@ -45,9 +88,7 @@ pub fn run() {
     let builder = builder.invoke_system(include_str!("hybrid_ipc.js"));
     let builder = builder.on_page_load(|webview, load| {
         if load.event() == tauri::webview::PageLoadEvent::Started {
-            if let Some(tail) = webview.try_state::<logging::LogTail>() {
-                tail.retire_window(webview.window_ref().label(), false);
-            }
+            logging::page_changed(&mut webview.window_ref().resources_table(), false);
             downloads::end_reservation_scope(&mut webview.resources_table());
             #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::page_left(webview);
@@ -55,9 +96,7 @@ pub fn run() {
     });
     let builder = builder.on_window_event(|window, event| {
         if matches!(event, tauri::WindowEvent::Destroyed) {
-            if let Some(tail) = window.try_state::<logging::LogTail>() {
-                tail.retire_window(window.label(), true);
-            }
+            logging::page_changed(&mut window.resources_table(), true);
             downloads::end_reservation_scope(&mut window.resources_table());
             #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::window_destroyed(window.label());
@@ -155,7 +194,9 @@ pub fn run() {
                 error!("Failed to prepare the log file: {}", error);
             }
 
-            app.manage(logging::LogTail::new(path.join("latest.log")));
+            app.manage(std::sync::Arc::new(logging::LogTail::new(
+                path.join("latest.log"),
+            )));
             app.handle().plugin(
                 tauri_plugin_log::Builder::new()
                     // Clear any default output targets
@@ -199,10 +240,9 @@ pub fn run() {
         .manage(processes::ProcessRegistry::default())
         .manage(downloads::CancelFlags::default())
         // Register custom Tauri commands
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(bind_at_dispatch(tauri::generate_handler![
             application::get_initial_state,
             downloads::concurrently_download,
-            downloads::cancel_downloads,
             downloads::prepare_mrpack_install,
             modrinth::repair_legacy_mrpack,
             extensions::read_extensions,
@@ -224,9 +264,6 @@ pub fn run() {
             #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::ipc_batch_take,
             logging::next_log_subscription_id,
-            logging::stream_logs,
-            logging::stop_log_stream,
-            modrinth::install_mrpack,
             mod_store::clear_mod_cache,
             modrinth::peek_mrpack,
             processes::list_processes,
@@ -239,7 +276,7 @@ pub fn run() {
             translations::get_locales,
             zip::read_archive_entry,
             zip::unzip_files,
-        ])
+        ]))
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
