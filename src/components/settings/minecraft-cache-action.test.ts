@@ -10,7 +10,7 @@ import { withTestWindow } from "../../../scripts/setup-tests.ts";
 Bun.plugin({
   "name": "clear-cache-component",
   setup(build): void {
-    build.onLoad({ "filter": /\/MinecraftCacheAction\.vue$/ }, async ({ path }) => {
+    build.onLoad({ "filter": /[/\\]MinecraftCacheAction\.vue$/ }, async ({ path }) => {
       const source = await Bun.file(path).text();
       const { descriptor } = parse(source, { "filename": path });
       const options = { "id": "clear-cache", "inlineTemplate": true };
