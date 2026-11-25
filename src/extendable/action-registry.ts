@@ -31,7 +31,9 @@ export const ActionRegistry = {
   "register": <T>(id: string, action: ActionType<T>) => {
     Actions[id] = action;
   },
-  "execute": async <T>(id: string, properties: T): Promise<boolean> => {
+  "execute": async <T>(
+    id: string, properties: T, onError?: (error: unknown) => void,
+  ): Promise<boolean> => {
     const callback = Actions[id];
 
     if (!callback) {
@@ -51,6 +53,8 @@ export const ActionRegistry = {
         `An error occurred while executing an action '${id}':`,
         Errors.prettify(error),
       );
+
+      onError?.(error);
 
       return false;
     }

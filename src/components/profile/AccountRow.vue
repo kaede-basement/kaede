@@ -99,6 +99,7 @@ async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<
       }, 1000);
     },
     "error": (message, error) => {
+      handlers.reset();
       void notify(
         `An error (${message}) occurred:\n${Errors.prettify(error)}`,
         { "title": "Accounts", "kind": "error" },

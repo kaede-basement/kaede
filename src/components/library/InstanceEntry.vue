@@ -43,6 +43,7 @@ function handleLeftClick(): void {
     :id="`${idRoot}-button`"
     class="flex flex-col gap-2"
     @click="handleLeftClick"
+    @contextmenu.prevent.stop
   >
     <Image
       class-names="shrink-0 object-cover size-16"

@@ -2,7 +2,6 @@ import * as fs from "@tauri-apps/plugin-fs";
 import { expect, spyOn, test } from "bun:test";
 
 import Configs from "@/lib/configs";
-import * as reads from "@/lib/configs/scopes/get-accounts.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
 import * as refresh from "./ensure-fresh-account.ts";
@@ -25,7 +24,8 @@ test("refresh merges by UUID against the latest persisted accounts", async () =>
   using fresh = spyOn(refresh, "ensureFreshAccount").mockResolvedValue({
     "account": refreshed, "status": "refreshed",
   });
-  using latest = spyOn(reads, "getAccounts").mockResolvedValue([added, second, first]);
+  using latest = spyOn(fs, "readTextFile")
+    .mockResolvedValue(JSON.stringify([added, second, first]));
   using write = spyOn(fs, "writeTextFile").mockResolvedValue();
 
   const result = await resolveAccountAtIndex([first, second], 1);
@@ -34,7 +34,7 @@ test("refresh merges by UUID against the latest persisted accounts", async () =>
   expect(result?.accounts).toEqual([added, refreshed, first]);
   expect(JSON.parse(write.mock.calls[0][1])).toEqual([added, refreshed, first]);
 
-  latest.mockResolvedValue([added, first]);
+  latest.mockResolvedValue(JSON.stringify([added, first]));
   expect(await resolveAccountAtIndex([first, second], 1)).toBeUndefined();
   expect(write).toHaveBeenCalledTimes(1);
 });
@@ -47,7 +47,7 @@ test("concurrent refreshes preserve both updates and recover from a failed write
     "status" : "refreshed",
     "account": { ...account, "profile": { ...account.profile, "name": "new" } },
   }));
-  using read = spyOn(reads, "getAccounts").mockImplementation(async () => [...stored]);
+  using read = spyOn(fs, "readTextFile").mockImplementation(async () => JSON.stringify(stored));
   using write = spyOn(fs, "writeTextFile").mockImplementation(async (_, data) => {
     stored = JSON.parse(data);
   });

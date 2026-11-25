@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { onClickOutside } from "@vueuse/core";
-import { computed, ref, useTemplateRef } from "vue";
+import { computed, nextTick, ref, useTemplateRef } from "vue";
 
 import ChangeInstanceVersionDropdown
   from "@/components/add-instance/sections/ChangeInstanceVersionDropdown.vue";
@@ -38,6 +38,8 @@ const { styles } = useConfigColors();
 const target = useTemplateRef("target");
 
 const currentFilter = ref<"release" | "all">("release");
+const search = useTemplateRef("search");
+let restoreSearchFocus = false;
 const selector = ref<boolean>(false);
 
 const currentInstance = computed(
@@ -64,6 +66,21 @@ function toggleTypeFilter(): void {
     ? "all"
     : "release";
 }
+async function openFromKeyboard(event: KeyboardEvent): Promise<void> {
+  if (event.key !== "ArrowDown" && event.key !== "Enter") {
+    return;
+  }
+  event.preventDefault();
+  restoreSearchFocus = true;
+  handleDropdown(true);
+  await nextTick();
+  const menu = target.value?.querySelector<HTMLElement>(
+    "#__add-instance-page__instance-version-dropdown-wrapper",
+  );
+
+  (menu?.querySelector<HTMLElement>("button") ?? menu)?.focus();
+}
+
 function handleDropdown(state: boolean, event?: PointerEvent): void {
   const target = event?.target as HTMLButtonElement | undefined;
 
@@ -71,6 +88,12 @@ function handleDropdown(state: boolean, event?: PointerEvent): void {
     return;
   }
 
+  if (!state && restoreSearchFocus) {
+    restoreSearchFocus = false;
+    if (!event) {
+      search.value?.focus();
+    }
+  }
   selector.value = state;
   temporaryPatch.value = undefined;
 }
@@ -89,7 +112,7 @@ function temporaryDropdown(type?: ExtendedPatchUIDType): void {
     : Patches.Minecraft;
 }
 
-onClickOutside(target, () => handleDropdown(false));
+onClickOutside(target, event => handleDropdown(false, event));
 </script>
 
 <template>
@@ -121,6 +144,8 @@ onClickOutside(target, () => handleDropdown(false));
       <MaterialRipple />
     </button>
     <CustomInput
+      ref="search"
+      :on-key-down="openFromKeyboard"
       icon="i-lucide-search"
       id-root="__add-instance-page__instance-version"
       type="text"

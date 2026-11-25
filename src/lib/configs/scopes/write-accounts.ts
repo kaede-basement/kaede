@@ -16,16 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 
 import FileStructure from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
 import Schemas from "@/lib/schemas";
+import { CheckAccount } from "@/lib/schemas/generated/validators.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
-
-import { getAccounts } from "./get-accounts.ts";
 
 let accountWriteChain: Promise<void> = Promise.resolve();
 
@@ -46,7 +45,9 @@ export function writeAccounts(input: AccountWrite): Promise<boolean> {
   return serializeWrite(() => persistAccounts(input));
 }
 
-async function persistAccounts({ accounts, baseDirectory }: AccountWrite): Promise<boolean> {
+async function persistAccounts(
+  { accounts, baseDirectory }: AccountWrite, createNew = false,
+): Promise<boolean> {
   const accountsPath: string = FileManager.join(
     baseDirectory ?? FileManager.getBaseDirectory(),
     FileStructure.Files.Accounts,
@@ -76,6 +77,7 @@ async function persistAccounts({ accounts, baseDirectory }: AccountWrite): Promi
     await writeTextFile(
       accountsPath,
       JSON.stringify(accounts, null, 2),
+      { createNew },
     );
   } catch (error: unknown) {
     log.error(
@@ -92,18 +94,47 @@ async function persistAccounts({ accounts, baseDirectory }: AccountWrite): Promi
   return true;
 }
 
+async function readAccountsForUpdate(): Promise<Array<AccountType> | undefined> {
+  const path = FileManager.join(FileManager.getBaseDirectory(), FileStructure.Files.Accounts);
+  let raw: string;
+
+  try {
+    raw = await readTextFile(path);
+  } catch (error) {
+    if (!await exists(path)) {
+      return;
+    }
+
+    throw error;
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Invalid JSON in accounts.json");
+  }
+
+  if (!Array.isArray(parsed) || !parsed.every(entry => CheckAccount(entry))) {
+    throw new Error("Invalid account data in accounts.json");
+  }
+
+  return parsed;
+}
+
 export function updateAccounts(
   mutate: (current: ReadonlyArray<AccountType>) => Array<AccountType> | undefined,
 ): Promise<Array<AccountType>> {
   return serializeWrite(async () => {
-    const current = await getAccounts();
-    const next = mutate(current);
+    const current = await readAccountsForUpdate();
+    const next = mutate(current ?? []);
 
     if (!next) {
-      return current;
+      return current ?? [];
     }
 
-    if (!await persistAccounts({ "accounts": next })) {
+    if (!await persistAccounts({ "accounts": next }, current === undefined)) {
       throw new Error("Failed to save the updated accounts");
     }
 

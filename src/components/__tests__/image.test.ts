@@ -13,6 +13,8 @@ test("broken icons show their accessible fallback and reset on a new source", as
   image.dispatchEvent(new view.browser.Event("error") as unknown as Event);
   await nextTick();
   expect(view.root.querySelector("[role=\"img\"]")?.getAttribute("aria-label")).toBe("Pack icon");
+  expect(view.root.querySelector("#icon-fallback")?.classList)
+    .toContain("pointer-events-none");
   properties.src = "second.png";
   await nextTick();
   const second = view.root.querySelector("img")!;

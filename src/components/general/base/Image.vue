@@ -36,7 +36,7 @@ watchEffect(() => {
     :class="[classNames, 'grid shrink-0 place-items-center']"
     :style="style"
   >
-    <span :id="id + '-fallback'" class="i-lucide-image-off block size-4"></span>
+    <span :id="id + '-fallback'" class="i-lucide-image-off pointer-events-none block size-4"></span>
   </span>
   <img
     v-else

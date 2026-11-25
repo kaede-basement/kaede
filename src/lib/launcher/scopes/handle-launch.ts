@@ -49,7 +49,22 @@ const failed: LaunchResponseType = {
 const cancellations = new WeakMap<LauncherStatusesType, Promise<boolean>>;
 
 export function cancelLaunchDownloads(statuses: LauncherStatusesType): Promise<boolean> {
-  const requested = Fetching.cancelAll(`${statuses.instanceId}-download`);
+  const pending = cancellations.get(statuses);
+
+  if (pending) {
+    return pending;
+  }
+
+  const requested = Fetching.cancelAll(`${statuses.instanceId}-download`).then(accepted => {
+    if (!accepted) {
+      cancellations.delete(statuses);
+    }
+
+    return accepted;
+  }, error => {
+    cancellations.delete(statuses);
+    throw error;
+  });
 
   cancellations.set(statuses, requested);
 
@@ -71,6 +86,7 @@ export async function handleLaunch({
   "onClose"        : (instanceId: string) => void;
   "onInput"        : (lines: Array<string>) => void;
 }): Promise<LaunchResult> {
+  cancellations.delete(statuses);
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
   const { instanceDirectory } = Instances.getMinecraftDirectory({
     "baseDirectory": FileManager.getBaseDirectory(),
@@ -159,6 +175,7 @@ export async function handleLaunch({
   );
 
   const cancel = (): Promise<boolean> => Fetching.cancelAll(necessaries.cancelId);
+  let failureReason: TranslationKey = "general.launch-status.artifact-error";
   const downloaded = await settleDownloadStages(cancel, [
     (signal): Promise<boolean> => Fetching.downloadAssets({ necessaries, finalizedPatch, signal }),
     (signal): Promise<boolean> => Fetching.downloadClient({ necessaries, finalizedPatch, signal }),
@@ -177,6 +194,9 @@ export async function handleLaunch({
         "paths": finalizedPatch.artifacts
           .filter(({ status }) => status === "native")
           .map(({ path, exclude }) => ({ path, "exclude": exclude ?? [] })),
+      }).catch(error => {
+        failureReason = "general.launch-status.native-error";
+        throw error;
       });
 
       return true;
@@ -192,9 +212,9 @@ export async function handleLaunch({
       return { ...failed, "reason": "cancelled" };
     }
 
-    log.warn(necessaries.logPrefix, "Aborting the launch after an artifact download failed");
+    log.warn(necessaries.logPrefix, "Aborting the launch after artifact preparation failed");
 
-    return { ...failed, "reason": "general.launch-status.artifact-error" };
+    return { ...failed, "reason": failureReason };
   }
 
   const command: {

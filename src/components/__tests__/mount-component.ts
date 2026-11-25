@@ -7,8 +7,9 @@ import { compileScript, parse } from "vue/compiler-sfc";
 
 const compiled = (new Map<string, Component>);
 
-async function component(name: string): Promise<Component> {
-  const cached = compiled.get(name);
+async function component(name: string, nested: Array<string>): Promise<Component> {
+  const cacheKey = [name, ...nested].join("+");
+  const cached = compiled.get(cacheKey);
 
   if (cached) {
     return cached;
@@ -19,17 +20,23 @@ async function component(name: string): Promise<Component> {
     "id"             : filename, "inlineTemplate" : true,
     "templateOptions": { "compilerOptions": { "hoistStatic": false } },
   });
-  const specifier = "kaede-test:" + name;
+  let contents = content;
+
+  for (const child of nested) {
+    await component(child, []);
+    contents = contents.replace(`"@/components/${child}.vue"`, `"kaede-test:${child}"`);
+  }
+  const specifier = "kaede-test:" + cacheKey;
 
   Bun.plugin({
     "name": specifier,
     setup(builder): void {
-      builder.module(specifier, () => ({ "contents": content, "loader": "ts" }));
+      builder.module(specifier, () => ({ contents, "loader": "ts" }));
     },
   });
   const { "default": result } = await import(specifier);
 
-  compiled.set(name, result);
+  compiled.set(cacheKey, result);
 
   return result;
 }
@@ -38,11 +45,12 @@ export async function mountComponent(
   name: string,
   properties: Record<string, unknown> = {},
   setup?: (app: App, document: Document) => void,
+  nested: Array<string> = [],
 ): Promise<Disposable & { "root": HTMLElement; "browser": Window }> {
   const browser = new Window({ "url": "http://localhost" });
   const document = browser.document as unknown as Document;
   const root = document.createElement("div");
-  const target = await component(name);
+  const target = await component(name, nested);
   const renderer = createRenderer<Node, Element>({
     ...nodeOps,
     patchProp(element, key, previous, value): void {

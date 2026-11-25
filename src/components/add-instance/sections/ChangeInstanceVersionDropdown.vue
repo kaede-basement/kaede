@@ -100,6 +100,10 @@ async function focusRow(index: number): Promise<void> {
   containerProps.ref.value?.querySelector<HTMLButtonElement>(selector)?.focus();
 }
 
+function versionLabel(entry: PatchIndexType["versions"][number]): string {
+  return [entry.version, entry.type, entry.releaseTime].filter(Boolean).join(" · ");
+}
+
 function selectVersion(extractedVersion: string): void {
   if (!currentInstance.value) {
     return;
@@ -126,6 +130,8 @@ function selectVersion(extractedVersion: string): void {
     id="__add-instance-page__instance-version-dropdown-wrapper"
     class="absolute left-0 top-14 z-50 max-h-73 w-full overflow-y-auto break-all rounded-md text-start text-sm"
     :style="styles.widget"
+    tabindex="-1"
+    @keydown.down.self.prevent="focusRow(0)"
     @keydown.esc="handleDropdown(false)"
   >
     <p v-if="status === 'error'" id="__version-dropdown-error">
@@ -139,8 +145,9 @@ function selectVersion(extractedVersion: string): void {
       <button
         v-for="{ data: entry, index } in list"
         :data-index="index"
-        :title="entry.version"
-        :aria-label="entry.version"
+        :title="versionLabel(entry)"
+        :aria-label="versionLabel(entry)"
+        @keydown.enter.prevent="selectVersion(entry.version); handleDropdown(false)"
         @keydown.down.prevent="focusRow(index + 1)"
         @keydown.up.prevent="focusRow(index - 1)"
         @keydown.home.prevent="focusRow(0)"

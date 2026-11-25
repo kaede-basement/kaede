@@ -31,20 +31,18 @@ export function applyManifest({
   "manifest": MrpackManifestType | undefined;
   "path"    : string;
 }): void {
+  if (!manifest) {
+    globalStates.pages["add-instance"].importedModpack = undefined;
+
+    return;
+  }
+
   globalStates.pages["add-instance"].importedModpack = {
     "path"  : path,
-    "name"  : manifest?.name,
+    "name"  : manifest.name,
     // We will fill in this field properly later (possibly)
     "loader": "net.minecraft" satisfies ExtendedPatchUIDType,
   };
-
-  if (!manifest) {
-    return log.info(
-      __PRE_BUNDLED_FILENAME__,
-      "No Modrinth manifest; treating the imported file as a plain zip:",
-      path,
-    );
-  }
 
   const patchVersions = Modrinth.resolvePatchVersions(manifest.dependencies);
   const currentInstance = Instances.extractSavedFromPages(

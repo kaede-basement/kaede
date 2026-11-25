@@ -60,10 +60,8 @@ function wrapAction(item: (typeof LaunchOptionItems)[number], event: MouseEvent)
   opened.value = false;
 
   void ActionRegistry
-    .execute(item.action, { event, item, instance, "launch": launchInstance })
-    .catch(async error => {
-      log.error(__PRE_BUNDLED_FILENAME__, `Could not execute '${item.action}':`, String(error));
-      await message(translate("general.launch-status.errors-unhandled-error"), { "kind": "error" });
+    .execute(item.action, { event, item, instance, "launch": launchInstance }, () => {
+      void message(translate("general.launch-status.errors-unhandled-error"), { "kind": "error" });
     })
     .finally(() => disabled.value.delete(item.label));
 }

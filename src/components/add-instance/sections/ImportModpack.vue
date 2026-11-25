@@ -38,21 +38,24 @@ const { styles } = useConfigColors();
 type ImportStatus = { "kind": "idle" | "loading" } | { "kind": "error"; "message": string };
 const status = ref<ImportStatus>({ "kind": "idle" });
 
+const unsupportedPath = ref<string>();
 const imported = computed(
   (): GlobalStatesType["pages"]["add-instance"]["importedModpack"] => (
     globalStates?.pages?.["add-instance"]?.importedModpack
   ),
 );
 
-const displayedName = computed((): string => {
-  if (!imported.value) {
-    return "";
-  }
+const selectedPath = computed(() => imported.value?.path ?? unsupportedPath.value);
+const displayedName = computed(() => (
+  imported.value?.name ?? selectedPath.value?.split(/[/\\]/).pop()
+));
 
-  return imported.value.name
-    ?? imported.value.path.split(/[/\\]/).pop()
-    ?? imported.value.path;
-});
+function clearSelection(): void {
+  if (imported.value) {
+    Instances.resetPageStates();
+  }
+  unsupportedPath.value = undefined;
+}
 
 async function handleImport(): Promise<void> {
   status.value = { "kind": "loading" };
@@ -74,6 +77,7 @@ async function handleImport(): Promise<void> {
     const manifest: MrpackManifestType | undefined =
       await Modrinth.peekMrpack(selectedPath);
 
+    unsupportedPath.value = manifest ? undefined : selectedPath;
     Modrinth.applyManifest({ manifest, "path": selectedPath });
     if (manifest) {
       globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
@@ -106,15 +110,15 @@ async function handleImport(): Promise<void> {
       :on-click="handleImport"
     />
     <div
-      v-if="imported"
+      v-if="selectedPath"
       id="__add-instance-page__instance-import-selected"
       class="min-w-0 flex flex-1 flex-nowrap items-center gap-2 rounded-md pl-2 pr-1 leading-none"
-      :title="imported.path"
+      :title="selectedPath"
     >
       <span
         id="__add-instance-page__instance-import-selected-icon"
         :class="[
-          imported.name === undefined ? 'i-lucide-file-question' : 'i-lucide-package',
+          !imported ? 'i-lucide-file-question' : 'i-lucide-package',
           'block size-4 shrink-0',
         ]"
       ></span>
@@ -128,7 +132,7 @@ async function handleImport(): Promise<void> {
         id="__add-instance-page__instance-import-selected-reset"
         class="relative grid size-6 shrink-0 place-items-center rounded-md hover:bg-[theme(colors.neutral.100/.05)]"
         title="Remove the imported modpack"
-        @click="Instances.resetPageStates"
+        @click="clearSelection"
       >
         <span
           id="__add-instance-page__instance-import-selected-reset-icon"
@@ -138,7 +142,7 @@ async function handleImport(): Promise<void> {
       </button>
     </div>
     <p
-      v-if="imported && imported.name === undefined"
+      v-if="unsupportedPath && !imported"
       id="__add-instance-page__instance-import-plain-zip"
       class="w-full px-1 text-sm"
       :style="styles.widgetSecondary"

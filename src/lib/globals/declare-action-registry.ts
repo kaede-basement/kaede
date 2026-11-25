@@ -67,8 +67,6 @@ export function declareActionRegistry(): void {
           current.profile.uuid === account.profile.uuid ? result.account : current
         )));
       } catch (error) {
-        handlers.reset();
-
         return handlers.error(translate("profile.accounts.save-error"), error);
       }
 
@@ -106,8 +104,6 @@ export function declareActionRegistry(): void {
           profile.uuid !== account.profile.uuid
         )));
       } catch (error) {
-        handlers.reset();
-
         return handlers.error(translate("profile.accounts.save-error"), error);
       }
 

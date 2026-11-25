@@ -12,7 +12,6 @@ import {
 import English from "@/constants/english.json";
 import { ActionRegistry } from "@/extendable/action-registry.ts";
 import Auth from "@/lib/auth";
-import * as reads from "@/lib/configs/scopes/get-accounts.ts";
 import { declareActionRegistry } from "@/lib/globals/declare-action-registry.ts";
 import Hashing from "@/lib/hashing";
 import { detectJavaInstallations } from "@/lib/launcher/fetching/detect-java-installations.ts";
@@ -39,7 +38,7 @@ test("account actions report write failure and keep committed accounts", async (
     "status" : "refreshed",
     "account": { ...account, "profile": { ...account.profile, "name": "updated" } },
   });
-  using read = spyOn(reads, "getAccounts").mockResolvedValue([account]);
+  using read = spyOn(fs, "readTextFile").mockResolvedValue(JSON.stringify([account]));
   using write = spyOn(fs, "writeTextFile").mockRejectedValue(new Error("Disk full"));
   using confirm = spyOn(dialog, "confirm").mockResolvedValue(true);
 
@@ -58,7 +57,7 @@ test("account actions report write failure and keep committed accounts", async (
 test("failed offline account write keeps nickname and retries in place", async () => {
   const accounts = shallowRef([account]);
 
-  using read = spyOn(reads, "getAccounts").mockResolvedValue([account]);
+  using read = spyOn(fs, "readTextFile").mockResolvedValue(JSON.stringify([account]));
   using hash = spyOn(Hashing, "hashOfflineNickname").mockResolvedValue("new-id");
   using write = spyOn(fs, "writeTextFile").mockRejectedValueOnce(new Error("Disk full"))
     .mockResolvedValue();
@@ -91,6 +90,9 @@ test("plain zip stays on Import with filename, warning and working file picker",
   const select = mock();
 
   globalStates.pages["add-instance"].select = select;
+  globalStates.pages["add-instance"].importedModpack = {
+    "name": "old", "path": "old.mrpack", "loader": "net.minecraft",
+  };
   using open = spyOn(dialog, "open").mockResolvedValueOnce("packs/plain.zip")
     .mockRejectedValueOnce(new Error("Unavailable"));
   const peek = mock(() => null);
@@ -100,6 +102,7 @@ test("plain zip stays on Import with filename, warning and working file picker",
   const pick = Reflect.get(view.root.querySelector("test-child")!, "on-click");
 
   await pick();
+  expect(globalStates.pages["add-instance"].importedModpack).toBeUndefined();
   expect(select).not.toHaveBeenCalled();
   expect(view.root.textContent).toContain("plain.zip");
   expect(view.root.textContent).toContain("No Modrinth manifest inside");
