@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ask } from "@tauri-apps/plugin-dialog";
-import { useIntervalFn } from "@vueuse/core";
-import { computed, type ComputedRef, inject, provide, ref, watchEffect } from "vue";
+import { computed, type ComputedRef, inject, onUnmounted, provide, ref, watchEffect } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import {
@@ -9,16 +8,11 @@ import {
   LaunchInstanceContextKey, LaunchInstanceStatusesContextKey,
   LaunchStatesContextKey,
 } from "@/constants/application.ts";
-import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import Fetching from "@/lib/launcher/scopes/fetching";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
-import { instanceStates } from "@/states/instance.ts";
-import type {
-  InstanceStateType,
-} from "@/types/application/instance-states.type.ts";
 import type { LaunchContextType } from "@/types/launcher/launch/launch-context.type.ts";
 import type {
   LauncherStatusesType,
@@ -106,23 +100,7 @@ function handleLaunch(): void {
     return;
   }
 
-  const instanceId: string | undefined = currentInstance?.value?.id;
-  const instanceContent: InstanceStateType | undefined = currentInstance?.value?.instance;
-
-  launchInstance(instanceId)
-    .then(() => {
-      if (!instanceId || !instanceContent) {
-        return log.error(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-          "The instance ID or data is invalid. Provided contents",
-          { instanceId, instanceContent },
-        ));
-      }
-
-      instanceStates[instanceId] = {
-        ...instanceStates[instanceId],
-        "lastLaunch": Date.now(),
-      };
-    });
+  void launchInstance(currentInstance.value?.id);
 }
 async function handleClose(): Promise<void> {
   const toClose: boolean = await ask(
@@ -168,52 +146,25 @@ async function handleClose(): Promise<void> {
   killing.value = false;
 }
 
+const originalCursor = document.body.style.cursor;
+
 watchEffect((): void => {
   const launchingInstance: boolean = statuses.value?.launching === 1;
   const killingInstance: boolean = killing.value;
 
   document.body.style.cursor = (launchingInstance || killingInstance)
     ? "progress"
-    : "";
+    : originalCursor;
 });
 
-const previousIntervalTime = ref<number>(Date.now());
-
-useIntervalFn((): void => {
-  if (statuses.value?.launching === 2) {
-    const currentId: string | undefined = currentInstance.value?.id;
-    const currentInstanceContent: InstanceStateType | undefined = currentInstance.value?.instance;
-    const currentPlayTime: number | undefined = currentInstanceContent?.playTime;
-
-    // 'currentTime' might be zero
-    if (!currentId || !currentInstanceContent || currentPlayTime === undefined) {
-      return;
-    }
-
-    const currentAbsoluteTime: number = Date.now();
-    const previousAbsoluteTime: number = previousIntervalTime.value;
-    const timeToAdd: number = currentAbsoluteTime - previousAbsoluteTime;
-
-    instanceStates[currentId] = {
-      ...instanceStates[currentId],
-      "playTime": currentPlayTime + timeToAdd,
-    };
-
-    previousIntervalTime.value = currentAbsoluteTime;
-  }
-}, 1000);
+onUnmounted(() => {
+  document.body.style.cursor = originalCursor;
+});
 
 provide<{
   "launchable" : ComputedRef<boolean>;
   "unstoppable": ComputedRef<boolean>;
 }>(LaunchInstanceStatusesContextKey, { launchable, unstoppable });
-
-// Expose the 'instanceStatuses' so that 'declare-action-registry.ts' can use it
-watchEffect(() => {
-  if (instanceStatuses) {
-    GlobalInternals.logs.instanceStatuses = instanceStatuses;
-  }
-});
 </script>
 
 <template>

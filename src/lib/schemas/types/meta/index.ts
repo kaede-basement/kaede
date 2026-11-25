@@ -20,7 +20,7 @@ export const PatchMetaSchema = Type.Intersect([
     "uid"          : Type.String(),
     "version"      : Type.String(),
   }),
-  Type.Partial({
+  Type.Partial(Type.Object({
     // Initially was required, but some custom patches do not include the release time
     "releaseTime": Type.String(),
     "+libraries" : Type.Array(
@@ -59,5 +59,5 @@ export const PatchMetaSchema = Type.Intersect([
     ),
     "type"    : Type.String(),
     "volatile": Type.Boolean(),
-  }),
+  })),
 ]);
