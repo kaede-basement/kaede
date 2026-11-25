@@ -18,7 +18,7 @@
 
 import { listen } from "@tauri-apps/api/event";
 
-import { ProcessHandlers } from "@/lib/processes/core.ts";
+import { handleProcessExit, ProcessHandlers } from "@/lib/processes/core.ts";
 
 let watchingPromise: Promise<() => void> | undefined;
 
@@ -49,12 +49,7 @@ async function attachListeners(): Promise<() => void> {
       "signal": number | null;
     }>(
       "process-exited",
-      ({ payload }) => {
-        const set = ProcessHandlers.get(payload.token);
-
-        ProcessHandlers.delete(payload.token);
-        set?.onExit?.(payload);
-      },
+      ({ payload }) => handleProcessExit(payload),
     ),
     listen<{ "token": string; "pid": number; "message": string }>(
       "process-error",

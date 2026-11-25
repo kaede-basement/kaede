@@ -41,9 +41,9 @@ export async function spawnServer({ name, program, args, port }: {
     "onOutput": (lines, stream) => (stream === "stdout" ? log.debug : log.error)(
       __PRE_BUNDLED_FILENAME__, `${name} server output:\n`, lines.join("\n"),
     ),
-    "onExit": ({ pid }) => {
+    "onExit": ({ token }) => {
       exited = true;
-      serverProcesses.value = serverProcesses.value.filter(item => item.value.pid !== pid);
+      serverProcesses.value = serverProcesses.value.filter(item => item.token !== token);
     },
   });
 
@@ -51,9 +51,9 @@ export async function spawnServer({ name, program, args, port }: {
     throw new Error(`Server '${name}' exited during startup (PID ${handle.pid})`);
   }
 
-  const process = hydrate(handle);
+  const server = hydrate(handle);
 
-  serverProcesses.value = [...serverProcesses.value, process];
+  serverProcesses.value = [...serverProcesses.value, server];
 
-  return process;
+  return server;
 }

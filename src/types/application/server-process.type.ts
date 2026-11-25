@@ -17,6 +17,7 @@
  */
 
 export type ServerProcessType = {
+  "token": string;
   "name" : string;
   "port" : number;
   "value": {
@@ -36,8 +37,10 @@ export type ProgramSpecType =
 
 export type ProcessHandlersType = {
   "onOutput"?: (lines: Array<string>, stream: "stdout" | "stderr") => void;
-  "onExit"?  : (payload: { "pid": number; "code": number | null; "signal": number | null }) => void;
-  "onError"? : (payload: { "pid": number; "message": string }) => void;
+  "onExit"?: (payload: {
+    "token": string; "pid": number; "code": number | null; "signal": number | null;
+  }) => void;
+  "onError"?: (payload: { "pid": number; "message": string }) => void;
 };
 
 export type ProcessHandleType<Meta = unknown> = {

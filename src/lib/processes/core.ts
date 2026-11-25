@@ -26,6 +26,20 @@ import type {
 
 export const ProcessHandlers = new Map<string, ProcessHandlersType>;
 
+const pendingSnapshots = new Set<Set<string>>;
+
+export function handleProcessExit(
+  payload: Parameters<NonNullable<ProcessHandlersType["onExit"]>>[0],
+): void {
+  for (const exited of pendingSnapshots) {
+    exited.add(payload.token);
+  }
+  const handlers = ProcessHandlers.get(payload.token);
+
+  ProcessHandlers.delete(payload.token);
+  handlers?.onExit?.(payload);
+}
+
 export function toProcessHandle<Meta>({
   token,
   pid,
@@ -45,16 +59,23 @@ export function toProcessHandle<Meta>({
 export async function rehydrateProcesses(
   attach: (handle: ProcessHandleType) => ProcessHandlersType | undefined,
 ): Promise<Array<ProcessHandleType>> {
-  const DTOs = await invoke<Array<ProcessDtoType>>("list_processes");
+  const exited = (new Set<string>);
 
-  return DTOs.map(DTO => {
-    const handle = toProcessHandle(DTO);
-    const set = attach(handle);
+  pendingSnapshots.add(exited);
+  try {
+    const DTOs = await invoke<Array<ProcessDtoType>>("list_processes");
 
-    if (set !== undefined) {
-      ProcessHandlers.set(DTO.token, set);
-    }
+    return DTOs.filter(DTO => !exited.has(DTO.token)).map(DTO => {
+      const handle = toProcessHandle(DTO);
+      const handlers = attach(handle);
 
-    return handle;
-  });
+      if (handlers) {
+        ProcessHandlers.set(handle.token, handlers);
+      }
+
+      return handle;
+    });
+  } finally {
+    pendingSnapshots.delete(exited);
+  }
 }

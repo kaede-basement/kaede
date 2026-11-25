@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { type DirEntry, exists, readDir, readTextFile } from "@tauri-apps/plugin-fs";
+import { type DirEntry, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import { onMounted, onUnmounted, ref } from "vue";
 
 import { CSSThemeExtensions } from "@/constants/application.ts";
@@ -21,11 +21,19 @@ onMounted(async () => {
     );
 
     log.debug(__PRE_BUNDLED_FILENAME__, "Reading the 'themes' folder");
-    if (!await exists(path)) {
-      return;
-    }
 
-    const storedThemes: Array<DirEntry> = await readDir(path);
+    const storedThemes = await readDir(path).catch((error: unknown): Array<DirEntry> => {
+      const code = typeof error === "object" && error && "code" in error ? error.code : undefined;
+      const message = error instanceof Error ? error.message : String(error);
+      const missing = /^(?:ENOENT|NotFound)\b|\bos error [23]\)?$/i;
+      const missingPath = /(?:^|: )(?:the system )?cannot find the path(?: specified)?\.?$/i;
+
+      if (code === "ENOENT" || code === "NotFound" ||
+        missing.test(message) || missingPath.test(message)) {
+        return [];
+      }
+      throw error;
+    });
     const actualThemeFiles: Array<string> = [];
 
     for (const stored of storedThemes) {

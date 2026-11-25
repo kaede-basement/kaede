@@ -121,7 +121,7 @@ export async function spawnMinecraft({
     return { "success": false, "process": undefined };
   }
 
-  if (!exited) {
+  if (!exited && !launchAttempts.get(statuses)?.stop) {
     await Hooks.catchAsyncVoidHooks({
       "scope" : "onMinecraftLaunch",
       "toPass": { process, command, instanceId, necessaries },
@@ -129,6 +129,13 @@ export async function spawnMinecraft({
     });
   }
 
+  if (launchAttempts.get(statuses)?.stop) {
+    if (!exited) {
+      await process.kill();
+    }
+
+    return { "success": false, "process": undefined, "reason": "cancelled" };
+  }
   if (exited) {
     statuses.current = LaunchStatus.Errors.UnhandledError;
 

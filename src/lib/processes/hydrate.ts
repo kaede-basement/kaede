@@ -24,6 +24,7 @@ import type {
 
 export function hydrate(handle: ProcessHandleType<ServerMetaType>): ServerProcessType {
   return {
+    "token": handle.token,
     "name" : handle.meta.name,
     "port" : handle.meta.port,
     "value": { "pid": handle.pid, "kill": handle.kill, "write": handle.write },

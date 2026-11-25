@@ -8,6 +8,9 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
+import Fetching from "./fetching";
+import { launchAttempts } from "./fetching/download-outcome.ts";
+import { cancelLaunchDownloads } from "./handle-launch.ts";
 import { spawnMinecraft } from "./spawn-minecraft.ts";
 
 test("Minecraft exiting before spawn returns never publishes a running handle", async () => {
@@ -18,7 +21,7 @@ test("Minecraft exiting before spawn returns never publishes a running handle", 
 
   using mkdir = spyOn(fs, "mkdir").mockResolvedValue();
   using spawn = spyOn(Processes, "spawnProcess").mockImplementation(async (options, handlers) => {
-    handlers?.onExit?.({ "pid": 1, "code": 1, "signal": null });
+    handlers?.onExit?.({ "pid": 1, "token": "test", "code": 1, "signal": null });
 
     return {
       "pid"  : 1, "token": "test", "kind" : options.kind, "meta" : options.meta,
@@ -48,3 +51,47 @@ test("Minecraft exiting before spawn returns never publishes a running handle", 
   expect(spawn).toHaveBeenCalledTimes(1);
   expect(mkdir).toHaveBeenCalledWith("game", { "recursive": true });
 });
+
+for (const phase of ["spawn", "after-hook"]) {
+  test("confirmed Stop during " + phase + " kills the child before returning", async () => {
+    const entered = Promise.withResolvers<void>();
+    const resume = Promise.withResolvers<void>();
+    const pause = async (): Promise<void> => {
+      entered.resolve();
+      await resume.promise;
+    };
+    const kill = mock(async () => {});
+
+    using mkdir = spyOn(fs, "mkdir").mockResolvedValue();
+    using cancel = spyOn(Fetching, "cancelAll").mockResolvedValue(false);
+    using spawn = spyOn(Processes, "spawnProcess").mockImplementation(async options => {
+      if (phase === "spawn") await pause();
+
+      return {
+        "pid"  : 42, "token": "child", "kind" : options.kind, "meta" : options.meta,
+        kill, "write": async (): Promise<void> => {},
+      };
+    });
+    using after = spyOn(Hooks, "catchAsyncVoidHooks").mockImplementation(pause);
+    const necessaries = {
+      "statuses": { "instanceId": "game" }, "directories": { "instance": "game" },
+    } as PreLaunchInformationType;
+
+    launchAttempts.set(necessaries.statuses, {});
+    const result = spawnMinecraft({
+      "command"   : { "java": "java", "arguments": [] }, "instanceId": "game",
+      necessaries, "onClose"   : mock(), "onInput"   : mock(),
+    });
+
+    await entered.promise;
+    await cancelLaunchDownloads(necessaries.statuses);
+    resume.resolve();
+    expect(await result).toEqual({ "success": false, "process": undefined, "reason": "cancelled" });
+    expect(necessaries.statuses.current).not.toBe(LaunchStatus.General.Success);
+    expect(kill).toHaveBeenCalledTimes(1);
+    expect(after).toHaveBeenCalledTimes(phase === "spawn" ? 0 : 1);
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(mkdir).toHaveBeenCalledTimes(1);
+  });
+}

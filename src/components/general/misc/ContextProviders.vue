@@ -49,12 +49,9 @@ const logs = shallowReactive<Record<string, { "list": Array<string> }>>({});
 
 const childProcesses: Record<string, MinecraftProcessType> = {};
 
-function onClose(instanceId: string): void {
-  const statuses: LauncherStatusesType | undefined = launches[instanceId];
-
-  delete childProcesses[instanceId];
-
-  if (statuses) {
+function onClose(instanceId: string, statuses = launches[instanceId]): void {
+  if (statuses && statuses === launches[instanceId]) {
+    delete childProcesses[instanceId];
     statuses.launching = 0;
     statuses.current = LaunchStatus.General.Aborted;
 
@@ -197,7 +194,7 @@ async function startInstance(
       },
       instanceId,
       statuses,
-      onClose,
+      "onClose": id => onClose(id, statuses),
       onInput,
     });
 

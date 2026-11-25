@@ -7,6 +7,7 @@ import { globalStates } from "@/states/global.ts";
 
 import { mountComponent } from "./mount-component.ts";
 import { useUiState } from "./ui-state.ts";
+import { checkViewportFocus } from "./viewport-focus.ts";
 
 useUiState();
 
@@ -32,6 +33,7 @@ for (const dropdown of [true, false]) {
       "add-instance/" + (dropdown ? "sections/" : "modrinth/") + selector,
       properties,
       app => app.use(VueQueryPlugin, { "queryClient": client }),
+      ["general/base/Checkbox"],
     );
     await Bun.sleep(0);
     const viewport = view.root.querySelector<HTMLElement>(
@@ -42,6 +44,7 @@ for (const dropdown of [true, false]) {
     filter?.click();
     await nextTick();
     Object.defineProperty(viewport, "clientHeight", { "value": 256 });
+    await checkViewportFocus(view, viewport);
     viewport.scrollTop = (900 * (dropdown ? 36 : 32)) - 256;
     viewport.dispatchEvent(new view.browser.Event("scroll") as unknown as Event);
     await nextTick();
@@ -85,7 +88,7 @@ for (const dropdown of [true, false]) {
         expect(globalStates.pages["add-instance"].instance?.patchVersions["net.minecraft"])
           .toBe("version-" + index);
       } else {
-        Reflect.get(row.querySelector("test-child")!, "on-toggle")();
+        row.querySelector("button")!.click();
         expect(onToggle).toHaveBeenLastCalledWith("version-" + index, "success");
       }
     }
@@ -195,6 +198,13 @@ for (const open of [false, true]) {
     }
     input.focus();
     if (open) {
+      input.value = "old loader search";
+      input.dispatchEvent(new view.browser.Event("input") as unknown as Event);
+      view.root.querySelector<HTMLButtonElement>("[id$=version-selected-badge]")!.click();
+      await Bun.sleep(320);
+      expect(page.instanceVersionSearch.input).toBe("");
+      expect(fetch).toHaveBeenLastCalledWith("net.minecraft", expect.any(String));
+      expect(view.root.querySelectorAll("[data-index]")).toHaveLength(3);
       input.click();
       await Bun.sleep(0);
       expect(view.root.querySelectorAll("[data-index]")).toHaveLength(3);
@@ -212,7 +222,7 @@ for (const open of [false, true]) {
       .toBe("version-2");
     expect(page.instanceVersionSearch.input).toBe("version-2");
     expect(view.root.ownerDocument.activeElement).toBe(input);
-    expect(fetch.mock.calls[0][0]).toBe("net.fabricmc.fabric-loader");
+    expect(fetch).toHaveBeenLastCalledWith("net.fabricmc.fabric-loader", expect.any(String));
     client.clear();
   });
 }

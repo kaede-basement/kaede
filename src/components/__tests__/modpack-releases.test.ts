@@ -11,6 +11,7 @@ import { globalStates } from "@/states/global.ts";
 
 import { mountComponent } from "./mount-component.ts";
 import { useUiState } from "./ui-state.ts";
+import { checkViewportFocus } from "./viewport-focus.ts";
 
 useUiState();
 const releases = Array.from({ "length": 350 }, (_, n) => ({
@@ -46,6 +47,7 @@ test("project releases window and select the last release", async () => {
   const viewport = view.root.querySelector<HTMLElement>("#release-viewport")!;
 
   Object.defineProperty(viewport, "clientHeight", { "value": 320 });
+  await checkViewportFocus(view, viewport);
   viewport.scrollTop = (350 * 40) - 320;
   viewport.dispatchEvent(new view.browser.Event("scroll") as unknown as Event);
   await nextTick();
@@ -53,7 +55,8 @@ test("project releases window and select the last release", async () => {
   viewport.querySelector<HTMLButtonElement>("#release-id-349")!.click();
   await Bun.sleep(0);
   expect(fetch).toHaveBeenCalledWith(releases[349].files[0].url);
-  expect(globalStates.pages["add-instance"].importedModpack?.path).toEndWith("id-349.mrpack");
+  expect(globalStates.pages["add-instance"].importedModpack?.path)
+    .toMatch(/69642d333439-[0-9a-f]{32}\.mrpack$/);
   expect(write).toHaveBeenCalledTimes(1);
   expect(peek).toHaveBeenCalledTimes(1);
   expect(versions).toHaveBeenCalledTimes(1);
@@ -76,7 +79,7 @@ test("superseded release cannot publish after a newer identically numbered relea
   older.resolve(new Response("older"));
   await Bun.sleep(0);
   expect(write).toHaveBeenCalledTimes(1);
-  expect(write.mock.calls[0][0].toString()).toEndWith("id-1.mrpack");
+  expect(write.mock.calls[0][0].toString()).toMatch(/69642d31-[0-9a-f]{32}\.mrpack$/);
   expect(peek).toHaveBeenCalledTimes(1);
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(versions).toHaveBeenCalledTimes(2);
@@ -123,7 +126,47 @@ for (const failure of failures) {
     button.click();
     await Bun.sleep(0);
     expect(view.root.querySelector("[role=alert]")).toBeNull();
-    expect(globalStates.pages["add-instance"].importedModpack?.path).toEndWith("id-0.mrpack");
+    expect(globalStates.pages["add-instance"].importedModpack?.path)
+      .toMatch(/69642d30-[0-9a-f]{32}\.mrpack$/);
     expect(versions).toHaveBeenCalledTimes(1);
   });
 }
+
+test("repeat imports preserve previous bytes and distinguish release ID case", async () => {
+  const entries = ["A", "a"].map(id => ({ ...releases[0], id }));
+
+  using versions = spyOn(Modrinth, "fetchVersion").mockResolvedValue(entries);
+  using fetch = spyOn(http, "fetch").mockResolvedValueOnce(new Response("valid"))
+    .mockResolvedValueOnce(new Response("malformed"))
+    .mockResolvedValueOnce(new Response("other"));
+  const archives = (new Map<string, string>);
+
+  using write = spyOn(fs, "writeFile").mockImplementation(async (path, bytes) => {
+    archives.set(String(path), (new TextDecoder).decode(bytes as Uint8Array));
+  });
+  using peek = spyOn(Modrinth, "peekMrpack").mockResolvedValueOnce(manifest)
+    .mockRejectedValueOnce(new Error("malformed"))
+    .mockResolvedValueOnce(manifest);
+  using view = await mount();
+  await Bun.sleep(0);
+  const pick = async (id: string): Promise<void> => {
+    view.root.querySelector<HTMLButtonElement>("#release-" + id)!.click();
+    await Bun.sleep(0);
+  };
+
+  await pick("A");
+  const original = globalStates.pages["add-instance"].importedModpack!.path;
+
+  await pick("A");
+  expect(globalStates.pages["add-instance"].importedModpack!.path).toBe(original);
+  expect(archives.get(original)).toBe("valid");
+  await pick("a");
+  const names = write.mock.calls.map(([path]) => String(path).toLowerCase());
+
+  expect(new Set(names).size).toBe(3);
+  expect(names[0]).toMatch(/41-[a-f0-9]+\.mrpack$/);
+  expect(names[2]).toMatch(/61-[a-f0-9]+\.mrpack$/);
+  expect(fetch).toHaveBeenCalledTimes(3);
+  expect(peek).toHaveBeenCalledTimes(3);
+  expect(versions).toHaveBeenCalledTimes(1);
+});

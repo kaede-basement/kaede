@@ -87,11 +87,16 @@ async function handleClick(entry: (typeof releases.value)[number]): Promise<void
     if (!current()) {
       return;
     }
-    const archive = encodeURIComponent(entry.id) + ".mrpack";
+    const hex = (bytes: Uint8Array): string => Array.from(
+      bytes, byte => byte.toString(16).padStart(2, "0"),
+    ).join("");
+    const release = hex((new TextEncoder).encode(entry.id));
+    const attempt = hex(crypto.getRandomValues(new Uint8Array(16)));
+    const archive = release + "-" + attempt + ".mrpack";
     const directory = FileManager.getBaseDirectory();
     const path = FileManager.join(directory, FileStructure.Folders.Cache.Path, archive);
 
-    await writeFile(path, bytes);
+    await writeFile(path, bytes, { "createNew": true });
     const manifest = await Modrinth.peekMrpack(path);
 
     if (!current()) {
@@ -131,7 +136,7 @@ onClickOutside(container, close);
     class="absolute right-4 top-16 z-100 max-h-120 w-80 overflow-y-auto rounded-md bg-neutral-900 text-white"
   >
     <p :id="`${idRoot}-import-error`" v-if="importError" role="alert" class="p-2">{{ importError }}</p>
-    <div :id="`${idRoot}-viewport`" v-if="data?.length" v-bind="containerProps" class="max-h-96 overflow-y-auto">
+    <div :id="`${idRoot}-viewport`" v-if="data?.length" v-bind="containerProps" tabindex="-1" class="max-h-96 overflow-y-auto">
       <div :id="`${idRoot}-rows`" v-bind="wrapperProps">
         <button
           v-for="{ data: entry } in list"

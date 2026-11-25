@@ -118,7 +118,7 @@ function temporaryDropdown(type?: ExtendedPatchUIDType): void {
 
 const queueSearch = useDebounceFn(handleVersionSearch, 300);
 
-watch(currentPatch, queueSearch.cancel, { "flush": "sync" });
+watch([currentPatch, temporaryPatch], queueSearch.cancel, { "flush": "sync" });
 onScopeDispose(queueSearch.cancel);
 
 onClickOutside(target, event => handleDropdown(false, event));

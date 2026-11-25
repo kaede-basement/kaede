@@ -9,7 +9,7 @@ test("a server that exited before its spawn response is never returned or regist
   const pid = 991;
 
   using spawn = spyOn(processes, "spawnProcess").mockImplementation(async (options, handlers) => {
-    handlers?.onExit?.({ pid, "code": 1, "signal": null });
+    handlers?.onExit?.({ pid, "token": "test", "code": 1, "signal": null });
 
     return {
       pid, "token": "test", "kind" : options.kind, "meta" : options.meta,

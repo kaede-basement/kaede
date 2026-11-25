@@ -79,10 +79,15 @@ const { data, status, refetch } = useQuery({
   ),
 });
 
-const filteredVersions = computed(() => (data.value ?? []).filter(({ version, type }) => (
-  version.includes(currentVersionSearch.value?.input ?? "") &&
-  (currentFilter === "all" || type === currentFilter || currentPatch !== Patches.Minecraft)
-)));
+const filteredVersions = computed(() => {
+  const search = currentVersionSearch.value;
+  const query = search?.patch === currentPatch ? search.input : "";
+
+  return (data.value ?? []).filter(({ version, type }) => (
+    version.includes(query) &&
+    (currentFilter === "all" || type === currentFilter || currentPatch !== Patches.Minecraft)
+  ));
+});
 const rowHeight = 36;
 const { list, containerProps, wrapperProps, scrollTo, retry } = useVersionViewport(
   filteredVersions, rowHeight,

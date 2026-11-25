@@ -85,7 +85,7 @@ test("all account mutations preserve corrupt disk bytes and both loaded profiles
   expect(accounts.value).toEqual(initial);
   expect(await file.text()).toBe(invalid);
 
-  for (const bytes of ["", "{}", JSON.stringify([account, null])]) {
+  for (const bytes of ["{}", JSON.stringify([account, null])]) {
     await Bun.write(file, bytes);
     await expect(Configs.updateAccounts(() => [])).rejects.toThrow();
     expect(await file.text()).toBe(bytes);
@@ -165,13 +165,19 @@ test("startup preserves corrupt accounts and reads a concurrently initialized fi
   await Bun.write(file, "{}");
   expect(await Configs.getAccounts()).toEqual([]);
   expect(write).not.toHaveBeenCalled();
+  for (const empty of ["", " \n\t "]) {
+    await Bun.write(file, empty);
+    expect(await Configs.getAccounts({ "parsedFile": { "status": "missing" } })).toEqual([]);
+    expect(await Configs.updateAccounts(current => [...current, account])).toEqual([account]);
+    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual([account]);
+  }
   const concurrent = JSON.stringify([account]);
 
   await Bun.write(file, concurrent);
   expect(await Configs.getAccounts({ "parsedFile": { "status": "missing" } })).toEqual([account]);
   expect(readFileSync(file, "utf8")).toBe(concurrent);
   expect(write.mock.calls[0][0].createNew).toBe(true);
-  expect(read).toHaveBeenCalledTimes(3);
+  expect(read).toHaveBeenCalledTimes(7);
   expect(exists).toHaveBeenCalledTimes(2);
 });
 

@@ -7,7 +7,7 @@ import Schemas from "@/lib/schemas";
 import type { ParsedFile } from "@/types/application/parsed-file.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
-import { persistAccounts } from "./write-accounts.ts";
+import { parseStoredAccounts, persistAccounts } from "./write-accounts.ts";
 
 export async function getAccounts(properties?: Partial<{
   "baseDirectory": string;
@@ -33,7 +33,7 @@ export async function getAccounts(properties?: Partial<{
       if (missing && await persistAccounts({ baseDirectory, "accounts": [] }, true)) {
         return [];
       }
-      parsedAccounts = JSON.parse(await readTextFile(path));
+      parsedAccounts = parseStoredAccounts(await readTextFile(path));
     }
   } catch {
     log.error(__PRE_BUNDLED_FILENAME__, "Could not read accounts.json");

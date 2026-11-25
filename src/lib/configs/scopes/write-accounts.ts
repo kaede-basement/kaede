@@ -107,6 +107,10 @@ export async function persistAccounts(
   return true;
 }
 
+export function parseStoredAccounts(raw: string): unknown {
+  return raw.trim() === "" ? [] : JSON.parse(raw);
+}
+
 async function readAccountsForUpdate(): Promise<Array<AccountType> | undefined> {
   const path = FileManager.join(FileManager.getBaseDirectory(), FileStructure.Files.Accounts);
   let raw: string;
@@ -124,7 +128,7 @@ async function readAccountsForUpdate(): Promise<Array<AccountType> | undefined> 
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(raw);
+    parsed = parseStoredAccounts(raw);
   } catch {
     throw new Error("Invalid JSON in accounts.json");
   }

@@ -194,10 +194,12 @@ for (const present of [true, false]) {
   const scenario = present ? "unreadable siblings" : "a missing directory";
 
   test("CSS loader handles " + scenario, async () => {
-    using exists = spyOn(fs, "exists").mockResolvedValue(present);
     using read = spyOn(fs, "readDir").mockResolvedValue(["a.css", "b.css", "c.css"].map(name => ({
       name, "isDirectory": false, "isFile": true, "isSymlink": false,
     })));
+    if (!present) {
+      read.mockRejectedValue("failed to read directory: No such file or directory (os error 2)");
+    }
     using contents = spyOn(fs, "readTextFile").mockResolvedValueOnce("first{}")
       .mockRejectedValueOnce(new Error("Denied"))
       .mockResolvedValueOnce("last{}");
@@ -220,24 +222,21 @@ for (const present of [true, false]) {
     await Bun.sleep(0);
     expect([...document.head.querySelectorAll("style")].map(sheet => sheet.textContent))
       .toEqual(present ? ["first{}", "last{}"] : []);
-    expect(exists).toHaveBeenCalledTimes(1);
-    expect(read).toHaveBeenCalledTimes(present ? 1 : 0);
+    expect(read).toHaveBeenCalledTimes(1);
     expect(contents).toHaveBeenCalledTimes(present ? 3 : 0);
     expect(error).toHaveBeenCalledTimes(present ? 1 : 0);
     if (present) {
       expect(error.mock.calls[0]).toContain("b.css");
       expect(view.root.querySelector("[role=alert]")?.textContent).toContain("b.css");
     }
-    expect(view.root.childElementCount).toBe(1);
+    expect(Boolean(view.root.querySelector("[role=alert]"))).toBe(present);
   });
 }
 
 test("CSS loader reports an inaccessible existing themes directory", async () => {
-  using exists = spyOn(fs, "exists").mockResolvedValue(true);
   using read = spyOn(fs, "readDir").mockRejectedValue(new Error("Permission denied"));
   using view = await mountComponent("general/extensions/CssThemeLoader");
   await Bun.sleep(0);
   expect(view.root.querySelector("[role=alert]")?.textContent).toContain("themes");
-  expect(exists).toHaveBeenCalledTimes(1);
   expect(read).toHaveBeenCalledTimes(1);
 });
