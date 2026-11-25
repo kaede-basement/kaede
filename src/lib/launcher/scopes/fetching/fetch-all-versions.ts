@@ -19,6 +19,7 @@
 import { APIEndpoints } from "@/constants/launcher.ts";
 import { CustomPatches, Patches } from "@/constants/meta.ts";
 import { cachedMetadata } from "@/lib/cache";
+import { safeComponent } from "@/lib/cache/storage.ts";
 import { getBaseDirectory } from "@/lib/file-manager/path.ts";
 import type {
   ExtendedPatchUIDType,
@@ -34,7 +35,8 @@ function optionalString(value: unknown): boolean {
 
 function hasOptiFineVersions(value: unknown): value is Array<OptiFine> {
   return Array.isArray(value) && value.every(row => row && typeof row.type === "string"
-    && typeof row.patch === "string" && optionalString(row.mcversion));
+    && typeof row.patch === "string" && row.patch.trim().length > 0
+    && optionalString(row.mcversion));
 }
 
 function validDependencies(value: unknown): boolean {
@@ -51,7 +53,8 @@ function hasVersions(value: unknown): value is { "versions": Array<PatchIndexVer
   if (!Array.isArray(rows) || rows.length === 0) return false;
 
   return rows.every(row => {
-    return row && typeof row.version === "string" && typeof row.releaseTime === "string"
+    return row && safeComponent(row.version) && !row.version.includes("..")
+      && typeof row.releaseTime === "string"
       && typeof row.sha256 === "string" && (/^[\da-f]{64}$/i).test(row.sha256)
       && typeof row.recommended === "boolean" && optionalString(row.type)
       && validDependencies(row.requires) && validDependencies(row.conflicts);

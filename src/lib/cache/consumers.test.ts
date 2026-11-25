@@ -57,44 +57,56 @@ test("HTTP errors never execute Eruda or parse an OptiFine error page", async ()
 });
 
 test("each picker rejects malformed rows and accepts the next valid document", async () => {
-  using c = cache();
-  using base = spyOn(paths, "getBaseDirectory").mockReturnValue(c.request.baseDirectory);
   const patch = {
     "version": "1", "releaseTime": "2024-01-01", "recommended": true, "sha256": "a".repeat(64),
   };
 
+  const modrinthFile = {
+    "filename": "pack.mrpack", "url"     : "https://example.org/pack", "size"    : 10,
+    "hashes"  : { "sha1": "a".repeat(40), "sha512": "b".repeat(128) },
+  };
+  const optiFine = { "type": "HD_U", "patch": "I1" };
+
+  const unsafeVersions = ["a/b", String.raw`a\b`, "a..b"].map(version => ({
+    "versions": [{ ...patch, version }],
+  }));
+
   type Rows = Promise<Array<unknown>>;
-  type Case = [() => Rows, string, unknown, unknown];
+  type Case = [() => Rows, string, Array<unknown>, unknown];
   const cases: Array<Case> = [
     [(): Rows => fetchVersion("bad"),
       "modrinth/bad/versions.json",
-      [{ "name": "version" }],
-      [modrinth]],
+      [[{ "name": "version" }], [{ ...modrinth, "files": [{ ...modrinthFile, "url": "" }] }]],
+      [{ ...modrinth, "files": [modrinthFile] }]],
     [(): Rows => fetchAllVersions(Patches.Minecraft),
       Patches.Minecraft + ".json",
-      { "versions": [patch, null] },
+      [{ "versions": [patch, null] }, ...unsafeVersions],
       { "versions": [patch] }],
     [(): Rows => fetchAllVersions(CustomPatches.OptiFine, "1"),
       "bmclapi/optifine/1.json",
-      [null],
-      [{ "type": "HD_U", "patch": "I1" }]],
+      [[null], [{ ...optiFine, "patch": "" }]],
+      [optiFine]],
   ];
 
-  for (const [read, relativePath, bad, good] of cases) {
-    const before = new Map(c.files);
+  for (const [read, relativePath, invalid, good] of cases) {
+    for (const bad of invalid) {
+      using c = cache();
+      using base = spyOn(paths, "getBaseDirectory").mockReturnValue(c.request.baseDirectory);
+      const before = new Map(c.files);
 
-    c.fetch.mockResolvedValueOnce(Response.json(bad));
-    await expect(read()).rejects.toThrow("Invalid metadata");
-    expect(c.files).toEqual(before);
-    // Seed a fresh entry admitted by the previous, weaker validator.
-    const url = c.fetch.mock.lastCall![0];
+      c.fetch.mockResolvedValueOnce(Response.json(bad));
+      await expect(read()).rejects.toThrow("Invalid metadata");
+      expect(c.files).toEqual(before);
+      // Seed a fresh entry admitted by the previous, weaker validator.
+      const url = c.fetch.mock.lastCall![0];
 
-    c.fetch.mockResolvedValueOnce(Response.json(bad));
-    await cachedMetadata({ ...c.request, relativePath, url });
-    c.fetch.mockClear();
-    c.fetch.mockResolvedValueOnce(Response.json(good));
-    expect(await read()).toHaveLength(1);
-    expect(c.fetch).toHaveBeenCalledTimes(1);
+      c.fetch.mockResolvedValueOnce(Response.json(bad));
+      await cachedMetadata({ ...c.request, relativePath, url });
+      c.fetch.mockClear();
+      c.fetch.mockResolvedValueOnce(Response.json(good));
+      expect(await read()).toHaveLength(1);
+      expect(c.fetch).toHaveBeenCalledTimes(1);
+      expect(base).toHaveBeenCalled();
+    }
   }
-  expect(base).toHaveBeenCalled();
 });

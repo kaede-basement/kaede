@@ -31,8 +31,8 @@ test("selector sends metadata, cancels superseded work and reports errors", asyn
     }, "size": 100 };
     const primary = { ...file, "primary": true, "url": "primary" };
 
-    await selector.select([file, file]);
-    expect(selector.failure.value).toContain("one primary");
+    await selector.select([]);
+    expect(selector.failure.value).toContain("no .mrpack");
     const component = new URL(
       "../../components/add-instance/modrinth/ModpackVersionSelector.vue", import.meta.url,
     );
@@ -50,11 +50,14 @@ test("selector sends metadata, cancels superseded work and reports errors", asyn
     expect(ipc).toHaveBeenCalledWith("download_mrpack", {
       "cancelId": firstId, "file": { "url": "primary", "size": file.size, "hashes": file.hashes },
     });
-    const second = selector.select([file]);
+    const second = selector.select([file, { ...file, "url": "alternative" }]);
 
     expect(ipc).toHaveBeenCalledWith("cancel_downloads", { "cancelId": firstId });
     const secondId = selector.pending.value;
 
+    expect(ipc).toHaveBeenCalledWith("download_mrpack", {
+      "cancelId": secondId, "file": { "url": file.url, "size": file.size, "hashes": file.hashes },
+    });
     jobs[0].resolve();
     await first;
     expect(apply).not.toHaveBeenCalled();

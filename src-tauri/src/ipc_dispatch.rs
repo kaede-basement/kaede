@@ -658,7 +658,12 @@ pub(super) mod tests {
         let documents = tokio::net::TcpListener::bind(("127.0.0.1", 0))
             .await
             .unwrap();
-        for code in [304, 204, 404, 302, 503].into_iter().cycle().take(15) {
+        for (index, code) in [304, 204, 404, 302, 503]
+            .into_iter()
+            .cycle()
+            .take(15)
+            .enumerate()
+        {
             let binary = code == 503;
             let envelope = serde_json::json!({"request": {
                 "url": format!("http://{}/", documents.local_addr().unwrap()),
@@ -667,7 +672,11 @@ pub(super) mod tests {
             let payload = if binary {
                 let mut bytes = serde_json::to_vec(&envelope).unwrap();
                 bytes.extend_from_slice(b"\n\x00\xff");
-                bytes.into()
+                if index % 2 == 0 {
+                    tauri::ipc::InvokeBody::Json(serde_json::json!(bytes))
+                } else {
+                    tauri::ipc::InvokeBody::Raw(bytes)
+                }
             } else {
                 envelope.into()
             };

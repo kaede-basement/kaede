@@ -19,10 +19,10 @@ export type PackFile = {
 function selectFile(files: Files): PackFile {
   const packs = files.filter(file => file.filename?.toLowerCase().endsWith(".mrpack"));
   const primary = packs.filter(file => file.primary);
-  const candidates = primary.length > 0 ? primary : packs;
+  const file = primary[0] ?? packs[0];
 
-  if (candidates.length !== 1) throw new Error("Expected one primary or a single .mrpack file");
-  const [file] = candidates;
+  if (!file) throw new Error("Version has no .mrpack file");
+  if (primary.length > 1) throw new Error("Version has multiple primary .mrpack files");
 
   if (!file.url || file.size === undefined || !Number.isSafeInteger(file.size) || file.size < 0
     || !file.hashes?.sha1 || !file.hashes.sha512) {

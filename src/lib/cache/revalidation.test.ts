@@ -197,11 +197,12 @@ test("ByteString ETags revalidate and a partial 404 preserves the expired entry"
       const headers = first ? [["etag", etag], ["cache-control", "no-cache"]]
         : [["content-length", "100"]];
       const meta = {
-        "status": first ? 200 : 404, "finalUrl": c.request.url,
+        "status"   : first ? 200 : 404, "finalUrl" : c.request.url,
+        "bodyError": first ? undefined : "interrupted error body",
         headers,
       };
 
-      if (!first) expect(payload).toMatchObject({
+      if (calls === 2) expect(payload).toMatchObject({
         "request": { "headers": [["if-none-match", etag]] },
       });
 
@@ -215,6 +216,13 @@ test("ByteString ETags revalidate and a partial 404 preserves the expired entry"
     await expect(cachedMetadata(c.request)).rejects.toThrow("HTTP 404");
     expect(c.files).toEqual(before);
     expect(calls).toBe(2);
+    for (const method of ["text", "json", "arrayBuffer", "blob"] as const) {
+      const response = await transport(c.request.url);
+
+      expect(response.status).toBe(404);
+      expect(response.headers.get("content-length")).toBe("100");
+      await expect(response[method]()).rejects.toThrow("interrupted error body");
+    }
   } finally {
     if (previous) Object.defineProperty(globalThis, "window", previous);
     else Reflect.deleteProperty(globalThis, "window");

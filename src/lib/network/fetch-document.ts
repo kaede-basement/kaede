@@ -10,6 +10,7 @@ type Metadata = {
   "statusText": string;
   "headers"   : Array<[string, string]>;
   "finalUrl"  : string;
+  "bodyError"?: string;
 };
 
 export async function fetchDocument(url: string, init?: {
@@ -76,8 +77,15 @@ export async function fetchDocument(url: string, init?: {
 
     if (end === -1) throw new Error("Incomplete HTTP document");
     const meta: Metadata = JSON.parse((new TextDecoder).decode(bytes.subarray(0, end)));
-    const responseBody = [204, 205, 304].includes(meta.status) || init?.method === "HEAD"
-      ? null : bytes.subarray(end + 1);
+    let responseBody: BodyInit | null = null;
+
+    if (![204, 205, 304].includes(meta.status) && init?.method !== "HEAD") {
+      responseBody = meta.bodyError === undefined ? bytes.subarray(end + 1) : new ReadableStream({
+        pull(controller): void {
+          controller.error(new Error(meta.bodyError));
+        },
+      }, { "highWaterMark": 0 });
+    }
     const response = new Response(responseBody, meta);
 
     Object.defineProperty(response, "url", { "value": meta.finalUrl });

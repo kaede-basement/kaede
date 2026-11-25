@@ -12,7 +12,9 @@ use tokio::{
     time::Instant,
 };
 
-const MAX_COOLDOWN: Duration = Duration::from_secs(60);
+const MAX_COOLDOWN: Duration = Duration::from_secs(15 * 60);
+const COOLDOWN_WAIT_BUDGET: Duration = Duration::from_secs(60);
+const MAX_DOCUMENT_BYTES: usize = 32 * 1024 * 1024;
 const ORIGIN_LIMIT: usize = 8;
 const MAX_ATTEMPTS: usize = 3;
 
@@ -117,9 +119,16 @@ impl Transport {
                 .expect("open origin");
             loop {
                 let resume = *origin.resume.lock().unwrap();
-                if resume <= Instant::now() {
+                let wait = resume.saturating_duration_since(Instant::now());
+                if wait.is_zero() {
                     break;
                 }
+                if wait > retry.cooldown_budget {
+                    return Err(DownloadError::other(
+                        "HTTP 429: origin cooldown exceeds request wait budget",
+                    ));
+                }
+                retry.cooldown_budget -= wait;
                 tokio::time::sleep_until(resume).await;
             }
             let result = self
@@ -136,7 +145,7 @@ impl Transport {
                 Err(e) => return Err(DownloadError::other(e.without_url())),
             };
             let status = response.status().as_u16();
-            if status == 429 {
+            let retryable_status = if status == 429 {
                 let delay = cooldown(
                     response
                         .headers()
@@ -144,9 +153,13 @@ impl Transport {
                         .and_then(|v| v.to_str().ok()),
                 );
                 let mut resume = origin.resume.lock().unwrap();
-                *resume = (*resume).max(Instant::now() + delay);
-            }
-            if matches!(status, 429 | 502 | 503 | 504) && retry.available() {
+                let now = Instant::now();
+                *resume = (*resume).max(now + delay);
+                *resume - now <= retry.cooldown_budget
+            } else {
+                matches!(status, 502..=504)
+            };
+            if retryable_status && retry.available() {
                 drop(response);
                 drop(permit);
                 retry.backoff().await;
@@ -206,11 +219,13 @@ fn cooldown(value: Option<&str>) -> Duration {
 
 pub(crate) struct Attempts {
     left: usize,
+    cooldown_budget: Duration,
 }
 impl Attempts {
     pub(crate) fn read() -> Self {
         Self {
             left: MAX_ATTEMPTS - 1,
+            cooldown_budget: COOLDOWN_WAIT_BUDGET,
         }
     }
     pub(crate) fn available(&self) -> bool {
@@ -241,7 +256,11 @@ struct Document {
     follow_redirects: bool,
 }
 
-async fn document(transport: Transport, doc: Document) -> Result<tauri::ipc::Response, String> {
+async fn document(
+    transport: Transport,
+    doc: Document,
+    max_body_bytes: usize,
+) -> Result<tauri::ipc::Response, String> {
     let method = Method::from_bytes(doc.method.as_bytes()).map_err(|e| e.to_string())?;
     let read = method == Method::GET || method == Method::HEAD;
     if !read && method != Method::POST {
@@ -269,7 +288,10 @@ async fn document(transport: Transport, doc: Document) -> Result<tauri::ipc::Res
     let mut retry = if read {
         Attempts::read()
     } else {
-        Attempts { left: 0 }
+        Attempts {
+            left: 0,
+            ..Attempts::read()
+        }
     };
     loop {
         let (mut response, permit) = transport
@@ -290,21 +312,35 @@ async fn document(transport: Transport, doc: Document) -> Result<tauri::ipc::Res
                 )
             })
             .collect();
-        let mut bytes = serde_json::to_vec(&serde_json::json!({
+        let mut metadata = serde_json::json!({
             "status": response.status().as_u16(), "statusText": response.status().canonical_reason().unwrap_or(""),
             "headers": headers, "finalUrl": response.url().as_str()
-        })).map_err(|e| e.to_string())?;
+        });
+        let mut bytes = serde_json::to_vec(&metadata).map_err(|e| e.to_string())?;
         bytes.push(b'\n');
+        let prefix_len = bytes.len();
         loop {
-            match response.chunk().await {
-                Ok(Some(chunk)) => bytes.extend_from_slice(&chunk),
-                Ok(None) => return Ok(tauri::ipc::Response::new(bytes)),
-                Err(_) if !response.status().is_success() => {
-                    return Ok(tauri::ipc::Response::new(bytes))
+            let error = match response.chunk().await {
+                Ok(Some(chunk)) if chunk.len() <= max_body_bytes - (bytes.len() - prefix_len) => {
+                    bytes.extend_from_slice(&chunk);
+                    continue;
                 }
-                Err(e) if retry.available() && transient(&e) => break,
-                Err(e) => return Err(e.without_url().to_string()),
+                Ok(Some(_)) => {
+                    format!("HTTP document body exceeds the {max_body_bytes}-byte limit")
+                }
+                Ok(None) => return Ok(tauri::ipc::Response::new(bytes)),
+                Err(e) if response.status().is_success() && retry.available() && transient(&e) => {
+                    break
+                }
+                Err(e) => e.without_url().to_string(),
+            };
+            if response.status().is_success() {
+                return Err(error);
             }
+            metadata["bodyError"] = error.into();
+            let mut frame = serde_json::to_vec(&metadata).map_err(|e| e.to_string())?;
+            frame.push(b'\n');
+            return Ok(tauri::ipc::Response::new(frame));
         }
         drop(response);
         drop(permit);
@@ -322,22 +358,28 @@ pub(crate) fn fetch_document<R: tauri::Runtime>(
     let transport = crate::argument::<tauri::State<Transport>, _>(invoke, NAME, "transport")?
         .inner()
         .clone();
+    let binary_envelope = |bytes: &[u8]| -> Result<_, String> {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Envelope {
+            request: Document,
+            cancel_id: Option<String>,
+        }
+        let end = bytes
+            .iter()
+            .position(|&b| b == b'\n')
+            .ok_or("Missing HTTP request metadata")?;
+        let mut envelope: Envelope =
+            serde_json::from_slice(&bytes[..end]).map_err(|e| e.to_string())?;
+        envelope.request.body = Some(Body::Binary(bytes[end + 1..].to_vec()));
+        Ok((envelope.request, envelope.cancel_id))
+    };
     let (doc, id) = match invoke.message.payload() {
-        tauri::ipc::InvokeBody::Raw(bytes) => {
-            #[derive(serde::Deserialize)]
-            #[serde(rename_all = "camelCase")]
-            struct Envelope {
-                request: Document,
-                cancel_id: Option<String>,
-            }
-            let end = bytes
-                .iter()
-                .position(|&b| b == b'\n')
-                .ok_or("Missing HTTP request metadata")?;
-            let mut envelope: Envelope =
-                serde_json::from_slice(&bytes[..end]).map_err(|e| e.to_string())?;
-            envelope.request.body = Some(Body::Binary(bytes[end + 1..].to_vec()));
-            (envelope.request, envelope.cancel_id)
+        tauri::ipc::InvokeBody::Raw(bytes) => binary_envelope(bytes)?,
+        tauri::ipc::InvokeBody::Json(array @ serde_json::Value::Array(_)) => {
+            use serde::Deserialize;
+            let bytes = Vec::<u8>::deserialize(array).map_err(|e| e.to_string())?;
+            binary_envelope(&bytes)?
         }
         _ => (
             crate::argument(invoke, NAME, "request")?,
@@ -347,7 +389,7 @@ pub(crate) fn fetch_document<R: tauri::Runtime>(
     let flags: tauri::State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
     let registration = id.map(|id| flags.register(&id));
     Ok(async move {
-        let work = document(transport, doc);
+        let work = document(transport, doc, MAX_DOCUMENT_BYTES);
         match registration {
             None => work.await,
             Some(mut signal) => tokio::select! { biased;
@@ -402,7 +444,9 @@ mod tests {
         let requests = async {
             let mut request = doc(url.clone(), "GET");
             for status in [200, 404] {
-                let reply = document(transport.clone(), request).await.unwrap();
+                let reply = document(transport.clone(), request, MAX_DOCUMENT_BYTES)
+                    .await
+                    .unwrap();
                 let InvokeResponseBody::Raw(bytes) = reply.body().unwrap() else {
                     panic!("expected document")
                 };
@@ -421,11 +465,70 @@ mod tests {
                         .unwrap();
                     assert_eq!(tag, "\"é\"");
                     request.headers.push(("if-none-match".into(), tag.into()));
+                    assert!(meta["bodyError"].is_null());
+                } else {
+                    assert!(!meta["bodyError"].as_str().unwrap().is_empty());
+                    assert!(bytes[end + 1..].is_empty());
                 }
             }
         };
         tokio::time::timeout(Duration::from_secs(5), async {
             tokio::join!(server, requests)
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn oversized_chunked_document_releases_its_origin_slot() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let transport = Transport::new().unwrap();
+        let origin = transport.origin(&url.parse().unwrap());
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let fetch = tokio::spawn(document(transport, doc(url, "GET"), 5));
+            let (mut socket, _) = accept_request(&listener).await;
+            socket.write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n3\r\ndef\r\n").await.unwrap();
+            // Keep the response open: the reader must reject before EOF.
+            let reply = fetch.await.unwrap();
+            assert!(reply.err().unwrap().contains("5-byte limit"));
+        }).await.unwrap();
+        assert_eq!(origin.slots.available_permits(), ORIGIN_LIMIT);
+    }
+
+    #[tokio::test]
+    async fn long_retry_after_returns_429_and_keeps_the_origin_paused() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let transport = Transport::new().unwrap();
+        let serve = async {
+            let (socket, _) = accept_request(&listener).await;
+            crate::downloads::mock_http::respond(
+                socket,
+                b"HTTP/1.1 429 slow\r\nRetry-After: 600\r\nContent-Length: 0\r\n\r\n",
+            )
+            .await;
+        };
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let (reply, ()) = tokio::join!(
+                document(
+                    transport.clone(),
+                    doc(url.clone(), "GET"),
+                    MAX_DOCUMENT_BYTES
+                ),
+                serve
+            );
+            let InvokeResponseBody::Raw(bytes) = reply.unwrap().body().unwrap() else {
+                panic!("expected document")
+            };
+            let meta: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(meta["status"], 429);
+            let origin = transport.origin(&url.parse().unwrap());
+            let resume = *origin.resume.lock().unwrap();
+            assert!(resume > Instant::now() + Duration::from_secs(590));
+            let blocked = document(transport, doc(url, "GET"), MAX_DOCUMENT_BYTES).await;
+            assert!(blocked.err().unwrap().contains("429"));
+            assert_eq!(*origin.resume.lock().unwrap(), resume);
         })
         .await
         .unwrap();
@@ -470,7 +573,10 @@ mod tests {
                     }
                 };
                 let (result, ()) = tokio::time::timeout(Duration::from_secs(5), async {
-                    tokio::join!(document(transport, doc(url, method)), server)
+                    tokio::join!(
+                        document(transport, doc(url, method), MAX_DOCUMENT_BYTES),
+                        server
+                    )
                 })
                 .await
                 .unwrap();
@@ -517,7 +623,10 @@ mod tests {
                     .unwrap();
             };
             let (reply, ()) = tokio::time::timeout(Duration::from_secs(3), async {
-                tokio::join!(document(origin, doc(url.clone(), method)), serve)
+                tokio::join!(
+                    document(origin, doc(url.clone(), method), MAX_DOCUMENT_BYTES),
+                    serve
+                )
             })
             .await
             .expect("a second attempt would stall");
@@ -548,7 +657,14 @@ mod tests {
             }
         };
         let (result, ()) = tokio::time::timeout(Duration::from_secs(5), async {
-            tokio::join!(document(Transport::new().unwrap(), doc(url, "HEAD")), serve)
+            tokio::join!(
+                document(
+                    Transport::new().unwrap(),
+                    doc(url, "HEAD"),
+                    MAX_DOCUMENT_BYTES
+                ),
+                serve
+            )
         })
         .await
         .unwrap();
@@ -575,6 +691,7 @@ mod tests {
         let meta = tokio::spawn(document(
             transport.clone(),
             doc(format!("{base}/meta"), "GET"),
+            MAX_DOCUMENT_BYTES,
         ));
         let (socket, line) = accept_request(&listener).await;
         assert!(line.starts_with("GET /meta "));
@@ -627,9 +744,13 @@ mod tests {
         let (tx, signal) = CancelSignal::channel();
         let cancelled = root.path().join("cancelled");
         let (result, ()) = tokio::join!(artifact(cancelled.clone(), signal), async {
-            while *origin.resume.lock().unwrap() <= start {
-                tokio::task::yield_now().await;
-            }
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while *origin.resume.lock().unwrap() <= start {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .expect("metadata request should set the origin cooldown");
             tx.send_replace(true);
         });
         assert!(matches!(result, Err(DownloadError::Cancelled)));

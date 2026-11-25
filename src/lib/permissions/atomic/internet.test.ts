@@ -12,9 +12,11 @@ test("scoped extensions receive completed redirect and error responses", async (
   try {
     const url = "https://example.org/scoped";
     let status = 204;
+    const bodyError = "interrupted error body";
     const ipc = mock((cmd: string) => {
       if (cmd !== "fetch_http_document") throw new Error(cmd);
-      const meta = { status, "finalUrl": url, "headers": [] };
+      const meta = { status, "bodyError": status === 404 ? bodyError : undefined,
+        "finalUrl" : url, "headers"  : [] };
 
       return (new TextEncoder).encode(JSON.stringify(meta) + "\n").buffer;
     });
@@ -37,6 +39,12 @@ test("scoped extensions receive completed redirect and error responses", async (
         "request" : expect.objectContaining({ "followRedirects": false, url }),
       });
     }
+    status = 404;
+    const interrupted = await grant.tauriFetch(url);
+
+    expect(interrupted.status).toBe(404);
+    await expect(interrupted.text()).rejects.toThrow(bodyError);
+
     const post = handleInternetPermission({
       "id": "test", "scope": "http-post", "argument": url,
     }) as {

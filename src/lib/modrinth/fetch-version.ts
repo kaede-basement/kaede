@@ -57,7 +57,8 @@ function validVersions(value: unknown): value is Array<Version> {
 
 function validFile(value: unknown): boolean {
   if (!value || typeof value !== "object" || !("filename" in value)
-    || typeof value.filename !== "string" || !("url" in value) || typeof value.url !== "string"
+    || typeof value.filename !== "string"
+    || !("url" in value) || typeof value.url !== "string" || !value.url.trim()
     || !("size" in value) || typeof value.size !== "number" || !Number.isSafeInteger(value.size)
     || value.size < 0 || ("primary" in value && typeof value.primary !== "boolean")) return false;
   if (!("hashes" in value) || !value.hashes || typeof value.hashes !== "object") return false;
