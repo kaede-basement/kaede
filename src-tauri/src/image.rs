@@ -119,50 +119,45 @@ fn publish_resize(
     width: u32,
     height: u32,
 ) -> Result<(), String> {
-    if let Err(error) = stage.persist_noclobber(path) {
-        // Windows may report a sharing violation when a reader holds the winner open.
-        let dimensions = published_dimensions(path, format).ok();
-        if dimensions != Some((width, height)) {
+    if let Err(error) = crate::file_system::persist_temp_path(stage.into_temp_path(), path, false) {
+        // A Windows reader can deny delete sharing even for a complete concurrent winner.
+        if !matches!(
+            matches_encoded_image(&error.path, path, format, (width, height)),
+            Ok(true)
+        ) {
             return Err(error.to_string());
         }
     }
     Ok(())
 }
 
-fn published_dimensions(path: &Path, format: image::ImageFormat) -> image::ImageResult<(u32, u32)> {
-    use std::io::{self, Read, Seek, SeekFrom};
-    let mut reader = io::BufReader::new(std::fs::File::open(path)?);
-    // Dimensions alone survive a short write after the header. Check the
-    // container's declared length (WebP) or final empty IEND chunk (PNG).
-    let complete = match format {
-        image::ImageFormat::WebP => {
-            reader.seek(SeekFrom::Start(4))?;
-            let mut size = [0; 4];
-            reader.read_exact(&mut size)?;
-            u64::from(u32::from_le_bytes(size)) + 8 == reader.get_ref().metadata()?.len()
-        }
-        image::ImageFormat::Png => {
-            const IEND: &[u8; 12] = b"\0\0\0\0IEND\xaeB\x60\x82";
-            reader.seek(SeekFrom::End(-12))?;
-            let mut end = [0; 12];
-            reader.read_exact(&mut end)?;
-            &end == IEND
-        }
-        _ => false,
-    };
-    if !complete {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "Incomplete resized image").into());
+fn matches_encoded_image(
+    staged: &Path,
+    published: &Path,
+    format: image::ImageFormat,
+    dimensions: (u32, u32),
+) -> image::ImageResult<bool> {
+    use std::io::{BufReader, Read, Seek};
+    let mut expected = std::fs::File::open(staged)?;
+    let mut winner = std::fs::File::open(published)?;
+    let mut remaining = expected.metadata()?.len();
+    if remaining != winner.metadata()?.len() {
+        return Ok(false);
     }
-    reader.rewind()?;
-    let image = image::ImageReader::new(reader).with_guessed_format()?;
-    if image.format() != Some(format) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Unexpected resized image format",
-        )
-        .into());
+    let mut left = [0; 8192];
+    let mut right = [0; 8192];
+    while remaining > 0 {
+        let count = remaining.min(left.len() as u64) as usize;
+        expected.read_exact(&mut left[..count])?;
+        winner.read_exact(&mut right[..count])?;
+        if left[..count] != right[..count] {
+            return Ok(false);
+        }
+        remaining -= count as u64;
     }
-    image.into_dimensions()
+    winner.rewind()?;
+    let reader = image::ImageReader::new(BufReader::new(winner)).with_guessed_format()?;
+    Ok(reader.format() == Some(format) && reader.into_dimensions()? == dimensions)
 }
 
 #[cfg(test)]
@@ -214,6 +209,14 @@ mod tests {
         publish(12000).unwrap();
         assert!(publish(11999).is_err());
         std::fs::write(&path, &WEBP[..WEBP.len() - 1]).unwrap();
+        assert!(publish(12000).is_err());
+        let mut truncated_chunk = WEBP[..26].to_vec();
+        truncated_chunk[4..8].copy_from_slice(&18u32.to_le_bytes());
+        std::fs::write(&path, truncated_chunk).unwrap();
+        assert!(publish(12000).is_err());
+        let mut corrupt = WEBP.to_vec();
+        *corrupt.last_mut().unwrap() ^= 1;
+        std::fs::write(&path, corrupt).unwrap();
         assert!(publish(12000).is_err());
         std::fs::write(&path, &WEBP[..16]).unwrap();
         assert!(publish(12000).is_err());

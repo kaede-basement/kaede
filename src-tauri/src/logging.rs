@@ -4,6 +4,7 @@ use serde::Serialize;
 /// ATTENTION: AI-generated (by Qwen 3.8-Max and Claude Fable 5 on 'max' reasoning)
 ///
 use std::{
+    collections::{HashMap, VecDeque},
     fs::File,
     io::{self, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -23,7 +24,26 @@ pub enum LogStreamEvent {
 
 pub struct LogTail {
     path: PathBuf,
-    current: Arc<Mutex<Subscription>>,
+    registry: Mutex<Registry>,
+}
+
+const SERVER_ID_BASE: u64 = 1 << 40;
+const MAX_SAFE_ID: u64 = (1 << 53) - 1;
+
+#[derive(Default)]
+struct Registry {
+    last_issued: u64,
+    windows: HashMap<String, Arc<Mutex<Subscription>>>,
+}
+
+impl Registry {
+    fn window(&mut self, label: &str, viewer: Option<u64>) -> Option<&Arc<Mutex<Subscription>>> {
+        if viewer.is_some_and(|id| id >= SERVER_ID_BASE) {
+            self.windows.get(label)
+        } else {
+            Some(self.windows.entry(label.to_owned()).or_default())
+        }
+    }
 }
 
 #[derive(Default)]
@@ -31,8 +51,9 @@ struct Subscription {
     generation: u64,
     active: Option<ActiveViewer>,
     sending: Option<ActiveViewer>,
-    highest_viewer_id: Option<u64>,
-    last_issued: u64,
+    // Consecutive IDs issued to one window share a range until a start or stop consumes them.
+    pending_issued: VecDeque<(u64, u64)>,
+    stopped_legacy: VecDeque<u64>,
 }
 
 #[derive(Clone)]
@@ -43,19 +64,57 @@ struct ActiveViewer {
 }
 
 impl Subscription {
+    fn issue(&mut self, id: u64) {
+        if let Some((_, end)) = self.pending_issued.back_mut() {
+            if *end + 1 == id {
+                *end = id;
+                return;
+            }
+        }
+        self.pending_issued.push_back((id, id));
+    }
+
+    fn consume_issued(&mut self, id: u64) -> bool {
+        let index = self.pending_issued.partition_point(|&(_, end)| end < id);
+        let Some(&(start, end)) = self.pending_issued.get(index) else {
+            return false;
+        };
+        if id < start {
+            return false;
+        }
+        self.pending_issued.drain(..=index);
+        if id < end {
+            self.pending_issued.push_front((id + 1, end));
+        }
+        true
+    }
+
+    fn remember(&mut self, viewer: Option<u64>) {
+        if let Some(id) = viewer.filter(|id| *id < SERVER_ID_BASE) {
+            if !self.stopped_legacy.contains(&id) {
+                const RECENT: usize = 64;
+                if self.stopped_legacy.len() == RECENT {
+                    self.stopped_legacy.pop_front();
+                }
+                self.stopped_legacy.push_back(id);
+            }
+        }
+    }
     fn begin(&mut self, viewer: Option<u64>) -> Option<u64> {
-        if let Some(id) = viewer {
-            if self.highest_viewer_id.is_some_and(|highest| id <= highest) {
+        if let Some(id) = viewer.filter(|id| *id >= SERVER_ID_BASE) {
+            if !self.consume_issued(id) {
                 return None;
             }
-            self.highest_viewer_id = Some(id);
-        } else if self
-            .active
-            .as_ref()
-            .is_some_and(|active| active.viewer.is_some())
+        } else if viewer.is_some_and(|id| self.stopped_legacy.contains(&id))
+            || self
+                .active
+                .as_ref()
+                .is_some_and(|a| a.viewer.is_some() && (viewer.is_none() || viewer == a.viewer))
         {
             return None;
         }
+        let old = self.active.take().and_then(|a| a.viewer);
+        self.remember(old);
         self.generation += 1;
         self.active = Some(ActiveViewer {
             generation: self.generation,
@@ -66,7 +125,10 @@ impl Subscription {
     }
 
     fn stop(&mut self, viewer: Option<u64>) -> bool {
-        self.highest_viewer_id = self.highest_viewer_id.max(viewer);
+        self.remember(viewer);
+        if let Some(id) = viewer.filter(|id| *id >= SERVER_ID_BASE) {
+            self.consume_issued(id);
+        }
         if self.active.as_ref().is_some_and(|a| a.viewer == viewer) {
             self.active = None;
             true
@@ -94,7 +156,7 @@ impl LogTail {
     pub fn new(path: PathBuf) -> Self {
         Self {
             path,
-            current: Arc::default(),
+            registry: Mutex::default(),
         }
     }
 }
@@ -176,39 +238,71 @@ impl Cursor {
     }
 }
 
+pub struct WindowLabel(String);
+
+impl<R: tauri::Runtime> tauri::ipc::CommandArg<'_, R> for WindowLabel {
+    fn from_command(item: tauri::ipc::CommandItem<'_, R>) -> Result<Self, tauri::ipc::InvokeError> {
+        Ok(Self(
+            item.message.webview_ref().window_ref().label().to_owned(),
+        ))
+    }
+}
+
 #[tauri::command]
-pub fn next_log_subscription_id(state: State<'_, LogTail>) -> Result<u64, String> {
-    state.issue_viewer_id()
+pub fn next_log_subscription_id(
+    window: WindowLabel,
+    state: State<'_, LogTail>,
+) -> Result<u64, String> {
+    state.issue_viewer_id(&window.0)
 }
 
 #[tauri::command]
 pub async fn stop_log_stream(
+    window: WindowLabel,
     state: State<'_, LogTail>,
     subscription_id: Option<u64>,
 ) -> Result<bool, String> {
-    Ok(state.stop(subscription_id).await)
+    Ok(state.stop(&window.0, subscription_id).await)
 }
 
 impl LogTail {
-    fn issue_viewer_id(&self) -> Result<u64, String> {
-        let mut current = self.current.lock().unwrap();
-        current.last_issued = current
-            .last_issued
-            .max(current.highest_viewer_id.unwrap_or(0))
-            .checked_add(1)
-            .ok_or("Log viewer IDs exhausted")?;
-        Ok(current.last_issued)
+    fn issue_viewer_id(&self, label: &str) -> Result<u64, String> {
+        let mut registry = self.registry.lock().unwrap();
+        let id = registry.last_issued.max(SERVER_ID_BASE - 1) + 1;
+        if id > MAX_SAFE_ID {
+            return Err("Log viewer IDs exhausted".into());
+        }
+        registry.last_issued = id;
+        registry
+            .windows
+            .entry(label.to_owned())
+            .or_default()
+            .lock()
+            .unwrap()
+            .issue(id);
+        Ok(id)
     }
 
-    pub fn stop_all(&self) {
-        let mut current = self.current.lock().unwrap();
-        current.active = None;
-        current.highest_viewer_id = current.highest_viewer_id.max(Some(current.last_issued));
+    pub fn retire_window(&self, label: &str, destroyed: bool) {
+        let mut registry = self.registry.lock().unwrap();
+        if let Some(window) = registry.windows.get(label) {
+            let mut window = window.lock().unwrap();
+            window.active = None;
+            window.pending_issued.clear();
+            window.stopped_legacy.clear();
+        }
+        if destroyed {
+            registry.windows.remove(label);
+        }
     }
 
-    async fn stop(&self, viewer: Option<u64>) -> bool {
+    async fn stop(&self, label: &str, viewer: Option<u64>) -> bool {
         let (stopped, sending) = {
-            let mut current = self.current.lock().unwrap();
+            let mut registry = self.registry.lock().unwrap();
+            let Some(window) = registry.window(label, viewer) else {
+                return false;
+            };
+            let mut current = window.lock().unwrap();
             let stopped = current.stop(viewer);
             (
                 stopped,
@@ -226,18 +320,23 @@ impl LogTail {
 
     async fn stream(
         &self,
+        label: &str,
         channel: Channel<LogStreamEvent>,
         viewer: Option<u64>,
     ) -> Result<(), String> {
-        let (generation, sending) = {
-            let mut current = self.current.lock().unwrap();
+        let (window, generation, sending) = {
+            let mut registry = self.registry.lock().unwrap();
+            let Some(window) = registry.window(label, viewer) else {
+                return Ok(());
+            };
+            let mut current = window.lock().unwrap();
             let Some(generation) = current.begin(viewer) else {
                 return Ok(());
             };
-            (generation, current.sending.clone())
+            (window.clone(), generation, current.sending.clone())
         };
         let _active = ActiveSubscription {
-            current: &self.current,
+            current: &window,
             generation,
         };
         if let Some(sending) = sending {
@@ -246,7 +345,7 @@ impl LogTail {
         let mut cursor = Cursor::default();
         let path = self.path.clone();
         loop {
-            let current = self.current.clone();
+            let current = window.clone();
             let path = path.clone();
             let channel = channel.clone();
             let result = tokio::task::spawn_blocking(move || -> io::Result<_> {
@@ -283,15 +382,7 @@ impl LogTail {
             let Some((next, more)) = result else {
                 return Ok(());
             };
-            if self
-                .current
-                .lock()
-                .unwrap()
-                .active
-                .as_ref()
-                .map(|a| a.generation)
-                != Some(generation)
-            {
+            if window.lock().unwrap().active.as_ref().map(|a| a.generation) != Some(generation) {
                 return Ok(());
             }
             cursor = next;
@@ -304,11 +395,12 @@ impl LogTail {
 
 #[tauri::command]
 pub async fn stream_logs(
+    window: WindowLabel,
     state: State<'_, LogTail>,
     on_event: Channel<LogStreamEvent>,
     subscription_id: Option<u64>,
 ) -> Result<(), String> {
-    state.stream(on_event, subscription_id).await
+    state.stream(&window.0, on_event, subscription_id).await
 }
 
 #[cfg(test)]
@@ -323,6 +415,7 @@ mod tests {
         let (release, wait) = std::sync::mpsc::channel();
         let wait = Mutex::new(wait);
         let original = tail.stream(
+            "b",
             Channel::new(move |_| {
                 entered.send(()).unwrap();
                 wait.lock()
@@ -335,11 +428,12 @@ mod tests {
         );
         tokio::pin!(original);
         tokio::select! { _ = &mut original => panic!("send finished"), _ = started.recv() => {} }
-        let stop = tail.stop(Some(1));
+        let stop = tail.stop("b", Some(1));
         tokio::pin!(stop);
         assert!(futures_util::poll!(&mut stop).is_pending());
         let (events, mut received) = tokio::sync::mpsc::unbounded_channel();
         let replacement = tail.stream(
+            "b",
             Channel::new(move |event| {
                 events.send(event).unwrap();
                 Ok(())
@@ -362,7 +456,7 @@ mod tests {
             serde_json::from_str::<serde_json::Value>(&json).unwrap()["type"],
             "snapshot"
         );
-        assert!(tail.stop(Some(2)).await);
+        assert!(tail.stop("b", Some(2)).await);
         replacement.await.unwrap();
     }
 
@@ -370,14 +464,15 @@ mod tests {
     async fn delayed_stop_leaves_reopened_viewer_receiving_lines() {
         let file = tempfile::NamedTempFile::new().unwrap();
         let tail = LogTail::new(file.path().into());
-        let a = tail.issue_viewer_id().unwrap();
-        let b = tail.issue_viewer_id().unwrap();
-        let original = tail.stream(Channel::new(|_| Ok(())), Some(a));
+        let a = tail.issue_viewer_id("b").unwrap();
+        let b = tail.issue_viewer_id("b").unwrap();
+        let original = tail.stream("b", Channel::new(|_| Ok(())), Some(a));
         tokio::pin!(original);
         assert!(futures_util::poll!(&mut original).is_pending());
-        let delayed_stop = tail.stop(Some(a));
+        let delayed_stop = tail.stop("b", Some(a));
         let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let replacement = tail.stream(
+            "b",
             Channel::new(move |event| {
                 events.send(event).unwrap();
                 Ok(())
@@ -392,7 +487,7 @@ mod tests {
             let event = tokio::select! { _ = &mut replacement => panic!("viewer exited"), e = rx.recv() => e.unwrap() };
             let tauri::ipc::InvokeResponseBody::Json(json) = event else { panic!() };
             assert_eq!(serde_json::from_str::<serde_json::Value>(&json).unwrap(), serde_json::json!({"type":"lines","data":["new line"]}));
-            assert!(tail.stop(Some(b)).await);
+            assert!(tail.stop("b", Some(b)).await);
             replacement.await.unwrap();
             original.await.unwrap();
         }).await.unwrap();
@@ -402,10 +497,23 @@ mod tests {
     async fn delayed_start_cannot_evict_new_viewer_and_reload_retires_quiet_poll() {
         let file = tempfile::NamedTempFile::new().unwrap();
         let tail = LogTail::new(file.path().into());
-        let a = tail.issue_viewer_id().unwrap();
-        let b = tail.issue_viewer_id().unwrap();
+        let a = tail.issue_viewer_id("b").unwrap();
+        let foreign = tail.issue_viewer_id("a").unwrap();
+        let b = tail.issue_viewer_id("b").unwrap();
+        tail.stream(
+            "b",
+            Channel::new(|_| panic!("foreign ID admitted")),
+            Some(foreign),
+        )
+        .await
+        .unwrap();
+        assert!(!tail.stop("a", Some(b)).await);
         let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        tail.issue_viewer_id("a").unwrap();
+        tail.retire_window("a", false);
+        tail.retire_window("a", true);
         let stream = tail.stream(
+            "b",
             Channel::new(move |event| {
                 events.send(event).unwrap();
                 Ok(())
@@ -415,16 +523,58 @@ mod tests {
         tokio::pin!(stream);
         tokio::time::timeout(Duration::from_secs(5), async {
             tokio::select! { _ = &mut stream => panic!("stream ended"), _ = rx.recv() => {} }
-            tail.stream(Channel::new(|_| panic!("stale start sent")), Some(a)).await.unwrap();
-            assert!(!tail.stop(Some(a)).await);
+            tail.issue_viewer_id("a").unwrap();
+            tail.retire_window("a", false);
+            tail.retire_window("a", true);
+            tail.stream("b", Channel::new(|_| panic!("stale start sent")), Some(a)).await.unwrap();
+            assert!(!tail.stop("b", Some(a)).await);
             std::fs::write(file.path(), "still watching\n").unwrap();
             let event = tokio::select! { _ = &mut stream => panic!("stream ended"), e = rx.recv() => e.unwrap() };
             let tauri::ipc::InvokeResponseBody::Json(json) = event else {panic!()};
             assert_eq!(serde_json::from_str::<serde_json::Value>(&json).unwrap()["data"], serde_json::json!(["still watching"]));
-            let pending = tail.issue_viewer_id().unwrap();
-            tail.stop_all();
+            let pending = tail.issue_viewer_id("b").unwrap();
+            tail.retire_window("b", false);
             stream.await.unwrap();
-            tail.stream(Channel::new(|_| panic!("retired page sent")), Some(pending)).await.unwrap();
+            tail.stream("b", Channel::new(|_| panic!("retired page sent")), Some(pending)).await.unwrap();
+        }).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn recreated_window_rejects_retired_ids_and_honors_legacy_stops() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let tail = LogTail::new(file.path().into());
+        let old = tail.issue_viewer_id("main").unwrap();
+        tail.retire_window("main", true);
+        assert!(tail.issue_viewer_id("main").unwrap() > old);
+        assert!(!tail.stop("main", Some(100)).await);
+        for rejected in [old, 100] {
+            tail.stream(
+                "main",
+                Channel::new(|_| panic!("retired viewer sent")),
+                Some(rejected),
+            )
+            .await
+            .unwrap();
+        }
+        let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let stream = tail.stream(
+            "main",
+            Channel::new(move |event| {
+                events.send(event).unwrap();
+                Ok(())
+            }),
+            Some(12),
+        );
+        tokio::pin!(stream);
+        tokio::time::timeout(Duration::from_secs(5), async {
+            for expected in [serde_json::json!({"type":"snapshot","data":[]}), serde_json::json!({"type":"lines","data":["hello"]})] {
+                let event = tokio::select! { _ = &mut stream => panic!("viewer exited"), e = rx.recv() => e.unwrap() };
+                let tauri::ipc::InvokeResponseBody::Json(json) = event else { panic!() };
+                assert_eq!(serde_json::from_str::<serde_json::Value>(&json).unwrap(), expected);
+                std::fs::write(file.path(), "hello\n").unwrap();
+            }
+            assert!(tail.stop("main", Some(12)).await);
+            stream.await.unwrap();
         }).await.unwrap();
     }
 
@@ -442,7 +592,7 @@ mod tests {
         let mut sub = Subscription::default();
         assert!(!sub.stop(Some(100)));
         assert_eq!(sub.begin(Some(100)), None);
-        assert!(sub.begin(Some(12)).is_none());
+        assert!(sub.begin(Some(12)).is_some());
         assert!(sub.begin(Some(101)).is_some());
         assert!(sub.begin(Some(102)).is_some());
         assert!(sub.begin(Some(101)).is_none());

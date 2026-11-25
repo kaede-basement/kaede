@@ -41,6 +41,80 @@ pub(crate) fn staging_file(parent: &Path) -> io::Result<tempfile::NamedTempFile>
     })
 }
 
+pub(crate) fn persist_temp_path(
+    mut temp: tempfile::TempPath,
+    dest: &Path,
+    replace: bool,
+) -> Result<(), tempfile::PathPersistError> {
+    let result = if replace {
+        std::fs::rename(&temp, dest)
+    } else {
+        #[cfg(not(windows))]
+        return temp.persist_noclobber(dest);
+        #[cfg(windows)]
+        move_noclobber(&temp, dest)
+    };
+    match result {
+        Ok(()) => {
+            temp.disable_cleanup(true);
+            Ok(())
+        }
+        Err(error) => Err(tempfile::PathPersistError { error, path: temp }),
+    }
+}
+
+#[cfg(windows)]
+fn move_noclobber(src: &Path, dst: &Path) -> io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn MoveFileExW(existing: *const u16, destination: *const u16, flags: u32) -> i32;
+    }
+    let wide = |path: &Path| {
+        verbatim_path(
+            &std::path::absolute(path)?
+                .as_os_str()
+                .encode_wide()
+                .collect::<Vec<_>>(),
+        )
+    };
+    let src = wide(src)?;
+    let dst = wide(dst)?;
+    // Both buffers are NUL-terminated. Zero flags preserves an existing destination.
+    if unsafe { MoveFileExW(src.as_ptr(), dst.as_ptr(), 0) } == 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(any(windows, test))]
+fn verbatim_path(absolute: &[u16]) -> io::Result<Vec<u16>> {
+    if absolute.contains(&0) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "NUL in Windows path",
+        ));
+    }
+    let slash = u16::from(b'\\');
+    let mut wide = Vec::with_capacity(absolute.len() + 9);
+    if absolute.starts_with(&[slash, slash]) {
+        let device = [slash, slash, u16::from(b'.'), slash];
+        let verbatim = [slash, slash, u16::from(b'?'), slash];
+        if absolute.starts_with(&verbatim) || absolute.starts_with(&device) {
+            wide.extend_from_slice(absolute);
+        } else {
+            wide.extend(r"\\?\UNC\".encode_utf16());
+            wide.extend_from_slice(&absolute[2..]);
+        }
+    } else {
+        wide.extend(r"\\?\".encode_utf16());
+        wide.extend_from_slice(absolute);
+    }
+    wide.push(0);
+    Ok(wide)
+}
+
 #[derive(Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ParsedFile {
@@ -193,16 +267,56 @@ mod tests {
             vec![dir.path().to_str().unwrap(), file.to_str().unwrap()]
         );
     }
+    #[test]
+    fn windows_publication_paths_preserve_drive_unc_and_device_names() {
+        for (input, expected) in [
+            (r"C:\a\b", r"\\?\C:\a\b"),
+            (r"\\server\share\a", r"\\?\UNC\server\share\a"),
+            (r"\\?\C:\a", r"\\?\C:\a"),
+            (r"\\?\UNC\server\share\a", r"\\?\UNC\server\share\a"),
+            (r"\\.\C:\a", r"\\.\C:\a"),
+        ] {
+            let wide = verbatim_path(&input.encode_utf16().collect::<Vec<_>>()).unwrap();
+            assert_eq!(wide, expected.encode_utf16().chain([0]).collect::<Vec<_>>());
+        }
+        assert!(verbatim_path(&[0]).is_err());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn publishes_beyond_max_path_with_and_without_replacement() {
+        let root = tempfile::tempdir().unwrap();
+        let parent = root.path().join("a".repeat(128)).join("b".repeat(128));
+        std::fs::create_dir_all(&parent).unwrap();
+        let dest = parent.join("object");
+        let stage = |bytes: &[u8]| {
+            let mut file = staging_file(&parent).unwrap();
+            std::io::Write::write_all(&mut file, bytes).unwrap();
+            file.into_temp_path()
+        };
+        persist_temp_path(stage(b"first"), &dest, false).unwrap();
+        assert_eq!(
+            persist_temp_path(stage(b"race"), &dest, false)
+                .unwrap_err()
+                .error
+                .kind(),
+            io::ErrorKind::AlreadyExists
+        );
+        assert_eq!(std::fs::read(&dest).unwrap(), b"first");
+        persist_temp_path(stage(b"replacement"), &dest, true).unwrap();
+        assert_eq!(std::fs::read(&dest).unwrap(), b"replacement");
+        assert_eq!(parent.read_dir().unwrap().count(), 1);
+    }
+
     #[cfg(windows)]
     #[test]
     fn published_file_has_no_temporary_attribute() {
         use std::os::windows::fs::MetadataExt;
         const FILE_ATTRIBUTE_TEMPORARY: u32 = 0x100;
         let dir = tempfile::tempdir().unwrap();
-        let mut staged = staging_file(dir.path()).unwrap().into_temp_path();
+        let staged = staging_file(dir.path()).unwrap().into_temp_path();
         let destination = dir.path().join("published.jar");
-        std::fs::rename(&staged, &destination).unwrap();
-        staged.disable_cleanup(true);
+        persist_temp_path(staged, &destination, true).unwrap();
         assert_eq!(
             destination.metadata().unwrap().file_attributes() & FILE_ATTRIBUTE_TEMPORARY,
             0

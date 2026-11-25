@@ -1,5 +1,5 @@
 use crate::{
-    downloads::{client, stream_file, DownloadError, Progress},
+    downloads::{client, stream_file, CancelSignal, DownloadError, Progress},
     hashing::{modpack_hashes, HashAlgorithm},
     modrinth::ManifestFile,
 };
@@ -138,7 +138,11 @@ impl ModStore {
             let mut selector = crate::file_system::staging_file(&cache)?;
             std::io::Write::write_all(&mut selector, name.as_bytes())?;
             selector.as_file().sync_all()?;
-            selector.persist(cache.join(SELECTOR))?;
+            crate::file_system::persist_temp_path(
+                selector.into_temp_path(),
+                &cache.join(SELECTOR),
+                true,
+            )?;
             #[cfg(unix)]
             let durable = fs::File::open(&cache).and_then(|dir| dir.sync_all());
             #[cfg(not(unix))]
@@ -186,28 +190,28 @@ impl ObjectTree {
     pub async fn ensure(
         self: &Arc<Self>,
         file: &ManifestFile,
-        cancel: &watch::Receiver<bool>,
+        cancel: &CancelSignal,
         siblings: Option<&watch::Receiver<bool>>,
-    ) -> Result<PathBuf, String> {
+    ) -> Result<PathBuf, DownloadError> {
         let tree = self.clone();
         let file = file.clone();
         crate::downloads::supervise(cancel, siblings, move |mut local| async move {
             tree.ensure_object(&file, &mut local).await
         })
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(DownloadError::other)?
     }
 
     async fn ensure_object(
         self: Arc<Self>,
         file: &ManifestFile,
         cancel: &mut crate::downloads::TransferStop,
-    ) -> Result<PathBuf, String> {
+    ) -> Result<PathBuf, DownloadError> {
         let prefix = &file.sha512[..2];
-        let shard = usize::from_str_radix(prefix, 16).map_err(|e| e.to_string())?;
+        let shard = usize::from_str_radix(prefix, 16).map_err(DownloadError::other)?;
         let _guard = tokio::select! {
             biased;
-            _ = cancel.cancelled() => return Err("Installation cancelled".into()),
+            _ = cancel.cancelled() => return Err(DownloadError::Cancelled),
             guard = self.shards[shard].lock() => guard,
         };
         let parent = self.root.join("sha512").join(prefix);
@@ -223,36 +227,39 @@ impl ObjectTree {
             let expected_size = file.file_size;
             let name = file.path.clone();
             tokio::task::spawn_blocking(move || {
-                plain_directory(&parent).map_err(|e| e.to_string())?;
+                plain_directory(&parent).map_err(DownloadError::other)?;
                 match fs::symlink_metadata(&path) {
                     Ok(meta) if !meta.is_file() || is_reparse_point(&meta) => {
-                        return Err(format!("Invalid object: {}", path.display()))
+                        return Err(DownloadError::Other(format!(
+                            "Invalid object: {}",
+                            path.display()
+                        )))
                     }
                     Ok(meta) => {
-                        let actual = modpack_hashes(&path).map_err(|e| e.to_string())?;
+                        let actual = modpack_hashes(&path).map_err(DownloadError::other)?;
                         if actual.0 == expected_hash {
                             if actual.1 != expected_sha1 || meta.len() != expected_size {
-                                return Err(format!(
+                                return Err(DownloadError::Integrity(format!(
                                     "Contradictory manifest integrity for {}",
                                     name
-                                ));
+                                )));
                             }
                             return Ok(true);
                         }
-                        fs::remove_file(&path).map_err(|e| e.to_string())?;
+                        fs::remove_file(&path).map_err(DownloadError::other)?;
                     }
                     Err(e) if e.kind() == io::ErrorKind::NotFound => {}
-                    Err(e) => return Err(e.to_string()),
+                    Err(e) => return Err(DownloadError::other(e)),
                 }
                 Ok(false)
             })
             .await
-            .map_err(|e| e.to_string())??
+            .map_err(DownloadError::other)??
         };
         if cached {
             return Ok(path);
         }
-        let client = client().await?;
+        let client = client().await.map_err(DownloadError::Other)?;
         let mut failures = Vec::new();
         let mut first_integrity_failure = None;
         for url in std::iter::once(&file.url).chain(&file.mirrors) {
@@ -269,9 +276,9 @@ impl ObjectTree {
             {
                 Ok(()) => return Ok(path),
                 Err(DownloadError::Cancelled) => {
-                    return Err(
-                        first_integrity_failure.unwrap_or_else(|| "Installation cancelled".into())
-                    )
+                    return Err(first_integrity_failure
+                        .map(DownloadError::Integrity)
+                        .unwrap_or(DownloadError::Cancelled))
                 }
                 Err(DownloadError::Integrity(error)) => {
                     first_integrity_failure.get_or_insert_with(|| error.clone());
@@ -280,11 +287,16 @@ impl ObjectTree {
                 Err(DownloadError::Other(error)) => failures.push(error),
             }
         }
-        Err(format!(
+        let details = format!(
             "All mirrors failed for {}: {}",
             file.path,
             failures.join(", ")
-        ))
+        );
+        Err(if first_integrity_failure.is_some() {
+            DownloadError::Integrity(details)
+        } else {
+            DownloadError::Other(details)
+        })
     }
 }
 
@@ -335,9 +347,12 @@ pub fn materialize_blob(src: &Path, dst: &Path) -> io::Result<()> {
         let to = CString::new(copy.as_os_str().as_bytes())?;
         // Both strings live for the call and clonefile creates a new file.
         if unsafe { libc::clonefile(from.as_ptr(), to.as_ptr(), 0) } == 0 {
-            return tempfile::TempPath::from_path(copy)
-                .persist_noclobber(dst)
-                .map_err(|error| error.error);
+            return crate::file_system::persist_temp_path(
+                tempfile::TempPath::from_path(copy),
+                dst,
+                false,
+            )
+            .map_err(|error| error.error);
         }
     }
     let stage = crate::file_system::staging_file(parent)?;
@@ -354,10 +369,7 @@ pub fn materialize_blob(src: &Path, dst: &Path) -> io::Result<()> {
     if !cloned {
         fs::copy(src, stage.path())?;
     }
-    stage
-        .persist_noclobber(dst)
-        .map(|_| ())
-        .map_err(|e| e.error)
+    crate::file_system::persist_temp_path(stage.into_temp_path(), dst, false).map_err(|e| e.error)
 }
 
 #[cfg(test)]

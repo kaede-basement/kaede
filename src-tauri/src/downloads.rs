@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-        Arc, Mutex, OnceLock,
+        Arc, Mutex, OnceLock, RwLock, RwLockReadGuard,
     },
     time::Duration,
 };
@@ -255,7 +255,22 @@ pub(crate) enum DownloadError {
 }
 
 impl DownloadError {
-    fn other(error: impl ToString) -> Self {
+    pub(crate) fn priority(&self) -> u8 {
+        match self {
+            Self::Cancelled => 0,
+            Self::Other(_) => 1,
+            Self::Integrity(_) => 2,
+        }
+    }
+
+    pub(crate) fn install_message(self) -> String {
+        match self {
+            Self::Cancelled => "Installation cancelled".into(),
+            Self::Other(message) | Self::Integrity(message) => message,
+        }
+    }
+
+    pub(crate) fn other(error: impl ToString) -> Self {
         DownloadError::Other(error.to_string())
     }
 }
@@ -275,16 +290,53 @@ enum InstallPhase {
     Running(InstallDecision),
 }
 
+#[derive(Clone)]
+pub(crate) struct CancelSignal {
+    receiver: watch::Receiver<bool>,
+    publish_gate: Arc<RwLock<bool>>,
+}
+
+impl CancelSignal {
+    pub(crate) fn channel() -> (watch::Sender<bool>, Self) {
+        let (sender, receiver) = watch::channel(false);
+        (
+            sender,
+            Self {
+                receiver,
+                publish_gate: Arc::default(),
+            },
+        )
+    }
+}
+
+impl std::ops::Deref for CancelSignal {
+    type Target = watch::Receiver<bool>;
+    fn deref(&self) -> &Self::Target {
+        &self.receiver
+    }
+}
+
+impl std::ops::DerefMut for CancelSignal {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.receiver
+    }
+}
+
 struct CancelEntry {
     flag: watch::Sender<bool>,
+    signal: CancelSignal,
+    cancel_requested: bool,
     batches: usize,
     install: InstallPhase,
 }
 
 impl Default for CancelEntry {
     fn default() -> Self {
+        let (flag, signal) = CancelSignal::channel();
         Self {
-            flag: watch::channel(false).0,
+            flag,
+            signal,
+            cancel_requested: false,
             batches: 0,
             install: InstallPhase::Absent,
         }
@@ -294,19 +346,19 @@ impl Default for CancelEntry {
 pub(crate) struct Registration {
     flags: CancelFlags,
     id: String,
-    receiver: watch::Receiver<bool>,
+    signal: CancelSignal,
     install: Option<InstallDecision>,
 }
 
 impl std::ops::Deref for Registration {
-    type Target = watch::Receiver<bool>;
+    type Target = CancelSignal;
     fn deref(&self) -> &Self::Target {
-        &self.receiver
+        &self.signal
     }
 }
 impl std::ops::DerefMut for Registration {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.receiver
+        &mut self.signal
     }
 }
 impl Drop for Registration {
@@ -315,7 +367,7 @@ impl Drop for Registration {
         let Some(entry) = entries.get_mut(&self.id) else {
             return;
         };
-        if !entry.flag.subscribe().same_channel(&self.receiver) {
+        if !Arc::ptr_eq(&entry.signal.publish_gate, &self.signal.publish_gate) {
             return;
         }
         if let Some(own) = &self.install {
@@ -481,48 +533,39 @@ impl CancelFlags {
             return Err("Expired install reservation".into());
         }
         let decision = InstallDecision::default();
+        if entry.cancel_requested {
+            decision.claim();
+        }
         entry.install = InstallPhase::Running(decision.clone());
         let registration = Registration {
             flags: self.clone(),
             id: id.into(),
-            receiver: entry.flag.subscribe(),
+            signal: entry.signal.clone(),
             install: Some(decision.clone()),
         };
-        drop(entries);
-        if *registration.borrow() {
-            decision.claim();
-        }
         Ok((registration, decision))
     }
 
-    fn cancel(&self, id: &str) -> bool {
-        let flag = self
-            .0
-            .lock()
-            .unwrap()
-            .get(id)
-            .map(|entry| entry.flag.clone());
-        let Some(flag) = flag else {
-            return false;
-        };
-        // Acquire the publication fence before the registry: a slow rename
-        // must not hold up registration for other cancellation groups.
-        flag.send_if_modified(|cancelled| {
-            let entries = self.0.lock().unwrap();
-            let Some(entry) = entries.get(id) else {
-                return false;
+    async fn cancel(&self, id: &str) -> Result<bool, String> {
+        let (flag, gate) = {
+            let mut entries = self.0.lock().unwrap();
+            let Some(entry) = entries.get_mut(id) else {
+                return Ok(false);
             };
-            if !entry.flag.same_channel(&flag) {
-                return false;
-            }
             if matches!(&entry.install, InstallPhase::Running(d) if !d.claim())
                 && entry.batches == 0
             {
-                return false;
+                return Ok(false);
             }
-            *cancelled = true;
-            true
-        })
+            // A prepared install can start between releasing the registry and notifying workers.
+            entry.cancel_requested = true;
+            (entry.flag.clone(), entry.signal.publish_gate.clone())
+        };
+        flag.send_replace(true);
+        tokio::task::spawn_blocking(move || *gate.write().unwrap() = true)
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(true)
     }
 
     pub(crate) fn register(&self, id: &str) -> Registration {
@@ -532,7 +575,7 @@ impl CancelFlags {
         Registration {
             flags: self.clone(),
             id: id.into(),
-            receiver: entry.flag.subscribe(),
+            signal: entry.signal.clone(),
             install: None,
         }
     }
@@ -557,10 +600,7 @@ pub async fn cancel_downloads(
     state: State<'_, CancelFlags>,
     cancel_id: String,
 ) -> Result<bool, String> {
-    let flags = state.inner().clone();
-    tokio::task::spawn_blocking(move || flags.cancel(&cancel_id))
-        .await
-        .map_err(|e| e.to_string())
+    state.cancel(&cancel_id).await
 }
 
 #[tauri::command]
@@ -741,7 +781,7 @@ async fn download_one(
     client: &reqwest::Client,
     entry: &DownloadEntry,
     progress: &Progress,
-    cancel: &mut watch::Receiver<bool>,
+    cancel: &mut CancelSignal,
 ) -> Result<(), DownloadError> {
     let transfer = entry.validate()?;
     let path = PathBuf::from(&entry.path);
@@ -756,7 +796,7 @@ async fn download_one(
 
 #[derive(Clone)]
 pub(crate) struct TransferStop {
-    user: watch::Receiver<bool>,
+    user: CancelSignal,
     siblings: Option<watch::Receiver<bool>>,
     abandoned: watch::Receiver<()>,
 }
@@ -775,9 +815,10 @@ impl TransferStop {
         }
     }
 
-    fn publish(&self, partial: tempfile::TempPath, path: &Path) -> Result<(), DownloadError> {
-        let cancelled = self.user.borrow();
-        if *cancelled
+    fn publication_permit(&self) -> Result<RwLockReadGuard<'_, bool>, DownloadError> {
+        let gate = self.user.publish_gate.read().unwrap();
+        if *gate
+            || *self.user.borrow()
             || self.user.has_changed().is_err()
             || self.abandoned.has_changed().is_err()
             || self
@@ -787,17 +828,19 @@ impl TransferStop {
         {
             return Err(DownloadError::Cancelled);
         }
-        // cancel_downloads can acknowledge cancellation only before or after this rename.
-        partial.persist(path).map_err(DownloadError::other)?;
-        drop(cancelled);
-        Ok(())
+        Ok(gate)
+    }
+
+    fn publish(&self, partial: tempfile::TempPath, path: &Path) -> Result<(), DownloadError> {
+        let _permit = self.publication_permit()?;
+        crate::file_system::persist_temp_path(partial, path, true).map_err(DownloadError::other)
     }
 }
 
 // The supervisor owns the sender until completion. Dropping it wakes the
 // worker, which retains its claim through blocking retirement.
 pub(crate) async fn supervise<F, T>(
-    user: &watch::Receiver<bool>,
+    user: &CancelSignal,
     siblings: Option<&watch::Receiver<bool>>,
     work: impl FnOnce(TransferStop) -> F,
 ) -> Result<T, tokio::task::JoinError>
@@ -1066,14 +1109,14 @@ mod tests {
         assert!(flags.start_install("pack", None).is_ok());
     }
 
-    #[test]
-    fn prepared_cancel_and_page_revocation_preserve_shared_registrations() {
+    #[tokio::test]
+    async fn prepared_cancel_and_page_revocation_preserve_shared_registrations() {
         let flags = CancelFlags::default();
         let batch = flags.register("shared");
         flags
             .reserve_install("shared".into(), 1, scope(1), scope(10))
             .unwrap();
-        assert!(flags.cancel("shared"));
+        assert!(flags.cancel("shared").await.unwrap());
         let (run, decision) = flags.start_install("shared", Some(1)).unwrap();
         assert!(*run.borrow() && *batch.borrow());
         assert!(!decision.claim());
@@ -1097,10 +1140,46 @@ mod tests {
         let (run, published) = flags.start_install("shared", None).unwrap();
         let sibling = flags.register("shared");
         assert!(published.claim());
-        assert!(flags.cancel("shared"));
+        assert!(flags.cancel("shared").await.unwrap());
         assert!(*sibling.borrow());
         drop((run, sibling));
         assert!(flags.0.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn cancellation_wakes_siblings_before_waiting_for_an_admitted_rename() {
+        let flags = CancelFlags::default();
+        let owner = flags.register("group");
+        let mut sibling = flags.register("group");
+        let (ready, entered) = tokio::sync::oneshot::channel();
+        let (release, wait) = std::sync::mpsc::channel();
+        let rename = supervise(&owner, None, move |stop| async move {
+            tokio::task::spawn_blocking(move || {
+                let _permit = stop.publication_permit().unwrap();
+                ready.send(()).unwrap();
+                wait.recv_timeout(Duration::from_secs(5)).unwrap();
+            })
+            .await
+            .unwrap();
+        });
+        tokio::pin!(rename);
+        tokio::select! { _ = &mut rename => panic!("publication finished early"), result = entered => result.unwrap() }
+        let cancelling = flags.cancel("group");
+        tokio::pin!(cancelling);
+        tokio::time::timeout(Duration::from_secs(3), async {
+            tokio::select! {
+                biased;
+                _ = &mut cancelling => panic!("cancel acknowledged an unfinished rename"),
+                changed = sibling.wait_for(|cancelled| *cancelled) => assert!(*changed.unwrap()),
+            }
+            tokio::spawn(async {}).await.unwrap();
+            assert!(futures_util::poll!(&mut cancelling).is_pending());
+            release.send(()).unwrap();
+            assert!(cancelling.await.unwrap());
+            rename.await.unwrap();
+        })
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -1128,7 +1207,7 @@ mod tests {
         tokio::pin!(supervisor);
         assert!(futures_util::poll!(&mut supervisor).is_pending());
         at_publication.await.unwrap();
-        assert!(flags.cancel("user"));
+        assert!(flags.cancel("user").await.unwrap());
         release.send(()).unwrap();
         // No poll of the supervisor between cancellation and this publication attempt.
         assert!(matches!(
@@ -1196,7 +1275,7 @@ mod tests {
         };
         let client = reqwest::Client::new();
         let progress = Progress::default();
-        let (_tx, mut cancel) = watch::channel(false);
+        let (_tx, mut cancel) = CancelSignal::channel();
         let mut first_cancel = cancel.clone();
         let mut first = Box::pin(download_one(&client, &entry, &progress, &mut first_cancel));
         tokio::time::timeout(Duration::from_secs(5), async {
@@ -1221,8 +1300,9 @@ mod tests {
         assert_eq!(root.path().read_dir().unwrap().count(), 2);
     }
 
-    #[test]
-    fn cancellation_and_publication_have_one_winner() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn cancellation_and_publication_have_one_winner() {
+        let runtime = tokio::runtime::Handle::current();
         let root = tempfile::tempdir().unwrap();
         let flags = CancelFlags::default();
         for _ in 0..16 {
@@ -1236,7 +1316,7 @@ mod tests {
             std::thread::scope(|scope| {
                 let cancel = scope.spawn(|| {
                     barrier.wait();
-                    flags.cancel("install")
+                    runtime.block_on(flags.cancel("install")).unwrap()
                 });
                 barrier.wait();
                 let published = decision.publish(stage.path(), &target).is_ok();
@@ -1271,7 +1351,7 @@ mod tests {
                 hash,
                 size,
             };
-            let (_tx, mut cancel) = watch::channel(false);
+            let (_tx, mut cancel) = CancelSignal::channel();
             let progress = Progress::default();
             let client = reqwest::Client::builder().no_proxy().build().unwrap();
             let (result, ()) = tokio::join!(

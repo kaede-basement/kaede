@@ -1,6 +1,6 @@
 use crate::zip::{open_archive, read_limited, relative_name, Extraction};
 use crate::{
-    downloads::{CancelFlags, InstallDecision},
+    downloads::{CancelFlags, CancelSignal, DownloadError, InstallDecision},
     hashing::HashAlgorithm,
     mod_store::{materialize_blob, ModStore},
 };
@@ -138,7 +138,7 @@ async fn install(
     target: PathBuf,
     store: &ModStore,
     decision: InstallDecision,
-    cancel: &mut watch::Receiver<bool>,
+    cancel: &mut CancelSignal,
     progress: impl Fn(usize, usize),
 ) -> Result<MrpackManifest, String> {
     check_cancel(cancel)?;
@@ -158,7 +158,7 @@ async fn install_manifest(
     target: PathBuf,
     store: &ModStore,
     decision: InstallDecision,
-    cancel: &mut watch::Receiver<bool>,
+    cancel: &mut CancelSignal,
     progress: impl Fn(usize, usize),
 ) -> Result<MrpackManifest, String> {
     let mut blobs = Vec::with_capacity(manifest.files.len());
@@ -195,7 +195,7 @@ async fn install_manifest(
                 next = pending.next() => next,
                 _ = cancel.wait_for(|x| *x), if error.is_none() => {
                     stop.send_replace(true);
-                    error = Some("Installation cancelled".to_owned());
+                    error = Some(DownloadError::Cancelled);
                     continue;
                 }
             };
@@ -206,7 +206,10 @@ async fn install_manifest(
                 }
                 Some(Err(reason)) => {
                     stop.send_replace(true);
-                    if error.is_none() || error.as_deref() == Some("Installation cancelled") {
+                    if error
+                        .as_ref()
+                        .map_or(true, |previous| reason.priority() > previous.priority())
+                    {
                         error = Some(reason);
                     }
                 }
@@ -214,7 +217,7 @@ async fn install_manifest(
             }
         }
         if let Some(reason) = error {
-            return Err(reason);
+            return Err(reason.install_message());
         }
         Some(store)
     };
@@ -337,9 +340,7 @@ fn restore_override(
             .map_err(|e| e.to_string())?;
     }
     accept_existing(
-        stage
-            .persist_noclobber(dest)
-            .map(|_| ())
+        crate::file_system::persist_temp_path(stage.into_temp_path(), dest, false)
             .map_err(|e| e.error),
         dest,
     )
@@ -351,7 +352,7 @@ async fn repair(
     archive_path: PathBuf,
     root: PathBuf,
     store: &ModStore,
-    cancel: &mut watch::Receiver<bool>,
+    cancel: &mut CancelSignal,
     progress: impl Fn(usize, usize) + Send + Clone + 'static,
 ) -> Result<RepairOutcome, String> {
     progress(0, 1);
@@ -422,7 +423,10 @@ async fn repair(
                     objects.insert(tree)
                 }
             };
-            let blob = store.ensure(file, cancel, None).await?;
+            let blob = store
+                .ensure(file, cancel, None)
+                .await
+                .map_err(DownloadError::install_message)?;
             check_cancel(cancel)?;
             let lease = store.clone();
             tokio::task::spawn_blocking(move || {
@@ -661,7 +665,7 @@ mod tests {
             summary: None,
             overrides: 0,
         };
-        let (stop, mut cancel) = watch::channel(false);
+        let (stop, mut cancel) = CancelSignal::channel();
         let failed = root.path().join("failed");
         let result = install_manifest(
             archive(&[]),
@@ -774,7 +778,7 @@ mod tests {
             }
             zip.finish().unwrap();
             let store = ModStore::new(root.path());
-            let (_send, mut cancel) = watch::channel(false);
+            let (_send, mut cancel) = CancelSignal::channel();
             let target = root.path().join("instances/id");
             assert!(install(
                 pack,
@@ -837,7 +841,7 @@ mod tests {
         entry.url = format!("http://{}", listener.local_addr().unwrap());
         let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
         manifest.files.push(entry);
-        let (stop, mut cancel) = watch::channel(false);
+        let (stop, mut cancel) = CancelSignal::channel();
         let install = install_manifest(
             archive(&[]),
             manifest,
@@ -877,7 +881,7 @@ mod tests {
         std::fs::write(root.path().join("cache"), b"occupied").unwrap();
         let store = ModStore::new(root.path());
         let target = root.path().join("instance");
-        let (_tx, mut cancel) = watch::channel(false);
+        let (_tx, mut cancel) = CancelSignal::channel();
         let manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
         let result = install_manifest(
             archive(&[("overrides/options.txt", "content")]),
@@ -911,7 +915,7 @@ mod tests {
         let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
         manifest.files.push(file);
         let target = root.path().join("instance");
-        let (stop, mut cancel) = watch::channel(false);
+        let (stop, mut cancel) = CancelSignal::channel();
         let install = install_manifest(
             archive(&[]),
             manifest,
@@ -941,6 +945,73 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn sibling_404_cancels_stalled_retry_and_reports_prior_integrity_error() {
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let addr = listener.local_addr().unwrap();
+        let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
+        for route in ["primary", "missing"] {
+            let (mut file, blob) = seed_blob(root.path(), route.as_bytes());
+            std::fs::remove_file(blob).unwrap();
+            file.url = format!("http://{addr}/{route}");
+            file.path = route.into();
+            if route == "primary" {
+                file.mirrors.push(format!("http://{addr}/retry"));
+            }
+            manifest.files.push(file);
+        }
+        let (_tx, mut cancel) = CancelSignal::channel();
+        let target = root.path().join("instance");
+        let attempt = install_manifest(
+            archive(&[]),
+            manifest,
+            target.clone(),
+            &store,
+            InstallDecision::default(),
+            &mut cancel,
+            |_, _| {},
+        );
+        let server = async {
+            let (first, route) = accept_request(&listener).await;
+            let (second, _) = accept_request(&listener).await;
+            let (primary, missing) = if route.contains("/primary") {
+                (first, second)
+            } else {
+                (second, first)
+            };
+            respond(
+                primary,
+                b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\ncorrupt",
+            )
+            .await;
+            let (mut held, route) = accept_request(&listener).await;
+            assert!(route.contains("/retry"));
+            tokio::io::AsyncWriteExt::write_all(
+                &mut held,
+                b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\np",
+            )
+            .await
+            .unwrap();
+            respond(
+                missing,
+                b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n",
+            )
+            .await;
+            held
+        };
+        let (result, _held) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            tokio::join!(attempt, server)
+        })
+        .await
+        .unwrap();
+        assert!(result.err().unwrap().contains("Hash mismatch"));
+        assert!(!target.exists());
+    }
+
+    #[tokio::test]
     async fn terminal_integrity_failure_drains_stalled_sibling() {
         use tokio::io::AsyncWriteExt;
         let root = tempfile::tempdir().unwrap();
@@ -961,7 +1032,7 @@ mod tests {
             file.path = body.into();
             manifest.files.push(file);
         }
-        let (_tx, mut cancel) = watch::channel(false);
+        let (_tx, mut cancel) = CancelSignal::channel();
         let target = root.path().join("instance");
         let attempt = install_manifest(
             archive(&[]),
@@ -1024,7 +1095,7 @@ mod tests {
             manifest
         };
         let initial = std::sync::Arc::downgrade(&store.lease().await.unwrap());
-        let (_tx, mut cancel) = watch::channel(false);
+        let (_tx, mut cancel) = CancelSignal::channel();
         let mut second_cancel = cancel.clone();
         let a = root.path().join("a");
         let b = root.path().join("b");
@@ -1089,7 +1160,7 @@ mod tests {
         assert!(!blob.exists());
         drop(listener);
         let active = store.lease().await.unwrap();
-        let (_tx, cancel) = watch::channel(false);
+        let (_tx, cancel) = CancelSignal::channel();
         assert_eq!(
             std::fs::read(active.ensure(&file, &cancel, None).await.unwrap()).unwrap(),
             b"blob"
@@ -1113,7 +1184,7 @@ mod tests {
             }
             let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
             manifest.files.push(file);
-            let (_stop, mut cancel) = watch::channel(false);
+            let (_stop, mut cancel) = CancelSignal::channel();
             let target = root.path().join("instance");
             let attempt = install_manifest(
                 archive(&[]),
@@ -1151,7 +1222,7 @@ mod tests {
         let url = format!("http://{}", listener.local_addr().unwrap());
         file.url = format!("{url}/first");
         file.mirrors = vec![format!("{url}/second")];
-        let (_stop, cancel) = watch::channel(false);
+        let (_stop, cancel) = CancelSignal::channel();
         let store = store.lease().await.unwrap();
         let (result, ()) = tokio::join!(store.ensure(&file, &cancel, None), async {
             for response in [
@@ -1170,7 +1241,7 @@ mod tests {
     async fn missing_legacy_archive_permits_launch_and_keeps_migration_pending() {
         let root = tempfile::tempdir().unwrap();
         let store = ModStore::new(root.path());
-        let (_tx, mut rx) = watch::channel(false);
+        let (_tx, mut rx) = CancelSignal::channel();
         for path in [root.path().join("moved.mrpack"), root.path().to_owned()] {
             assert_eq!(
                 repair(
@@ -1215,7 +1286,7 @@ mod tests {
         std::fs::create_dir_all(minecraft.join("Mods")).unwrap();
         std::fs::write(minecraft.join("Mods/disabled.jar.disabled"), "edited").unwrap();
         std::fs::write(minecraft.join("options.txt"), "edited").unwrap();
-        let (stop, mut cancel) = watch::channel(false);
+        let (stop, mut cancel) = CancelSignal::channel();
         let abort = stop.clone();
         let interrupted = repair(
             pack.clone(),
