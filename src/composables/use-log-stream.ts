@@ -55,6 +55,8 @@ export function useLogStream(): {
     const id = await invoke<number>("next_log_subscription_id");
 
     if (!mounted) {
+      await Logging.stopStreamingLogs(undefined, id);
+
       return;
     }
     token = id;

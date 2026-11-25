@@ -10,6 +10,7 @@ mod hashing;
 mod image;
 #[cfg(any(windows, target_os = "linux"))]
 mod ipc_batch;
+mod ipc_dispatch;
 mod logging;
 mod modrinth;
 mod mod_store;
@@ -18,10 +19,16 @@ mod system;
 mod translations;
 mod zip;
 
-type Invoke = tauri::ipc::Invoke<tauri::Wry>;
+type Incoming = tauri::ipc::Invoke<tauri::Wry>;
 
-fn argument<'a, T: tauri::ipc::CommandArg<'a, tauri::Wry>>(
-    invoke: &'a Invoke,
+struct Invoke<R: tauri::Runtime = tauri::Wry> {
+    post: ipc_dispatch::Post,
+    message: tauri::ipc::InvokeMessage<R>,
+    acl: Option<Vec<tauri::utils::acl::resolved::ResolvedCommand>>,
+}
+
+fn argument<'a, T: tauri::ipc::CommandArg<'a, R>, R: tauri::Runtime>(
+    invoke: &'a Invoke<R>,
     name: &'static str,
     key: &'static str,
 ) -> Result<T, tauri::ipc::InvokeError> {
@@ -34,63 +41,11 @@ fn argument<'a, T: tauri::ipc::CommandArg<'a, tauri::Wry>>(
     })
 }
 
-fn dispatch<T, F>(
-    invoke: Invoke,
-    bind: impl FnOnce(&Invoke) -> Result<F, tauri::ipc::InvokeError>,
-) -> bool
-where
-    T: tauri::ipc::IpcResponse,
-    F: std::future::Future<Output = Result<T, String>> + Send + 'static,
-{
-    match bind(&invoke) {
-        Ok(work) => invoke
-            .resolver
-            .respond_async(async move { work.await.map_err(Into::into) }),
-        Err(error) => invoke.resolver.invoke_error(error),
-    }
-    true
-}
-
-// Claim the cancellation ID before dispatch advances. Keep entry-list decoding in the worker.
-fn dispatch_registered<P, T, F>(
-    invoke: Invoke,
-    name: &'static str,
-    work: impl FnOnce(Invoke, downloads::Registration, tauri::ipc::Channel<P>) -> F,
-) -> bool
-where
-    T: tauri::ipc::IpcResponse,
-    F: std::future::Future<Output = Result<T, tauri::ipc::InvokeError>> + Send + 'static,
-{
-    let bind = || -> Result<_, tauri::ipc::InvokeError> {
-        let id: String = argument(&invoke, name, "cancelId")?;
-        let progress = argument(&invoke, name, "onProgress")?;
-        let flags: tauri::State<downloads::CancelFlags> = argument(&invoke, name, "flags")?;
-        Ok((flags.register(&id), progress))
-    };
-    match bind() {
-        Ok((registration, progress)) => {
-            invoke
-                .resolver
-                .clone()
-                .respond_async(work(invoke, registration, progress))
-        }
-        Err(error) => invoke.resolver.invoke_error(error),
-    }
-    true
-}
-
-fn bind_at_dispatch(other: impl Fn(Invoke) -> bool) -> impl Fn(Invoke) -> bool {
+fn bind_at_dispatch(other: impl Fn(Incoming) -> bool) -> impl Fn(Incoming) -> bool {
+    use ipc_dispatch::dispatch;
     move |invoke| match invoke.message.command() {
-        "concurrently_download" => dispatch_registered(
-            invoke,
-            "concurrently_download",
-            downloads::concurrently_download,
-        ),
-        "repair_legacy_mrpack" => dispatch_registered(
-            invoke,
-            "repair_legacy_mrpack",
-            modrinth::repair_legacy_mrpack,
-        ),
+        "concurrently_download" => dispatch(invoke, downloads::concurrently_download),
+        "repair_legacy_mrpack" => dispatch(invoke, modrinth::repair_legacy_mrpack),
         "cancel_downloads" => dispatch(invoke, downloads::cancel_downloads),
         "install_mrpack" => dispatch(invoke, modrinth::install_mrpack),
         "stream_logs" => dispatch(invoke, logging::stream_logs),

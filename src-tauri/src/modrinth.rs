@@ -109,9 +109,14 @@ pub(crate) fn install_mrpack(
     let target = crate::argument(invoke, NAME, "targetDirPath")?;
     let id: String = crate::argument(invoke, NAME, "cancelId")?;
     let reservation = crate::argument(invoke, NAME, "reservation")?;
-    let progress: Channel<(usize, usize)> = crate::argument(invoke, NAME, "onProgress")?;
+    let progress: Channel<(usize, usize)> = crate::ipc_dispatch::channel(
+        invoke,
+        NAME,
+        "onProgress",
+        crate::ipc_dispatch::Delivery::Queued,
+    )?;
     let webview = invoke.message.webview_ref();
-    let store = crate::argument::<State<ModStore>>(invoke, NAME, "store")?
+    let store = crate::argument::<State<ModStore>, _>(invoke, NAME, "store")?
         .inner()
         .clone();
     let flags: State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
@@ -271,30 +276,39 @@ pub enum RepairOutcome {
     ArchiveUnavailable,
 }
 
-pub(crate) async fn repair_legacy_mrpack(
-    invoke: crate::Invoke,
-    mut cancel: crate::downloads::Registration,
-    on_progress: Channel<(usize, usize)>,
-) -> Result<RepairOutcome, tauri::ipc::InvokeError> {
+pub(crate) fn repair_legacy_mrpack(
+    invoke: &crate::Invoke,
+) -> Result<impl std::future::Future<Output = Result<RepairOutcome, String>>, tauri::ipc::InvokeError>
+{
     const NAME: &str = "repair_legacy_mrpack";
-    let archive_path = crate::argument(&invoke, NAME, "archivePath")?;
-    let target_dir_path = crate::argument(&invoke, NAME, "targetDirPath")?;
-    let store = crate::argument::<State<ModStore>>(&invoke, NAME, "store")?
+    let id: String = crate::argument(invoke, NAME, "cancelId")?;
+    let flags: State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
+    let on_progress = crate::ipc_dispatch::channel(
+        invoke,
+        NAME,
+        "onProgress",
+        crate::ipc_dispatch::Delivery::Queued,
+    )?;
+    let archive_path = crate::argument(invoke, NAME, "archivePath")?;
+    let target_dir_path = crate::argument(invoke, NAME, "targetDirPath")?;
+    let store = crate::argument::<State<ModStore>, _>(invoke, NAME, "store")?
         .inner()
         .clone();
-    drop(invoke);
-    let result = repair(
-        archive_path,
-        target_dir_path,
-        &store,
-        &mut cancel,
-        move |done, total| {
-            let _ = on_progress.send((done, total));
-        },
-    )
-    .await?;
-    check_cancel(&cancel)?;
-    Ok(result)
+    let mut cancel = flags.register(&id);
+    Ok(async move {
+        let result = repair(
+            archive_path,
+            target_dir_path,
+            &store,
+            &mut cancel,
+            move |done, total| {
+                let _ = on_progress.send((done, total));
+            },
+        )
+        .await?;
+        check_cancel(&cancel)?;
+        Ok(result)
+    })
 }
 
 struct RepairExtraction {

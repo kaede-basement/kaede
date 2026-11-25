@@ -439,8 +439,9 @@ pub(crate) fn stream_logs(
 ) -> Result<impl std::future::Future<Output = Result<(), String>>, tauri::ipc::InvokeError> {
     const NAME: &str = "stream_logs";
     let (caller, viewer) = bind_viewer(invoke, NAME)?;
-    let channel = crate::argument(invoke, NAME, "onEvent")?;
-    let tail = crate::argument::<State<Arc<LogTail>>>(invoke, NAME, "state")?
+    let channel =
+        crate::ipc_dispatch::channel(invoke, NAME, "onEvent", crate::ipc_dispatch::Delivery::Wait)?;
+    let tail = crate::argument::<State<Arc<LogTail>>, _>(invoke, NAME, "state")?
         .inner()
         .clone();
     let completion = caller.0.map(|window| tail.stream(&window, channel, viewer));

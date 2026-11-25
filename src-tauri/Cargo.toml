@@ -71,6 +71,9 @@ tauri-plugin-single-instance = "2.5.5"
 # Modded shell plugin that allows any commands (...recipe for disaster?)
 tauri-plugin-shellx = "2.0.16"
 
+[dev-dependencies]
+tauri = { version = "2.12.5", features = ["test"] }
+
 [profile.release]
 # Compile each crate as one unit instead of 16 parallel units.
 # The build becomes slower, but more optimizations might be applied

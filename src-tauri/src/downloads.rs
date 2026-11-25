@@ -631,28 +631,41 @@ pub(crate) async fn client() -> Result<&'static reqwest::Client, String> {
 
 pub(crate) type Progress = Arc<Mutex<HashMap<String, FileProgress>>>;
 
-pub(crate) fn cancel_downloads(
-    invoke: &crate::Invoke,
+pub(crate) fn cancel_downloads<R: tauri::Runtime>(
+    invoke: &crate::Invoke<R>,
 ) -> Result<impl std::future::Future<Output = Result<bool, String>>, tauri::ipc::InvokeError> {
     let id: String = crate::argument(invoke, "cancel_downloads", "cancelId")?;
     let flags: State<CancelFlags> = crate::argument(invoke, "cancel_downloads", "state")?;
     Ok(flags.cancel(&id))
 }
 
-pub(crate) async fn concurrently_download(
-    invoke: crate::Invoke,
-    registration: Registration,
-    progress: Channel<DownloadSnapshot>,
-) -> Result<DownloadReport, tauri::ipc::InvokeError> {
+pub(crate) fn concurrently_download<R: tauri::Runtime>(
+    invoke: &crate::Invoke<R>,
+) -> Result<
+    impl std::future::Future<Output = Result<DownloadReport, String>>,
+    tauri::ipc::InvokeError,
+> {
     const NAME: &str = "concurrently_download";
-    let entries = crate::argument(&invoke, NAME, "entries")?;
-    let concurrency = crate::argument(&invoke, NAME, "concurrency")?;
-    let label = crate::argument(&invoke, NAME, "label")?;
-    let debug = crate::argument(&invoke, NAME, "debug")?;
-    drop(invoke);
-    download_batch(registration, entries, concurrency, label, progress, debug)
-        .await
-        .map_err(Into::into)
+    let id: String = crate::argument(invoke, NAME, "cancelId")?;
+    let flags: State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
+    let progress = crate::ipc_dispatch::channel(
+        invoke,
+        NAME,
+        "onProgress",
+        crate::ipc_dispatch::Delivery::Queued,
+    )?;
+    let entries = crate::argument(invoke, NAME, "entries")?;
+    let concurrency = crate::argument(invoke, NAME, "concurrency")?;
+    let label = crate::argument(invoke, NAME, "label")?;
+    let debug = crate::argument(invoke, NAME, "debug")?;
+    Ok(download_batch(
+        flags.register(&id),
+        entries,
+        concurrency,
+        label,
+        progress,
+        debug,
+    ))
 }
 
 async fn download_batch(
@@ -901,13 +914,16 @@ async fn staged_transfer(
         .file_name()
         .ok_or_else(|| DownloadError::other("Missing destination filename"))?
         .to_owned();
+    let stop = cancel.clone();
     let mut staging = tokio::task::spawn_blocking(move || {
-        std::fs::create_dir_all(&parent)?;
-        StagingDirectory::open(&parent)
+        {
+            let _permit = stop.publication_permit()?;
+            std::fs::create_dir_all(&parent).map_err(DownloadError::other)?;
+        }
+        StagingDirectory::open(&parent).map_err(DownloadError::other)
     })
     .await
-    .map_err(DownloadError::other)?
-    .map_err(DownloadError::other)?;
+    .map_err(DownloadError::other)??;
     let result = loop {
         let name = name.clone();
         let expected = entry.clone();
@@ -1224,6 +1240,37 @@ mod tests {
         })
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn acknowledged_cancel_prevents_creation_of_download_parent() {
+        let root = tempfile::tempdir().unwrap();
+        let parent = root.path().join("missing");
+        let dest = parent.join("file");
+        let flags = CancelFlags::default();
+        let registration = flags.register("download");
+        let (ready, paused) = tokio::sync::oneshot::channel();
+        let (resume, wait) = tokio::sync::oneshot::channel();
+        let worker = supervise(&registration, None, move |mut stop| async move {
+            let client = client().await.unwrap();
+            ready.send(()).unwrap();
+            wait.await.unwrap();
+            staged_transfer(
+                client,
+                ValidatedEntry::default(),
+                dest,
+                &Progress::default(),
+                &mut stop,
+            )
+            .await
+        });
+        let (result, ()) = tokio::join!(worker, async {
+            paused.await.unwrap();
+            assert!(flags.cancel("download").await.unwrap());
+            resume.send(()).unwrap();
+        });
+        assert!(matches!(result.unwrap(), Err(DownloadError::Cancelled)));
+        assert!(!parent.exists());
     }
 
     #[tokio::test]
