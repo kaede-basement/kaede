@@ -10,11 +10,13 @@ import {
 import { SpawnObservers, spawnProcess } from "@/lib/processes/spawn-process.ts";
 import States from "@/states";
 import {
-  ActiveRuns, checkpointActivePlaytime, commitPlaytime, declareInstanceStates, flushPlaytime,
+  checkpointActivePlaytime, commitPlaytime, declareInstanceStates, flushPlaytime,
   instanceStates, missingRunHandlers, restorePlaytime, startPlaytime,
 } from "@/states/instance.ts";
 import type { ProcessHandleType } from "@/types/application/server-process.type.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
+
+import { activeRun, finishRun, operationIds } from "./instance-operation.ts";
 
 const id = "test-instance";
 const token = "game";
@@ -82,14 +84,14 @@ async function withInstance(check: (fixture: Fixture) => Promise<void>): Promise
       }),
       "reload": () => {
         GlobalInternals.initialInstances = structuredClone(toRaw(instanceStates));
-        ActiveRuns.clear();
+        for (const id of operationIds()) finishRun(id, activeRun(id)!.process.token);
         declareInstanceStates();
         restorePlaytime();
       },
     });
   } finally {
     await flushPlaytime(async () => {});
-    ActiveRuns.clear();
+    for (const id of operationIds()) finishRun(id, activeRun(id)!.process.token);
     ProcessHandlers.delete(token);
     restore();
     GlobalInternals.initialInstances = previous;
@@ -144,7 +146,7 @@ for (const outcome of ["live", "absent", "exits during list", "buffer overflow"]
       commitPlaytime(id, token, endedAt);
     }, missingRunHandlers());
     if (outcome === "live") {
-      expect(ActiveRuns.has(id)).toBe(true);
+      expect(Boolean(activeRun(id))).toBe(true);
       commitPlaytime(id, token, performance.now());
     }
     commitPlaytime(id, token, performance.now());
@@ -154,7 +156,7 @@ for (const outcome of ["live", "absent", "exits during list", "buffer overflow"]
       persisted = instanceStates[id].playTime;
     });
     expect(persisted).toBe(1225);
-    expect(ActiveRuns.has(id)).toBe(false);
+    expect(Boolean(activeRun(id))).toBe(false);
     expect(saved.size).toBe(0);
   });
 }
@@ -177,11 +179,11 @@ instanceTest("Credit an exit before the spawn reply", async ({ clock, ipc }) => 
     const handle = await spawnProcess({
       "program": { "type": "path", "value": "java" }, "kind": "minecraft", "meta": dto.meta,
     }, {
-      "onExit": () => commitPlaytime(id, ActiveRuns.get(id)!.process.token, performance.now()),
+      "onExit": () => commitPlaytime(id, activeRun(id)!.process.token, performance.now()),
     });
 
     expect(ProcessHandlers.has(handle.token)).toBe(false);
-    expect(ActiveRuns.has(id)).toBe(false);
+    expect(Boolean(activeRun(id))).toBe(false);
     expect(instanceStates[id].playTime).toBe(100);
   } finally {
     SpawnObservers.delete(observe);
@@ -192,14 +194,14 @@ for (const stage of ["spawn", "exit"] as const) {
   instanceTest(`Quota failure at ${stage}`, async ({ clock, quota, saved }) => {
     quota(stage === "spawn");
     startPlaytime(id, process);
-    expect(ActiveRuns.has(id)).toBe(true);
+    expect(Boolean(activeRun(id))).toBe(true);
     quota(false);
     checkpointActivePlaytime();
     clock(200, 9999);
     quota(stage === "exit");
     commitPlaytime(id, token, performance.now());
     expect(instanceStates[id].playTime).toBe(125);
-    expect(ActiveRuns.has(id)).toBe(false);
+    expect(Boolean(activeRun(id))).toBe(false);
     await expect(flushPlaytime(async () => {
       throw new Error("write failed");
     })).rejects.toThrow("write failed");
@@ -229,7 +231,7 @@ instanceTest("Preserve a replacement process during replay", async ({ clock, sav
   commitPlaytime(id, token, performance.now());
   await previousFlush;
   expect(saved.size).toBe(1);
-  expect(ActiveRuns.get(id)?.process.token).toBe(next.token);
+  expect(activeRun(id)?.process.token).toBe(next.token);
   commitPlaytime(id, next.token, performance.now());
   await flushPlaytime(async () => {});
   expect(saved.size).toBe(0);

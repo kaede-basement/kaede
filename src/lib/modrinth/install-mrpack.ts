@@ -17,12 +17,12 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { shallowRef } from "vue";
 
 import { MrpackDependencies } from "@/constants/modrinth.ts";
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
 import { instanceStates } from "@/states/instance.ts";
+import { beginInstall, finishInstall } from "@/states/instance-operation.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
@@ -59,8 +59,6 @@ export async function peekMrpack(archivePath: string): Promise<MrpackManifestTyp
   return manifest ?? undefined;
 }
 
-export const ActiveInstall = shallowRef<{ "instanceId": string; "cancel": () => Promise<void> }>();
-
 export async function installMrpack({
   archivePath,
   instanceId,
@@ -70,9 +68,19 @@ export async function installMrpack({
   "instanceId" : string;
   "statuses"   : LauncherStatusesType;
 }): Promise<MrpackManifestType> {
-  if (ActiveInstall.value) {
-    throw new Error("Another modpack installation is active");
+  const install = beginInstall(instanceId, statuses);
+
+  try {
+    return await installArchive(archivePath, install);
+  } finally {
+    finishInstall(install);
   }
+}
+
+export async function installArchive(
+  archivePath: string, install: ReturnType<typeof beginInstall>,
+): Promise<MrpackManifestType> {
+  const { instanceId, statuses } = install;
   const { instanceRootDirectory } = Instances.getMinecraftDirectory({
     "baseDirectory": FileManager.getBaseDirectory(),
     instanceId,
@@ -95,7 +103,7 @@ export async function installMrpack({
     }
   };
 
-  ActiveInstall.value = { instanceId, cancel };
+  install.cancel = cancel;
   try {
     await invoke("prepare_mrpack_install", { cancelId });
     ready = true;
@@ -107,7 +115,7 @@ export async function installMrpack({
       archivePath, onProgress, cancelId, "targetDirPath": instanceRootDirectory,
     });
   } finally {
-    ActiveInstall.value = undefined;
+    install.cancel = undefined;
   }
 }
 

@@ -13,10 +13,11 @@ import { create } from "@/lib/instances/create.ts";
 import Router from "@/lib/router";
 import { declareGlobalStates, globalStates } from "@/states/global.ts";
 import { declareInstanceStates, instanceStates } from "@/states/instance.ts";
+import { ActiveInstall } from "@/states/instance-operation.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
-import { ActiveInstall, installMrpack, repairLegacyMrpack } from "./install-mrpack.ts";
+import { installMrpack, repairLegacyMrpack } from "./install-mrpack.ts";
 
 const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 
@@ -66,7 +67,7 @@ test("cancel requested before registration reaches Rust before installation star
     "archivePath": "pack", "instanceId": "id", "statuses": {} as LauncherStatusesType,
   });
 
-  await ActiveInstall.value!.cancel();
+  await ActiveInstall.value!.cancel!();
   prepared.resolve();
   await expect(installing).rejects.toThrow("Installation cancelled");
   expect(calls).toEqual(["prepare_mrpack_install", "cancel_downloads", "install_mrpack"]);

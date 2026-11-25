@@ -18,6 +18,7 @@
 
 import { type Component, defineAsyncComponent, shallowReactive } from "vue";
 
+import { installQuery } from "@/bootstrap/query.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { log } from "@/lib/logging/log.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
@@ -40,9 +41,11 @@ type ComponentRegistryType = {
   "Settings"        : Component;
 };
 
-export const LazyExtensionLoader = defineAsyncComponent(() => (
-  import("@/components/general/extensions/ExtensionLoader.vue")
-));
+export const LazyExtensionLoader = defineAsyncComponent(async () => {
+  await installQuery();
+
+  return import("@/components/general/extensions/ExtensionLoader.vue");
+});
 export const LazyPluginPlayground = defineAsyncComponent(() => (
   import("@/components/settings/tabs/PluginPlayground.vue")
 ));

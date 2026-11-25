@@ -3,7 +3,6 @@ import {
   inject,
   onUnmounted,
   provide,
-  reactive,
   shallowReactive,
   shallowRef,
 } from "vue";
@@ -24,14 +23,16 @@ import Hooks from "@/lib/hooks";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/log.ts";
-import { createDownloadMap } from "@/lib/network/download-map.ts";
 import { rehydrateProcesses } from "@/lib/processes/core.ts";
 import { SpawnObservers } from "@/lib/processes/spawn-process.ts";
 import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
 import {
-  ActiveRuns, commitPlaytime, missingRunHandlers, startPlaytime,
+  commitPlaytime, missingRunHandlers, startPlaytime,
 } from "@/states/instance.ts";
+import {
+  activeRun, beginLaunch, beginStop, finishLaunch, Launches as launches, operation, undoStop,
+} from "@/states/instance-operation.ts";
 import type {
   ProcessHandlersType,
   ProcessHandleType,
@@ -41,15 +42,11 @@ import type { AccountType, WrappedAccountsType } from "@/types/configs/account.t
 import type { LaunchContextType } from "@/types/launcher/launch/launch-context.type.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 import type {
-  LauncherStatusesType,
   WrappedInstanceLauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 
 const accounts = shallowRef(inject<Array<AccountType>>(AuthOneTimeFetchContextKey) ?? []);
-const launches = reactive<Record<string, LauncherStatusesType>>({});
 const logs = shallowReactive<Record<string, { "list": Array<string>; "dropped": number }>>({});
-
-const pendingLaunches = new Set<string>;
 
 function recordSpawn(handle: ProcessHandleType, startedAt: number): void {
   if (handle.kind !== "minecraft") {
@@ -58,7 +55,7 @@ function recordSpawn(handle: ProcessHandleType, startedAt: number): void {
   const process = handle as MinecraftProcessType;
   const { instanceId } = process.meta;
 
-  if (pendingLaunches.has(instanceId)) {
+  if (operation(instanceId).kind === "launching") {
     startPlaytime(instanceId, process, false, startedAt);
   }
 }
@@ -70,15 +67,13 @@ function syncExitedPlaytime(): Promise<void> {
 }
 
 function onClose(instanceId: string, endedAt = performance.now()): void {
-  const process = ActiveRuns.get(instanceId)?.process;
+  const process = activeRun(instanceId)?.process;
 
   if (process) {
     commitPlaytime(instanceId, process.token, endedAt);
   }
   void syncExitedPlaytime();
 
-  launches[instanceId].launching = 0;
-  launches[instanceId].current = LaunchStatus.General.Aborted;
   globalStates.logs.show = true;
   globalStates.logs.mode = instanceId;
 }
@@ -124,26 +119,12 @@ async function resolveLaunchAccount(): Promise<LaunchAuthType | undefined> {
   return resolved?.auth;
 }
 
-function launchStatus(instanceId: string, running: boolean): LauncherStatusesType {
-  return {
-    instanceId,
-    "launching": running ? 2 : 1,
-    "current"  : running ? LaunchStatus.General.Success : LaunchStatus.General.Starting,
-    "downloads": {
-      "current": createDownloadMap(),
-      "success": 0,
-      "failed" : 0,
-      "total"  : 0,
-    },
-  };
-}
-
 const launchInstance: LaunchContextType = async (instanceId, options) => {
   if (!instanceId) {
     return log.error(__PRE_BUNDLED_FILENAME__, "No instance selected for launch");
   }
 
-  if (!await ensureHydrated() || pendingLaunches.has(instanceId) || ActiveRuns.has(instanceId)) {
+  if (!await ensureHydrated()) {
     return;
   }
 
@@ -153,11 +134,9 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
     return log.error(__PRE_BUNDLED_FILENAME__, "No current instance found");
   }
 
-  launches[instanceId] = launchStatus(instanceId, false);
-  const statuses = launches[instanceId];
+  const statuses = beginLaunch(instanceId);
 
-  pendingLaunches.add(instanceId);
-
+  if (!statuses) return;
   try {
     const onInput = createLogSink(instanceId);
 
@@ -177,23 +156,21 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
       instanceId,
       statuses,
       "onClose": () => {
-        if (launches[instanceId] === statuses && statuses.launching !== 0) {
+        if (activeRun(instanceId)?.statuses === statuses) {
           onClose(instanceId);
         }
       },
       onInput,
     });
 
-    if (statuses.launching === 0) {
+    const op = operation(instanceId);
+
+    if (success && process && op.kind === "launching" && op.statuses === statuses) {
+      startPlaytime(instanceId, process);
+    } else if (statuses.launching === 0) {
       statuses.current = LaunchStatus.General.Aborted;
-    } else {
-      statuses.launching = success ? 2 : 0;
-      if (success && process && !ActiveRuns.has(instanceId)) {
-        startPlaytime(instanceId, process);
-      }
     }
   } catch (error: unknown) {
-    statuses.launching = 0;
     statuses.current = LaunchStatus.Errors.UnhandledError;
 
     log.error(
@@ -201,32 +178,28 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
       `Unhandled error. Could not launch the '${instanceId}' instance:`,
       Errors.prettify(error),
     );
+  } finally {
+    finishLaunch(instanceId, statuses);
   }
-
-  pendingLaunches.delete(instanceId);
 };
 
 async function closeInstance(instanceId: string): Promise<void> {
-  const process = ActiveRuns.get(instanceId)?.process;
+  const run = beginStop(instanceId);
 
-  if (!process) {
-    return log.error(__PRE_BUNDLED_FILENAME__, `No running process to kill for ${instanceId}`);
-  }
-
-  const beforeHooksResult = await Hooks.catchAsyncResponseHooks<void>({
-    "scope": "onMinecraftKill", "toPass": process, "timing": "before",
-  });
-
-  if (beforeHooksResult !== "continue") {
-    return;
-  }
-
+  if (!run) return;
   try {
-    await process.kill();
-    if (ActiveRuns.get(instanceId)?.process.token === process.token) {
-      onClose(instanceId);
+    const result = await Hooks.catchAsyncResponseHooks<void>({
+      "scope": "onMinecraftKill", "toPass": run.process, "timing": "before",
+    });
+
+    if (result !== "continue") {
+      undoStop(instanceId, run);
+
+      return;
     }
+    if (activeRun(instanceId) === run) await run.process.kill();
   } catch (error: unknown) {
+    undoStop(instanceId, run);
     log.error(__PRE_BUNDLED_FILENAME__, `Failed to kill ${instanceId}:`, Errors.prettify(error));
   }
 }
@@ -239,13 +212,12 @@ function attach(handle: ProcessHandleType, endedAt?: number): ProcessHandlersTyp
   const process = handle as MinecraftProcessType;
   const { instanceId } = process.meta;
 
-  startPlaytime(instanceId, process, true);
-  launches[instanceId] = launchStatus(instanceId, true);
+  if (!startPlaytime(instanceId, process, true)) return;
 
   return {
     "onOutput": createLogSink(instanceId),
     "onExit"  : (payload): void => {
-      if (ActiveRuns.get(instanceId)?.process.token === handle.token) {
+      if (activeRun(instanceId)?.process.token === handle.token) {
         onClose(instanceId, endedAt);
       }
       Hooks.catchAsyncVoidHooks({

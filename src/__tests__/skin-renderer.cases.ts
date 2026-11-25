@@ -158,12 +158,19 @@ test("profile draws on demand and releases viewers created before or after teard
   create.mockImplementationOnce(() => pending.promise);
   const late = mountProfile();
 
-  await nextTick();
+  await Bun.sleep(0);
+  expect(create).toHaveBeenCalledTimes(2);
   late.unmount();
   pending.resolve(gpu);
   await nextTick();
   expect(dispose).toHaveBeenCalledTimes(2);
   expect(startLoop).toHaveBeenCalledTimes(1);
+  const loading = mountProfile();
+
+  await nextTick();
+  loading.unmount();
+  await Bun.sleep(0);
+  expect(create).toHaveBeenCalledTimes(2);
 });
 
 test("extension canvases preserve the native loop, callbacks and DPR sizing", async () => {

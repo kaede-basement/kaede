@@ -41,8 +41,12 @@ const state = reactive({
 });
 
 mock.module("@/states/global.ts", () => ({ "globalStates": state }));
+type Instance = { "id": string; "instance": { "playTime": number } };
+
 mock.module("@/lib/instances", () => ({
-  "default": { "findCurrent": (id: string): { "id": string } => ({ id }) },
+  "default": { "findCurrent": (id: string): Instance => (
+    { id, "instance": instances[id] }
+  ) },
 }));
 const instances = reactive<Record<string, { "playTime": number }>>({});
 

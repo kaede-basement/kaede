@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
-import { nextTick, reactive, type Ref } from "vue";
+import { nextTick, type Ref } from "vue";
 
-import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
+import { finishRun, recordRun } from "@/states/instance-operation.ts";
+import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 
 import {
-  cleanupHarness, closeKey, documentState, type Element, instances, launchKey,
-  launchStatus, mount, noop, overrideGlobals, startKey, state,
+  cleanupHarness, documentState, type Element, instances,   mount, noop, overrideGlobals, state,
+  translationsKey,
 } from "./idle-ui-harness.ts";
 
 afterEach(cleanupHarness);
@@ -65,42 +66,30 @@ test("video follows initial and changed visibility until unmount", async () => {
 
 test("Home accrues only the selected instance's active gameplay time", async () => {
   mock.module("@/components/general/base/MaterialRipple.vue", () => ({ "default": {} }));
-  mock.module("@/lib/launcher/scopes/fetching", () => ({ "default": {} }));
-  mock.module("@/extendable/global-internals.ts", () => ({ "GlobalInternals": { "logs": {} } }));
-  const { "default": launch } = await import("@/components/home/instance/Launch.vue");
-  const launches = reactive<Record<string, LauncherStatusesType>>({});
+  const { "default": currentPlaytime } = await import(
+    "@/components/home/instance/CurrentPlaytime.vue",
+  );
   const interval = spyOn(globalThis, "setInterval");
   const clear = spyOn(globalThis, "clearInterval");
-  const now = spyOn(Date, "now").mockReturnValue(0);
+  const now = spyOn(performance, "now").mockReturnValue(5000);
 
   instances.first = { "playTime": 100 };
   instances.second = { "playTime": 10 };
-  const view = mount(launch, "", [[launchKey, launches], [startKey, noop], [closeKey, noop]]);
+  const view = mount<{ "playTime": Ref<string> }>(currentPlaytime, "", [[translationsKey, {}]]);
 
   expect(interval).not.toHaveBeenCalled();
-  launches.first = launchStatus("first");
-  launches.second = launchStatus("second");
-  now.mockReturnValue(5000);
-  launches.first.launching = launches.second.launching = 2;
+  recordRun("first", { "token": "A" } as MinecraftProcessType, 5000, true);
   await nextTick();
   expect(interval.mock.calls[0][1]).toBe(1000);
   now.mockReturnValue(6000);
   interval.mock.calls[0][0]();
-  expect(instances.first.playTime).toBe(1100);
-  now.mockReturnValue(6500);
+  expect(view.bindings.playTime.value).toBe("1.1 seconds");
   state.selected.currentInstance = "second";
   await nextTick();
-  expect(instances.first.playTime).toBe(1600);
   expect(clear).toHaveBeenCalledWith(interval.mock.results[0].value);
-  now.mockReturnValue(7500);
-  launches.second.launching = 0;
-  await nextTick();
-  expect(instances.second.playTime).toBe(1010);
-  expect(clear).toHaveBeenCalledWith(interval.mock.results[1].value);
+  expect(view.bindings.playTime.value).toBe("0.0 seconds");
+  finishRun("first", "A");
   view.unmount();
-  now.mockRestore();
-  interval.mockRestore();
-  clear.mockRestore();
 });
 
 test("FPS uses a sliding second, publishes 15 bars and cancels its pending frame", async () => {

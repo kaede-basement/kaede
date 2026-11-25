@@ -16,9 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { createSkinViewer, type SkinViewer, use } from "@daidr/minecraft-skin-renderer";
-import { renderAvatar } from "@daidr/minecraft-skin-renderer/canvas2d";
-import { WebGLRendererPlugin } from "@daidr/minecraft-skin-renderer/webgl";
+import type { SkinViewer } from "@daidr/minecraft-skin-renderer";
 import {
   computed, type ComputedRef, inject,
   type Ref,
@@ -34,8 +32,6 @@ import { log } from "@/lib/logging/log.ts";
 import FallbackSteve from "@/resources/steve_classic.png";
 import { globalStates } from "@/states/global.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
-
-use(WebGLRendererPlugin);
 
 function configureDemandRendering(viewer: SkinViewer, resizeTarget: HTMLElement): () => void {
   let loopRunning = false;
@@ -166,40 +162,41 @@ function useRenderer(
   }
 
   if (render === "2d-head") {
-    watch([canvas, source], async ([target, skin], _, onCleanup) => {
-      const request = ++generation;
+    watch([canvas, selected, source], ([target, , skin], _, onCleanup) => {
+      if (!target) return;
+      target.width = target.height = 32;
+      const context = target.getContext("2d");
 
-      onCleanup(() => {
-        generation++;
-      });
+      if (!context) {
+        report(new Error("Unable to draw the avatar"));
 
-      if (!target) {
         return;
       }
+      context.imageSmoothingEnabled = false;
+      const image = (new Image);
+      const draw = (): void => {
+        const size = image.naturalWidth / 8;
 
-      try {
-        // RenderAvatar draws after loading. Only copy the latest completed avatar onto the page.
-        const image = document.createElement("canvas");
+        context.drawImage(image, size, size, size, size, 0, 0, 32, 32);
+        context.drawImage(image, 5 * size, size, size, size, 0, 0, 32, 32);
+        shown.value = true;
+      };
+      const failed = (): void => {
+        context.clearRect(0, 0, 32, 32);
+        shown.value = false;
+        report(new Error("Unable to load the avatar skin"));
+      };
 
-        await renderAvatar(image, { skin, "scale": 4 });
-
-        if (generation === request) {
-          target.width = image.width;
-          target.height = image.height;
-          const context = target.getContext("2d");
-
-          if (!context) {
-            throw new Error("Unable to draw the skin onto the avatar canvas");
-          }
-
-          context.drawImage(image, 0, 0);
-          shown.value = true;
-        }
-      } catch (error) {
-        if (generation === request) {
-          report(error);
-        }
-      }
+      image.addEventListener("load", draw);
+      image.addEventListener("error", failed);
+      onCleanup(() => {
+        image.removeEventListener("load", draw);
+        image.removeEventListener("error", failed);
+        image.removeAttribute("src");
+        context.clearRect(0, 0, 32, 32);
+        shown.value = false;
+      });
+      image.src = skin;
     }, { "flush": "post" });
   } else {
     let requestRender: (() => void) | undefined;
@@ -223,6 +220,9 @@ function useRenderer(
 
       try {
         // Initialize with the local placeholder so teardown never waits for a remote skin.
+        const { createSkinViewer } = await import("./skin-viewer.ts");
+
+        if (closed) return;
         const created = await createSkinViewer({
           "canvas": target, "skin": FallbackSteve, "zoom": 35,
         });

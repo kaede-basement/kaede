@@ -25,7 +25,6 @@ import "@/globals.css";
 // Material You ripple effect essentials
 import "m3ripple-vue/style.css";
 
-import { VueQueryPlugin } from "@tanstack/vue-query";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { createApp } from "vue";
 
@@ -186,9 +185,6 @@ async function run(): Promise<void> {
 
   // Expose the app instance so that plugins can register components, etc.
   GlobalInternals.appInstance = AppInstance;
-
-  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing Vue Query plugin");
-  AppInstance.use(VueQueryPlugin);
 
   log.debug(
     __PRE_BUNDLED_FILENAME__,

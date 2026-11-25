@@ -9,7 +9,7 @@ import {
 } from "@/constants/application.ts";
 import Instances from "@/lib/instances";
 import { globalStates } from "@/states/global.ts";
-import { ActiveRuns } from "@/states/instance.ts";
+import { activeRun } from "@/states/instance-operation.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
@@ -20,7 +20,7 @@ const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.selected?.currentInstance)
 ));
-const runStart = computed(() => ActiveRuns.get(currentInstance.value?.id ?? "")?.startedAt);
+const runStart = computed(() => activeRun(currentInstance.value?.id ?? "")?.startedAt);
 const now = ref(performance.now());
 const { pause, resume } = useIntervalFn(() => {
   now.value = performance.now();

@@ -12,6 +12,7 @@ test("idle UI lifecycle", () => {
     path.resolve(import.meta.dir, "../../scripts/setup-tests.ts"),
     path.resolve(import.meta.dir, "idle-ui.cases.ts"),
     path.resolve(import.meta.dir, "skin-renderer.cases.ts"),
+    path.resolve(import.meta.dir, "avatar.cases.ts"),
     path.resolve(import.meta.dir, "download-progress.cases.ts"),
   ]);
 

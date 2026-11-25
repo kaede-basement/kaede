@@ -16,12 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { type Reactive, reactive, shallowReactive } from "vue";
+import { type Reactive, reactive } from "vue";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { log } from "@/lib/logging/log.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
+
+import { activeRun, finishRun, operationIds, recordRun } from "./instance-operation.ts";
 
 type ActiveCheckpoint = {
   "token"       : string;
@@ -33,10 +35,6 @@ type ActiveCheckpoint = {
 type FinishedCheckpoint = { "token": string; "playTime": number; "lastLaunch": number };
 type RestoredRun = { "id": string; "checkpoint": ActiveCheckpoint; "startedAt": number };
 
-export const ActiveRuns = shallowReactive(new Map<string, {
-  "process"  : MinecraftProcessType;
-  "startedAt": number;
-}>);
 const pending = new Map<string, FinishedCheckpoint>;
 const restored = new Map<string, RestoredRun>;
 
@@ -126,7 +124,7 @@ export function restorePlaytime(): boolean {
 }
 
 function saveActive(id: string): void {
-  const run = ActiveRuns.get(id);
+  const run = activeRun(id);
   const instance = instanceStates[id];
 
   if (!run || !instance) {
@@ -144,7 +142,7 @@ function saveActive(id: string): void {
 }
 
 export function checkpointActivePlaytime(): void {
-  for (const id of ActiveRuns.keys()) {
+  for (const id of operationIds()) {
     saveActive(id);
   }
 }
@@ -154,9 +152,10 @@ export function startPlaytime(
   process: MinecraftProcessType,
   rehydrated = false,
   startedAt = performance.now(),
-): void {
+): boolean {
   const previous = rehydrated ? restored.get(process.token) : undefined;
 
+  if (!recordRun(id, process, previous?.startedAt ?? startedAt, rehydrated)) return false;
   restored.delete(process.token);
   const instance = instanceStates[id];
 
@@ -166,8 +165,9 @@ export function startPlaytime(
   } else if (instance && !rehydrated) {
     instance.lastLaunch = Date.now() - Math.max(0, Math.floor(performance.now() - startedAt));
   }
-  ActiveRuns.set(id, { process, "startedAt": previous?.startedAt ?? startedAt });
   saveActive(id);
+
+  return true;
 }
 
 function finish(id: string, checkpoint: FinishedCheckpoint): void {
@@ -195,12 +195,12 @@ export function missingRunHandlers(): Map<string, (endedAt: number) => void> {
 }
 
 export function commitPlaytime(id: string, token: string, endedAt: number): void {
-  const run = ActiveRuns.get(id);
+  const run = activeRun(id);
 
   if (run?.process.token !== token) {
     return;
   }
-  ActiveRuns.delete(id);
+  finishRun(id, token);
   const instance = instanceStates[id];
 
   finish(id, {
