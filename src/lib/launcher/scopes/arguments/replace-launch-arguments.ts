@@ -114,11 +114,8 @@ export function replaceLaunchArguments({
     })
   ));
 
-  log.info(
-    logPrefix,
-    "The launching command (auth data is not replaced yet):",
-    "\n" + javaBinary + " " + handledReplaces.join(" "),
-  );
+  // Extensions may supply credentials in arbitrary positions, including custom JVM options.
+  log.info(logPrefix, `Prepared ${handledReplaces.length} launch arguments`);
 
   log.debug(logPrefix, "Initializing auth replacements");
   const authReplacements: ArgumentAuthReplacementsType = {

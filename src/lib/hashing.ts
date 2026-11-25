@@ -27,7 +27,7 @@ export const Algorithms = {
 export type HashAlgorithmType = (typeof Algorithms)[keyof typeof Algorithms];
 
 function hashPath(path: string, algorithm: HashAlgorithmType): Promise<string> {
-  return invoke<string>("hash_path", { path, algorithm });
+  return invoke<string>("hash_path", { path, "kind": algorithm });
 }
 
 function hashPayload(payload: Uint8Array | string, algorithm: HashAlgorithmType): Promise<string> {

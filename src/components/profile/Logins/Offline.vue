@@ -60,13 +60,11 @@ async function createOfflineAccount(): Promise<void> {
     },
   };
 
-  accounts.value = [
+  accounts.value = await Configs.updateAccounts(stored => [
     account,
     // Just to avoid duplicates
-    ...accounts.value.filter(({ profile }) => profile.uuid !== account.profile.uuid),
-  ];
-
-  await Configs.writeAccounts({ "accounts": accounts.value });
+    ...stored.filter(({ profile }) => profile.uuid !== account.profile.uuid),
+  ]);
 
   cancel();
 }

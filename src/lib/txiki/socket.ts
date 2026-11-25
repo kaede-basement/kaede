@@ -35,8 +35,26 @@ export class TxikiSocket {
   private connect(): void {
     this.ws = new WebSocket(`ws://localhost:${this.port}${this.path}`);
 
+    this.ws.addEventListener("error", () => {
+      log.error(__PRE_BUNDLED_FILENAME__, "Txiki WebSocket connection failed");
+    });
+    this.ws.addEventListener("close", () => {
+      this.ws = null;
+      this.listeners.clear();
+    });
     this.ws.addEventListener("message", (event: MessageEvent<string>) => {
-      const message: ServerMessage = JSON.parse(event.data);
+      let message: ServerMessage;
+
+      try {
+        message = JSON.parse(event.data);
+        if (!message || typeof message.type !== "string") {
+          throw new Error("Missing message type");
+        }
+      } catch (error) {
+        log.warn(__PRE_BUNDLED_FILENAME__, "Invalid Txiki socket message:", String(error));
+
+        return;
+      }
       const subs = this.listeners.get(message.type);
 
       if (!subs) {
@@ -72,7 +90,11 @@ export class TxikiSocket {
   public send(type: string, payload?: unknown): void {
     const data: string = JSON.stringify({ type, payload });
 
-    this.ws?.send?.(data);
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      throw new Error("The Txiki socket is not open");
+    }
+
+    this.ws.send(data);
   }
 
   public dispose(): void {
