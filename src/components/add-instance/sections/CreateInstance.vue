@@ -17,7 +17,7 @@
   -->
 
 <script setup lang="ts">
-import { computed, inject, ref, shallowReactive } from "vue";
+import { computed, inject, ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -27,6 +27,7 @@ import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
+import { createDownloadMap } from "@/lib/network/download-map.ts";
 import { globalStates } from "@/states/global.ts";
 import type {
   GlobalStatesType,
@@ -77,7 +78,7 @@ function trackDownloads(instanceId: string): LauncherStatusesType {
     "launching": 1,
     "current"  : undefined,
     "downloads": {
-      "current": shallowReactive(new Map<string, [number, number]>),
+      "current": createDownloadMap(),
       "success": 0,
       "failed" : 0,
       "total"  : 0,

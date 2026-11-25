@@ -28,39 +28,26 @@ test.each([0, 1, 2] as const)("launch state %i polls nonempty Maps", async launc
 
   expect(interval).not.toHaveBeenCalled();
 
-  for (const plain of [false, true]) {
-    if (plain) {
-      status.downloads.current = (new Map);
-    }
-    const current = status.downloads.current;
-    const tuple: [number, number] = [0, 1_048_576];
+  const current = status.downloads.current;
+  const tuple: [number, number] = [0, 1_048_576];
 
-    current.set("artifact", tuple);
-    if (!plain) {
-      expect(current.get("artifact")).toBe(tuple);
-    }
-    await nextTick();
-    const index = plain ? 1 : 0;
+  current.set("artifact", tuple);
+  expect(current.get("artifact")).toBe(tuple);
+  await nextTick();
+  expect(interval).toHaveBeenCalledTimes(1);
+  expect(view.bindings.currentDownloadCount.value).toBe(1);
+  expect(view.bindings.currentDownloadSpeed.value).toBe("1.00");
+  const [tick, period] = interval.mock.calls[0];
 
-    expect(interval).toHaveBeenCalledTimes(index + 1);
-    expect(view.bindings.currentDownloadCount.value).toBe(1);
-    expect(view.bindings.currentDownloadSpeed.value).toBe("1.00");
-    const [tick, period] = interval.mock.calls[index];
-
-    expect(period).toBe(100);
-    tuple[1] *= 2;
-    tick();
-    expect(view.bindings.currentDownloadSpeed.value).toBe("2.00");
-    if (plain) {
-      current.clear();
-    } else {
-      current.delete("artifact");
-    }
-    await nextTick();
-    expect(clear).toHaveBeenCalledWith(interval.mock.results[index].value);
-    expect(view.bindings.currentDownloadCount.value).toBe(0);
-    expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
-  }
+  expect(period).toBe(100);
+  tuple[1] *= 2;
+  tick();
+  expect(view.bindings.currentDownloadSpeed.value).toBe("2.00");
+  current.delete("artifact");
+  await nextTick();
+  expect(clear).toHaveBeenCalledWith(interval.mock.results[0].value);
+  expect(view.bindings.currentDownloadCount.value).toBe(0);
+  expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
 });
 
 test("post-install artifacts poll at state 0 and clean only their own entries", async () => {
@@ -110,17 +97,26 @@ test("post-install artifacts poll at state 0 and clean only their own entries", 
   expect(status.downloads.current.get("a")).toBe(foreign);
 });
 
-test("a selected legacy raw Map polls until an empty reactive Map replaces it", async () => {
+test.each(["plain", "markRaw", "frozen"])("polls a retained %s Map while selected", async kind => {
   const { "default": progress } = await import("@/components/general/layout/LaunchProgress.vue");
   const launches = reactive({ "first": launchStatus("first"), "second": launchStatus("second") });
-  const legacy = markRaw(new Map<string, [number, number]>);
+  const managed = launches.first.downloads.current;
+  const legacy = new Map<string, [number, number]>;
 
-  launches.first.downloads.current = legacy;
+  if (kind === "markRaw") {
+    markRaw(legacy);
+  } else if (kind === "frozen") {
+    Object.freeze(legacy);
+  }
   const interval = spyOn(globalThis, "setInterval");
   const clear = spyOn(globalThis, "clearInterval");
   const { bindings } = mount<Progress>(
     progress, "container", [[launchKey, launches], [translationsKey, {}]],
   );
+
+  expect(interval).not.toHaveBeenCalled();
+  launches.first.downloads.current = legacy;
+  await nextTick();
   const [tick] = interval.mock.calls[0];
 
   legacy.set("first", [0, 1_048_576]);
@@ -146,10 +142,29 @@ test("a selected legacy raw Map polls until an empty reactive Map replaces it", 
   state.selected.currentInstance = "first";
   await nextTick();
   expect(bindings.currentDownloadCount.value).toBe(1);
-  launches.first.downloads.current = (new Map);
+  launches.first.downloads.current = managed;
   await nextTick();
   expect(bindings.currentDownloadCount.value).toBe(0);
   expect(bindings.currentDownloadSpeed.value).toBe("0.00");
   expect(clear).toHaveBeenCalledWith(interval.mock.results[2].value);
   expect(interval).toHaveBeenCalledTimes(3);
+});
+
+test("switching instances sharing an active Map samples before the next tick", async () => {
+  const { "default": progress } = await import("@/components/general/layout/LaunchProgress.vue");
+  const launches = reactive({ "first": launchStatus("first"), "second": launchStatus("second") });
+  const shared = launches.first.downloads.current;
+  const tuple: [number, number] = [0, 1_048_576];
+
+  shared.set("artifact", tuple);
+  launches.second.downloads.current = shared;
+  const { bindings } = mount<Progress>(
+    progress, "container", [[launchKey, launches], [translationsKey, {}]],
+  );
+
+  expect(bindings.currentDownloadSpeed.value).toBe("1.00");
+  tuple[1] *= 2;
+  state.selected.currentInstance = "second";
+  await nextTick();
+  expect(bindings.currentDownloadSpeed.value).toBe("2.00");
 });

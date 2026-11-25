@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useDraggable, useElementSize, useIntervalFn, useWindowSize } from "@vueuse/core";
-import { computed, inject, isReactive, ref, useTemplateRef, watch } from "vue";
+import { computed, inject, ref, useTemplateRef, watch } from "vue";
 
 import { useConfigColors } from "@/composables/use-config-colors.ts";
 import {
@@ -9,6 +9,7 @@ import {
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances";
+import { isManagedDownloadMap } from "@/lib/network/download-map.ts";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type {
@@ -87,11 +88,11 @@ const progress = computed<number>((oldValue: number | undefined): number => {
 const currentDownloadSpeed = ref("0.00");
 const currentDownloadCount = ref(0);
 const downloadMap = computed(() => statuses.value?.downloads?.current);
-// Extensions can supply a raw Map whose size changes without notifying Vue.
+// Extensions can retain a raw reference and mutate their Map outside Vue.
 const shouldPoll = computed(() => {
   const map = downloadMap.value;
 
-  return map !== undefined && (!isReactive(map) || map.size > 0);
+  return map !== undefined && (!isManagedDownloadMap(map) || map.size > 0);
 });
 
 function sampleDownloads(): void {
@@ -109,7 +110,7 @@ function sampleDownloads(): void {
 
 const { resume, pause } = useIntervalFn(sampleDownloads, 100, { "immediate": false });
 
-watch([shouldPoll, downloadMap], ([active], _, onCleanup) => {
+watch([shouldPoll, statuses, downloadMap], ([active], _, onCleanup) => {
   if (active) {
     sampleDownloads();
     resume();
