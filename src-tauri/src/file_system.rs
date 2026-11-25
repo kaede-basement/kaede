@@ -78,7 +78,7 @@ pub enum AccountsFile {
 #[tauri::command]
 pub async fn read_accounts_file(base_directory: PathBuf) -> Result<AccountsFile, String> {
     match tokio::fs::read_to_string(base_directory.join("accounts.json")).await {
-        Ok(raw) if raw.trim().is_empty() => Ok(AccountsFile::Empty { raw }),
+        Ok(raw) if json_without_bom(&raw).trim().is_empty() => Ok(AccountsFile::Empty { raw }),
         Ok(raw) => Ok(AccountsFile::Content { raw }),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(AccountsFile::Missing),
         Err(e) if e.kind() == io::ErrorKind::InvalidData => Ok(AccountsFile::InvalidUtf8),
@@ -138,6 +138,10 @@ pub enum ParsedFile {
     Corrupt { raw: String, error: String },
 }
 
+fn json_without_bom(content: &str) -> &str {
+    content.strip_prefix('\u{feff}').unwrap_or(content)
+}
+
 async fn load_json_file(path: PathBuf) -> Result<ParsedFile, String> {
     let content = match tokio::fs::read_to_string(&path).await {
         Ok(content) => content,
@@ -146,11 +150,12 @@ async fn load_json_file(path: PathBuf) -> Result<ParsedFile, String> {
     };
 
     // Treat empty files as missing (so that they will be rewritten without any corrupt file backups)
-    if content.trim().is_empty() {
+    let json = json_without_bom(&content);
+    if json.trim().is_empty() {
         return Ok(ParsedFile::Missing);
     }
 
-    match serde_json::from_str::<Value>(&content) {
+    match serde_json::from_str::<Value>(json) {
         Ok(data) => Ok(ParsedFile::Loaded { data }),
         Err(error) => Ok(ParsedFile::Corrupt {
             raw: content,
@@ -328,6 +333,37 @@ mod tests {
             ACCOUNT_CONFLICT
         );
         assert_eq!(std::fs::read(path).unwrap(), invalid);
+    }
+
+    #[tokio::test]
+    async fn account_bom_is_ignored_only_for_parsing() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().to_owned();
+        let path = base.join("accounts.json");
+        let original = "\u{feff}[]";
+        std::fs::write(&path, original).unwrap();
+        assert!(
+            matches!(load_config_files(base.clone()).await.unwrap().accounts,
+            ParsedFile::Loaded { data } if data == serde_json::json!([]))
+        );
+        let AccountsFile::Content { raw } = read_accounts_file(base.clone()).await.unwrap() else {
+            panic!("expected account content");
+        };
+        assert_eq!(raw, original);
+        assert_eq!(
+            save_accounts(base.clone(), "[1]".into(), false, Some("[]".into()))
+                .await
+                .unwrap_err(),
+            ACCOUNT_CONFLICT
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), original.as_bytes());
+        save_accounts(base.clone(), "[1]".into(), false, Some(raw))
+            .await
+            .unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"[1]");
+        std::fs::write(&path, "\u{feff}{broken").unwrap();
+        assert!(matches!(load_config_files(base).await.unwrap().accounts,
+            ParsedFile::Corrupt { raw, .. } if raw == "\u{feff}{broken"));
     }
 
     #[tokio::test]

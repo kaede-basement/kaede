@@ -147,7 +147,7 @@ async function handleCreate(): Promise<void> {
 
       return;
     }
-    const detail = typeof error === "string" ? error : Errors.prettify(error);
+    const detail = typeof error === "string" ? error : Errors.extract(error).message;
 
     log.error(__PRE_BUNDLED_FILENAME__, "Modpack installation failed", detail);
     await message(detail, { "title": "Modpack installation failed", "kind": "error" });

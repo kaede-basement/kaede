@@ -1,7 +1,10 @@
+import "@/extendable/global-object.ts";
+
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { expect, mock, spyOn, test } from "bun:test";
 import { nextTick, reactive } from "vue";
 
+import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { globalStates } from "@/states/global.ts";
 
@@ -176,6 +179,12 @@ for (const open of [false, true]) {
     if (!open) {
       page.instanceVersionSearch.patch = "net.minecraft";
       await nextTick();
+      input.value = "queued before reset";
+      input.dispatchEvent(new view.browser.Event("input") as unknown as Event);
+      Instances.resetPageStates();
+      await Bun.sleep(320);
+      expect(input.value).toBe("");
+      expect(page.instanceVersionSearch.input).toBe("");
       input.value = "version-2";
       input.dispatchEvent(new view.browser.Event("input") as unknown as Event);
       view.root.querySelector<HTMLButtonElement>("[id$=version-selected-badge]")!.click();

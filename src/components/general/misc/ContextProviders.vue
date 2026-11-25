@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { message } from "@tauri-apps/plugin-dialog";
 import {
   inject, markRaw, provide, reactive, type ShallowReactive, shallowReactive, shallowRef,
 } from "vue";
@@ -14,7 +13,6 @@ import {
 } from "@/constants/application.ts";
 import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
-import Auth from "@/lib/auth";
 import { accountStoreError } from "@/lib/configs/scopes/account-store.ts";
 import Errors from "@/lib/errors";
 import { translate } from "@/lib/general/translate.ts";
@@ -22,12 +20,12 @@ import Hooks from "@/lib/hooks";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { beginLaunchAttempt } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
+import { resolveLaunchPrerequisites } from "@/lib/launcher/scopes/resolve-launch-prerequisites.ts";
 import { trackRunningInstances } from "@/lib/launcher/scopes/track-running-instances.ts";
 import { log } from "@/lib/logging/log.ts";
 import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
-import type { LaunchAuthType } from "@/types/auth/microsoft-auth.type.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
 import type { LaunchContextType } from "@/types/launcher/launch/launch-context.type.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
@@ -83,28 +81,10 @@ function createLogSink(instanceId: string): (lines: Array<string>) => void {
   };
 }
 
-async function resolveLaunchAccount(): Promise<LaunchAuthType | undefined> {
-  const resolved = await Auth.resolveLaunchAccount(accounts.value);
-
-  if (resolved !== undefined) {
-    accounts.value = resolved.accounts;
-  }
-
-  return resolved?.auth;
-}
-
-const getJavaMajor = async (javaPath?: string): Promise<number> => {
-  if (javaPath || !GlobalInternals.javaMajor) {
-    return Launcher.fetchJavaMajor(javaPath);
-  }
-
-  return GlobalInternals.javaMajor;
-};
-
 const pendingLaunches = new Set<string>;
 const launchInstance: LaunchContextType = async (instanceId, options) => {
   if (!instanceId) {
-    await message(translate("general.launch-status.instance-error"), { "kind": "error" });
+    await Errors.showError(translate("general.launch-status.instance-error"));
 
     return;
   }
@@ -124,7 +104,7 @@ async function startInstance(
   instanceId: string, options: Parameters<LaunchContextType>[1],
 ): Promise<void> {
   if (!await ensureHydrated()) {
-    await message(translate("general.launch-status.hydration-error"), { "kind": "error" });
+    await Errors.showError(translate("general.launch-status.hydration-error"));
 
     return;
   }
@@ -136,7 +116,7 @@ async function startInstance(
     options?.overridden ?? Instances.findCurrent(instanceId);
 
   if (!currentInstance || !currentInstance.instance) {
-    await message(translate("general.launch-status.instance-error"), { "kind": "error" });
+    await Errors.showError(translate("general.launch-status.instance-error"));
 
     return;
   }
@@ -168,31 +148,34 @@ async function startInstance(
         ? "profile.accounts.storage-error"
         : "general.launch-status.missing-account";
 
-      await message(translate(key), { "kind": "error" });
+      await Errors.showError(translate(key));
       statuses.launching = 0;
       statuses.current = LaunchStatus.General.Aborted;
 
       return;
     }
 
-    const [javaMajor, account] = await Promise.all([
-      getJavaMajor(options?.javaPath), resolveLaunchAccount(),
-    ]);
+    const prerequisites = await resolveLaunchPrerequisites(
+      accounts.value, options?.javaPath, attempt.signal,
+    );
 
-    if (!account || attempt.signal.aborted) {
+    if (!prerequisites?.[1] || attempt.signal.aborted) {
       statuses.launching = 0;
       statuses.current = LaunchStatus.General.Aborted;
 
       return;
     }
 
+    const [javaMajor, resolved] = prerequisites;
+
+    accounts.value = resolved.accounts;
     const { success, process, reason } = await Launcher.handleLaunch({
       "instance"       : currentInstance.instance,
       "userPreferences": {
         "javaBinary": options?.javaPath ?? currentInstance.instance.javaBinary,
         "javaMajor" : javaMajor,
         "versions"  : currentInstance.instance.patchVersions,
-        account,
+        "account"   : resolved.auth,
       },
       instanceId,
       statuses,
@@ -217,14 +200,14 @@ async function startInstance(
       statuses.current = reason ?? status;
       const key = `general.launch-status.${statuses.current}` as const;
 
-      await message(translate(key), { "kind": "error" });
+      await Errors.showError(translate(key));
     }
   } catch (error: unknown) {
-    statuses.launching = 0;
+    statuses.launching = childProcesses[instanceId] ? 2 : 0;
     statuses.current = LaunchStatus.Errors.UnhandledError;
     const label = translate("general.launch-status.errors-unhandled-error");
 
-    await message(`${label}: ${Errors.prettify(error)}`, { "kind": "error" });
+    await Errors.showError(`${label}: ${Errors.prettify(error)}`);
 
     log.error(
       __PRE_BUNDLED_FILENAME__,
@@ -262,6 +245,9 @@ async function closeInstance(instanceId: string): Promise<void> {
   try {
     await process.kill();
   } catch (error: unknown) {
+    if (childProcesses[instanceId] !== process) return;
+    launches[instanceId].current = LaunchStatus.Errors.Stop;
+    await Errors.showError(translate("general.launch-status.stop-error"));
     log.error(
       __PRE_BUNDLED_FILENAME__,
       `Could not kill the '${instanceId}' instance:`,

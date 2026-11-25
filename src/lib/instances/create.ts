@@ -22,6 +22,7 @@ import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
 import { sanitizeFileOrFolderName } from "@/lib/file-manager/path.ts";
+import { translate } from "@/lib/general/translate.ts";
 import { sync } from "@/lib/instances/sync.ts";
 import { log } from "@/lib/logging/log.ts";
 import { persistImportArchive, setImportedModpack } from "@/lib/modrinth/import-archive.ts";
@@ -30,6 +31,9 @@ import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
+
+type ImportedModpack = NonNullable<GlobalStatesType["pages"]["add-instance"]["importedModpack"]>;
+const awaitingMetadata = new WeakMap<ImportedModpack, { "id": string; "path": string }>;
 
 export function create(
   currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
@@ -98,10 +102,6 @@ export function create(
     toAdd[Patches.FabricIntermediary] = currentInstance.patchVersions[Patches.Minecraft];
   }
 
-  const id = sanitizeFileOrFolderName(beforeRegister
-    ? crypto.getRandomValues(new Uint8Array(16)).join("-") + " " + currentInstance.name
-    : currentInstance.name + " " + Math.floor(Math.random() * 1000));
-
   log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
 
   const instance = {
@@ -118,6 +118,11 @@ export function create(
   const page = globalStates.pages["add-instance"];
   const draft = page.instance;
   const archive = page.importedModpack;
+  const pending = beforeRegister && archive ? awaitingMetadata.get(archive) : undefined;
+  const retryId = pending && pending.path === modpackPath ? pending.id : undefined;
+  const id = retryId ?? sanitizeFileOrFolderName(beforeRegister
+    ? crypto.getRandomValues(new Uint8Array(16)).join("-") + " " + currentInstance.name
+    : currentInstance.name + " " + Math.floor(Math.random() * 1000));
   const draftValues = (): string => JSON.stringify([
     page.instance, page.importedModpack, page.instanceVersionSearch?.patch,
   ]);
@@ -153,9 +158,19 @@ export function create(
   }
 
   if (beforeRegister) {
-    return beforeRegister(id).then(async () => {
+    const installed = retryId ? Promise.resolve() : beforeRegister(id);
+
+    return installed.then(async () => {
       register();
-      await sync();
+      if (!await sync()) {
+        if (archive && archive.path === modpackPath) {
+          awaitingMetadata.set(archive, { id, "path": archive.path });
+        }
+        throw new Error(translate("import.metadata-save-error"));
+      }
+      if (archive) {
+        awaitingMetadata.delete(archive);
+      }
 
       return finish();
     });

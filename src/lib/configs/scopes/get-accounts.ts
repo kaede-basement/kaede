@@ -4,7 +4,7 @@ import { CheckAccount } from "@/lib/schemas/generated/validators.ts";
 import type { ParsedAccountFile } from "@/types/application/parsed-file.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
-import { AccountConflict, accountStoreError, readAccountText } from "./account-store.ts";
+import { AccountConflict, readAccountText, setAccountStoreError } from "./account-store.ts";
 import { parseStoredAccounts, persistAccounts } from "./write-accounts.ts";
 
 export async function getAccounts(properties?: Partial<{
@@ -38,11 +38,11 @@ export async function getAccounts(properties?: Partial<{
     if (!Array.isArray(parsed)) throw new Error("Invalid account list");
     const accounts = parsed.filter(entry => CheckAccount(entry));
 
-    accountStoreError.value = accounts.length !== parsed.length;
+    setAccountStoreError(baseDirectory, accounts.length !== parsed.length);
 
     return accounts;
   } catch {
-    accountStoreError.value = true;
+    setAccountStoreError(baseDirectory, true);
     log.error(__PRE_BUNDLED_FILENAME__, "Could not read accounts.json");
 
     return [];

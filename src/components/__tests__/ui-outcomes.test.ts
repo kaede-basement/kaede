@@ -195,8 +195,10 @@ for (const present of [true, false]) {
   const scenario = present ? "unreadable siblings" : "a missing directory";
 
   test("CSS loader handles " + scenario, async () => {
-    using read = spyOn(fs, "readDir").mockResolvedValue(["a.css", "b.css", "c.css"].map(name => ({
-      name, "isDirectory": false, "isFile": name !== "b.css", "isSymlink": false,
+    const entries = ["a.css", "fifo.css", "b.css", "c.css"];
+
+    using read = spyOn(fs, "readDir").mockResolvedValue(entries.map(name => ({
+      name, "isDirectory": false, "isFile": name !== "fifo.css", "isSymlink": false,
     })));
     if (!present) {
       read.mockRejectedValue("failed to read directory: No such file or directory (os error 2)");
@@ -224,6 +226,7 @@ for (const present of [true, false]) {
     expect([...document.head.querySelectorAll("style")].map(sheet => sheet.textContent))
       .toEqual(present ? ["first{}", "last{}"] : []);
     expect(read).toHaveBeenCalledTimes(1);
+    expect(contents.mock.calls.some(([path]) => String(path).endsWith("fifo.css"))).toBe(false);
     expect(contents).toHaveBeenCalledTimes(present ? 3 : 0);
     expect(error).toHaveBeenCalledTimes(present ? 1 : 0);
     if (present) {

@@ -4,7 +4,8 @@ import { type ComputedRef, nextTick, onBeforeUpdate, onUpdated, watch } from "vu
 export function useVersionViewport<T>(
   items: ComputedRef<Array<T>>, rowHeight: number,
 ): UseVirtualListReturn<T> & {
-  "retry": (event: MouseEvent, refetch: () => Promise<unknown>) => Promise<void>;
+  "focusFirstVisible": () => void;
+  "retry"            : (event: MouseEvent, refetch: () => Promise<unknown>) => Promise<void>;
 } {
   const viewport = useVirtualList(items, { "itemHeight": rowHeight, "overscan": 2 });
 
@@ -35,14 +36,22 @@ export function useVersionViewport<T>(
     previousFocus = null;
   });
 
-  function focusFirstRow(): void {
+  function focusFirstVisible(): void {
     const element = container.value;
 
     if (element && element.ownerDocument.activeElement === element) {
-      element.querySelector<HTMLElement>("button, p[tabindex]")?.focus({ "preventScroll": true });
+      const firstVisible = Math.min(
+        items.value.length - 1, Math.max(0, Math.floor(element.scrollTop / rowHeight)),
+      );
+      const firstRendered = viewport.list.value[0]?.index ?? 0;
+      const buttons = element.querySelectorAll<HTMLButtonElement>("button");
+      const target = buttons[Math.max(0, firstVisible - firstRendered)] ??
+        element.querySelector<HTMLElement>("p[tabindex]");
+
+      target?.focus({ "preventScroll": true });
     }
   }
-  watch(viewport.list, focusFirstRow, { "flush": "post" });
+  watch(viewport.list, focusFirstVisible, { "flush": "post" });
 
   async function retry(event: MouseEvent, refetch: () => Promise<unknown>): Promise<void> {
     const element = container.value;
@@ -52,8 +61,8 @@ export function useVersionViewport<T>(
     }
     await refetch();
     await nextTick();
-    focusFirstRow();
+    focusFirstVisible();
   }
 
-  return { ...viewport, retry };
+  return { ...viewport, retry, focusFirstVisible };
 }

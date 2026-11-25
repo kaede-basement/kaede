@@ -1101,7 +1101,7 @@ declare const _default$11: {
 };
 declare function buildLaunchAuth(account: AccountType): LaunchAuthType;
 declare function ensureFreshAccount(account: AccountType, forceRefresh?: boolean): Promise<EnsureFreshResultType>;
-declare function resolveLaunchAccount(accounts: Array<AccountType>): Promise<{
+declare function resolveLaunchAccount(accounts: Array<AccountType>, signal?: AbortSignal): Promise<{
 	"auth": LaunchAuthType;
 	"accounts": Array<AccountType>;
 } | undefined>;
@@ -1329,6 +1329,7 @@ declare function stringify(error: unknown): string;
 declare const _default$15: {
 	readonly extract: typeof extract;
 	readonly handleCapture: typeof handleCapture;
+	readonly showError: (description: string) => Promise<void>;
 	readonly prettify: typeof prettify;
 	readonly stringify: typeof stringify;
 };
@@ -1635,7 +1636,7 @@ declare function readInstances(properties?: Partial<{
 	"parsedFile": ParsedFile;
 }>): Promise<InstanceStatesType>;
 declare function resetPageStates(): void;
-declare function sync$1(): Promise<void>;
+declare function sync$1(): Promise<boolean>;
 declare const _default$23: {
 	readonly create: typeof create;
 	readonly extractSavedFromPages: typeof extractSavedFromPages;

@@ -7,46 +7,34 @@ import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
 import { instanceStates } from "@/states/instance.ts";
 
-let lastWritten: string;
+let lastWritten: string | null | undefined;
+let writing = Promise.resolve(true);
 
-export async function sync(): Promise<void> {
+async function persist(): Promise<boolean> {
   if (lastWritten === undefined) {
-    lastWritten = JSON.stringify(GlobalInternals.initialInstances);
+    lastWritten = JSON.stringify(GlobalInternals.initialInstances, null, 2);
+  }
+  const contents = JSON.stringify(instanceStates, null, 2);
+
+  if (lastWritten !== contents) {
+    const path = FileManager.join(FileManager.getBaseDirectory(), FileStructure.Files.Metadata);
+
+    await writeTextFile(path, contents);
+    lastWritten = contents;
   }
 
-  const startTime: number = performance.now();
-  const currentInstanceStatesStringy: string = JSON.stringify(instanceStates);
+  return true;
+}
 
-  if (lastWritten === currentInstanceStatesStringy) {
-    return log.debug(
-      __PRE_BUNDLED_FILENAME__,
-      "Seems like instances didn't change. No need for instances metadata sync",
+export function sync(): Promise<boolean> {
+  writing = writing.then(persist).catch(error => {
+    lastWritten = null;
+    log.error(
+      __PRE_BUNDLED_FILENAME__, "Failed to sync the instances metadata:", Errors.prettify(error),
     );
-  }
 
-  const metadataPath = FileManager.join(
-    FileManager.getBaseDirectory(),
-    FileStructure.Files.Metadata,
-  );
+    return false;
+  });
 
-  try {
-    await writeTextFile(
-      metadataPath,
-      JSON.stringify(instanceStates, null, 2),
-    );
-    lastWritten = currentInstanceStatesStringy;
-  } catch (error: unknown) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to sync the instances metadata:",
-      Errors.prettify(error),
-    );
-  }
-
-  log.debug(
-    __PRE_BUNDLED_FILENAME__,
-    "Instance metadata file successfully synced in:",
-    (performance.now() - startTime).toFixed(1),
-    "ms",
-  );
+  return writing;
 }

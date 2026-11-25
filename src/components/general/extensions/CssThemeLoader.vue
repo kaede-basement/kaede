@@ -37,9 +37,7 @@ onMounted(async () => {
     const actualThemeFiles: Array<string> = [];
 
     for (const stored of storedThemes) {
-      const possibleFile = stored.isFile || (!stored.isDirectory && !stored.isSymlink);
-
-      if (possibleFile && stored.name.endsWith(CSSThemeExtensions.Enabled)) {
+      if (stored.isFile && stored.name.endsWith(CSSThemeExtensions.Enabled)) {
         actualThemeFiles.push(stored.name);
       }
     }

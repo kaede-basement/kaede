@@ -7,6 +7,7 @@
   },
   "Messages": {
     "themes.read-error": "Could not load CSS themes:",
+    "import.metadata-save-error": "Installed the pack, but could not save instance metadata. Check disk space and write permissions, then click Create an Instance to retry.",
     "import.no-url": "This release has no archive URL.",
     "general.retry": "Retry",
     "general.loading": "Loading\u2026",

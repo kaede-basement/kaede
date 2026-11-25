@@ -9,6 +9,7 @@ import {
   LaunchInstanceContextKey, LaunchStatesContextKey,
 } from "@/constants/application.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
+import Auth from "@/lib/auth";
 import Launcher from "@/lib/launcher";
 import Processes from "@/lib/processes";
 import Watchers from "@/lib/watchers";
@@ -24,8 +25,8 @@ import { useUiState } from "./ui-state.ts";
 
 useUiState();
 
-for (const outcome of ["stopped", "exited", "still running"]) {
-  test("Stop during a cached spawn: " + outcome, async () => {
+for (const outcome of ["stopped", "exited", "still running", "stalled Java", "stalled account"]) {
+  test("Stop during a cached launch: " + outcome, async () => {
     declareInstanceStates();
     instanceStates.game = { "patchVersions": {} } as InstanceStateType;
     globalStates.selected.currentInstance = "game";
@@ -64,6 +65,25 @@ for (const outcome of ["stopped", "exited", "still running"]) {
     ));
     const entered = Promise.withResolvers<void>();
     const resume = Promise.withResolvers<void>();
+
+    if (outcome === "stalled Java") {
+      const major = GlobalInternals.javaMajor;
+
+      cleanup.defer(() => GlobalInternals.javaMajor = major);
+      GlobalInternals.javaMajor = undefined;
+      cleanup.use(spyOn(Launcher, "fetchJavaMajor").mockImplementation(async () => {
+        entered.resolve();
+        await resume.promise;
+
+        return 17;
+      }));
+    } else if (outcome === "stalled account") {
+      cleanup.use(spyOn(Auth, "resolveLaunchAccount").mockImplementation(async () => {
+        entered.resolve();
+        await resume.promise;
+        throw new Error("late refresh failure");
+      }));
+    }
     const kill = mock(async () => {});
 
     using spawn = spyOn(Processes, "spawnProcess").mockImplementation(async (options, handlers) => {
@@ -85,6 +105,9 @@ for (const outcome of ["stopped", "exited", "still running"]) {
     });
     using ask = spyOn(dialog, "ask").mockResolvedValue(true);
     using message = spyOn(dialog, "message").mockResolvedValue("Ok");
+    if (outcome === "still running") {
+      message.mockRejectedValueOnce(new Error("dialog unavailable"));
+    }
     const pending = launchInstance("game");
 
     await entered.promise;
@@ -94,6 +117,17 @@ for (const outcome of ["stopped", "exited", "still running"]) {
     expect(stop.disabled).toBe(false);
     stop.click();
     await Bun.sleep(0);
+    if (outcome.startsWith("stalled")) {
+      expect(launches.game.current).toBe("general-aborted");
+      expect(launches.game.launching).toBe(0);
+      await pending;
+      resume.resolve();
+      await Bun.sleep(0);
+      expect(launch).not.toHaveBeenCalled();
+      expect(message).not.toHaveBeenCalled();
+
+      return;
+    }
     resume.resolve();
     await pending;
     expect(kill).toHaveBeenCalledTimes(1);
@@ -101,9 +135,15 @@ for (const outcome of ["stopped", "exited", "still running"]) {
       expect(message.mock.calls[0][0]).toContain("Minecraft is still running");
       expect(launches.game.launching).toBe(2);
       expect(stop.disabled).toBe(false);
+      kill.mockRejectedValueOnce(new Error("access denied"));
       stop.click();
       await Bun.sleep(0);
-      expect(kill).toHaveBeenCalledTimes(2);
+      expect(message.mock.calls[1][0]).toContain("Minecraft is still running");
+      expect(launches.game.current).toBe("stop-error");
+      expect(stop.disabled).toBe(false);
+      stop.click();
+      await Bun.sleep(0);
+      expect(kill).toHaveBeenCalledTimes(3);
     } else {
       expect(message).not.toHaveBeenCalled();
       expect(launches.game.current).toBe("general-aborted");

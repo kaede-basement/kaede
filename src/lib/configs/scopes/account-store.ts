@@ -7,6 +7,12 @@ import Browser from "@/lib/browser";
 import FileManager from "@/lib/file-manager";
 
 export const accountStoreError = ref(false);
+export function setAccountStoreError(directory: string, error: boolean): void {
+  if (directory === FileManager.getBaseDirectory()) {
+    accountStoreError.value = error;
+  }
+}
+
 export const AccountConflict = "accounts-conflict";
 let bridgeStorage = false;
 
@@ -56,5 +62,5 @@ export async function saveAccountText(
     throw new Error("Unacknowledged account write");
   }
 
-  accountStoreError.value = false;
+  setAccountStoreError(directory, false);
 }

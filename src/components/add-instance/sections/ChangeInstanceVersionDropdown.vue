@@ -89,9 +89,9 @@ const filteredVersions = computed(() => {
   ));
 });
 const rowHeight = 36;
-const { list, containerProps, wrapperProps, scrollTo, retry } = useVersionViewport(
-  filteredVersions, rowHeight,
-);
+const {
+  list, containerProps, wrapperProps, scrollTo, retry, focusFirstVisible,
+} = useVersionViewport(filteredVersions, rowHeight);
 
 async function focusRow(index: number): Promise<void> {
   const next = Math.max(0, Math.min(index, filteredVersions.value.length - 1));
@@ -136,7 +136,7 @@ function selectVersion(extractedVersion: string): void {
     class="absolute left-0 top-14 z-50 max-h-73 w-full overflow-y-auto break-all rounded-md text-start text-sm"
     :style="styles.widget"
     tabindex="-1"
-    @keydown.down.self.prevent="focusRow(list[0]?.index ?? 0)"
+    @keydown.down.self.prevent="focusFirstVisible"
     @keydown.esc="handleDropdown(false)"
   >
     <p v-if="status === 'error'" id="__version-dropdown-error">

@@ -32,17 +32,17 @@ import type { AccountType } from "@/types/configs/account.type.ts";
  * @param accounts - an array of accounts to resolve the account from
  */
 export async function resolveLaunchAccount(
-  accounts: Array<AccountType>,
+  accounts: Array<AccountType>, signal?: AbortSignal,
 ): Promise<{
   "auth"    : LaunchAuthType;
   "accounts": Array<AccountType>;
 } | undefined> {
-  return resolveAccountAtIndex(accounts, globalStates.selected.account);
+  return resolveAccountAtIndex(accounts, globalStates.selected.account, signal);
 }
 
 export async function resolveAccountAtIndex(
   accounts: Array<AccountType>,
-  selectedIndex: number,
+  selectedIndex: number, signal?: AbortSignal,
 ): ReturnType<typeof resolveLaunchAccount> {
   const activeAccount: AccountType | undefined = accounts[selectedIndex];
 
@@ -57,6 +57,7 @@ export async function resolveAccountAtIndex(
 
   const { account, status } = await ensureFreshAccount(activeAccount);
 
+  if (signal?.aborted) return;
   if (status === "failed") {
     const toContinue: boolean = await confirm(
       "An error happened while refreshing a token for the selected account." +
@@ -65,7 +66,7 @@ export async function resolveAccountAtIndex(
       "Account refreshing",
     );
 
-    if (!toContinue) {
+    if (!toContinue || signal?.aborted) {
       return undefined;
     }
   }
@@ -82,6 +83,7 @@ export async function resolveAccountAtIndex(
   }
 
   const updatedAccounts = await Configs.updateAccounts(current => {
+    if (signal?.aborted) return;
     const index = current.findIndex(({ profile }) => profile.uuid === account.profile.uuid);
 
     if (index === -1) {

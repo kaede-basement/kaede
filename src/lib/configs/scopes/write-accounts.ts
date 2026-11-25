@@ -23,7 +23,7 @@ import { CheckAccount } from "@/lib/schemas/generated/validators.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
 import {
-  AccountConflict, accountStoreError, readAccountText, saveAccountText,
+  AccountConflict, readAccountText, saveAccountText, setAccountStoreError,
 } from "./account-store.ts";
 
 let accountWriteChain: Promise<void> = Promise.resolve();
@@ -70,7 +70,9 @@ export async function persistAccounts(
 }
 
 export function parseStoredAccounts(raw: string | undefined): unknown {
-  return raw?.trim() ? JSON.parse(raw) : [];
+  const json = raw?.replace(/^\uFEFF/u, "");
+
+  return json && !(/^\p{White_Space}*$/u).test(json) ? JSON.parse(json) : [];
 }
 
 async function readSnapshot(directory: string): Promise<{
@@ -84,11 +86,11 @@ async function readSnapshot(directory: string): Promise<{
       throw new Error("Invalid account data in accounts.json");
     }
 
-    accountStoreError.value = false;
+    setAccountStoreError(directory, false);
 
     return { raw, current };
   } catch (error) {
-    accountStoreError.value = true;
+    setAccountStoreError(directory, true);
     throw error;
   }
 }

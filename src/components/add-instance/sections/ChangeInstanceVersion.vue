@@ -121,6 +121,11 @@ const queueSearch = useDebounceFn(handleVersionSearch, 300);
 const displayedPatch = computed(() => temporaryPatch.value ?? currentPatch.value);
 
 watch(displayedPatch, queueSearch.cancel, { "flush": "sync" });
+watch([
+  currentVersionSearch, (): string | undefined => currentVersionSearch.value?.input,
+], ([search]) => {
+  if (!search?.input) queueSearch.cancel();
+}, { "flush": "sync" });
 onScopeDispose(queueSearch.cancel);
 
 onClickOutside(target, event => handleDropdown(false, event));

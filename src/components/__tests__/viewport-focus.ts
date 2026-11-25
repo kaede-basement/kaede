@@ -26,11 +26,12 @@ export async function checkViewportFocus(
   expect(first.isConnected).toBe(false);
   expect(viewport.contains(document.activeElement)).toBe(true);
   if (viewport.querySelector("[data-index]")) {
+    viewport.focus({ "preventScroll": true });
     viewport.dispatchEvent(new view.browser.KeyboardEvent("keydown", {
       "key": "ArrowDown", "bubbles": true,
     }) as unknown as Event);
     await nextTick();
-    expect(Number(document.activeElement?.getAttribute("data-index"))).toBeGreaterThan(0);
+    expect(Number(document.activeElement?.getAttribute("data-index"))).toBe(44);
     expect(viewport.scrollTop).toBe(1600);
   }
   outside.focus();
