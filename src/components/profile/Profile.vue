@@ -64,9 +64,7 @@ function stopWalk(): void {
             :class="[
               shown ? 'opacity-100' : 'opacity-0',
               'cursor-grab duration-300 transition-[opacity] active:cursor-grabbing',
-              // It's kind of buggy, and 150x225 becomes 187x281,
-              // but the size can grow even more, so we set real limits here
-              'shrink-0 max-h-[281px] max-w-[187px]',
+              'shrink-0 w-[150px] h-[225px]',
             ]"
           />
         </div>

@@ -37,6 +37,59 @@ import type { AccountType, WrappedAccountsType } from "@/types/configs/account.t
 
 use(WebGLRendererPlugin);
 
+function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement): void {
+  let loopRunning = false;
+  let disposed = false;
+  let frame: number | undefined;
+
+  function cancelFrame(): void {
+    if (frame !== undefined) {
+      cancelAnimationFrame(frame);
+      frame = undefined;
+    }
+  }
+
+  function scheduleRender(): void {
+    if (disposed || loopRunning || frame !== undefined) {
+      return;
+    }
+    frame = requestAnimationFrame(() => {
+      frame = undefined;
+      viewer.render();
+    });
+  }
+
+  viewer.onZoomChange = scheduleRender;
+  viewer.onRotationChange = scheduleRender;
+  const observer = new ResizeObserver(([{ "contentRect": { width, height } }]) => {
+    if (!disposed && width > 0 && height > 0) {
+      viewer.resize(width, height);
+      scheduleRender();
+    }
+  });
+
+  observer.observe(canvas);
+
+  // Extensions can also control the viewer's loop and lifetime directly.
+  const { startRenderLoop, stopRenderLoop, dispose } = viewer;
+
+  viewer.startRenderLoop = (): void => {
+    cancelFrame();
+    loopRunning = true;
+    startRenderLoop();
+  };
+  viewer.stopRenderLoop = (): void => {
+    stopRenderLoop();
+    loopRunning = false;
+  };
+  viewer.dispose = (): void => {
+    disposed = true;
+    cancelFrame();
+    observer.disconnect();
+    dispose();
+  };
+}
+
 export function useSkinRenderer({
   render,
   account,
@@ -118,11 +171,9 @@ export function useSkinRenderer({
       }
 
       let closed = false;
-      let resize: ResizeObserver | undefined;
 
       onCleanup(() => {
         closed = true;
-        resize?.disconnect();
         viewer.value?.dispose();
         viewer.value = undefined;
         shown.value = false;
@@ -138,10 +189,7 @@ export function useSkinRenderer({
           created.dispose();
         } else {
           viewer.value = created;
-          created.onZoomChange = created.render;
-          created.onRotationChange = created.render;
-          resize = new ResizeObserver(() => created.render());
-          resize.observe(target);
+          configureDemandRendering(created, target);
           shown.value = true;
         }
       } catch (error) {

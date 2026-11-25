@@ -18,8 +18,6 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
-import ASCIIArt from "@/constants/ascii-art.ts";
-import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { log } from "@/lib/logging/log.ts";
 import type { ParsedFile } from "@/types/application/parsed-file.type.ts";
 
@@ -51,30 +49,4 @@ export async function start(): Promise<InitialStateType> {
 
     throw error;
   }
-}
-
-export function startShell(): Promise<Omit<InitialStateType, "executableHash">> {
-  return invoke("get_initial_shell_state");
-}
-
-let hashReady: Promise<void> | undefined;
-
-export function ensureExecutableHash(legacyHash?: string): Promise<void> {
-  hashReady ??= (legacyHash === undefined
-    ? invoke<string>("get_executable_hash")
-    : Promise.resolve(legacyHash)
-  ).then(hash => {
-    GlobalInternals.executableHash = hash;
-    const { portable, launchCount, launcherVersion } = GlobalInternals;
-
-    log.info(
-      __PRE_BUNDLED_FILENAME__,
-      ASCIIArt.getASCIIArt(portable, launchCount, launcherVersion, hash),
-    );
-  }).catch(error => {
-    hashReady = undefined;
-    throw error;
-  });
-
-  return hashReady;
 }

@@ -17,7 +17,7 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { markRaw } from "vue";
+import { type ShallowRef, shallowRef, triggerRef } from "vue";
 
 import { log } from "@/lib/logging/log.ts";
 import type {
@@ -27,6 +27,20 @@ import type {
 import type {
   LauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
+
+type ProgressMap = LauncherStatusesType["downloads"]["current"];
+const observedMaps = new WeakMap<ProgressMap, ShallowRef<ProgressMap>>;
+
+export function trackDownloadProgress(current: ProgressMap): ProgressMap {
+  let observed = observedMaps.get(current);
+
+  if (!observed) {
+    observed = shallowRef(current);
+    observedMaps.set(current, observed);
+  }
+
+  return observed.value;
+}
 
 export async function concurrentlyDownload({
   concurrency,
@@ -91,11 +105,12 @@ export async function concurrentlyDownload({
 
   function publishCurrent(snapshot: DownloadSnapshotType["current"]): void {
     const current = statuses.downloads.current;
-    let next: Map<string, [number, number]> | undefined;
+    let changed = false;
 
     for (const path of previousPaths) {
       if (!Object.prototype.hasOwnProperty.call(snapshot, path)) {
-        (next ??= new Map(current)).delete(path);
+        current.delete(path);
+        changed = true;
         previousPaths.delete(path);
       }
     }
@@ -103,17 +118,25 @@ export async function concurrentlyDownload({
       const old = current.get(path);
 
       if (!old || old[0] !== progress[0] || old[1] !== progress[1]) {
-        (next ??= new Map(current)).set(path, progress);
+        current.set(path, progress);
+        changed = true;
       }
       previousPaths.add(path);
     }
-    if (next) {
-      statuses.downloads.current = markRaw(next);
+    const observed = observedMaps.get(current);
+
+    if (changed && observed) {
+      triggerRef(observed);
     }
   }
 
+  let finished = false;
+
   // eslint-disable-next-line unicorn/prefer-add-event-listener
   onProgress.onmessage = (snapshot: DownloadSnapshotType): void => {
+    if (finished) {
+      return;
+    }
     publishCurrent(snapshot.current);
     applySnapshotData(snapshot.success, snapshot.failed);
   };
@@ -125,11 +148,12 @@ export async function concurrentlyDownload({
     onProgress,
     cancelId,
     debug,
+  }).finally(() => {
+    finished = true;
+    publishCurrent({});
   });
 
   applySnapshotData(report.success, report.failed);
-
-  publishCurrent({});
 
   if (report.cancelled) {
     log.info(logPrefix, "The Minecraft download tasks were cancelled");

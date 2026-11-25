@@ -21,29 +21,23 @@ const launchKey = Symbol();
 const translationsKey = Symbol();
 
 mock.module("@/constants/application.ts", () => ({
-  "ApplicationRootID"         : "#app",
-  "AuthOneTimeFetchContextKey": Symbol(),
-  "AuthStatesContextKey"      : authKey, "LaunchStatesContextKey"    : launchKey,
-  "TranslationsContextKey"    : translationsKey, "CustomFontFamily"          : "test",
+  "AuthStatesContextKey"  : authKey, "LaunchStatesContextKey": launchKey,
+  "TranslationsContextKey": translationsKey, "CustomFontFamily"      : "test",
 }));
-const internals = { "executableHash": "" };
-
-mock.module("@/extendable/global-internals.ts", () => ({ "GlobalInternals": internals }));
 const state = reactive({
   "selected": { "currentInstance": "first", "account": 0 },
   "ui"      : {
     "background": { "blur": null as number | null },
     "widget"    : { "blur": null as number | null }, "text"      : { "font": null },
   },
-  "extensions": { "list": [{ "sha256": "enabled", "enabled": true }] },
 });
 
-mock.module("@/states/global.ts", () => ({ "globalStates": state, "declareGlobalStates": noop }));
+mock.module("@/states/global.ts", () => ({ "globalStates": state }));
 mock.module("@/lib/instances", () => ({
-  "default": { "findCurrent": (id: string): { "id": string } => ({ id }), "readInstances": noop },
+  "default": { "findCurrent": (id: string): { "id": string } => ({ id }) },
 }));
 mock.module("@/states/instance.ts", () => ({
-  "instanceStates": {}, "declareInstanceStates": noop,
+  "instanceStates": {},
 }));
 mock.module("@/lib/errors", () => ({ "default": { "prettify": String } }));
 
@@ -98,7 +92,7 @@ const invoke = mock(async (command: string, arguments_?: unknown): Promise<unkno
 mock.module("@tauri-apps/api/core", () => ({ invoke, "Channel": class {} }));
 
 export {
-  authKey, translationsKey, launchKey, mount, state, documentState, internals, invoke,
+  authKey, translationsKey, launchKey, mount, state, documentState, invoke,
   noop, asyncNoop,
 };
 export type { Element, Mounted };

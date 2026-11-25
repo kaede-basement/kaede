@@ -9,6 +9,7 @@ import {
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances";
+import { trackDownloadProgress } from "@/lib/network/concurrently-download.ts";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type {
@@ -84,22 +85,17 @@ const progress = computed<number>((oldValue: number | undefined): number => {
   }
 });
 
-const currentDownloadSpeed = computed(() => {
-  const currentDownloads: MapIterator<[number, number]> | undefined =
-    statuses.value?.downloads?.current?.values?.();
+const currentDownloads = computed(() => {
+  const map = statuses.value?.downloads?.current;
+  let totalSpeed = 0;
 
-  if (!currentDownloads) {
-    return "0.00";
+  if (map) {
+    for (const [, speed] of trackDownloadProgress(map).values()) {
+      totalSpeed += speed;
+    }
   }
 
-  const divider: number = 1024 * 1024;
-  let totalSpeed: number = 0;
-
-  for (const [, speed] of currentDownloads) {
-    totalSpeed += speed;
-  }
-
-  return (totalSpeed / divider).toFixed(2);
+  return { "speed": (totalSpeed / (1024 * 1024)).toFixed(2), "count": map?.size ?? 0 };
 });
 
 watch(
@@ -143,18 +139,18 @@ watch(
       {{ instanceStates[statuses.instanceId].name }} (status)
     </div>
     <div
-      v-if="currentDownloadSpeed !== '0.00'"
+      v-if="currentDownloads.speed !== '0.00'"
       id="__layout__launch-progress-current-speed"
       class="text-sm"
     >
-      {{ currentDownloadSpeed }} MB/s
+      {{ currentDownloads.speed }} MB/s
     </div>
     <div
-      v-if="statuses.downloads.current.size > 0"
+      v-if="currentDownloads.count > 0"
       id="__layout__launch-progress-current-downloads"
       class="text-sm"
     >
-      Downloading {{ statuses.downloads.current.size }} objects
+      Downloading {{ currentDownloads.count }} objects
     </div>
     <div
       v-if="statuses.downloads.total > 0"
