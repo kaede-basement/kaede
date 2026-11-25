@@ -83,6 +83,38 @@ test("Home disables Launch and Stop after process exit until launch hooks settle
   view.unmount();
 });
 
+test.each([false, true])("Stop confirmation follows its launch (replaced %p)", async replaced => {
+  const confirmation = Promise.withResolvers<boolean>();
+
+  const ask = mock(() => confirmation.promise);
+
+  mock.module("@tauri-apps/plugin-dialog", () => ({ ask }));
+  mock.module("@/lib/launcher/scopes/fetching", () => ({ "default": {} }));
+  mock.module("@/components/general/base/MaterialRipple.vue", () => ({ "default": {} }));
+  const { "default": launch } = await import("@/components/home/instance/Launch.vue");
+  const close = mock(noop);
+  const view = mount<{ handleClose(): Promise<void> }>(
+    launch, "", [[startKey, noop], [closeKey, close]],
+  );
+  let statuses = beginLaunch("first")!;
+
+  statuses.downloads.total = 1;
+  const closing = view.bindings.handleClose();
+
+  expect(ask).toHaveBeenCalledTimes(1);
+  if (replaced) {
+    finishLaunch("first", statuses);
+    statuses = beginLaunch("first")!;
+  }
+  recordRun("first", { "token": "A" } as MinecraftProcessType, 5000, false);
+  finishLaunch("first", statuses);
+  confirmation.resolve(true);
+  await closing;
+  expect(close).toHaveBeenCalledTimes(replaced ? 0 : 1);
+  finishRun("first", "A");
+  view.unmount();
+});
+
 test("Home accrues only the selected instance's active gameplay time", async () => {
   mock.module("@/components/general/base/MaterialRipple.vue", () => ({ "default": {} }));
   const { "default": currentPlaytime } = await import(

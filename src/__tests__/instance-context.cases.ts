@@ -59,7 +59,9 @@ test("a launch hook can veto with a failed result or continue without a response
   const { launchInstance } = GlobalInternals.instanceContext!;
   const { before } = getHooks().onMinecraftLaunch;
 
-  before.push(async () => ({ "status": "stop", "response": { "success": false } }));
+  before.push(async () => ({
+    "status": "stop", "response": { "success": false, "process": undefined },
+  }));
   await launchInstance(id);
   expect(operation(id).kind).toBe("idle");
   before.pop();

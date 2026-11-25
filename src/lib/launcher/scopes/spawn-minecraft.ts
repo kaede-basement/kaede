@@ -54,7 +54,9 @@ export async function spawnMinecraft({
     });
 
   if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
-    return beforeHooksResult;
+    if (beforeHooksResult.success && beforeHooksResult.process) return beforeHooksResult;
+
+    return { "success": false, "process": undefined };
   }
 
   const { directories, statuses, logPrefix } = necessaries;
@@ -87,7 +89,7 @@ export async function spawnMinecraft({
     }, (child, startedAt) => {
       addProcessExitListener(child.token, payload => {
         exited = true;
-        notifyMinecraftExit(child);
+        void notifyMinecraftExit(instanceId, child);
         onClose?.(instanceId);
         log.warn(
           logPrefix,

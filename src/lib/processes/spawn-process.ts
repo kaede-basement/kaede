@@ -19,9 +19,10 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import {
-  addProcessExitListener, ProcessHandlers, recordSpawnLifetime,
+  addProcessExitListener, minecraftInstanceId, ProcessHandlers, recordSpawnLifetime,
   toProcessHandle,
 } from "@/lib/processes/core.ts";
+import { activeRun } from "@/states/instance-operation.ts";
 import type {
   ProcessDtoType,
   ProcessHandlersType,
@@ -49,6 +50,8 @@ export async function spawnProcess<Meta>(
 ): Promise<ProcessHandleType<Meta>> {
   const token = createToken();
 
+  const instanceId = minecraftInstanceId(options);
+  const ownerAtRequest = instanceId && activeRun(instanceId);
   const requestedAt = performance.now();
   let confirmed: ProcessHandleType<Meta> | undefined;
 
@@ -56,6 +59,11 @@ export async function spawnProcess<Meta>(
     if (!confirmed) {
       confirmed = toProcessHandle(dto);
       recordSpawnLifetime(confirmed, startedAt);
+      if (instanceId) {
+        const owner = ownerAtRequest || activeRun(instanceId);
+
+        if (owner && owner.process.token !== dto.token) owner.excludeSibling?.(dto.token);
+      }
       onSpawn?.(confirmed, startedAt);
     }
 

@@ -1,5 +1,6 @@
 import Hooks from "@/lib/hooks";
 import { processLifetime } from "@/lib/processes/core.ts";
+import { operation } from "@/states/instance-operation.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 
 const notified = new WeakSet<object>;
@@ -10,8 +11,10 @@ export function claimMinecraftProcess(process: MinecraftProcessType): boolean {
   const lifetime = processLifetime(process);
 
   if (!lifetime) {
-    if (unmanagedSelections.has(process.token)) return false;
-    unmanagedSelections.add(process.token);
+    const key = `${process.token}:${process.pid}`;
+
+    if (unmanagedSelections.has(key)) return false;
+    unmanagedSelections.add(key);
 
     return true;
   }
@@ -21,15 +24,18 @@ export function claimMinecraftProcess(process: MinecraftProcessType): boolean {
   return true;
 }
 
-export function notifyMinecraftExit(process: MinecraftProcessType): void {
+export async function notifyMinecraftExit(
+  instanceId: string, process: MinecraftProcessType,
+): Promise<void> {
   const identity = processLifetime(process) ?? process;
 
   if (notified.has(identity)) return;
   notified.add(identity);
-  // Run after all synchronous exit listeners have settled the instance and its playtime.
-  queueMicrotask(() => {
-    void Hooks.catchAsyncVoidHooks({
-      "scope": "onMinecraftKill", "toPass": process.pid, "timing": "after",
-    });
+  const op = operation(instanceId);
+
+  // A launch hook may still select this child after it has already exited.
+  await (op.kind === "launching" && !op.exited ? op.selection.promise : undefined);
+  await Hooks.catchAsyncVoidHooks({
+    "scope": "onMinecraftKill", "toPass": process.pid, "timing": "after",
   });
 }

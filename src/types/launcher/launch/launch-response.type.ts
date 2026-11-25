@@ -16,9 +16,6 @@ export type MinecraftLaunchPayloadType = {
 };
 
 export type LaunchResponseType = {
-  "success" : false;
-  "process"?: undefined;
-} | {
-  "success": true;
-  "process": MinecraftProcessType;
+  "success": boolean;
+  "process": MinecraftProcessType | undefined;
 };

@@ -1,6 +1,7 @@
 import { expect, spyOn, test } from "bun:test";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
+import { getHooks } from "@/extendable/hooks-registry.ts";
 import { spawnProcess } from "@/lib/processes/spawn-process.ts";
 import { flushPlaytime, instanceStates, restorePlaytime } from "@/states/instance.ts";
 import { activeRun } from "@/states/instance-operation.ts";
@@ -93,9 +94,9 @@ test.each(["helper first", "selected first", "selected missing"])("restore %s", 
   }
 });
 
-test("launch excludes a live sibling across reloads and preserves a legacy run", async () => {
+test.each(["before", "after"])("restore with a sibling spawned %s adoption", async when => {
   const saved = new Map<string, string>;
-  const instanceId = "new launch";
+  const instanceId = "new launch " + when;
   const spec = {
     "program": { "type": "path", "value": "java" },
     "kind"   : "minecraft", "meta"   : { instanceId },
@@ -105,7 +106,12 @@ test("launch excludes a live sibling across reloads and preserves a legacy run",
   try {
     instanceStates[instanceId] = { ...instanceStates[id], "playTime": 0 };
     await mountProvider();
-    const helper = await spawnProcess(spec);
+    let helper!: Awaited<ReturnType<typeof spawnProcess>>;
+
+    if (when === "before") helper = await spawnProcess(spec);
+    else getHooks().onMinecraftLaunch.after.push(async () => {
+      helper = await spawnProcess(spec);
+    });
 
     await GlobalInternals.instanceContext!.launchInstance(instanceId);
     const selected = activeRun(instanceId)!;

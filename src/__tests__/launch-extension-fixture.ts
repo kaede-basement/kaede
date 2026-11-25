@@ -11,7 +11,9 @@ export function launchHooks(
   const before: LaunchHooks["before"][number] = ({ command, instanceId, necessaries }) => {
     received(command.java, command.arguments, instanceId, necessaries.directories.instance);
     if (response === "continue") return { "status": "continue" };
-    if (response === "veto") return { "status": "stop", "response": { "success": false } };
+    if (response === "veto") {
+      return { "status": "stop", "response": { "success": false, "process": undefined } };
+    }
 
     return { "status": "stop", "response": { "success": true, "process": response } };
   };
@@ -28,6 +30,14 @@ export function launchHooks(
     "after" : [asyncHook ? async (payload): Promise<void> => after(payload) : after],
   };
 }
+
+const missingProcess: LaunchHooks["before"][number] = () => ({
+  "status"  : "stop",
+  // @ts-expect-error Failure results also carry the process property.
+  "response": { "success": false },
+});
+
+void missingProcess;
 
 // @ts-expect-error A stop response requires a launch result.
 const invalid: LaunchHooks["before"][number] = () => ({ "status": "stop", "response": undefined });

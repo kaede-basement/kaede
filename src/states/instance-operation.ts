@@ -12,13 +12,16 @@ type Install = {
   "statuses"  : LauncherStatusesType;
 };
 type Run = {
-  "process"      : MinecraftProcessType;
-  "statuses"     : LauncherStatusesType;
-  "startedAt"    : number;
-  "launchPending": boolean;
-  "exit"?        : ReturnType<typeof nativeExit>;
+  "process"        : MinecraftProcessType;
+  "statuses"       : LauncherStatusesType;
+  "startedAt"      : number;
+  "launchPending"  : boolean;
+  "excludeSibling"?: (token: string) => void;
+  "exit"?          : ReturnType<typeof completion>;
 } & ({ "kind": "running" } | { "kind": "stopping"; "closed": Promise<void> });
-type Launch = { "kind": "launching"; "statuses": LauncherStatusesType; "exited": boolean };
+type Launch = { "kind": "launching"; "statuses": LauncherStatusesType } & (
+  { "exited": false; "selection": ReturnType<typeof completion> } | { "exited": true }
+);
 type Operation = Install | Run | Launch;
 const operations = shallowReactive(new Map<string, Operation>);
 
@@ -50,7 +53,7 @@ export function beginLaunch(id: string): LauncherStatusesType | undefined {
   if (operations.has(id)) return;
   const statuses = reactive(status(id));
 
-  operations.set(id, { "kind": "launching", statuses, "exited": false });
+  operations.set(id, { "kind": "launching", statuses, "exited": false, "selection": completion() });
   Launches[id] = statuses;
 
   return statuses;
@@ -62,6 +65,7 @@ export function finishLaunch(id: string, statuses: LauncherStatusesType): void {
   if (!op || op.kind === "installing" || op.statuses !== statuses) return;
   if (op.kind === "launching") {
     if (op.exited) statuses.current = LaunchStatus.General.Aborted;
+    else op.selection.resolve();
     statuses.launching = 0;
     operations.delete(id);
   } else {
@@ -99,7 +103,7 @@ export function finishInstall(install: Install): void {
   }
 }
 
-function nativeExit(): { "promise": Promise<void>; "resolve": () => void } {
+function completion(): { "promise": Promise<void>; "resolve": () => void } {
   let resolve!: () => void;
   const promise = new Promise<void>(done => {
     resolve = done;
@@ -110,16 +114,17 @@ function nativeExit(): { "promise": Promise<void>; "resolve": () => void } {
 
 export function recordRun(
   id: string, process: MinecraftProcessType, startedAt: number, rehydrated: boolean,
-  managed = rehydrated,
+  managed = rehydrated, excludeSibling?: (token: string) => void,
 ): boolean {
   const op = operations.get(id);
 
   if (op && (op.kind !== "launching" || op.exited || rehydrated)) return false;
+  op?.selection.resolve();
   const statuses = op?.statuses ?? reactive(status(id));
 
   operations.set(id, {
-    "kind"         : "running", process, startedAt, statuses, "launchPending": !!op,
-    "exit"         : managed ? nativeExit() : undefined,
+    "kind"         : "running", process, startedAt, statuses, excludeSibling, "launchPending": !!op,
+    "exit"         : managed ? completion() : undefined,
   });
   if (!op) {
     statuses.launching = 2;

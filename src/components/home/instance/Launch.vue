@@ -54,21 +54,27 @@ async function handleClose(): Promise<void> {
   const instanceId = currentInstance.value?.id;
 
   if (!instanceId || unstoppable.value) return;
-  const op = operation(instanceId);
+  const requested = operation(instanceId);
+
+  if (requested.kind === "idle") return;
   const confirmed = await ask("Do you really want to cancel the Minecraft launch?", "Minecraft");
 
-  if (!confirmed || operation(instanceId) !== op) return;
+  const op = operation(instanceId);
+
+  if (!confirmed || op.kind === "idle" || op.statuses !== requested.statuses) return;
   if (op.kind === "installing") {
-    await op.cancel?.();
+    if (op === requested) await op.cancel?.();
 
     return;
   }
   if (op.kind === "launching") {
+    if (op.exited) return;
     await Fetching.cancelAll(`${instanceId}-download`);
 
     return;
   }
 
+  if (op.kind !== "running") return;
   if (closeInstance === undefined) {
     return log.error(
       __PRE_BUNDLED_FILENAME__,

@@ -53,3 +53,20 @@ test("Minecraft exiting before spawn returns never publishes a running handle", 
   expect(spawn).toHaveBeenCalledTimes(1);
   expect(mkdir).toHaveBeenCalledWith("game", { "recursive": true });
 });
+
+test("a legacy veto returns an own undefined process field", async () => {
+  const failure = { "success": false };
+
+  using hooks = spyOn(Hooks, "catchAsyncResponseHooks").mockResolvedValue(failure);
+  using mkdir = spyOn(fs, "mkdir").mockResolvedValue();
+  const result = await spawnMinecraft({
+    "command"    : { "java": "java", "arguments": [] }, "instanceId" : "veto",
+    "necessaries": { "directories": { "instance": "game" } } as PreLaunchInformationType,
+    "onInput"    : () => {},
+  });
+
+  expect(hooks).toHaveBeenCalledTimes(1);
+  expect(mkdir).toHaveBeenCalledTimes(1);
+  expect(result).toStrictEqual({ "success": false, "process": undefined });
+  expect(Object.keys(result)).toContain("process");
+});

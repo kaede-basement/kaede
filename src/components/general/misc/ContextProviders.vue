@@ -63,7 +63,7 @@ function finishSelectedProcess(
   void syncExitedPlaytime();
   globalStates.logs.show = true;
   globalStates.logs.mode = instanceId;
-  notifyMinecraftExit(process);
+  void notifyMinecraftExit(instanceId, process);
 }
 
 function observeSelected(
@@ -128,7 +128,7 @@ function adopt(instanceId: string, process: MinecraftProcessType, startedAt?: nu
   for (const token of siblingTokens(instanceId, process.token)) helpers.exclude(token);
   if (!claimMinecraftProcess(process)) return;
   const started = startPlaytime(
-    instanceId, process, false, startedAt ?? lifetime?.startedAt, !!lifetime,
+    instanceId, process, false, startedAt ?? lifetime?.startedAt, !!lifetime, helpers.exclude,
   );
 
   if (!started) return;
@@ -241,7 +241,7 @@ async function rehydrateLaunchedInstances(): Promise<void> {
       return;
     }
     if (operation(instanceId).kind !== "idle" || !claimMinecraftProcess(process)) return;
-    startPlaytime(instanceId, process, true);
+    startPlaytime(instanceId, process, true, undefined, true, helpers.exclude);
     preferred.set(instanceId, process.token);
     helpers.include(process.token);
     observeSelected(instanceId, process, endedAt);

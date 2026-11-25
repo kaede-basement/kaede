@@ -61,10 +61,15 @@ export function* siblingTokens(instanceId: string, selected: string): Generator<
   }
 }
 
+export function minecraftInstanceId(
+  { kind, meta }: Pick<ProcessHandleType, "kind" | "meta">,
+): string | undefined {
+  if (kind === "minecraft") return (meta as { "instanceId"?: string } | null)?.instanceId;
+}
+
 export function recordSpawnLifetime(handle: NativeHandle, startedAt: number): void {
-  const instanceId = handle.kind === "minecraft" &&
-    (handle.meta as { "instanceId"?: string } | null)?.instanceId;
-  const lifetime = live.get(handle.token) ?? { startedAt, "instanceId": instanceId || undefined };
+  const instanceId = minecraftInstanceId(handle);
+  const lifetime = live.get(handle.token) ?? { startedAt, instanceId };
 
   bindLifetime(handle, lifetime);
   live.set(handle.token, lifetime);

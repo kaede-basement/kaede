@@ -1899,11 +1899,8 @@ export type MinecraftLaunchPayloadType = {
 };
 
 export type LaunchResponseType = {
-	"success": false;
-	"process"?: undefined;
-} | {
-	"success": true;
-	"process": MinecraftProcessType;
+	"success": boolean;
+	"process": MinecraftProcessType | undefined;
 };
 declare function handleLaunch({ instanceId, instance, statuses, userPreferences, onClose, onInput, }: {
 	"instanceId": string;

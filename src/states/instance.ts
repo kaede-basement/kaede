@@ -198,10 +198,13 @@ export function startPlaytime(
   rehydrated = false,
   startedAt = performance.now(),
   managed = rehydrated,
+  excludeSibling?: (token: string) => void,
 ): boolean {
   const previous = rehydrated ? restored.get(process.token) : undefined;
 
-  if (!recordRun(id, process, previous?.startedAt ?? startedAt, rehydrated, managed)) return false;
+  const start = previous?.startedAt ?? startedAt;
+
+  if (!recordRun(id, process, start, rehydrated, managed, excludeSibling)) return false;
   restored.delete(process.token);
   const instance = instanceStates[id];
 
@@ -254,7 +257,6 @@ export function commitPlaytime(id: string, token: string, endedAt: number): void
   if (run?.process.token !== token) {
     return;
   }
-  finishRun(id, token);
   const instance = instanceStates[id];
 
   finish(id, {
@@ -262,6 +264,7 @@ export function commitPlaytime(id: string, token: string, endedAt: number): void
     "playTime"  : (instance?.playTime ?? 0) + Math.max(0, Math.floor(endedAt - run.startedAt)),
     "lastLaunch": instance?.lastLaunch ?? 0,
   });
+  finishRun(id, token);
 }
 
 export async function flushPlaytime(write: () => Promise<void>): Promise<void> {
