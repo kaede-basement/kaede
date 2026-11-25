@@ -29,6 +29,8 @@ import type {
   ProgramSpecType,
 } from "@/types/application/server-process.type.ts";
 
+export const SpawnObservers = new Set<(process: ProcessHandleType, startedAt: number) => void>;
+
 // 'crypto.randomUUID()' is unavailable outside secure contexts on webkitgtk...
 function createToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36)
@@ -48,12 +50,36 @@ export async function spawnProcess<Meta>(
 ): Promise<ProcessHandleType<Meta>> {
   const token = createToken();
 
-  ProcessHandlers.set(token, processHandlers);
+  const requestedAt = performance.now();
+  let confirmed: ProcessHandleType<Meta> | undefined;
+
+  function confirm(dto: ProcessDtoType<Meta>, startedAt: number): ProcessHandleType<Meta> {
+    if (!confirmed) {
+      confirmed = toProcessHandle(dto);
+      for (const observe of SpawnObservers) {
+        observe(confirmed, startedAt);
+      }
+    }
+
+    return confirmed;
+  }
+  ProcessHandlers.set(token, {
+    ...processHandlers,
+    "onExit": payload => {
+      // An exit proves the process spawned even when its IPC reply is still pending.
+      const { kind, meta } = options;
+
+      confirm({ token, "pid": payload.pid, kind, meta }, requestedAt);
+      processHandlers.onExit?.(payload);
+    },
+  });
 
   try {
-    return toProcessHandle(await invoke<ProcessDtoType<Meta>>("spawn_process", {
+    const dto = await invoke<ProcessDtoType<Meta>>("spawn_process", {
       "spec": { token, ...options },
-    }));
+    });
+
+    return confirm(dto, performance.now());
   } catch (error) {
     ProcessHandlers.delete(token);
     throw error;

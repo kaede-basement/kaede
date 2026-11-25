@@ -20,13 +20,24 @@ import { useDebounceFn } from "@vueuse/core";
 import { watch } from "vue";
 
 import Instances from "@/lib/instances";
-import { instanceStates } from "@/states/instance.ts";
+import { log } from "@/lib/logging/log.ts";
+import { instanceStates, restorePlaytime } from "@/states/instance.ts";
+
+function write(): Promise<void> {
+  return Instances.sync().catch(error => {
+    log.error(__PRE_BUNDLED_FILENAME__, "Failed to sync instance metadata:", error);
+  });
+}
 
 /**
  * Updates instances file on any instance states changes.
  */
 export function watchInstancesSync(): () => void {
-  const debouncedWrite = useDebounceFn(Instances.sync, 300);
+  const debouncedWrite = useDebounceFn(write, 300);
+
+  if (restorePlaytime()) {
+    void write();
+  }
 
   return watch(
     () => instanceStates,

@@ -1,6 +1,6 @@
 import { Type } from "typebox";
 
-import { Patches } from "@/constants/meta.ts";
+import { Patches } from "@/constants/patch-uids.ts";
 import { MinecraftSchema } from "@/lib/schemas/types/config/minecraft.schema.ts";
 import { PatchUidSchema } from "@/lib/schemas/types/meta/patch-uid.schema.ts";
 

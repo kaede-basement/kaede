@@ -43,6 +43,9 @@ export function validate<T>({
           `The provided ${label} (${entryInfo}) is not valid:`,
           "\n" + errors,
         );
+      })
+      .catch(error => {
+        log.error(__PRE_BUNDLED_FILENAME__, "Could not load validation errors:", error);
       });
 
     return false;
