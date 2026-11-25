@@ -1502,6 +1502,15 @@ mod tests {
         time::timeout,
     };
 
+    async fn wait_peer_closed(stream: &mut tokio::net::TcpStream) {
+        use io::ErrorKind::{BrokenPipe, ConnectionAborted, ConnectionReset};
+        match stream.read(&mut [0]).await {
+            Ok(0) => (),
+            Err(e) if matches!(e.kind(), ConnectionReset | ConnectionAborted | BrokenPipe) => (),
+            result => panic!("expected control connection to close, got {result:?}"),
+        }
+    }
+
     fn fixture(mode: &str) -> StdCommand {
         let mut command = StdCommand::new(std::env::current_exe().unwrap());
         command
@@ -1649,7 +1658,7 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(1)).await;
         }
         direct.write_all(b"e").await.unwrap();
-        assert_eq!(direct.read(&mut [0]).await.unwrap(), 0);
+        wait_peer_closed(&mut direct).await;
 
         match drain {
             Drain::Managed => {
@@ -1726,7 +1735,7 @@ mod tests {
                 tokio::select! {
                     biased;
                     _ = &mut collecting => panic!("inherited pipes unexpectedly reached EOF"),
-                    _ = std::future::ready(()) => (),
+                    _ = tokio::time::sleep(Duration::from_millis(50)) => (),
                 }
                 drop(collecting);
             }
@@ -1737,7 +1746,7 @@ mod tests {
         grandchild.read_exact(&mut errors).await.unwrap();
         assert_eq!(errors, [1, 1]);
         grandchild.shutdown().await.unwrap();
-        assert_eq!(grandchild.read(&mut [0]).await.unwrap(), 0);
+        wait_peer_closed(&mut grandchild).await;
     }
 
     #[tokio::test]
@@ -1805,7 +1814,7 @@ mod tests {
             control.read_exact(&mut errors).await.unwrap();
             assert_eq!(errors, [1, 1]);
             control.shutdown().await.unwrap();
-            assert_eq!(control.read(&mut [0]).await.unwrap(), 0);
+            wait_peer_closed(&mut control).await;
         })
         .await
         .unwrap();
@@ -1936,7 +1945,7 @@ mod tests {
             system.refresh_processes(ProcessesToUpdate::Some(&pids), true);
             assert!(system.process(pid).is_some());
             cancel();
-            assert_eq!(control.read(&mut [0]).await.unwrap(), 0);
+            wait_peer_closed(&mut control).await;
             loop {
                 system.refresh_processes(ProcessesToUpdate::Some(&pids), true);
                 if system.process(pid).is_none() {
@@ -1962,7 +1971,7 @@ mod tests {
             let (mut direct, _) = listener.accept().await.unwrap();
             let (mut grandchild, _) = listener.accept().await.unwrap();
             direct.write_all(&[1]).await.unwrap();
-            assert_eq!(direct.read(&mut [0]).await.unwrap(), 0);
+            wait_peer_closed(&mut direct).await;
             assert!(timeout(PIPE_DRAIN * 2, &mut collect).await.is_err());
             grandchild.write_all(&[1]).await.unwrap();
             let mut errors = [1; 2];
@@ -2034,7 +2043,7 @@ mod tests {
                 "stdin owner survived registry cleanup"
             );
             grandchild.shutdown().await.unwrap();
-            assert_eq!(grandchild.read(&mut [0]).await.unwrap(), 0);
+            wait_peer_closed(&mut grandchild).await;
         })
         .await
         .unwrap();
