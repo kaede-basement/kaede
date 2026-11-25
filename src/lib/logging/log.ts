@@ -22,6 +22,7 @@ function invokeLog(
     location,
   });
 }
+
 export const log = {
 
   /*

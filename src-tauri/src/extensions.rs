@@ -7,9 +7,10 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
+use sha2::Sha256;
 use zip::ZipArchive;
 
-use crate::hashes::sha256_hex;
+use crate::hashing::hash_bytes;
 
 const METADATA_ENTRY: &str = "metadata.json";
 const CODE_ENTRY: &str = "index.js";
@@ -138,7 +139,7 @@ pub async fn read_extensions(extensions_dir_path: String) -> Result<ExtensionsRe
 
             match read_archive(&path) {
                 Ok((metadata, code)) => {
-                    let code_sha256 = sha256_hex(code.as_bytes());
+                    let code_sha256 = hash_bytes::<Sha256>(code.as_bytes());
 
                     extensions.push(ExtensionFile {
                         file_name,

@@ -171,11 +171,11 @@ GlobalInternals.logs.filtered = filtered;
   <div
     @contextmenu.prevent
     id="__log-viewer__wrapper"
-    class="absolute bottom-0 left-0 right-0 top-0 z-6000 flex px-20 pt-11 text-start text-sm bg-[theme(colors.black/.5)]"
+    class="absolute bottom-0 left-0 right-0 top-0 z-6000 flex text-start text-sm bg-[theme(colors.black/.5)]"
   >
     <div
       id="__log-viewer__inner"
-      class="h-fit w-full flex flex-col rounded-md p-4"
+      class="h-full w-full flex flex-col p-4"
       :style="styles.widget"
     >
       <LogHeader :size="filtered.list.length" :searcher="searcher" :status="status" />

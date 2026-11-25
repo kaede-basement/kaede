@@ -8,7 +8,7 @@
 <a style="color:#a1fee4" href="https://github.com/kaede-basement/kaede">Kaede</a>
 </h1>
 
-A Tauri-based Minecraft launcher written in TypeScript with a permission-based plugin system
+A *fast* Tauri-based Minecraft launcher written in TypeScript with a permission-based plugin system
 
 <p align="center">
 <strong>English</strong> | <a style="color:#a1fee4" href="./README.ru.md">Русский</a> | Other languages?..
@@ -105,6 +105,12 @@ Microsoft Sign-in in Windows 7
 
 ---
 
+Kaede launched in macOS 10.15
+
+<img src="./demos/kaede_vmware_macos-10-15.webp" alt="Playing Hypixel via Kaede launched in macOS 10.15">
+
+---
+
 A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM usage)
 
 <img src="./demos/multi-window__blue-archive-different-bgs.jpg" alt="Multi-Window navigation with different Blue Archive background images">
@@ -126,12 +132,17 @@ A custom plugin for the Multi-Window experience (each window adds 30 MB of RAM u
 
 ### Support
 
-| System       | Arch          | Support                   |
-|--------------|---------------|---------------------------|
-| Windows 8.1+ | x86_64        | Full                      |
-| macOS        | arm64, x86_64 | Full                      |
-| Linux        | x86_64        | Full                      |
-| Windows 7    | x86_64        | [Partial](./WINDOWS-7.md) |
+| System                      | Arch          | Support                   |
+|-----------------------------|---------------|---------------------------|
+| Windows 8.1+                | x86_64        | Full                      |
+| Windows 7                   | x86_64        | [Partial](./WINDOWS-7.md) |
+| macOS 12.3+                 | arm64, x86_64 | Full<sup>1</sup>          |
+| macOS 10.15+                | arm64, x86_64 | Partial<sup>2</sup>       |
+| Linux with `webkit2gtk-4.1` | x86_64        | Full                      |
+
+<sup>1</sup> since macOS 12.3, the version of Safari WebView is 15.4+, which **should** be the minimum version that supports everything in Kaede (?)
+
+<sup>2</sup> please use `macos-${architecture}-old` builds
 
 ### Stable Releases
 
@@ -143,7 +154,7 @@ Please understand that these builds are not intended for most users. There may b
 
 The development builds are available through:
 
-- [GitHub Actions](https://github.com/kaede-basement/kaede/actions) (builds of the development and release branches; pull requests are not built).
+- [GitHub Actions](https://github.com/kaede-basement/kaede/actions) publishes debug builds for pull requests unless all changed paths match the [build workflow’s ignore list](../.github/workflows/build.yml).
 - [nightly.link](https://nightly.link/kaede-basement/kaede/workflows/build/nightly) (this link will always point only to the latest version of the `nightly` branch).
 
 Prebuilt Development builds are provided for Linux, Windows, and macOS.
@@ -170,11 +181,7 @@ No prior Rust knowledge is needed to contribute to this project. Most of the cod
 - [MultiMC Patch System](./MULTIMC.md)
 - [Building from Source](#building-from-source)
 
-In case you want to run this launcher with [Wails](https://wails.io/) or other backends, or if you want to contribute to the Browser/Wails versions, see the following files.
-
-- [README for Browser environment](../src/lib/README.md#browser)
-- [README for Wails mocks in TypeScript](../src/lib/README.md#wails)
-- [README for Wails backend](../src-wails/README.md)
+The [Pages preview](../.github/workflows/preview.yml) and [Wails build](../.github/workflows/build-wails.yml) use backends from [clanker-experiments](https://github.com/kaede-basement/clanker-experiments). See the [frontend backend stubs](../src/lib/README.md) for how they fit into a build.
 
 I also leave comments in the code.
 
@@ -185,7 +192,7 @@ For launcher plugins, themes, or translations:
 - [Making a Theme](./EXTENSIONS.md#making-a-theme)
 - [Translating the Launcher](https://github.com/kaede-basement/translations)
 
-Pull requests are welcome. AI code that impacts regular Tauri builds is not welcome; see [AGENTS.md](../AGENTS.md) for more. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 ## Building from Source
 
@@ -229,7 +236,7 @@ bun run build
 
 ## License
 
-[![license-badge]](https://github.com/kaede-basement/kaede/blob/nightly/LICENSE)
+[![license-badge]](../LICENSE)
 
 ## Credits and AI Usage
 

@@ -1,6 +1,6 @@
 # Plan
 
-Earlier ideas for each section are kept in [HISTORY.md](./HISTORY.md), to show the path from an initial idea to the final implementation :3
+The [earlier plan](https://github.com/kaede-basement/kaede/blob/228bc0d6ef7d9241570096f6ae7e40a7cddede0a/docs/PLAN.md) preserves the original design notes.
 
 ## Todo
 
@@ -77,69 +77,7 @@ Whatever my mind thinks is good
 
 ## Routing
 
-<details>
-
-### Latest
-
-I simply use `globalStates.currentPage` with string literals to switch components:
-
-```vue
-<template>
-  <C.Home v-if="page === 'home'" />
-  <C.Library v-else-if="page === 'library'" />
-  <C.Settings v-else-if="page === 'settings'" />
-  <C.AddInstance v-else-if="page === 'add-instance'" />
-  <C.Profile v-else-if="page === 'profile'" />
-  <!-- This block of elements is shown only when custom pages are selected -->
-  <C.PageWrapper v-else>
-    <div id="__custom-page__wrapper">
-      <component :is="page" />
-    </div>
-  </C.PageWrapper>
-</template>
-```
-
-The navigation method is:
-
-```ts
-export function navigate(path: RouteType): void {
-  globalStates.currentPage = path;
-}
-```
-
-`globalStates` is simply a `reactive` object:
-
-```ts
-/**
- * Contains all global application states.
- * Will be overwritten in 'main.ts' once the global states are ready
- */
-export let globalStates: Reactive<GlobalStatesType>;
-
-/**
- * Assign the actual global states to 'globalStates'.
- * This function is called in 'main.ts'
- */
-export function declareGlobalStates(): void {
-  /*
-   * Since global states are deeply reactive,
-   * we should copy the original config object to avoid its changes
-   */
-  const configFile: ConfigType = structuredClone(GlobalInternals.initialConfig);
-  const customSettings = DefaultGlobalStatesPagesStates["add-instance"].customSettings;
-
-  globalStates = reactive<GlobalStatesType>({
-    ...configFile,
-    "contextMenuItems": markRaw(ContextMenuItems),
-    "currentPage"     : Router.getInitialPage(),
-    "translations"    : markRaw(GlobalInternals.initialTranslations),
-    "pages"           : { /* ... */ },
-    "sidebarItems"    : markRaw([ /* ... */ ]),
-  });
-}
-```
-
-</details>
+The [router](../src/lib/router/) uses the current page in [global state](../src/states/global.ts) to select the active view.
 
 ## Extensions
 

@@ -1,1 +1,2 @@
-Not used by the launcher; kept as a reference. A Java wrapper that started Minecraft in the instance directory and logged the real JVM PID, because the PID returned by the shell plugin belonged to an intermediate process; `../__use-applet.ts` launched it.
+uhhhhh what the fuck is going on
+i am clearly not understanding anything about minecraft

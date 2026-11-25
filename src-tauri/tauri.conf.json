@@ -14,6 +14,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "backgroundColor": "#111111",
         "label": "main",
         "title": "Kaede",
         "width": 800,
@@ -27,7 +28,7 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "script-src 'self' 'unsafe-eval'; worker-src blob:",
       "assetProtocol": {
         "enable": true,
         "scope": {

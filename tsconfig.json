@@ -7,8 +7,8 @@
   "compilerOptions": {
     /*
      * 'tsc' resolves '@/...' through the referenced configs, but 'bun test'
-     * only reads the nearest 'tsconfig.json' and does not follow references,
-     * so the paths are duplicated here for the Bun runtime
+     * only reads 'tsconfig.json' and does not follow 'references',
+     * so we duplicate paths here for the Bun runtime
      */
     "baseUrl": ".",
     "paths": {
