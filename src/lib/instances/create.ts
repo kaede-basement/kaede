@@ -22,6 +22,7 @@ import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
 import { sanitizeFileOrFolderName } from "@/lib/file-manager/path.ts";
+import { sync } from "@/lib/instances/sync.ts";
 import { log } from "@/lib/logging/log.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
@@ -121,14 +122,19 @@ export function create(
   ]);
   const initialValues = beforeRegister && draftValues();
 
-  function register(): string {
+  function register(): void {
     instanceStates[id] = {
       ...instance,
       ...(modpackPath && !beforeRegister ? { modpackPath } : {}),
     };
     log.info(__PRE_BUNDLED_FILENAME__, "Created an instance with the entry patch:", uid);
+  }
+
+  function finish(): string {
     if (beforeRegister) {
-      if (globalStates.pages["add-instance"] !== page || page.instance !== draft ||
+      if (globalStates.currentPage !== Routes.AddInstance ||
+        (page.tab ?? "clean-minecraft") !== "clean-minecraft" ||
+        globalStates.pages["add-instance"] !== page || page.instance !== draft ||
         page.importedModpack !== archive || draftValues() !== initialValues) {
         return id;
       }
@@ -142,5 +148,15 @@ export function create(
     return id;
   }
 
-  return beforeRegister ? beforeRegister(id).then(register) : register();
+  if (beforeRegister) {
+    return beforeRegister(id).then(async () => {
+      register();
+      await sync();
+
+      return finish();
+    });
+  }
+  register();
+
+  return finish();
 }

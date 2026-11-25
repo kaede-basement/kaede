@@ -105,9 +105,13 @@ export async function handleLaunch({
 
   if (instance.modpackPath) {
     try {
-      await repairLegacyMrpack(instance, instanceId, instanceDirectory);
+      await repairLegacyMrpack(instance, instanceId, instanceDirectory, statuses);
     } catch (error) {
-      log.error(logPrefix, "Could not repair legacy modpack", String(error));
+      if (error === "Installation cancelled") {
+        log.info(logPrefix, "Legacy modpack repair cancelled");
+      } else {
+        log.error(logPrefix, "Could not repair legacy modpack", String(error));
+      }
 
       return failed;
     }

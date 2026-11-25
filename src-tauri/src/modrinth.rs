@@ -239,6 +239,13 @@ async fn install_manifest(
     .map_err(|e| e.to_string())?
 }
 
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum RepairOutcome {
+    Repaired,
+    ArchiveUnavailable,
+}
+
 #[tauri::command]
 pub async fn repair_legacy_mrpack(
     archive_path: PathBuf,
@@ -246,59 +253,169 @@ pub async fn repair_legacy_mrpack(
     store: State<'_, ModStore>,
     flags: State<'_, CancelFlags>,
     cancel_id: String,
-) -> Result<(), String> {
+    on_progress: Channel<(usize, usize)>,
+) -> Result<RepairOutcome, String> {
     let mut cancel = flags.register(&cancel_id);
-    let result = repair(archive_path, target_dir_path, &store, &mut cancel).await;
+    let result = repair(
+        archive_path,
+        target_dir_path,
+        &store,
+        &mut cancel,
+        move |done, total| {
+            let _ = on_progress.send((done, total));
+        },
+    )
+    .await;
     flags.deregister(&cancel_id);
+    check_cancel(&cancel)?;
     result
 }
 
+fn missing_destination(extraction: &mut Extraction, name: &str) -> Result<Option<PathBuf>, String> {
+    let dest = extraction.prepare_file(name)?;
+    match dest.symlink_metadata() {
+        Ok(meta) if meta.is_file() => return Ok(None),
+        Ok(_) => return Err(format!("Unexpected legacy destination: {}", dest.display())),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+        Err(e) => return Err(e.to_string()),
+    }
+    if name
+        .split('/')
+        .next()
+        .is_some_and(|part| part.eq_ignore_ascii_case("mods"))
+        && name.ends_with(".jar")
+        && dest
+            .with_extension("jar.disabled")
+            .try_exists()
+            .map_err(|e| e.to_string())?
+    {
+        return Ok(None);
+    }
+    Ok(Some(dest))
+}
+
+fn accept_existing(result: std::io::Result<()>, dest: &Path) -> std::io::Result<()> {
+    match result {
+        Err(e)
+            if e.kind() == std::io::ErrorKind::AlreadyExists
+                && dest.symlink_metadata()?.is_file() =>
+        {
+            Ok(())
+        }
+        result => result,
+    }
+}
+
+fn restore_override(
+    mut entry: impl std::io::Read,
+    dest: &Path,
+    cancel: &watch::Receiver<bool>,
+) -> Result<(), String> {
+    use std::io::Write;
+    let mut stage =
+        crate::file_system::staging_file(dest.parent().unwrap()).map_err(|e| e.to_string())?;
+    let mut buffer = [0u8; 64 * 1024];
+    loop {
+        check_cancel(cancel)?;
+        let bytes = entry.read(&mut buffer).map_err(|e| e.to_string())?;
+        if bytes == 0 {
+            break;
+        }
+        stage
+            .write_all(&buffer[..bytes])
+            .map_err(|e| e.to_string())?;
+    }
+    accept_existing(
+        stage
+            .persist_noclobber(dest)
+            .map(|_| ())
+            .map_err(|e| e.error),
+        dest,
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 async fn repair(
-    archive: PathBuf,
+    archive_path: PathBuf,
     root: PathBuf,
     store: &ModStore,
     cancel: &mut watch::Receiver<bool>,
-) -> Result<(), String> {
-    let manifest = tokio::task::spawn_blocking(move || peek(&archive))
-        .await
-        .map_err(|e| e.to_string())??
-        .ok_or("Missing modrinth.index.json")?;
-    let _guard = store.installs.read().await;
-    let mut extraction = Extraction::new(&root)?;
-    for file in &manifest.files {
-        check_cancel(cancel)?;
-        let dest = extraction.prepare_file(&file.path)?;
-        match dest.symlink_metadata() {
-            Ok(meta) if meta.is_file() => continue,
-            Ok(_) => return Err(format!("Unexpected legacy destination: {}", dest.display())),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-            Err(e) => return Err(e.to_string()),
-        }
-        if file.path.starts_with("mods/")
-            && file.path.ends_with(".jar")
-            && dest
-                .with_extension("jar.disabled")
-                .try_exists()
-                .map_err(|e| e.to_string())?
-        {
-            continue;
-        }
-        store.prepare().map_err(|e| e.to_string())?;
-        let blob = store.ensure(file, cancel).await?;
-        tokio::task::spawn_blocking(move || match materialize_blob(&blob, &dest) {
-            Err(e)
-                if e.kind() == std::io::ErrorKind::AlreadyExists
-                    && dest.symlink_metadata()?.is_file() =>
-            {
-                Ok(())
+    progress: impl Fn(usize, usize) + Send + Clone + 'static,
+) -> Result<RepairOutcome, String> {
+    progress(0, 1);
+    let stop = cancel.clone();
+    let report = progress.clone();
+    let prepared = tokio::task::spawn_blocking(move || -> Result<_, String> {
+        check_cancel(&stop)?;
+        let opened = archive_path.metadata().and_then(|metadata| {
+            if metadata.is_file() {
+                File::open(&archive_path)
+            } else {
+                Err(std::io::Error::other("Not a regular file"))
             }
-            result => result,
-        })
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?;
+        });
+        let file = match opened {
+            Ok(file) => file,
+            Err(error) => {
+                log::warn!(
+                    "Cannot open legacy archive {}: {error}. Launching installed files.",
+                    archive_path.display()
+                );
+                return Ok(None);
+            }
+        };
+        let mut archive = ZipArchive::new(file).map_err(|e| e.to_string())?;
+        let manifest = read_manifest(&mut archive)?.ok_or("Missing modrinth.index.json")?;
+        let entries = override_entries(&archive);
+        let overrides = entries.len();
+        let total = overrides + manifest.files.len();
+        report(0, total);
+        let mut extraction = Extraction::new(&root)?;
+        // Publish missing client overrides first so lower-priority sources see an existing file.
+        for (done, (index, name)) in entries.into_iter().rev().enumerate() {
+            check_cancel(&stop)?;
+            let entry = archive.by_index(index).map_err(|e| e.to_string())?;
+            validate_override(&entry, &name)?;
+            if entry.is_dir() {
+                extraction.extract(&name, true, None, std::io::empty())?;
+            } else if let Some(dest) = missing_destination(&mut extraction, &name)? {
+                restore_override(entry, &dest, &stop)?;
+            }
+            report(done + 1, total);
+        }
+        Ok(Some((manifest, extraction, overrides, total)))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    let Some((manifest, mut extraction, overrides, total)) = prepared else {
+        return Ok(RepairOutcome::ArchiveUnavailable);
+    };
+    let _guard = tokio::select! {
+        guard = store.installs.read() => guard,
+        _ = cancel.wait_for(|value| *value) => return Err("Installation cancelled".into()),
+    };
+    let mut store_ready = false;
+    for (index, file) in manifest.files.iter().enumerate() {
+        check_cancel(cancel)?;
+        if let Some(dest) = missing_destination(&mut extraction, &file.path)? {
+            if !store_ready {
+                store.prepare().map_err(|e| e.to_string())?;
+                store_ready = true;
+            }
+            let blob = store.ensure(file, cancel).await?;
+            check_cancel(cancel)?;
+            tokio::task::spawn_blocking(move || {
+                accept_existing(materialize_blob(&blob, &dest), &dest)
+            })
+            .await
+            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())?;
+        }
+        progress(overrides + index + 1, total);
     }
-    Ok(())
+    check_cancel(cancel)?;
+    Ok(RepairOutcome::Repaired)
 }
 
 fn check_cancel(cancel: &watch::Receiver<bool>) -> Result<(), String> {
@@ -371,6 +488,31 @@ fn read_manifest(archive: &mut ZipArchive<File>) -> Result<Option<MrpackManifest
         .map(Some)
 }
 
+fn override_entries(archive: &ZipArchive<File>) -> Vec<(usize, String)> {
+    let mut entries = Vec::new();
+    for layer in OVERRIDE_PREFIXES {
+        for index in 0..archive.len() {
+            if let Some((prefix, name)) = archive
+                .name_for_index(index)
+                .and_then(|name| name.split_once('/'))
+            {
+                if prefix == layer && !name.is_empty() {
+                    entries.push((index, name.to_owned()));
+                }
+            }
+        }
+    }
+    entries
+}
+
+fn validate_override(entry: &zip::read::ZipFile<'_, File>, name: &str) -> Result<(), String> {
+    relative_name(name)?;
+    if entry.is_symlink() {
+        return Err(format!("Symlink override: {}", entry.name()));
+    }
+    Ok(())
+}
+
 fn extract_overrides(
     archive: &mut ZipArchive<File>,
     extraction: &mut Extraction,
@@ -379,34 +521,20 @@ fn extract_overrides(
 ) -> Result<usize, String> {
     let mut written = 0;
 
-    for layer in OVERRIDE_PREFIXES {
-        for index in 0..archive.len() {
-            check_cancel(cancel)?;
-            let Some((prefix, relative)) = archive
-                .name_for_index(index)
-                .and_then(|name| name.split_once('/'))
-            else {
-                continue;
-            };
-            if prefix != layer || relative.is_empty() {
-                continue;
+    for (index, name) in override_entries(archive) {
+        check_cancel(cancel)?;
+        let entry = archive.by_index(index).map_err(|e| e.to_string())?;
+        validate_override(&entry, &name)?;
+        let directory = entry.is_dir();
+        if !directory && !names.contains(&name) {
+            let path = extraction.prepare_file(&name)?;
+            if path.try_exists().map_err(|e| e.to_string())? {
+                return Err(format!("Aliased override destination: {name}"));
             }
-            let name = relative.to_owned();
-            let entry = archive.by_index(index).map_err(|e| e.to_string())?;
-            if entry.is_symlink() {
-                return Err(format!("Symlink override: {}", entry.name()));
-            }
-            let directory = entry.is_dir();
-            if !directory && !names.contains(&name) {
-                let path = extraction.prepare_file(&name)?;
-                if path.try_exists().map_err(|e| e.to_string())? {
-                    return Err(format!("Aliased override destination: {name}"));
-                }
-                names.insert(name.clone());
-            }
-            extraction.extract(&name, directory, None, entry)?;
-            written += usize::from(!directory);
+            names.insert(name.clone());
         }
+        extraction.extract(&name, directory, None, entry)?;
+        written += usize::from(!directory);
     }
     Ok(written)
 }
@@ -742,7 +870,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn legacy_repair_only_restores_missing_indexed_files() {
+    async fn missing_legacy_archive_permits_launch_and_keeps_migration_pending() {
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let (_tx, mut rx) = watch::channel(false);
+        for path in [root.path().join("moved.mrpack"), root.path().to_owned()] {
+            assert_eq!(
+                repair(
+                    path,
+                    root.path().join("minecraft"),
+                    &store,
+                    &mut rx,
+                    |_, _| {}
+                )
+                .await
+                .unwrap(),
+                RepairOutcome::ArchiveUnavailable
+            );
+        }
+    }
+    #[tokio::test]
+    async fn legacy_repair_restores_missing_files_with_client_precedence() {
         let root = tempfile::tempdir().unwrap();
         let store = ModStore::new(root.path());
         let (file, _) = seed_blob(root.path(), b"good");
@@ -750,12 +898,15 @@ mod tests {
         let mut existing = indexed.clone();
         existing["path"] = "options.txt".into();
         let mut disabled = indexed.clone();
-        disabled["path"] = "mods/disabled.jar".into();
+        disabled["path"] = "Mods/disabled.jar".into();
         let index = serde_json::json!({"files":[indexed,existing,disabled]}).to_string();
         let mut zip = archive(&[
             (MANIFEST_ENTRY, &index),
             ("overrides/options.txt", "default"),
             ("client-overrides/new.cfg", "new"),
+            ("overrides/new.cfg", "old"),
+            ("overrides/common.cfg", "bundled"),
+            ("client-overrides/Mods/disabled.jar", "enabled"),
         ])
         .into_inner();
         use std::io::Seek;
@@ -764,12 +915,32 @@ mod tests {
         std::io::copy(&mut zip, &mut File::create(&pack).unwrap()).unwrap();
         let minecraft = root.path().join("instance/minecraft");
         std::fs::create_dir_all(minecraft.join("mods")).unwrap();
-        std::fs::write(minecraft.join("mods/disabled.jar.disabled"), "edited").unwrap();
+        std::fs::create_dir_all(minecraft.join("Mods")).unwrap();
+        std::fs::write(minecraft.join("Mods/disabled.jar.disabled"), "edited").unwrap();
         std::fs::write(minecraft.join("options.txt"), "edited").unwrap();
-        let (_stop, mut cancel) = watch::channel(false);
-        repair(pack, minecraft.clone(), &store, &mut cancel)
-            .await
-            .unwrap();
+        let (stop, mut cancel) = watch::channel(false);
+        let abort = stop.clone();
+        let interrupted = repair(
+            pack.clone(),
+            minecraft.clone(),
+            &store,
+            &mut cancel,
+            move |done, total| {
+                if total > 1 && done == 1 {
+                    abort.send_replace(true);
+                }
+            },
+        )
+        .await;
+        assert!(matches!(interrupted, Err(reason) if reason=="Installation cancelled"));
+        assert!(!minecraft.join("mods/item.jar").exists());
+        stop.send_replace(false);
+        assert_eq!(
+            repair(pack, minecraft.clone(), &store, &mut cancel, |_, _| {})
+                .await
+                .unwrap(),
+            RepairOutcome::Repaired
+        );
         assert_eq!(
             std::fs::read(minecraft.join("mods/item.jar")).unwrap(),
             b"good"
@@ -778,7 +949,11 @@ mod tests {
             std::fs::read(minecraft.join("options.txt")).unwrap(),
             b"edited"
         );
-        assert!(!minecraft.join("new.cfg").exists());
-        assert!(!minecraft.join("mods/disabled.jar").exists());
+        assert_eq!(std::fs::read(minecraft.join("new.cfg")).unwrap(), b"new");
+        assert_eq!(
+            std::fs::read(minecraft.join("common.cfg")).unwrap(),
+            b"bundled"
+        );
+        assert!(!minecraft.join("Mods/disabled.jar").exists());
     }
 }

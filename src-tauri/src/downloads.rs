@@ -36,7 +36,10 @@ struct Transfer {
 
 enum Claim {
     Owner(Owner),
-    Waiting { done: watch::Receiver<bool> },
+    Waiting {
+        done: watch::Receiver<bool>,
+        matches: bool,
+    },
 }
 
 struct Owner {
@@ -115,13 +118,8 @@ impl StagingDirectory {
                 let transfer = transfers
                     .get(&identity)
                     .ok_or_else(|| std::io::Error::other("Missing download owner"))?;
-                if !transfer.entry.same_transfer(entry) {
-                    return Err(std::io::Error::other(format!(
-                        "A different URL or integrity expectation was supplied for {}",
-                        entry.path
-                    )));
-                }
                 Ok(Claim::Waiting {
+                    matches: transfer.entry.same_transfer(entry),
                     done: transfer.done.subscribe(),
                 })
             }
@@ -508,11 +506,14 @@ async fn download_one(
     let mut owner = loop {
         match staging.claim(name, entry).map_err(DownloadError::other)? {
             Claim::Owner(owner) => break owner,
-            Claim::Waiting { mut done } => tokio::select! {
+            Claim::Waiting { mut done, matches } => tokio::select! {
                 biased;
                 _ = cancel.wait_for(|value| *value) => return Err(DownloadError::Cancelled),
                 _ = done.changed() => {
-                    if *done.borrow() {return Ok(());}
+                    if *done.borrow() {
+                        if matches {return Ok(());}
+                        return Err(DownloadError::other(format!("A different URL or integrity expectation was published for {}",entry.path)));
+                    }
                 }
             },
         }
@@ -847,7 +848,7 @@ mod tests {
     #[tokio::test]
     async fn competing_download_uses_published_file() {
         use tokio::net::TcpListener;
-        for same_url in [true, false] {
+        for (same_url, owner_fails) in [(true, false), (false, false), (false, true)] {
             let root = tempfile::tempdir().unwrap();
             let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
             let path = root.path().join("item");
@@ -858,12 +859,14 @@ mod tests {
             };
             let waiter = DownloadEntry {
                 path: owner.path.clone(),
+                size: if owner_fails { Some(2) } else { None },
+                hash: owner_fails.then(|| crate::hashing::hash_bytes::<sha1::Sha1>(b"ok")),
+                algorithm: owner_fails.then_some(HashAlgorithm::Sha1),
                 url: if same_url {
                     owner.url.clone()
                 } else {
                     format!("{}other", owner.url)
                 },
-                ..Default::default()
             };
             let client = reqwest::Client::builder().no_proxy().build().unwrap();
             let flags = CancelFlags::default();
@@ -874,27 +877,27 @@ mod tests {
                 let (mut socket, _) = listener.accept().await.unwrap();
                 let wait = download_one(&client, &waiter, &progress, &mut b);
                 tokio::pin!(wait);
-                let publish = socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok");
-                if same_url {
-                    let observer = StagingDirectory::open(root.path()).unwrap();
-                    let (result, ()) = tokio::join!(wait, async {
-                        wait_for_competitor(&observer).await;
-                        publish.await.unwrap();
-                    });
-                    result
-                } else {
-                    let result = wait.await;
-                    publish.await.unwrap();
-                    result
-                }
+                let response = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+                let observer = StagingDirectory::open(root.path()).unwrap();
+                let (result, ()) = tokio::join!(wait, async {
+                    wait_for_competitor(&observer).await;
+                    if owner_fails {
+                        socket.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await.unwrap();
+                        let (mut retry, _) = listener.accept().await.unwrap();
+                        retry.write_all(response).await.unwrap();
+                    } else {
+                        socket.write_all(response).await.unwrap();
+                    }
+                });
+                result
             };
             let (a, b) = tokio::time::timeout(Duration::from_secs(5), async {
                 tokio::join!(download_one(&client, &owner, &progress, &mut a), exercise)
             })
             .await
             .unwrap();
-            assert!(a.is_ok());
-            if same_url {
+            assert_eq!(a.is_err(), owner_fails);
+            if same_url || owner_fails {
                 assert!(b.is_ok());
             } else {
                 assert!(

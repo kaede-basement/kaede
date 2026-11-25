@@ -16,6 +16,12 @@
   - along with this program.  If not, see <https://www.gnu.org/licenses/>.
   -->
 
+<script lang="ts">
+import { ref } from "vue";
+
+const creatingModpack = ref(false);
+</script>
+
 <script setup lang="ts">
 import { message } from "@tauri-apps/plugin-dialog";
 import { computed, inject, markRaw } from "vue";
@@ -53,7 +59,7 @@ const buttonLabel = computed(() => {
 
   return status
     ? `Cancel installation (${status.downloads.success}/${status.downloads.total} files ready)`
-    : "Create an Instance";
+    : (creatingModpack.value ? "Saving instance..." : "Create an Instance");
 });
 
 const currentInstance = computed(
@@ -109,12 +115,16 @@ async function handleCreate(): Promise<void> {
 
     return;
   }
+  if (creatingModpack.value) {
+    return;
+  }
   if (!archive) {
     Instances.create(instance, patch);
 
     return;
   }
 
+  creatingModpack.value = true;
   try {
     await Instances.create(instance, patch, archive.path, async instanceId => {
       const statuses = trackDownloads(instanceId);
@@ -141,6 +151,8 @@ async function handleCreate(): Promise<void> {
 
     log.error(__PRE_BUNDLED_FILENAME__, "Modpack installation failed", detail);
     await message(detail, { "title": "Modpack installation failed", "kind": "error" });
+  } finally {
+    creatingModpack.value = false;
   }
 }
 </script>
@@ -153,6 +165,7 @@ async function handleCreate(): Promise<void> {
     <button
       id="__add-instance-page__create-instance-button"
       class="relative rounded-md px-2 py-1 transition-[opacity] bg-[theme(colors.neutral.100/.1)]"
+      :disabled="creatingModpack && !ActiveInstall"
       @click="handleCreate"
     >
       {{ buttonLabel }}

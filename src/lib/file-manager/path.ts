@@ -74,18 +74,15 @@ export async function verifyPaths({
   paths,
   algorithm,
 }: {
+  "paths"    : Array<{ "path": string; "hash": string; "size"?: number }>;
+  "algorithm": HashAlgorithmType;
+} | {
   "paths"     : Array<string | { "path": string; "hash"?: string; "size"?: number }>;
-  "algorithm"?: HashAlgorithmType;
+  "algorithm"?: undefined;
 }): Promise<Array<string>> {
   if (algorithm) {
     return invoke("verify_paths_hash", {
-      "artifacts": paths.map(entry => {
-        if (typeof entry === "string" || entry.hash === undefined) {
-          throw new TypeError("Hash verification requires an expected digest");
-        }
-
-        return entry;
-      }),
+      "artifacts": paths,
       "algorithm": algorithm,
     });
   }

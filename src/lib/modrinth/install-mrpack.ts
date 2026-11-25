@@ -112,14 +112,41 @@ export async function installMrpack({
 }
 
 export async function repairLegacyMrpack(
-  instance: InstanceStateType, instanceId: string, minecraftDirectory: string,
+  instance: InstanceStateType,
+  instanceId: string,
+  minecraftDirectory: string,
+  statuses: LauncherStatusesType,
 ): Promise<void> {
   const archivePath = instance.modpackPath;
 
   if (archivePath) {
-    await invoke("repair_legacy_mrpack", {
-      archivePath, "targetDirPath": minecraftDirectory, "cancelId": `${instanceId}-download`,
-    });
+    const onProgress = new Channel<[number, number]>;
+    const { total, success } = statuses.downloads;
+    let active = true;
+
+    // eslint-disable-next-line unicorn/prefer-add-event-listener
+    onProgress.onmessage = ([done, count]): void => {
+      if (active) {
+        statuses.downloads.total = total + count;
+        statuses.downloads.success = success + done;
+      }
+    };
+    try {
+      const result = await invoke<"repaired" | "archiveUnavailable">("repair_legacy_mrpack", {
+        archivePath,
+        onProgress,
+        "targetDirPath": minecraftDirectory,
+        "cancelId"     : `${instanceId}-download`,
+      });
+
+      if (result !== "repaired") {
+        return;
+      }
+    } finally {
+      active = false;
+      statuses.downloads.total = total;
+      statuses.downloads.success = success;
+    }
     const saved = instanceStates[instanceId];
 
     if (saved?.modpackPath === archivePath) {
