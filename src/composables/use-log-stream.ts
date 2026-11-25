@@ -17,9 +17,9 @@
  */
 
 import { Channel } from "@tauri-apps/api/core";
-import { onMounted, onUnmounted, type ShallowRef, shallowRef } from "vue";
+import { onMounted, onUnmounted, type ShallowRef, shallowRef, watch } from "vue";
 
-import { GlobalInternals } from "@/extendable/global-internals.ts";
+import { BrowserLogBuffer } from "@/extendable/global-internals.ts";
 import Browser from "@/lib/browser";
 import Logging from "@/lib/logging";
 
@@ -28,49 +28,64 @@ type LogStreamEventType =
   | { "type": "lines";    "data": Array<string> }
   | { "type": "truncated" };
 
-let latestSubscriptionId = 0;
+let activeId: number | undefined;
+let stopRunning: (() => void) | undefined;
+let finished: Promise<void> = Promise.resolve();
+
+function subscriptionId(): number {
+  const [high, low] = crypto.getRandomValues(new Uint32Array(2));
+
+  return ((high % (2 ** 21)) * (2 ** 32)) + low || 1;
+}
+
+export type LogBuffer = { "list": Array<string>; "dropped"?: number; "revision"?: number };
 
 export function useLogStream(): {
-  "lines": ShallowRef<{ "list": Array<string> }>;
+  "lines": ShallowRef<LogBuffer>;
 } {
   const isBrowser = Browser.detectIsBrowser();
-  const lines = shallowRef<{ "list": Array<string> }>({ "list": [] });
+  const lines = shallowRef<LogBuffer>({ "list": [] });
 
   if (isBrowser) {
-    lines.value = { "list": GlobalInternals.logsInBrowser };
-    let publishedLength = lines.value.list.length;
-    const intervalId = setInterval((): void => {
-      const currentLogs = GlobalInternals.logsInBrowser;
-
-      if (currentLogs !== lines.value.list || currentLogs.length !== publishedLength) {
-        publishedLength = currentLogs.length;
-        lines.value = { "list": currentLogs };
-      }
-    }, 100);
-
-    onUnmounted(() => {
-      clearInterval(intervalId);
-    });
+    watch(BrowserLogBuffer, buffer => {
+      lines.value = { ...buffer };
+    }, { "immediate": true });
 
     return { lines };
   }
 
-  const subscriptionId = ++latestSubscriptionId;
-  let unmounted = false;
-  const stop = (): Promise<void> => Logging.stopStreamingLogs(subscriptionId);
+  const id = subscriptionId();
 
-  onMounted(async (): Promise<void> => {
+  async function start(): Promise<void> {
+    if (id !== activeId) {
+      return;
+    }
+
     const channel = new Channel<LogStreamEventType>;
+    let registered = false;
+    let stopping: Promise<unknown> | undefined;
+
+    function stop(retry = false): void {
+      if (!stopping || retry) {
+        stopping = Promise.all([stopping, Logging.stopStreamingLogs(id)]);
+      }
+    }
+
+    stopRunning = stop;
 
     // eslint-disable-next-line unicorn/prefer-add-event-listener
     channel.onmessage = (event): void => {
-      if (unmounted) {
-        if (event.type === "snapshot" && subscriptionId === latestSubscriptionId) {
-          void stop();
+      if (id !== activeId) {
+        // A stop sent before Rust registered the tail can miss it.
+        if (!registered && stopRunning === stop) {
+          registered = true;
+          stop(true);
         }
 
         return;
       }
+
+      registered = true;
 
       switch (event.type) {
         case "snapshot": {
@@ -95,18 +110,26 @@ export function useLogStream(): {
       }
     };
 
-    await Logging.streamLogs<LogStreamEventType>(channel, subscriptionId);
-
-    if (unmounted && subscriptionId === latestSubscriptionId) {
-      await stop();
+    try {
+      await Logging.streamLogs(channel, id);
+    } finally {
+      stopRunning = undefined;
+      await stopping;
     }
+  }
+
+  onMounted(() => {
+    activeId = id;
+    stopRunning?.();
+    // The legacy backend has one tail slot. Drain its stream and stops before starting another.
+    finished = finished.then(start, start);
+
+    return finished;
   });
-
   onUnmounted(() => {
-    unmounted = true;
-
-    if (subscriptionId === latestSubscriptionId) {
-      void stop();
+    if (activeId === id) {
+      activeId = undefined;
+      stopRunning?.();
     }
   });
 

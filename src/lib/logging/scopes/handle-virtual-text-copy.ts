@@ -7,7 +7,7 @@ export async function handleVirtualTextCopy(
   logs: Array<string | [number, string]>,
   setCopied: (state: boolean) => void,
 ): Promise<void> {
-  if (copied || !range || !logs[0]) {
+  if (copied || !range || logs.length === 0) {
     return;
   }
 

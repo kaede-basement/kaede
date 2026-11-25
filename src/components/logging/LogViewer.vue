@@ -32,19 +32,15 @@ import {
 
 import LogHeader from "@/components/logging/LogHeader.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
-import { useLogSearch } from "@/composables/use-log-search.ts";
+import { type SearchRows, useLogSearch } from "@/composables/use-log-search.ts";
 import { useLogSegmentation } from "@/composables/use-log-segmentation.ts";
-import { useLogStream } from "@/composables/use-log-stream.ts";
+import { type LogBuffer, useLogStream } from "@/composables/use-log-stream.ts";
 import { InstanceLogsContextKey } from "@/constants/application.ts";
 import { GeneralSettings } from "@/constants/launcher.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { globalStates } from "@/states/global.ts";
-import type { LogLineType } from "@/types/logging/log-line.type.ts";
 
-const instanceLogs = inject<ShallowReactive<Record<
-  string,
-  { "list": Array<string> }
->>>(InstanceLogsContextKey);
+const instanceLogs = inject<ShallowReactive<Record<string, LogBuffer>>>(InstanceLogsContextKey);
 
 const { styles } = useConfigColors();
 const { lines } = useLogStream();
@@ -52,14 +48,15 @@ const { "height": innerHeight } = useWindowSize();
 
 const scrollBarSize = 17;
 
+const lineHeight = computed(() => Math.max(1, Number(globalStates.logs.lineHeight) || 1));
 const scrollRow = ref(0);
-const displayed = shallowRef<{ "list": Array<LogLineType> }>({ "list": [] });
+const displayed = shallowRef<SearchRows>({ "list": [] });
 const filtered = computed(() => displayed.value);
 let scanned = 0;
 
 watch([
   (): string => globalStates.logs.filtering.trim().toLowerCase(),
-  (): { "list": Array<string> } | undefined => (globalStates.logs.mode === "kaede-launcher"
+  (): LogBuffer | undefined => (globalStates.logs.mode === "kaede-launcher"
     ? lines.value
     : instanceLogs?.[globalStates.logs.mode]),
 ], ([filter, source], [previousFilter, previousSource]) => {
@@ -67,11 +64,14 @@ watch([
   let rows = displayed.value.list;
   const reset = filter !== previousFilter || original !== previousSource?.list;
 
-  if (reset || scanned > original.length) {
+  if (
+    reset || scanned > original.length || source?.dropped !== previousSource?.dropped ||
+    source?.revision !== previousSource?.revision
+  ) {
     rows = [];
     scanned = 0;
   } else if (
-    globalStates.logs.mode !== "kaede-launcher" &&
+    source?.dropped === undefined && globalStates.logs.mode !== "kaede-launcher" &&
     original.length === Math.ceil(GeneralSettings.Logs.LineLimit / 2)
   ) {
     /*
@@ -103,12 +103,12 @@ watch([
   for (; scanned < original.length; scanned++) {
     const raw = original[scanned];
 
-    if (!filter || raw.toLowerCase().includes(filter)) {
+    if (typeof raw === "string" && (!filter || raw.toLowerCase().includes(filter))) {
       rows.push({ raw, "index": scanned });
     }
   }
 
-  displayed.value = { "list": rows };
+  displayed.value = { "list": rows, "source": original, filter, "dropped": source?.dropped };
 }, { "immediate": true, "flush": "sync" });
 
 const { status, matchesByLine, utils } = useLogSearch(filtered);
@@ -116,7 +116,7 @@ const { status, matchesByLine, utils } = useLogSearch(filtered);
 const boundary = computed((): number => {
   const region: number = innerHeight.value - GeneralSettings.Logs.OuterRegion;
 
-  return Math.max(0, Math.ceil(region / globalStates.logs.lineHeight));
+  return Math.max(0, Math.ceil(region / lineHeight.value));
 });
 const elements = computed((): number[] => {
   const size: number = Math.min(boundary.value, filtered.value.list.length);
@@ -141,7 +141,7 @@ function updateView(event: Event): void {
     return;
   }
 
-  scrollRow.value = Math.round(target.scrollTop / globalStates.logs.lineHeight);
+  scrollRow.value = Math.round(target.scrollTop / lineHeight.value);
 }
 
 // Stick to the bottom of the log viewer
@@ -156,7 +156,7 @@ watch(
     }
 
     const viewer = container.value;
-    const twoLinesHeight = globalStates.logs.lineHeight * 2;
+    const twoLinesHeight = lineHeight.value * 2;
     const toCatchRange = viewer.scrollTop + twoLinesHeight + 1;
     const isAtTheBottom = viewer.scrollHeight - viewer.clientHeight <= toCatchRange;
 
@@ -174,9 +174,9 @@ function scrollToMatch(match: { "lineIndex": number } | undefined): void {
   }
 
   const targetTop =
-    (match.lineIndex * globalStates.logs.lineHeight) -
+    (match.lineIndex * lineHeight.value) -
     (container.value.clientHeight / 2) +
-    globalStates.logs.lineHeight;
+    lineHeight.value;
 
   container.value.scrollTo({ "top": Math.max(0, targetTop), "behavior": "instant" });
 }
@@ -232,19 +232,19 @@ GlobalInternals.logs.filtered = filtered;
           ref="container"
           @scroll.passive="updateView"
           :style="{
-            'height': boundary * globalStates.logs.lineHeight + scrollBarSize + 'px',
+            'height': boundary * lineHeight + scrollBarSize + 'px',
           }"
         >
           <div
             id="__log-viewer__scroll-placeholder"
             class="w-fit font-mono"
-            :style="{ 'height': filtered.list.length * globalStates.logs.lineHeight + 'px' }"
+            :style="{ 'height': filtered.list.length * lineHeight + 'px' }"
           >
             <div
               v-for="index in elements"
               :key="index"
               :id="`__log-viewer__log-line-${index}`"
-              :style="{ 'top': index * globalStates.logs.lineHeight + 'px' }"
+              :style="{ 'top': index * lineHeight + 'px' }"
               class="__log-viewer__log-line"
             >
               <div

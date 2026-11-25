@@ -20,22 +20,20 @@ const viewport = useWindowSize();
 const hasNativeContextMenu = computed((): boolean => (
   globalStates?.development?.enableNativeContextMenu ?? false
 ));
-const styles = computed((): {
+
+type MenuPosition = {
   "left"  ?: string;
   "top"   ?: string;
   "right" ?: string;
   "bottom"?: string;
-} => {
+};
+
+const styles = computed<MenuPosition>(previous => {
   if (!opened) {
-    return {};
+    return previous ?? {};
   }
 
-  const position: {
-    "left"  ?: string;
-    "top"   ?: string;
-    "right" ?: string;
-    "bottom"?: string;
-  } = {};
+  const position: MenuPosition = {};
   const boundaries = {
     "height": viewport.height.value,
     "width" : viewport.width.value,

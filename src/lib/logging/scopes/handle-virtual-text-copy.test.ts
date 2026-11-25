@@ -15,6 +15,8 @@ test("copy only reads the text of selected filtered rows in source order", async
   try {
     await handleVirtualTextCopy(false, [7, 3], [outside, [3, "first"], [7, "last"]], () => {});
     expect(writeText).toHaveBeenCalledWith("first\nlast");
+    await handleVirtualTextCopy(false, [1, 1], ["", "later"], () => {});
+    expect(writeText).toHaveBeenCalledWith("later");
   } finally {
     if (previous) {
       Object.defineProperty(navigator, "clipboard", previous);

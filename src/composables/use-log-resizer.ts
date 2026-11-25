@@ -46,12 +46,11 @@ export function useLogResizer(
     // 'width' in 'onMount' is zero for some reason, so we get it here
     const width: number = characterElement.value.getBoundingClientRect().width;
 
-    cleanup?.();
-
-    if (!(width > 0 && Number.isFinite(width))) {
+    if (cleanup || !(width > 0 && Number.isFinite(width))) {
       return;
     }
 
+    const activePointerId = event.pointerId;
     const previousCursor = document.body.style.cursor;
     const start: number = event.clientX;
     const currentSize: number = globalStates.logs.partsSize[section];
@@ -59,6 +58,10 @@ export function useLogResizer(
     document.body.style.cursor = "col-resize";
 
     const onMove = (childEvent: PointerEvent): void => {
+      if (childEvent.pointerId !== activePointerId) {
+        return;
+      }
+
       const delta: number = childEvent.clientX - start;
 
       if (delta === 0) {
@@ -74,7 +77,11 @@ export function useLogResizer(
         ? Math.max(currentSize - newSize, minimum)
         : Math.max(currentSize + newSize, minimum);
     };
-    const cleanListeners = (): void => {
+    const cleanListeners = (end?: PointerEvent): void => {
+      if (end && end.pointerId !== activePointerId) {
+        return;
+      }
+
       document.body.style.cursor = previousCursor;
       cleanup = undefined;
 

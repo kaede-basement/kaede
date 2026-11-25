@@ -21,7 +21,7 @@ import { renderAvatar } from "@daidr/minecraft-skin-renderer/canvas2d";
 import { WebGLRendererPlugin } from "@daidr/minecraft-skin-renderer/webgl";
 import {
   computed, type ComputedRef, inject,
-  onBeforeUnmount, type Ref,
+  type Ref,
   ref, type ShallowRef, shallowRef,
   type TemplateRef, useTemplateRef,
   watch,
@@ -66,80 +66,108 @@ export function useSkinRenderer({
   const viewer = shallowRef<SkinViewer | undefined>();
 
   let generation = 0;
-  let rendering = false;
-  let closed = false;
-  let appliedSkin: string | undefined;
 
-  onBeforeUnmount(() => {
-    closed = true;
-    generation++;
-    viewer.value?.dispose();
-    viewer.value = undefined;
-  });
+  function report(error: unknown): void {
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      `Error rendering the '${render}' skin:`,
+      Errors.prettify(error),
+    );
+  }
 
-  watch([canvas, source, slim], async () => {
-    generation++;
+  if (render === "2d-head") {
+    watch([canvas, source], async ([target, skin], _, onCleanup) => {
+      const request = ++generation;
 
-    if (rendering || closed) {
-      return;
-    }
+      onCleanup(() => {
+        generation++;
+      });
 
-    rendering = true;
+      if (!target) {
+        return;
+      }
 
-    try {
-      while (canvas.value && !closed) {
-        const request = generation;
-        const target = canvas.value;
-        const skin = source.value;
-        const isSlim = slim.value;
+      try {
+        // RenderAvatar draws after loading. Only copy the latest completed avatar onto the page.
+        const image = document.createElement("canvas");
 
-        try {
-          if (render === "2d-head") {
-            await renderAvatar(target, { skin, "scale": 4 });
-          } else if (viewer.value) {
-            if (skin !== appliedSkin) {
-              await viewer.value.setSkin(skin);
-              appliedSkin = skin;
-            }
+        await renderAvatar(image, { skin, "scale": 4 });
 
-            if (request === generation) {
-              viewer.value.setSlim(isSlim);
-            }
-          } else {
-            const created = await createSkinViewer({
-              "canvas": target, skin, "slim": isSlim, "zoom": 35,
-            });
+        if (generation === request) {
+          target.width = image.width;
+          target.height = image.height;
+          const context = target.getContext("2d");
 
-            if (closed || canvas.value !== target) {
-              created.dispose();
-
-              return;
-            }
-
-            viewer.value = created;
-            appliedSkin = skin;
-            created.startRenderLoop();
+          if (!context) {
+            throw new Error("Unable to draw the skin onto the avatar canvas");
           }
 
-          if (request === generation) {
-            shown.value = true;
-          }
-        } catch (error: unknown) {
-          log.error(
-            __PRE_BUNDLED_FILENAME__,
-            `Error rendering the '${render}' skin:`,
-            Errors.prettify(error),
-          );
+          context.drawImage(image, 0, 0);
+          shown.value = true;
         }
-
-        if (request === generation) {
-          break;
+      } catch (error) {
+        if (generation === request) {
+          report(error);
         }
       }
-    } finally {
-      rendering = false;
-    }
-  }, { "flush": "post" });
+    }, { "flush": "post" });
+  } else {
+    watch(canvas, async (target, _, onCleanup) => {
+      if (!target) {
+        return;
+      }
+
+      let closed = false;
+
+      onCleanup(() => {
+        closed = true;
+        viewer.value?.dispose();
+        viewer.value = undefined;
+        shown.value = false;
+      });
+
+      try {
+        // Initialize with the local placeholder so teardown never waits for a remote skin.
+        const created = await createSkinViewer({ "canvas": target, "zoom": 35 });
+
+        if (closed) {
+          created.dispose();
+        } else {
+          viewer.value = created;
+        }
+      } catch (error) {
+        if (!closed) {
+          report(error);
+        }
+      }
+    }, { "flush": "post" });
+
+    watch([viewer, slim], ([current, isSlim]) => current?.setSlim(isSlim));
+    watch([viewer, source], async ([current, skin], _, onCleanup) => {
+      const request = ++generation;
+
+      onCleanup(() => {
+        generation++;
+      });
+
+      if (!current) {
+        return;
+      }
+
+      try {
+        await current.setSkin(skin);
+
+        if (generation === request && !shown.value) {
+          current.startRenderLoop();
+          shown.value = true;
+        }
+      } catch (error) {
+        if (generation === request) {
+          report(error);
+        }
+      }
+    });
+  }
 
   return { canvas, shown, viewer };
 }

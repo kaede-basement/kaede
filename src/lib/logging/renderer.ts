@@ -22,12 +22,10 @@ import type { LogRenderSegmentType } from "@/types/logging/log-render.type.ts";
 import type { LogSearchMatchType } from "@/types/logging/log-searching.type.ts";
 
 type RawToken = {
-  "text"       : string;
-  "kind"       : LogRenderSegmentType["kind"];
-  "rawStart"   : number;
-  "rawEnd"     : number;
-  "renderStart": number;
-  "renderEnd"  : number;
+  "text"    : string;
+  "kind"    : LogRenderSegmentType["kind"];
+  "rawStart": number;
+  "rawEnd"  : number;
 };
 
 function fitToWidth(text: string, width: number): string {
@@ -52,17 +50,14 @@ export function tokenize(
     }
 
     return [{
-      "text"       : parsed.text,
-      "kind"       : "message",
-      "rawStart"   : parsed.offsets.full[0],
-      "rawEnd"     : parsed.offsets.full[1],
-      "renderStart": 0,
-      "renderEnd"  : parsed.text.length,
+      "text"    : parsed.text,
+      "kind"    : "message",
+      "rawStart": parsed.offsets.full[0],
+      "rawEnd"  : parsed.offsets.full[1],
     }];
   }
 
   const tokens: Array<RawToken> = [];
-  let renderCursor = 0;
 
   const push = (text: string, rawStart: number, rawEnd: number, kind: RawToken["kind"]): void => {
     if (text.length === 0) {
@@ -73,12 +68,10 @@ export function tokenize(
       text,
       kind,
       rawStart,
-      rawEnd,
-      "renderStart": renderCursor,
-      "renderEnd"  : renderCursor + text.length,
+      "rawEnd": rawEnd - rawStart > text.length
+        ? rawStart + Math.max(0, text.length - 3)
+        : rawEnd,
     });
-
-    renderCursor = renderCursor + text.length;
   };
 
   const offsets = parsed.offsets;
@@ -113,80 +106,51 @@ export function overlaySearch(
   matches: Array<LogSearchMatchType>,
   currentGlobalIndex: number,
 ): Array<LogRenderSegmentType> {
-  if (matches.length === 0) {
-    return tokens.map((rawToken, index) => ({
-      "text" : rawToken.text,
-      "kind" : rawToken.kind,
-      "state": "none",
-      // Used as Vue 3 loop key
-      index,
-    }));
-  }
-
   const segments: Array<LogRenderSegmentType> = [];
+  const selected = matches.find(match => match.globalIndex === currentGlobalIndex);
 
   for (const token of tokens) {
-    let renderCursor = token.renderStart;
+    let cursor = 0;
+    const emit = (end: number, state: LogRenderSegmentType["state"]): void => {
+      if (end > cursor) {
+        segments.push({
+          "text" : token.text.slice(cursor, end),
+          "kind" : token.kind,
+          state,
+          "index": segments.length,
+        });
+        cursor = end;
+      }
+    };
+    const emitFound = (end: number): void => {
+      if (selected && selected.charStart - token.rawStart < end) {
+        emit(Math.min(end, selected.charStart - token.rawStart), "found");
+        emit(Math.min(end, selected.charEnd - token.rawStart), "current");
+      }
+
+      emit(end, "found");
+    };
+
+    let foundEnd = 0;
 
     for (const match of matches) {
-      if (match.charEnd <= token.rawStart || match.charStart >= token.rawEnd) {
+      const start = Math.max(0, match.charStart - token.rawStart);
+      const end = Math.min(token.rawEnd, match.charEnd) - token.rawStart;
+
+      if (start >= end) {
         continue;
       }
 
-      const overlapRawStart = Math.max(match.charStart, token.rawStart);
-      const overlapRawEnd = Math.min(match.charEnd, token.rawEnd);
-
-      const renderLength = token.text.length;
-
-      const renderOverlapStart = token.renderStart + Math.min(
-        overlapRawStart - token.rawStart,
-        renderLength,
-      );
-      const renderOverlapEnd = token.renderStart + Math.min(
-        overlapRawEnd - token.rawStart,
-        renderLength,
-      );
-
-      if (renderOverlapStart > renderCursor) {
-        segments.push({
-          "text": token.text.slice(
-            renderCursor - token.renderStart,
-            renderOverlapStart - token.renderStart,
-          ),
-          "kind" : token.kind,
-          "state": "none",
-          // Used as Vue 3 loop key
-          "index": segments.length,
-        });
+      if (start > foundEnd) {
+        emitFound(foundEnd);
+        emit(start, "none");
       }
 
-      if (renderOverlapEnd > renderOverlapStart) {
-        segments.push({
-          "text": token.text.slice(
-            renderOverlapStart - token.renderStart,
-            renderOverlapEnd - token.renderStart,
-          ),
-          "kind" : token.kind,
-          "state": match.globalIndex === currentGlobalIndex
-            ? "current"
-            : "found",
-          // Used as Vue 3 loop key
-          "index": segments.length,
-        });
-      }
-
-      renderCursor = renderOverlapEnd;
+      foundEnd = Math.max(foundEnd, end);
     }
 
-    if (renderCursor < token.renderEnd) {
-      segments.push({
-        "text" : token.text.slice(renderCursor - token.renderStart),
-        "kind" : token.kind,
-        "state": "none",
-        // Used as Vue 3 loop key
-        "index": segments.length,
-      });
-    }
+    emitFound(foundEnd);
+    emit(token.text.length, "none");
   }
 
   return segments;

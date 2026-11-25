@@ -95,7 +95,7 @@ function handleIndex(event: Event): void {
     return;
   }
 
-  const newValue = Number(value) - 1;
+  const newValue = Math.trunc(Number(value)) - 1;
   const relativePosition = Math.min(
     Math.max(0, status.matches.length - 1),
     Math.max(

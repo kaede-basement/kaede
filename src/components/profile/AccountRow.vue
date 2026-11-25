@@ -96,6 +96,8 @@ function handleSelection(): void {
 
 async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<void> {
   clearTimeout(timers.get(entry.label));
+  timers.delete(entry.label);
+  statuses.value[entry.label] = undefined;
 
   const handlers: AccountActionHandlersType = {
     "reset": () => {
@@ -118,6 +120,7 @@ async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<
       }, 1000));
     },
     "error": (message, error) => {
+      handlers.reset();
       void notify(
         `An error (${message}) occurred:\n${Errors.prettify(error)}`,
         { "title": "Accounts", "kind": "error" },

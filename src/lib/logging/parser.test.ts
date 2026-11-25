@@ -7,3 +7,7 @@ test("a leading space does not introduce a structured log line", () => {
 
   expect(parseLine({ raw, "index": 0 }).kind).toBe("plain");
 });
+
+test("three fields without a message separator are plain text", () => {
+  expect(parseLine({ "raw": "7 | status | target", "index": 0 }).kind).toBe("plain");
+});

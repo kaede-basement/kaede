@@ -58,17 +58,27 @@ function compileMatcher(raw: string): {
       "valid"  : true,
     };
   } catch {
-    const literal = new RegExp(raw.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`), "gi");
+    const escaped = raw.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+    const literal = new RegExp(`(?=(${escaped}))`, "gi");
 
     return {
-      "matcher": (line: string) => regExpMatcher(line, literal),
-      "valid"  : false,
+      "matcher": (line: string) => Array.from(line.matchAll(literal), match => (
+        [match.index, match.index + match[1].length]
+      )),
+      "valid": false,
     };
   }
 }
 
+export type SearchRows = {
+  "list"    : Array<LogLineType>;
+  "source" ?: Array<string>;
+  "filter" ?: string;
+  "dropped"?: number;
+};
+
 export function useLogSearch(
-  lines: ComputedRef<{ "list": Array<LogLineType> }>,
+  lines: ComputedRef<SearchRows>,
 ): LogSearchComposableType {
   const status = shallowReactive<LogSearchStatusType>({
     "searching": "",
@@ -86,7 +96,22 @@ export function useLogSearch(
   const querySource = computed(() => status.searching);
 
   watch([querySource, lines], ([query, source], [previousQuery, previousSource]) => {
+    let retainedIndex: number | undefined;
+    let retainedStart: number | undefined;
+
     if (query !== previousQuery || source.list !== previousSource?.list) {
+      const selected = status.matches[status.index];
+
+      if (
+        selected && query === previousQuery && source.source === previousSource?.source &&
+        source.filter === previousSource?.filter && source.dropped !== undefined &&
+        previousSource?.dropped !== undefined && source.dropped > previousSource.dropped
+      ) {
+        retainedIndex = previousSource.list[selected.lineIndex].index
+          - (source.dropped - previousSource.dropped);
+        retainedStart = selected.charStart;
+      }
+
       compiled = compileMatcher(query);
       scanned = 0;
       status.index = 0;
@@ -109,6 +134,10 @@ export function useLogSearch(
             "lineIndex": scanned, charStart, charEnd, "globalIndex": status.matches.length,
           };
 
+          if (retainedIndex === source.list[scanned].index && retainedStart === charStart) {
+            status.index = match.globalIndex;
+          }
+
           status.matches.push(match);
 
           return match;
@@ -120,11 +149,11 @@ export function useLogSearch(
   });
 
   function goTo(index: number): LogSearchMatchType | undefined {
-    if (status.matches.length === 0) {
+    if (!Number.isFinite(index) || status.matches.length === 0) {
       return;
     }
 
-    const bounded: number = index % status.matches.length;
+    const bounded: number = Math.trunc(index) % status.matches.length;
     const nonNegativeIndex: number = (bounded + status.matches.length) % status.matches.length;
 
     status.index = nonNegativeIndex;

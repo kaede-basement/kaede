@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
-import { writeFile } from "@tauri-apps/plugin-fs";
+import { exists, remove, rename, writeFile } from "@tauri-apps/plugin-fs";
 import { fetch } from "@tauri-apps/plugin-http";
 import { onClickOutside } from "@vueuse/core";
 import { markRaw, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
@@ -102,19 +102,37 @@ async function handleClick(currentEntry: NonNullable<typeof data.value>[number])
       `modrinth-${FileManager.sanitizeFileOrFolderName(currentEntry.id)}.mrpack`,
     );
 
-    await writeFile(cachePath, bytes);
+    const nonce = crypto.getRandomValues(new Uint32Array(4)).join("-");
+    const temporaryPath = `${cachePath}.${nonce}.part`;
+    let published = false;
 
-    if (request !== generation) {
-      return;
+    try {
+      await writeFile(temporaryPath, bytes);
+
+      if (request !== generation) {
+        return;
+      }
+
+      const manifest = await Modrinth.peekMrpack(temporaryPath);
+
+      if (!manifest || request !== generation) {
+        return;
+      }
+
+      await rename(temporaryPath, cachePath);
+      published = true;
+
+      if (request !== generation) {
+        return;
+      }
+
+      Modrinth.applyManifest({ manifest, "path": cachePath });
+    } finally {
+      if (!published && await exists(temporaryPath)) {
+        await remove(temporaryPath);
+      }
     }
 
-    const manifest = await Modrinth.peekMrpack(cachePath);
-
-    if (!manifest || request !== generation) {
-      return;
-    }
-
-    Modrinth.applyManifest({ manifest, "path": cachePath });
     globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
 
     if (projectIcon && globalStates.pages["add-instance"]?.instance) {
