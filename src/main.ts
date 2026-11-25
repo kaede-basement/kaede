@@ -26,7 +26,7 @@ import "@/globals.css";
 import "m3ripple-vue/style.css";
 
 import { VueQueryPlugin } from "@tanstack/vue-query";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { invoke } from "@tauri-apps/api/core";
 import { createApp } from "vue";
 
 import App from "@/App.vue";
@@ -36,10 +36,13 @@ import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
+import { checkWailsStorage, hasNativeStorage } from "@/lib/file-manager/storage-backend.ts";
 import Globals from "@/lib/globals";
 import Initialization from "@/lib/initialization";
+import { LauncherShown, showLauncher } from "@/lib/initialization/show-launcher.ts";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
+import { watchStaging } from "@/lib/modrinth/staging.ts";
 import Wails from "@/lib/wails";
 import Watchers from "@/lib/watchers";
 import { declareGlobalStates } from "@/states/global.ts";
@@ -64,6 +67,7 @@ async function run(): Promise<void> {
   if (await Wails.detectIsWails()) {
     // Replaces the Tauri API with a Wails v3 API
     await Wails.handleTauriEnvironment();
+    await checkWailsStorage();
   }
 
   // For a live preview: https://kaede-basement.github.io/kaede/
@@ -119,8 +123,7 @@ async function run(): Promise<void> {
 
   // At this point, we can make WebView visible
   if (config.extensions.showAppAfterExtensionsLoad !== true) {
-    getCurrentWebviewWindow()
-      .show()
+    showLauncher()
       .then(() => {
         log.info(
           __PRE_BUNDLED_FILENAME__,
@@ -201,6 +204,14 @@ async function run(): Promise<void> {
     .catch((error: unknown) => {
       log.error(__PRE_BUNDLED_FILENAME__, "Failed to initialize launcher:", Errors.prettify(error));
     });
+  if (hasNativeStorage()) {
+    void LauncherShown.then(() => {
+      watchStaging();
+
+      return invoke("trim_legacy_logs");
+    })
+      .catch(error => log.warn(__PRE_BUNDLED_FILENAME__, String(error)));
+  }
 }
 
 run().catch(error => {
@@ -215,8 +226,7 @@ run().catch(error => {
     prettified,
   );
   log.debug(__PRE_BUNDLED_FILENAME__, "Making current webview window visible");
-  getCurrentWebviewWindow()
-    .show()
+  showLauncher()
     .then(() => {
       const root = document.querySelector(ApplicationRootID);
 

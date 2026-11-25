@@ -17,9 +17,9 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { onMounted, onUnmounted, type ShallowRef, shallowRef } from "vue";
+import { onMounted, onUnmounted, type ShallowRef, shallowRef, watch } from "vue";
 
-import { GlobalInternals } from "@/extendable/global-internals.ts";
+import { BrowserLogs } from "@/extendable/global-internals.ts";
 import Browser from "@/lib/browser";
 import Logging from "@/lib/logging";
 
@@ -31,20 +31,15 @@ type LogStreamEventType =
 let lastLegacyId = 0;
 
 export function useLogStream(): {
-  "lines": ShallowRef<{ "list": Array<string> }>;
+  "lines": ShallowRef<{ "list": Array<string>; "dropped"?: number }>;
 } {
   const isBrowser = Browser.detectIsBrowser();
-  const lines = shallowRef<{ "list": Array<string> }>({ "list": [] });
+  const lines = shallowRef<{ "list": Array<string>; "dropped"?: number }>({ "list": [] });
 
   if (isBrowser) {
-    const currentLogs = GlobalInternals.logsInBrowser;
-    const intervalId = setInterval((): void => {
-      lines.value = { "list": currentLogs };
-    }, 100);
-
-    onUnmounted(() => {
-      clearInterval(intervalId);
-    });
+    watch(BrowserLogs, buffer => {
+      lines.value = { ...buffer };
+    }, { "immediate": true });
 
     return { lines };
   }

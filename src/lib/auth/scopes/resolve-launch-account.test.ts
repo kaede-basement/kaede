@@ -1,8 +1,8 @@
-import * as fs from "@tauri-apps/plugin-fs";
 import { expect, spyOn, test } from "bun:test";
 
 import Configs from "@/lib/configs";
 import * as reads from "@/lib/configs/scopes/get-accounts.ts";
+import * as file from "@/lib/file-manager/publish-text.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
 import * as refresh from "./ensure-fresh-account.ts";
@@ -26,7 +26,7 @@ test("refresh merges by UUID against the latest persisted accounts", async () =>
     "account": refreshed, "status": "refreshed",
   });
   using latest = spyOn(reads, "getAccounts").mockResolvedValue([added, second, first]);
-  using write = spyOn(fs, "writeTextFile").mockResolvedValue();
+  using write = spyOn(file, "publishText").mockResolvedValue();
 
   const result = await resolveAccountAtIndex([first, second], 1);
 
@@ -48,7 +48,7 @@ test("concurrent refreshes preserve both updates and recover from a failed write
     "account": { ...account, "profile": { ...account.profile, "name": "new" } },
   }));
   using read = spyOn(reads, "getAccounts").mockImplementation(async () => [...stored]);
-  using write = spyOn(fs, "writeTextFile").mockImplementation(async (_, data) => {
+  using write = spyOn(file, "publishText").mockImplementation(async (_, data) => {
     stored = JSON.parse(data);
   });
 

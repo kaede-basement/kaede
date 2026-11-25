@@ -1,5 +1,6 @@
-import { rename } from "@tauri-apps/plugin-fs";
+import { copyFile, readFile, writeFile } from "@tauri-apps/plugin-fs";
 
+import Browser from "@/lib/browser";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { initializeConfigFile } from "@/lib/configs/scopes/initialize-config-file.ts";
 import FileManager from "@/lib/file-manager";
@@ -14,16 +15,18 @@ export async function regenerateConfigFile({
   "configFileDirectory": string;
 }): Promise<ConfigType> {
   log.warn(__PRE_BUNDLED_FILENAME__, "Config file is invalid");
-  log.debug(__PRE_BUNDLED_FILENAME__, "Renaming the invalid config file");
+  log.debug(__PRE_BUNDLED_FILENAME__, "Backing up the invalid config file");
   const currentTimestamp: string = Date.now().toString();
 
-  await rename(
-    configFileDirectory,
-    FileManager.join(
-      baseDirectory,
-      "config_invalid_" + currentTimestamp + ".json",
-    ),
-  );
+  const backup = FileManager.join(baseDirectory, "config_invalid_" + currentTimestamp + ".json");
+
+  if (Browser.detectIsBrowser()) {
+    const bytes = await readFile(configFileDirectory);
+
+    await writeFile(backup, bytes);
+  } else {
+    await copyFile(configFileDirectory, backup);
+  }
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing a new config file with default values");
   await initializeConfigFile(configFileDirectory);

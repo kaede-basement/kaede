@@ -16,11 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { writeTextFile } from "@tauri-apps/plugin-fs";
-
 import FileStructure from "@/constants/file-structure.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import FileManager from "@/lib/file-manager";
+import { publishText } from "@/lib/file-manager/publish-text.ts";
 import { globalStates } from "@/states/global.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
@@ -74,7 +73,7 @@ export function createStateSync<T extends object>(
 
     const path = FileManager.join(FileManager.getBaseDirectory(), file);
 
-    await writeTextFile(path, contents);
+    await publishText(path, contents);
     lastWritten = contents;
   }
 

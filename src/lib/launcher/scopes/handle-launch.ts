@@ -18,6 +18,7 @@
 
 import { mkdir } from "@tauri-apps/plugin-fs";
 
+import { pinLaunchMetadata } from "@/lib/cache/offline.ts";
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
@@ -43,21 +44,31 @@ const failed: LaunchResponseType = {
   "process": undefined,
 };
 
-export async function handleLaunch({
-  instanceId,
-  instance,
-  statuses,
-  userPreferences,
-  onClose,
-  onInput,
-}: {
+type LaunchInput = {
   "instanceId"     : string;
   "instance"       : InstanceStateType;
   "statuses"       : LauncherStatusesType;
   "userPreferences": PreLaunchInformationType["user"];
   "onClose"        : (instanceId: string) => void;
   "onInput"        : (lines: Array<string>) => void;
-}): Promise<LaunchResponseType> {
+};
+
+export function handleLaunch(input: LaunchInput): Promise<LaunchResponseType> {
+  const release = pinLaunchMetadata({
+    "entry": input.instance.entry, "patchVersions": input.userPreferences.versions,
+  });
+
+  return launch(input).finally(release);
+}
+
+async function launch({
+  instanceId,
+  instance,
+  statuses,
+  userPreferences,
+  onClose,
+  onInput,
+}: LaunchInput): Promise<LaunchResponseType> {
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
   const { instanceDirectory } = Instances.getMinecraftDirectory({
     "baseDirectory": FileManager.getBaseDirectory(),

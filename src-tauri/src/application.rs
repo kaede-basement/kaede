@@ -1,5 +1,4 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Mutex;
 use serde::Serialize;
@@ -106,64 +105,6 @@ pub async fn get_initial_state(
         parsed: parsed_configs,
         executable_hash,
     })
-}
-
-// If the 'latest.log' file exists and is not empty,
-// then rename that file to 'kaede-{number}.log',
-// where 'number' is one greater than the biggest existing log file number.
-//
-// Else abort the log file preparation.
-pub fn prepare_log_file(logs_dir: &Path, app_name: &str) -> std::io::Result<()> {
-    let latest_log_path = logs_dir.join("latest.log");
-
-    if !latest_log_path.exists() {
-        return Ok(());
-    }
-
-    let metadata = fs::metadata(&latest_log_path)?;
-
-    // Empty log files are already prepared for logging
-    if metadata.len() == 0 {
-        return Ok(());
-    }
-
-    // Rotated log files are named '{app_name}-{number}.log'
-    let prefix = format!("{}-", app_name);
-
-    // We will keep track of the biggest log file number to make a unique file name
-    let mut max_number: usize = 0;
-
-    for entry in fs::read_dir(logs_dir)? {
-        let entry = entry?;
-        let file_name = entry.file_name();
-
-        // Skip files whose names are not valid UTF-8
-        let Some(filename) = file_name.to_str() else {
-            continue;
-        };
-
-        // Count only '{prefix}{number}.log' files
-        let number = filename
-            .strip_prefix(&prefix)
-            .and_then(|rest| rest.strip_suffix(".log"))
-            .and_then(|digits| digits.parse::<usize>().ok());
-
-        if let Some(number) = number {
-            max_number = max_number.max(number);
-        }
-    }
-
-    // Get the absolute path of the renamed log file
-    let new_log_path = logs_dir.join(format!(
-        "{}-{}.log",
-        app_name,
-        max_number + 1,
-    ));
-
-    // 'latest.log' becomes 'kaede-{number}.log'
-    fs::rename(&latest_log_path, &new_log_path)?;
-
-    Ok(())
 }
 
 fn startup_hash(result: Result<&String, String>) -> String {

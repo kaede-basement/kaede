@@ -25,6 +25,6 @@ for (const show of [true, false]) {
     expect(requests).toEqual([]);
     current.locale = "fr";
     await sync();
-    expect(requests).toEqual(["plugin:fs|write_text_file"]);
+    expect(requests).toEqual(["publish_text"]);
   }));
 }

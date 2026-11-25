@@ -15,6 +15,7 @@ export type Entry = {
   "expires"?     : string;
   "etag"?        : string;
   "lastModified"?: string;
+  "lastUsed"?    : number;
   "size"         : number;
   "hash"         : Digest;
 };
@@ -94,6 +95,7 @@ export function validator(name: "etag" | "last-modified", value: unknown): strin
 
 function validEntry(entry: Entry): boolean {
   return !!entry && typeof entry.url === "string" && Number.isFinite(entry.freshUntil)
+    && (entry.lastUsed === undefined || Number.isFinite(entry.lastUsed))
     && Number.isSafeInteger(entry.size) && entry.size >= 0 && validDigest(entry.hash)
     && (entry.fallbackTtl === undefined
       || (Number.isFinite(entry.fallbackTtl) && entry.fallbackTtl >= 0))
@@ -126,7 +128,12 @@ export class CacheIndex {
   private entries?: Promise<Entries>;
   private writer = Promise.resolve();
 
-  constructor(private root: string) {}
+  constructor(
+    private root: string,
+    private protectedKeys: () => Promise<Set<string>>,
+    private maxEntries = 512,
+    private maxBytes = 128 * 1024 * 1024,
+  ) {}
 
   private load(): Promise<Entries> {
     return this.entries ??= readIndex(this.root).catch(error => {
@@ -138,23 +145,66 @@ export class CacheIndex {
   async get(path: string): Promise<Entry | undefined> {
     const entries = await this.load();
 
-    return entries.get(path);
+    const entry = entries.get(path);
+
+    if (entry) {
+      entry.lastUsed = Date.now();
+    }
+
+    return entry;
   }
 
-  update(path: string, entry?: Entry): Promise<void> {
-    const write = this.writer.then(async () => {
-      const entries = await this.load();
+  update(path: string, entry?: Entry, publishDocument?: () => Promise<void>): Promise<void> {
+    const locks = globalThis.navigator?.locks;
+    const commit = async (): Promise<void> => {
+      const local = await this.load();
+      const entries = locks ? await readIndex(this.root) : local;
+
+      if (locks) {
+        // Include accesses since this window last published, while retaining other windows' writes.
+        for (const [key, value] of entries) {
+          value.lastUsed = Math.max(value.lastUsed ?? 0, local.get(key)?.lastUsed ?? 0);
+        }
+      }
+      await publishDocument?.();
 
       if (!entry && !entries.has(path)) return;
       const next = new Map(entries);
 
-      if (entry) next.set(path, entry);
-      else next.delete(path);
+      next.delete(path);
+
+      if (entry) next.set(path, { ...entry, "lastUsed": Date.now() });
+      let size = 0;
+
+      for (const value of next.values()) size += value.size;
+      if (next.size > this.maxEntries || size > this.maxBytes) {
+        const protectedKeys = await this.protectedKeys();
+
+        const oldest = [...next].sort((a, b) => (a[1].lastUsed ?? 0) - (b[1].lastUsed ?? 0));
+
+        for (const [key, value] of oldest) {
+          if (protectedKeys.has(key.toLowerCase())) continue;
+          let target = this.root;
+
+          for (const part of key.split("/")) {
+            await rejectSymlink(target);
+            target = join(target, part);
+          }
+          await rejectSymlink(target);
+          if (await fs.exists(target)) await fs.remove(target);
+          next.delete(key);
+          size -= value.size;
+          if (next.size <= this.maxEntries && size <= this.maxBytes) break;
+        }
+      }
       const json = JSON.stringify({ "version": 1, "entries": Object.fromEntries(next) });
 
       await publish(this.root, "index.json", (new TextEncoder).encode(json));
       this.entries = Promise.resolve(next);
-    });
+    };
+    const write = this.writer.then(() => (locks
+      ? locks.request("kaede-metadata:" + this.root, commit)
+      : commit()));
 
     this.writer = write.catch(() => {});
 

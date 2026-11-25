@@ -157,8 +157,8 @@ test("registration awaits the instance write and preserves an active Modrinth ta
   const written = Promise.withResolvers<void>();
 
   mockIPC(async (command, data) => {
-    if (command === "plugin:fs|write_text_file") {
-      const text = (new TextDecoder).decode(data as Uint8Array);
+    if (command === "publish_text") {
+      const text = (data as { "contents": string }).contents;
 
       expect(Object.values(JSON.parse(text))).toHaveLength(1);
       writing.resolve();
@@ -224,4 +224,52 @@ test("legacy archive availability and cancellation retain the retry marker", asy
     expect(statuses.downloads.total).toBe(0);
   }
   expect(commands).toEqual(["repair_legacy_mrpack", "repair_legacy_mrpack"]);
+});
+
+test("draft replacement, install completion and cancellation release staging pins", async () => {
+  using initial = spyOn(Router, "getInitialPage").mockReturnValue(Routes.AddInstance);
+  declareGlobalStates();
+  expect(initial).toHaveBeenCalled();
+  const { GlobalInternals } = await import("@/extendable/global-internals.ts");
+  const { selectArchive, watchStaging } = await import("./staging.ts");
+  const oldSeparator = GlobalInternals.joinDelimiter;
+  const oldBase = GlobalInternals.baseDirectory;
+  const scope = effectScope();
+  const collected: Array<string> = [];
+  let pin = 0;
+
+  mockIPC((command, payload) => {
+    if (command === "pin_stage") return ++pin;
+    if (command === "collect_stages" && payload && "only" in payload && payload.only) {
+      collected.push(String(payload.only));
+    }
+  });
+  GlobalInternals.joinDelimiter = "/";
+  GlobalInternals.baseDirectory = "/launcher";
+  const page = globalStates.pages["add-instance"];
+  const select = (path: string): Promise<void> => selectArchive(path, async () => {
+    page.importedModpack = { path, "name": "pack", "loader": Patches.Minecraft };
+
+    return true;
+  });
+  const one = "/launcher/cache/modrinth-one.mrpack";
+  const two = "/launcher/cache/modrinth-two.mrpack";
+
+  try {
+    scope.run(watchStaging);
+    await select(one);
+    await select(two);
+    page.importedModpack = undefined;
+    await Bun.sleep(0);
+    expect(collected).toEqual([one, two]);
+    await select(one);
+    await select("/external/modrinth-user.mrpack");
+    await Bun.sleep(0);
+    expect(collected).toEqual([one, two, one]);
+    expect(pin).toBe(3);
+  } finally {
+    scope.stop();
+    GlobalInternals.baseDirectory = oldBase;
+    GlobalInternals.joinDelimiter = oldSeparator;
+  }
 });

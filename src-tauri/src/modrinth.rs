@@ -105,7 +105,8 @@ pub(crate) fn install_mrpack<R: tauri::Runtime>(
     tauri::ipc::InvokeError,
 > {
     const NAME: &str = "install_mrpack";
-    let archive = crate::argument(invoke, NAME, "archivePath")?;
+    let archive: PathBuf = crate::argument(invoke, NAME, "archivePath")?;
+    let pin = crate::argument::<State<crate::staging::Staging>, _>(invoke, NAME, "staging")?.pin(&archive);
     let target = crate::argument(invoke, NAME, "targetDirPath")?;
     let id: String = crate::argument(invoke, NAME, "cancelId")?;
     let reservation = crate::argument(invoke, NAME, "reservation")?;
@@ -122,10 +123,13 @@ pub(crate) fn install_mrpack<R: tauri::Runtime>(
     let flags: State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
     let (cancel, decision) = flags.bind_install(&id, reservation, &webview.resources_table())?;
     Ok(async move {
-        install(archive, target, &store, decision, cancel, |ok, total| {
+        let result = install(archive, target, &store, decision, cancel, |ok, total| {
             let _ = progress.send((ok, total));
         })
-        .await
+        .await;
+        if let Some(pin) = pin { pin.finish_install(); }
+        store.trim_after_install();
+        result
     })
 }
 
@@ -325,7 +329,7 @@ pub(crate) fn repair_legacy_mrpack<R: tauri::Runtime>(
         .clone();
     let cancel = flags.register(&id);
     Ok(async move {
-        repair(
+        let result = repair(
             archive_path,
             target_dir_path,
             &store,
@@ -334,7 +338,9 @@ pub(crate) fn repair_legacy_mrpack<R: tauri::Runtime>(
                 let _ = on_progress.send((done, total));
             },
         )
-        .await
+        .await;
+        store.trim_after_install();
+        result
     })
 }
 

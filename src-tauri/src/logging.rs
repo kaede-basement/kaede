@@ -856,3 +856,63 @@ mod tests {
         );
     }
 }
+
+pub(crate) const ARCHIVES: usize = 10;
+
+impl LogTail {
+    pub(crate) fn trim_archives(&self) -> io::Result<()> {
+        static MIGRATION: Mutex<()> = Mutex::new(());
+        let _migration = MIGRATION.lock().unwrap();
+        let directory = self.path.parent().unwrap();
+        let marker = directory.join(".numbered-logs-trimmed");
+        if marker.try_exists()? {
+            return Ok(());
+        }
+        let mut archives = Vec::new();
+        for entry in std::fs::read_dir(directory)? {
+            let entry = entry?;
+            if let Some(number) = entry
+                .file_name()
+                .to_str()
+                .and_then(|s| s.strip_prefix("kaede-"))
+                .and_then(|s| s.strip_suffix(".log"))
+                .filter(|s| s.bytes().all(|b| b.is_ascii_digit()))
+                .and_then(|s| s.parse::<u64>().ok())
+            {
+                if entry.file_type()?.is_file() {
+                    archives.push((number, entry.path()));
+                }
+            }
+        }
+        archives.sort_unstable();
+        for (_, path) in archives.drain(..archives.len().saturating_sub(ARCHIVES)) {
+            std::fs::remove_file(path)?;
+        }
+        match File::create_new(marker) {
+            Ok(_) => (),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => (),
+            Err(e) => return Err(e),
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod retention_tests {
+    use super::*;
+    #[test]
+    fn rotates_numbered_archives_by_number() {
+        let dir = tempfile::tempdir().unwrap();
+        for i in 0..13 {
+            File::create(dir.path().join(format!("kaede-{i}.log"))).unwrap();
+        }
+        let latest = dir.path().join("latest.log");
+        File::create(&latest).unwrap();
+        let tail = LogTail::new(latest.clone());
+        tail.trim_archives().unwrap();
+        assert!(latest.exists());
+        for i in 0..13 {
+            assert_eq!(dir.path().join(format!("kaede-{i}.log")).exists(), i >= 3);
+        }
+    }
+}

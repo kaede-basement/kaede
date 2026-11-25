@@ -28,6 +28,7 @@ import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
+import { selectArchive } from "@/lib/modrinth/staging.ts";
 import { globalStates } from "@/states/global.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
@@ -70,12 +71,15 @@ async function handleImport(): Promise<void> {
   }
 
   try {
-    const manifest: MrpackManifestType | undefined =
-      await Modrinth.peekMrpack(selectedPath);
+    await selectArchive(selectedPath, async () => {
+      const manifest: MrpackManifestType | undefined =
+        await Modrinth.peekMrpack(selectedPath);
 
-    Modrinth.applyManifest({ manifest, "path": selectedPath });
-    globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
+      Modrinth.applyManifest({ manifest, "path": selectedPath });
+      globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
 
+      return true;
+    });
     status.value = "done";
   } catch (error: unknown) {
     status.value = Errors.prettify(error);

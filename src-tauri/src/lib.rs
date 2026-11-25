@@ -1,5 +1,5 @@
 use tauri::Manager;
-use log::{warn, error};
+use log::warn;
 
 mod application;
 mod downloads;
@@ -12,9 +12,11 @@ mod image;
 mod ipc_batch;
 mod ipc_dispatch;
 mod logging;
+mod json_file;
 mod modrinth;
 mod mod_store;
 mod processes;
+mod staging;
 mod system;
 mod translations;
 mod zip;
@@ -90,6 +92,29 @@ fn bind_at_dispatch<R: tauri::Runtime>(
                     argument(i, "verify_paths_hash", "algorithm")?,
                 ))
             }),
+            "collect_stages" => dispatcher.dispatch(invoke, |i| {
+                let name = "collect_stages";
+                let store = argument::<tauri::State<staging::Staging>, _>(i, name, "staging")?
+                    .inner().clone();
+                Ok(store.collect(argument(i, name, "only")?, argument(i, name, "protected")?))
+            }),
+            "trim_legacy_logs" => dispatcher.dispatch(invoke, |i| {
+                let tail = argument::<tauri::State<std::sync::Arc<logging::LogTail>>, _>(
+                    i, "trim_legacy_logs", "tail",
+                )?.inner().clone();
+                Ok(async move {
+                    tokio::task::spawn_blocking(move || tail.trim_archives()).await
+                        .map_err(|e| e.to_string())?.map_err(|e| e.to_string())
+                })
+            }),
+            "publish_text" => dispatcher.dispatch(invoke, |i| {
+                let name = "publish_text";
+                Ok(json_file::publish_text(
+                    argument(i, name, "path")?, argument(i, name, "contents")?,
+                    argument(i, name, "private")?, argument(i, name, "preserve")?,
+                    argument(i, name, "expectedJson")?,
+                ))
+            }),
             "clear_mod_cache" => dispatcher.dispatch(invoke, |i| {
                 let store = argument::<tauri::State<mod_store::ModStore>, _>(
                     i,
@@ -105,8 +130,7 @@ fn bind_at_dispatch<R: tauri::Runtime>(
     }
 }
 
-// Launcher name
-const APP_NAME: &str = "kaede";
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -133,6 +157,7 @@ pub fn run() {
     let builder = builder.on_page_load(|webview, load| {
         if load.event() == tauri::webview::PageLoadEvent::Started {
             logging::page_changed(&mut webview.window_ref().resources_table(), false);
+            staging::release_page(&mut webview.resources_table());
             downloads::end_reservation_scope(&mut webview.resources_table());
             #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::page_left(webview);
@@ -201,37 +226,12 @@ pub fn run() {
                 }
             });
             // Besides hashing, we can also read configs ahead-of-time
+            app.manage(staging::Staging::new(&base_directory));
             app.manage(mod_store::ModStore::new(&base_directory));
             app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist
             std::fs::create_dir_all(&path)?;
-
-            // Prepare the log file.
-            //
-            // Rewriting this from TypeScript to Rust lead to way faster code execution:
-            // (Note: 906 files in the 'logs' directory)
-            // - TypeScript took 80 ms on average.
-            // - Rust       took  3 ms on average (holy fuck).
-            //
-            // Do not blame JavaScript though, because Tauri API
-            // is time-wise expensive to invoke from JavaScript.
-            // 90% of the time JavaScript seemed to just wait for Tauri commands resolving.
-            //
-            // Also:
-            // The logging plugin locks the 'latest.log' file once it initializes,
-            // so deleting that file while application is still working will lead to errors.
-            //
-            // Clearly, at this point of code Tauri logging plugin has NOT been loaded yet.
-            // This means that the log file can be manipulated in any way.
-            //
-            // But in JavaScript, the logging plugin has already been loaded.
-            // Thus, the logging preparation strategy provided below will fail,
-            // requiring the JavaScript code to copy the contents from the log file into another one
-            // instead of just renaming that file. Of course, copying takes more time than renaming
-            if let Err(error) = application::prepare_log_file(&path, APP_NAME) {
-                error!("Failed to prepare the log file: {}", error);
-            }
 
             app.manage(std::sync::Arc::new(logging::LogTail::new(
                 path.join("latest.log"),
@@ -270,7 +270,8 @@ pub fn run() {
                     // Keep the log file size at 8 MiB
                     .max_file_size(8_388_608)
                     // Keep the recent log lines if the file size exceeds 8 MiB
-                    .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+                    .file_open_strategy(tauri_plugin_log::FileOpenStrategy::Rotate)
+                    .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(logging::ARCHIVES))
                     .build(),
             )?;
 
@@ -280,6 +281,7 @@ pub fn run() {
         .manage(downloads::CancelFlags::default())
         // Register custom Tauri commands
         .invoke_handler(bind_at_dispatch(tauri::generate_handler![
+            staging::pin_stage,
             application::get_initial_state,
             downloads::prepare_mrpack_install,
             extensions::read_extensions,

@@ -3,7 +3,10 @@ use crate::{
     hashing::{modpack_hashes, HashAlgorithm},
     modrinth::ManifestFile,
 };
-use std::sync::{Arc, Once};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, Once,
+};
 use std::{
     fs, io,
     io::Read,
@@ -17,6 +20,8 @@ pub struct ModStore {
     active: Arc<Mutex<Option<Arc<ObjectTree>>>>,
     clears: Arc<Mutex<()>>,
     recovery: Arc<Once>,
+    installs: Arc<AtomicU64>,
+    trim_writer: Arc<std::sync::Mutex<()>>,
 }
 
 pub struct ObjectTree {
@@ -26,6 +31,7 @@ pub struct ObjectTree {
     _lease: watch::Receiver<()>,
 }
 
+const OBJECT_BUDGET: u64 = 1 << 30;
 const INITIAL: &str = "objects";
 const ALTERNATE: &str = "objects-next";
 const SELECTOR: &str = ".kaede-active-object-tree";
@@ -76,12 +82,16 @@ impl ModStore {
             active: Arc::default(),
             clears: Arc::default(),
             recovery: Arc::new(Once::new()),
+            installs: Arc::default(),
+            trim_writer: Arc::default(),
         }
     }
 
     pub async fn lease(&self) -> Result<Arc<ObjectTree>, String> {
         self.recover_once();
-        self.active_tree().await
+        let tree = self.active_tree().await?;
+        self.installs.fetch_add(1, Ordering::Relaxed);
+        Ok(tree)
     }
 
     async fn active_tree(&self) -> Result<Arc<ObjectTree>, String> {
@@ -132,6 +142,94 @@ impl ModStore {
         }
         let active = selected_tree(cache)?.unwrap_or(INITIAL);
         remove_tree(&cache.join(other(active)))
+    }
+
+    pub(crate) fn trim_after_install(&self) {
+        let store = self.clone();
+        tokio::task::spawn_blocking(move || {
+            if let Err(error) = store.trim(OBJECT_BUDGET) {
+                log::warn!("Cannot trim mod cache: {error}");
+            }
+        });
+    }
+
+    fn trim(&self, budget: u64) -> io::Result<()> {
+        let _writer = self.trim_writer.lock().unwrap();
+        let generation = self.installs.load(Ordering::Relaxed);
+        let tree = {
+            let active = self.active.blocking_lock();
+            let Some(tree) = active.as_ref() else {
+                return Ok(());
+            };
+            if Arc::strong_count(tree) != 1 {
+                return Ok(());
+            }
+            tree.clone()
+        };
+        let objects = tree.root.join("sha512");
+        for directory in [self.cache.as_path(), tree.root.as_path(), objects.as_path()] {
+            match fs::symlink_metadata(directory) {
+                Ok(meta) if ordinary_directory(&meta) => (),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+                _ => return Err(io::Error::other("Invalid object directory")),
+            }
+        }
+        let mut files = Vec::new();
+        let mut total = 0;
+        for shard in fs::read_dir(&objects)? {
+            if self.installs.load(Ordering::Relaxed) != generation {
+                return Ok(());
+            }
+            let shard = shard?;
+            let prefix = shard.file_name();
+            let Some(prefix) = prefix.to_str() else {
+                continue;
+            };
+            if prefix.len() != 2
+                || !prefix.bytes().all(|c| c.is_ascii_hexdigit())
+                || !ordinary_directory(&fs::symlink_metadata(shard.path())?)
+            {
+                continue;
+            }
+            for entry in fs::read_dir(shard.path())? {
+                let entry = entry?;
+                let name = entry.file_name();
+                let Some(name) = name.to_str() else { continue };
+                if name.len() != 128
+                    || !name.starts_with(prefix)
+                    || !name.bytes().all(|c| c.is_ascii_hexdigit())
+                {
+                    continue;
+                }
+                let meta = fs::symlink_metadata(entry.path())?;
+                if meta.is_file() && !is_reparse_point(&meta) {
+                    total += meta.len();
+                    files.push((meta.modified()?, entry.path(), meta.len()));
+                }
+            }
+        }
+        if total > budget {
+            files.sort_unstable();
+            for (_, path, size) in files {
+                // Hold admission only across the unlink, never across the traversal.
+                let active = self.active.blocking_lock();
+                if !active
+                    .as_ref()
+                    .is_some_and(|current| Arc::ptr_eq(&tree, current))
+                    || Arc::strong_count(&tree) != 2
+                    || self.installs.load(Ordering::Relaxed) != generation
+                {
+                    break;
+                }
+                fs::remove_file(path)?;
+                drop(active);
+                total -= size;
+                if total <= budget {
+                    break;
+                }
+            }
+        }
+        Ok(())
     }
 
     pub(crate) async fn clear(&self) -> Result<(), String> {
@@ -265,6 +363,11 @@ impl ObjectTree {
                                     name
                                 )));
                             }
+                            fs::File::options()
+                                .write(true)
+                                .open(&path)
+                                .and_then(|f| f.set_modified(std::time::SystemTime::now()))
+                                .map_err(DownloadError::other)?;
                             return Ok(true);
                         }
                         fs::remove_file(&path).map_err(DownloadError::other)?;
@@ -325,7 +428,7 @@ impl ObjectTree {
     }
 }
 
-fn is_reparse_point(meta: &fs::Metadata) -> bool {
+pub(crate) fn is_reparse_point(meta: &fs::Metadata) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
@@ -338,7 +441,7 @@ fn is_reparse_point(meta: &fs::Metadata) -> bool {
     }
 }
 
-fn ordinary_directory(meta: &fs::Metadata) -> bool {
+pub(crate) fn ordinary_directory(meta: &fs::Metadata) -> bool {
     meta.is_dir() && !is_reparse_point(meta)
 }
 
@@ -399,6 +502,35 @@ pub fn stage_blob(src: &Path, dst: &Path) -> io::Result<tempfile::TempPath> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tiny_budget_spares_leases_and_keeps_newest() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = ModStore::new(dir.path());
+        let lease = store.lease().await.unwrap();
+        lease.prepare().await.unwrap();
+        let shard = lease.root.join("sha512/aa");
+        fs::create_dir(&shard).unwrap();
+        let old = shard.join("a".repeat(128));
+        let new = shard.join(format!("aa{}", "b".repeat(126)));
+        fs::File::create(&old)
+            .unwrap()
+            .set_modified(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap();
+        fs::write(&new, b"x").unwrap();
+        tokio::task::block_in_place(|| store.trim(0)).unwrap();
+        assert!(old.exists() && new.exists());
+        fs::write(&old, b"y").unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&old)
+            .unwrap()
+            .set_modified(std::time::SystemTime::UNIX_EPOCH)
+            .unwrap();
+        drop(lease);
+        tokio::task::block_in_place(|| store.trim(1)).unwrap();
+        assert!(!old.exists() && new.exists());
+    }
+
     #[tokio::test]
     async fn lost_selector_keeps_initial_tree_and_reclaims_alternate() {
         for startup_recovery in [false, true] {

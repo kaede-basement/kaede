@@ -22,7 +22,7 @@ test("Repair preloaded English without rereading it", () => withTestWindow(async
   });
 
   expect(translations).toBe(English);
-  expect(requests).toEqual(["plugin:fs|write_text_file"]);
+  expect(requests).toEqual(["publish_text"]);
 }));
 
 test("Load English after regenerating French config", () => withTestWindow(async () => {

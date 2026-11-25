@@ -3,6 +3,7 @@ import { exists, remove } from "@tauri-apps/plugin-fs";
 import { join } from "@/lib/file-manager/path.ts";
 
 import { freshness, NetworkError, requestDocument } from "./http.ts";
+import { offlineMetadata } from "./offline.ts";
 import {
   CacheIndex,
   type Digest,
@@ -74,7 +75,9 @@ async function retrieve(options: RequestOptions, root: string): Promise<Document
     await rejectSymlink(directory);
   }
   const path = join(directory, filename);
-  const index = indexes.get(root) ?? new CacheIndex(root);
+  const { baseDirectory } = options;
+  const index = indexes.get(root) ??
+    new CacheIndex(root, () => offlineMetadata(root, baseDirectory));
 
   indexes.set(root, index);
   const stored = await index.get(relativePath);
@@ -141,7 +144,6 @@ async function retrieve(options: RequestOptions, root: string): Promise<Document
   const policy = freshness(reply, fallback, previous);
 
   if (policy) {
-    if (!local) await publish(directory, filename, document.bytes);
     const updated: Entry = {
       url,
       ...policy,
@@ -152,10 +154,12 @@ async function retrieve(options: RequestOptions, root: string): Promise<Document
         response.headers.get("last-modified") ?? previous?.lastModified),
     };
 
-    await index.update(relativePath, updated);
+    await index.update(relativePath, updated, local ? undefined
+      : (): Promise<void> => publish(directory, filename, document.bytes));
   } else {
-    if (await exists(path)) await remove(path);
-    await index.update(relativePath);
+    await index.update(relativePath, undefined, async () => {
+      if (await exists(path)) await remove(path);
+    });
   }
 
   return document;

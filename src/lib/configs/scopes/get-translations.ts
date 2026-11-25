@@ -1,9 +1,8 @@
-import { writeTextFile } from "@tauri-apps/plugin-fs";
-
 import { DefaultLocale } from "@/constants/application.ts";
 import EnglishTranslations from "@/constants/english.json";
 import FileStructure from "@/constants/file-structure.ts";
 import FileManager from "@/lib/file-manager";
+import { publishText } from "@/lib/file-manager/publish-text.ts";
 import { log } from "@/lib/logging/log.ts";
 import type { ParsedFile } from "@/types/application/parsed-file.type.ts";
 import type { TranslationsType } from "@/types/translations/translations.type.ts";
@@ -43,7 +42,7 @@ export async function getTranslations(properties?: Partial<{
       baseDirectory, FileStructure.Folders.Translations.Path, selected + ".json",
     );
 
-    await writeTextFile(path, JSON.stringify(EnglishTranslations, null, 2)).catch(error => {
+    await publishText(path, JSON.stringify(EnglishTranslations, null, 2)).catch(error => {
       log.warn(__PRE_BUNDLED_FILENAME__, "Failed to repair translations:", error);
     });
 

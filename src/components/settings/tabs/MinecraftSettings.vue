@@ -18,8 +18,10 @@
 
 <script setup lang="ts">
 import RowContainer from "@/components/general/base/RowContainer.vue";
+import MinecraftCacheAction from "@/components/settings/MinecraftCacheAction.vue";
 import SettingsRow from "@/components/settings/SettingsRow.vue";
 import { MinecraftSettingsRows } from "@/constants/row-collections.ts";
+import { hasNativeStorage } from "@/lib/file-manager/storage-backend.ts";
 </script>
 
 <template>
@@ -34,5 +36,6 @@ import { MinecraftSettingsRows } from "@/constants/row-collections.ts";
         :key="row.value.idRoot"
       />
     </RowContainer>
+    <MinecraftCacheAction v-if="hasNativeStorage()" />
   </div>
 </template>

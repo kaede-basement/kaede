@@ -218,3 +218,51 @@ test("competing URLs at one destination publish in request order", async () => {
   expect(c.index().entries[options.relativePath].url).toBe(other.url);
   expect(c.files.get(c.path)).toEqual(second.bytes);
 });
+
+for (const [count, bytes] of [[3, 1000], [1000, 3]]) {
+  test(`metadata budgets (${count} entries, ${bytes} bytes) respect pins and hits`, async () => {
+    using c = cache();
+    let now = 0;
+
+    using clock = spyOn(Date, "now").mockImplementation(() => ++now);
+    const { CacheIndex } = await import("./storage.ts");
+    const index = new CacheIndex(
+      c.root.slice(0, -1),
+      async () => new Set(["pinned.json"]),
+      count,
+      bytes,
+    );
+    const entry = { "url"       : "https://example.org", "hash"      : { "kind": "sha256" as const,
+      "sum" : "a".repeat(64) }, "size"      : 1, "freshUntil": 0 };
+
+    for (const key of ["pinned", "hit", "cold", "last"]) {
+      if (key === "last") await index.get("hit.json");
+      c.files.set(c.root + key + ".json", encode("1"));
+      await index.update(key + ".json", entry);
+    }
+    expect(clock).toHaveBeenCalled();
+    expect(c.files.has(c.root + "cold.json")).toBe(false);
+    expect(Object.keys(c.index().entries).sort()).toEqual(["hit.json", "last.json", "pinned.json"]);
+  });
+}
+
+test("installed patches protect their transitive default version and asset index", async () => {
+  using c = cache();
+  const { offlineMetadata } = await import("./offline.ts");
+  const states = await import("@/states/instance.ts");
+  const restore = states.declareInstanceStates();
+
+  try {
+    states.instanceStates.game = { "entry"        : "net.minecraft",
+      "patchVersions": { "net.minecraft": "1" } } as typeof states.instanceStates[string];
+    c.files.set(c.root + "net.minecraft/1.json", encode(JSON.stringify({
+      "requires": [{ "uid": "org.lwjgl" }], "assetIndex": { "id": "assets" },
+    })));
+    c.files.set(c.root + "org.lwjgl.json", encode("{\"versions\":[{\"version\":\"3\"}]}"));
+    expect(await offlineMetadata(c.root.slice(0, -1))).toEqual(new Set([
+      "net.minecraft/1.json", "org.lwjgl.json", "org.lwjgl/3.json", "asset-indexes/assets.json",
+    ]));
+  } finally {
+    restore();
+  }
+});

@@ -1,5 +1,6 @@
 import FileStructure from "@/constants/file-structure.ts";
 import FileManager from "@/lib/file-manager";
+import { publishText } from "@/lib/file-manager/publish-text.ts";
 import { log } from "@/lib/logging/log.ts";
 import Schemas from "@/lib/schemas";
 import type { ParsedFile } from "@/types/application/parsed-file.type.ts";
@@ -16,6 +17,8 @@ export async function getAccounts(properties?: Partial<{
     ? parsedFile.data
     : await FileManager.handleJsonFile({
       baseDirectory,
+      "stateFile"      : "accounts",
+      "corrupt"        : parsedFile?.status === "corrupt",
       "path"           : [FileStructure.Files.Accounts],
       "label"          : FileStructure.Files.Accounts,
       "getDefaultValue": async (): Promise<Array<unknown>> => ([]),
@@ -23,15 +26,10 @@ export async function getAccounts(properties?: Partial<{
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Validating the parsed accounts file");
 
-  if (!Array.isArray(parsedAccounts)) {
-    log.info(__PRE_BUNDLED_FILENAME__, "The provided accounts data is not array-like");
-
-    return [];
-  }
-
+  const entries = Array.isArray(parsedAccounts) ? parsedAccounts : [];
   const validAccounts: Array<AccountType> = [];
 
-  for (const [index, entry] of parsedAccounts.entries()) {
+  for (const [index, entry] of entries.entries()) {
     const account: AccountType | false = Schemas.validate.account({
       "value": entry,
       "label": "account data",
@@ -44,6 +42,14 @@ export async function getAccounts(properties?: Partial<{
     if (account !== false) {
       validAccounts.push(entry);
     }
+  }
+
+  if (!Array.isArray(parsedAccounts) || validAccounts.length !== entries.length) {
+    await publishText(FileManager.join(baseDirectory, FileStructure.Files.Accounts),
+      JSON.stringify(validAccounts, null, 2),
+      true,
+      true,
+      JSON.stringify(parsedAccounts));
   }
 
   return validAccounts;

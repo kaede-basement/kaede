@@ -22,11 +22,11 @@ import {
   mkdir,
   readTextFile,
   stat,
-  writeTextFile,
 } from "@tauri-apps/plugin-fs";
 
 import Errors from "@/lib/errors";
 import { join } from "@/lib/file-manager/path.ts";
+import { publishText } from "@/lib/file-manager/publish-text.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/log.ts";
 
@@ -36,11 +36,15 @@ export async function handleJsonFile({
   label,
   getDefaultValue,
   invalidation,
+  stateFile,
+  corrupt,
 }: {
   "baseDirectory"  : string;
   "path"           : Array<string>;
   "label"          : string;
   "getDefaultValue": () => Promise<unknown>;
+  "stateFile"?     : "accounts" | "instances";
+  "corrupt"?       : boolean;
   "invalidation"  ?: {
     "days"       : number;
     "getNewValue": () => Promise<unknown>;
@@ -61,11 +65,12 @@ export async function handleJsonFile({
   }
 
   try {
-    if (!stale) {
+    if (!stale && !corrupt) {
       return JSON.parse(await readTextFile(filePath));
     }
   } catch (error) {
-    if (!(error instanceof SyntaxError) && await exists(filePath)) {
+    corrupt = error instanceof SyntaxError;
+    if (!corrupt && await exists(filePath)) {
       return JSON.parse(await readTextFile(filePath));
     }
     log.debug(__PRE_BUNDLED_FILENAME__, `Could not read '${label}':`, Errors.prettify(error));
@@ -74,7 +79,12 @@ export async function handleJsonFile({
   const value = stale && invalidation ? await invalidation.getNewValue() : await getDefaultValue();
 
   await mkdir(join(baseDirectory, ...path.slice(0, -1)), { "recursive": true });
-  await writeTextFile(filePath, JSON.stringify(value ?? null, null, 2));
+  await publishText(
+    filePath,
+    JSON.stringify(value ?? null, null, 2),
+    stateFile === "accounts",
+    !!stateFile && corrupt,
+  );
 
   return value;
 }

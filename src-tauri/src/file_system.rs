@@ -89,7 +89,7 @@ fn move_noclobber(src: &Path, dst: &Path) -> io::Result<()> {
 }
 
 #[cfg(any(windows, test))]
-fn verbatim_path(absolute: &[u16]) -> io::Result<Vec<u16>> {
+pub(crate) fn verbatim_path(absolute: &[u16]) -> io::Result<Vec<u16>> {
     if absolute.contains(&0) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -129,21 +129,26 @@ pub enum ParsedFile {
 }
 
 async fn load_json_file(path: PathBuf) -> Result<ParsedFile, String> {
-    let content = match tokio::fs::read_to_string(&path).await {
+    let content = match tokio::fs::read(&path).await {
         Ok(content) => content,
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(ParsedFile::Missing),
         Err(error) => return Err(format!("Failed to read {}: {}", path.display(), error)),
     };
 
     // Treat empty files as missing (so that they will be rewritten without any corrupt file backups)
-    if content.trim().is_empty() {
+    if content.iter().all(u8::is_ascii_whitespace)
+        && !matches!(
+            path.file_name().and_then(|s| s.to_str()),
+            Some("accounts.json" | "instances.json")
+        )
+    {
         return Ok(ParsedFile::Missing);
     }
 
-    match serde_json::from_str::<Value>(&content) {
+    match serde_json::from_slice::<Value>(&content) {
         Ok(data) => Ok(ParsedFile::Loaded { data }),
         Err(error) => Ok(ParsedFile::Corrupt {
-            raw: content,
+            raw: String::from_utf8_lossy(&content).into_owned(),
             error: error.to_string(),
         }),
     }

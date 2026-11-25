@@ -16,11 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { writeTextFile } from "@tauri-apps/plugin-fs";
-
 import FileStructure from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
+import { publishText } from "@/lib/file-manager/publish-text.ts";
 import { log } from "@/lib/logging/log.ts";
 import Schemas from "@/lib/schemas";
 import type { AccountType } from "@/types/configs/account.type.ts";
@@ -73,9 +72,10 @@ async function persistAccounts({ accounts, baseDirectory }: AccountWrite): Promi
   }
 
   try {
-    await writeTextFile(
+    await publishText(
       accountsPath,
       JSON.stringify(accounts, null, 2),
+      true,
     );
   } catch (error: unknown) {
     log.error(
