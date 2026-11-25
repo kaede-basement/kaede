@@ -142,10 +142,14 @@ test("a decorated child returned after native exit credits its actual lifetime o
 
   clock.mockReturnValue(200);
   exit(child.token);
+  for (let index = 0; index < 1000; index++) exit("unrelated-" + index);
   clock.mockReturnValue(900);
   getHooks().onMinecraftLaunch.before.push(async () => ({
     "status": "stop", "response": { "success": true, process },
   }));
+  await launchInstance(id);
+  expect(operation(id).kind).toBe("idle");
+  expect(instanceStates[id].playTime).toBe(initial + 100);
   await launchInstance(id);
   expect(operation(id).kind).toBe("idle");
   expect(instanceStates[id].playTime).toBe(initial + 100);

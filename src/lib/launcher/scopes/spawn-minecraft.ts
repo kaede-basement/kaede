@@ -22,14 +22,15 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import Hooks from "@/lib/hooks";
 import { log } from "@/lib/logging/log.ts";
 import Processes from "@/lib/processes";
+import { addProcessExitListener } from "@/lib/processes/core.ts";
 import type {
   LaunchResponseType,
+  MinecraftLaunchPayloadType,
   MinecraftMetaType,
   MinecraftProcessType,
 } from "@/types/launcher/launch/launch-response.type.ts";
-import type {
-  PreLaunchInformationType,
-} from "@/types/launcher/meta/pre-launch-information.type.ts";
+
+import { notifyMinecraftExit } from "./minecraft-exit.ts";
 
 export async function spawnMinecraft({
   command,
@@ -38,22 +39,17 @@ export async function spawnMinecraft({
   onClose,
   onInput,
   onSpawn,
-}: {
-  "command": {
-    "java"     : string;
-    "arguments": Array<string>;
-  };
-  "instanceId" : string;
-  "necessaries": PreLaunchInformationType;
-  "onSpawn"?   : (process: MinecraftProcessType, startedAt: number) => void;
-  "onClose"    : (instanceId: string) => void;
-  "onInput"    : (lines: Array<string>) => void;
+}: MinecraftLaunchPayloadType & {
+  "onSpawn"?: (process: MinecraftProcessType, startedAt: number) => void;
+  "onClose"?: (instanceId: string) => void;
+  "onInput" : (lines: Array<string>) => void;
 }): Promise<LaunchResponseType> {
   await mkdir(necessaries.directories.instance, { "recursive": true });
+  const payload: MinecraftLaunchPayloadType = { command, instanceId, necessaries };
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await Hooks.catchAsyncResponseHooks<LaunchResponseType>({
       "scope" : "onMinecraftLaunch",
-      "toPass": { command, instanceId, necessaries },
+      "toPass": payload,
       "timing": "before",
     });
 
@@ -80,33 +76,26 @@ export async function spawnMinecraft({
       "meta"   : { instanceId },
     }, {
       "onOutput": onInput,
-      "onExit"  : payload => {
-        exited = true;
-        onClose(instanceId);
-        log.warn(
-          logPrefix,
-          `Minecraft exited (PID ${payload.pid}, code ${payload.code}, signal ${payload.signal})`,
-        );
-        void Hooks.catchAsyncVoidHooks({
-          "scope" : "onMinecraftKill",
-          "toPass": payload.pid,
-          "timing": "after",
-        });
-      },
-      "onError": payload => {
+      "onError" : payload => {
         statuses.current = LaunchStatus.Errors.UnhandledError;
         log.error(logPrefix, log.templates.json.contents(
           "Something went wrong. Payload",
           payload,
           true,
         ));
-        void Hooks.catchAsyncVoidHooks({
-          "scope" : "onMinecraftKill",
-          "toPass": payload.pid,
-          "timing": "after",
-        });
       },
-    }, onSpawn);
+    }, (child, startedAt) => {
+      addProcessExitListener(child.token, payload => {
+        exited = true;
+        notifyMinecraftExit(child);
+        onClose?.(instanceId);
+        log.warn(
+          logPrefix,
+          `Minecraft exited (PID ${payload.pid}, code ${payload.code}, signal ${payload.signal})`,
+        );
+      });
+      onSpawn?.(child, startedAt);
+    });
   } catch (error: unknown) {
     statuses.current = LaunchStatus.Errors.UnhandledError;
     log.error(logPrefix, log.templates.json.contents(
@@ -121,7 +110,7 @@ export async function spawnMinecraft({
   if (!exited) {
     await Hooks.catchAsyncVoidHooks({
       "scope" : "onMinecraftLaunch",
-      "toPass": { process, command, instanceId, necessaries },
+      "toPass": { ...payload, process },
       "timing": "after",
     });
   }

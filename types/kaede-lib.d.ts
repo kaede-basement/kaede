@@ -1545,6 +1545,8 @@ export type ExtensionHookResponseType<ResponseType> = [ResponseType] extends ["n
  * All hooks are either async or sync, and they are stored in the array to allow multiple hooks
  */
 export type HookReturnType<ArgumentsType, ResponseType, IsPromise extends ("promise" | "non-promise") = "promise"> = Array<(...arguments_: ArgumentsType[]) => (IsPromise extends "promise" ? Promise<ExtensionHookResponseType<ResponseType>> : ExtensionHookResponseType<ResponseType>)>;
+export type SyncOrAsyncHookType<Input, Output> =
+  HookReturnType<Input, Output, "promise" | "non-promise">;
 declare function handleHookResponse<T>({ scope, status, response, timing, index, times, }: {
 	"scope": keyof KaedeNamespaceType["hooks"];
 	"status": ExtensionStatusType;
@@ -1890,6 +1892,12 @@ export type MinecraftMetaType = {
 	"instanceId": string;
 };
 export type MinecraftProcessType = ProcessHandleType<MinecraftMetaType>;
+export type MinecraftLaunchPayloadType = {
+	"command"    : { "java": string; "arguments": Array<string> };
+	"instanceId" : string;
+	"necessaries": PreLaunchInformationType;
+};
+
 export type LaunchResponseType = {
 	"success": false;
 	"process"?: undefined;
@@ -1902,7 +1910,7 @@ declare function handleLaunch({ instanceId, instance, statuses, userPreferences,
 	"instance": InstanceStateType;
 	"statuses": LauncherStatusesType;
 	"userPreferences": PreLaunchInformationType["user"];
-	"onClose": (instanceId: string) => void;
+	"onClose"?: (instanceId: string) => void;
 	"onInput": (lines: Array<string>) => void;
 }): Promise<LaunchResponseType>;
 declare function spawnMinecraft({ command, instanceId, necessaries, onClose, onInput, }: {
@@ -1912,7 +1920,7 @@ declare function spawnMinecraft({ command, instanceId, necessaries, onClose, onI
 	};
 	"instanceId": string;
 	"necessaries": PreLaunchInformationType;
-	"onClose": (instanceId: string) => void;
+	"onClose"?: (instanceId: string) => void;
 	"onInput": (lines: Array<string>) => void;
 }): Promise<LaunchResponseType>;
 declare function getAdditionalStartArguments({ necessaries, finalizedPatch, }: {
@@ -4090,91 +4098,13 @@ declare global {
 				 * Executed on minecraft instance launch
 				 */
 				"onMinecraftLaunch": {
-					/**
-					 * Executes 'async' or 'sync' functions before any actions.
-					 *
-					 * @param input - an object that has the 'command', 'auth',
-					 * 'builtLaunchArguments', 'instanceId', 'necessaries',
-					 * 'parsed', 'versionMeta', and 'javaBinary' fields
-					 * is passed as the argument.
-					 *
-					 * If the hook returns a 'stop' status,
-					 * it should also return:
-					 * @param output - a failed launch result to veto, or a successful replacement result
-					 * in the 'response' field.
-					 *
-					 * If the hook returns a 'continue' status,
-					 * code execution will continue as if that hook did not exist.
-					 */
-					"before": HookReturnType<{
-						"command": [
-							string,
-							string
-						];
-						"auth": {
-							"username": string;
-							/**
-							 * Scary!
-							 */
-							"token": string;
-							"uuid": string;
-							"type": string;
-							"xuid": string;
-						};
-						"builtLaunchArguments": {
-							"toReplace": string;
-							"classPaths": string;
-						};
-						"instanceId": string;
-						"necessaries": PreLaunchInformationType;
-						"versionMeta": SpecificPatchMetaType;
-						"parsed": Array<MappedArtifactType>;
-						"javaBinary": string;
-					}, LaunchResponseType>;
-					/**
-					 * Executes 'async' or 'sync' functions after the minecraft instance was launched.
-					 *
-					 * @param input - an object that has the 'process', 'command', 'auth',
-					 * 'builtLaunchArguments', 'instanceId', 'necessaries',
-					 * 'parsed', 'versionMeta', and 'javaBinary' fields
-					 * is passed as the argument.
-					 *
-					 * Hook should not return anything since the response will not be read.
-					 */
-					"after": HookReturnType<{
-						"process": {
-							"pid": number;
-							"kill": () => Promise<void>;
-							"write": (data: string | Uint8Array | number[]) => Promise<void>;
-						};
-						"command": [
-							string,
-							string
-						];
-						"auth": {
-							"username": string;
-							/**
-							 * Scary!
-							 */
-							"token": string;
-							"uuid": string;
-							"type": string;
-							"xuid": string;
-						};
-						"builtLaunchArguments": {
-							"toReplace": string;
-							"classPaths": string;
-						};
-						"instanceId": string;
-						"necessaries": PreLaunchInformationType;
-						"versionMeta": SpecificPatchMetaType;
-						"parsed": Array<MappedArtifactType>;
-						"javaBinary": string;
+					"before": SyncOrAsyncHookType<MinecraftLaunchPayloadType, LaunchResponseType>;
+					"after": SyncOrAsyncHookType<MinecraftLaunchPayloadType & {
+						"process": MinecraftProcessType;
 					}, "nothing">;
 				};
-				/**
-				 * Executed on minecraft instance kill
-				 */
+
+				/** Executed on Minecraft instance kill. */
 				"onMinecraftKill": {
 					/**
 					 * Executes 'async' or 'sync' functions before the instance was killed.

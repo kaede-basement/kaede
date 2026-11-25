@@ -21,12 +21,17 @@ import Errors from "@/lib/errors";
 import Hooks from "@/lib/hooks";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
+import {
+  claimMinecraftProcess, notifyMinecraftExit,
+} from "@/lib/launcher/scopes/minecraft-exit.ts";
 import { log } from "@/lib/logging/log.ts";
-import { ProcessHandlers, rehydrateProcesses, trackSpawnLifetimes } from "@/lib/processes/core.ts";
+import {
+  addProcessExitListener, processLifetime, rehydrateProcesses, siblingTokens,
+} from "@/lib/processes/core.ts";
 import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
 import {
-  commitPlaytime, missingRunHandlers, restoredRunTokens, startPlaytime,
+  commitPlaytime, excludedHelpers, missingRunHandlers, restoredRunTokens, startPlaytime,
 } from "@/states/instance.ts";
 import {
   activeRun, beginLaunch, finishLaunch, Launches as launches, operation, stopRun,
@@ -50,26 +55,27 @@ function syncExitedPlaytime(): Promise<void> {
   return Instances.sync().catch(error => log.error(__PRE_BUNDLED_FILENAME__, "Exit sync:", error));
 }
 
-function onClose(instanceId: string, endedAt = performance.now()): void {
-  const process = activeRun(instanceId)?.process;
-
-  if (process) {
-    commitPlaytime(instanceId, process.token, endedAt);
-  }
-  void syncExitedPlaytime();
-
-  globalStates.logs.show = true;
-  globalStates.logs.mode = instanceId;
-}
-
 function finishSelectedProcess(
-  instanceId: string, process: MinecraftProcessType, endedAt?: number,
+  instanceId: string, process: MinecraftProcessType, endedAt = performance.now(),
 ): void {
   if (activeRun(instanceId)?.process !== process) return;
-  onClose(instanceId, endedAt);
-  void Hooks.catchAsyncVoidHooks({
-    "scope": "onMinecraftKill", "toPass": process.pid, "timing": "after",
-  });
+  commitPlaytime(instanceId, process.token, endedAt);
+  void syncExitedPlaytime();
+  globalStates.logs.show = true;
+  globalStates.logs.mode = instanceId;
+  notifyMinecraftExit(process);
+}
+
+function observeSelected(
+  instanceId: string, process: MinecraftProcessType, endedAt?: number,
+): void {
+  if (endedAt === undefined) {
+    addProcessExitListener(process.token, (_, at) => {
+      finishSelectedProcess(instanceId, process, at);
+    });
+  } else {
+    finishSelectedProcess(instanceId, process, endedAt);
+  }
 }
 
 function createLogSink(instanceId: string): (lines: Array<string>) => void {
@@ -113,6 +119,22 @@ async function resolveLaunchAccount(): Promise<LaunchAuthType | undefined> {
   return resolved?.auth;
 }
 
+const helpers = excludedHelpers();
+
+function adopt(instanceId: string, process: MinecraftProcessType, startedAt?: number): void {
+  const lifetime = processLifetime(process);
+
+  helpers.include(process.token);
+  for (const token of siblingTokens(instanceId, process.token)) helpers.exclude(token);
+  if (!claimMinecraftProcess(process)) return;
+  const started = startPlaytime(
+    instanceId, process, false, startedAt ?? lifetime?.startedAt, !!lifetime,
+  );
+
+  if (!started) return;
+  if (lifetime) observeSelected(instanceId, process, lifetime.endedAt);
+}
+
 const launchInstance: LaunchContextType = async (instanceId, options) => {
   if (!instanceId) {
     return log.error(__PRE_BUNDLED_FILENAME__, "No instance selected for launch");
@@ -131,7 +153,6 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
   const statuses = beginLaunch(instanceId);
 
   if (!statuses) return;
-  const lifetimes = trackSpawnLifetimes();
 
   try {
     const onInput = createLogSink(instanceId);
@@ -152,12 +173,7 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
       instanceId,
       statuses,
       "onSpawn": (process, startedAt) => {
-        startPlaytime(instanceId, process, false, startedAt, true);
-      },
-      "onClose": () => {
-        if (activeRun(instanceId)?.statuses === statuses) {
-          onClose(instanceId);
-        }
+        adopt(instanceId, process, startedAt);
       },
       onInput,
     });
@@ -165,21 +181,7 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
     const op = operation(instanceId);
 
     if (success && process && op.kind === "launching" && op.statuses === statuses) {
-      const lifetime = lifetimes.get(process);
-      const handlers = ProcessHandlers.get(process.token);
-
-      if (startPlaytime(instanceId, process, false, lifetime?.startedAt, !!handlers)) {
-        if (lifetime?.endedAt !== undefined) {
-          finishSelectedProcess(instanceId, process, lifetime.endedAt);
-        } else if (handlers) {
-          const { onExit } = handlers;
-
-          handlers.onExit = (payload): void => {
-            finishSelectedProcess(instanceId, process);
-            onExit?.(payload);
-          };
-        }
-      }
+      adopt(instanceId, process);
     }
   } catch (error: unknown) {
     statuses.current = LaunchStatus.Errors.UnhandledError;
@@ -190,7 +192,6 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
       Errors.prettify(error),
     );
   } finally {
-    lifetimes.close();
     finishLaunch(instanceId, statuses);
   }
 };
@@ -232,20 +233,27 @@ async function rehydrateLaunchedInstances(): Promise<void> {
     const process = handle as MinecraftProcessType;
     const { instanceId } = process.meta;
 
-    const token = preferred.get(instanceId);
+    const selected = preferred.get(instanceId) ?? activeRun(instanceId)?.process.token;
 
-    if (token !== undefined && token !== process.token) return;
-    if (!startPlaytime(instanceId, process, true)) return;
+    if (selected !== process.token && (selected !== undefined || helpers.has(process.token))) {
+      if (endedAt === undefined) helpers.exclude(process.token);
 
-    return {
-      "onOutput": createLogSink(instanceId),
-      "onExit"  : (): void => finishSelectedProcess(instanceId, process, endedAt),
-    };
+      return;
+    }
+    if (operation(instanceId).kind !== "idle" || !claimMinecraftProcess(process)) return;
+    startPlaytime(instanceId, process, true);
+    preferred.set(instanceId, process.token);
+    helpers.include(process.token);
+    observeSelected(instanceId, process, endedAt);
+
+    return { "onOutput": createLogSink(instanceId) };
   }
 
-  await rehydrateProcesses(attach, (handle, { payload, endedAt }) => {
-    attach(handle, endedAt)?.onExit?.(payload);
+  const running = await rehydrateProcesses(attach, (handle, { endedAt }) => {
+    attach(handle, endedAt);
   }, tracked);
+
+  helpers.prune(running);
   if (tracked.size > 0) {
     await syncExitedPlaytime();
   }

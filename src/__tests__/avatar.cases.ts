@@ -46,8 +46,13 @@ test("heads draw both scaled layers and discard superseded or unmounted loads", 
     for (const [width, height] of [[64, 32], [64, 64], [128, 128], [256, 256]]) {
       const stale = images[images.length - 1];
 
+      const shown = view.bindings.shown.value;
+      const clears = context.clearRect.mock.calls.length;
+
       accounts.value[0].skin.url = `https://skins.example/${width}/${height}`;
       await nextTick();
+      expect(context.clearRect).toHaveBeenCalledTimes(clears);
+      expect(view.bindings.shown.value).toBe(shown);
       expect(stale.removeAttribute).toHaveBeenCalledWith("src");
       stale.dispatchEvent(new Event("load"));
       expect(context.drawImage).not.toHaveBeenCalled();

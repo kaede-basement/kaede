@@ -62,7 +62,7 @@ export async function handleLaunch({
   "statuses"       : LauncherStatusesType;
   "userPreferences": PreLaunchInformationType["user"];
   "onSpawn"?       : (process: MinecraftProcessType, startedAt: number) => void;
-  "onClose"        : (instanceId: string) => void;
+  "onClose"?       : (instanceId: string) => void;
   "onInput"        : (lines: Array<string>) => void;
 }): Promise<LaunchResponseType> {
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;

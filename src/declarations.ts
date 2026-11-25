@@ -68,13 +68,15 @@ import type States from "@/states";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
-import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
+import type { HookReturnType, SyncOrAsyncHookType } from "@/types/extensions/hook-return.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   ArgumentAuthReplacementsType,
   ArgumentReplacementsType,
 } from "@/types/launcher/launch/argument-replacements.type.ts";
-import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
+import type {
+  LaunchResponseType, MinecraftLaunchPayloadType, MinecraftProcessType,
+} from "@/types/launcher/launch/launch-response.type.ts";
 import type {
   LauncherStatusesType,
   WrappedInstanceLauncherStatusesType,
@@ -1266,98 +1268,13 @@ declare global {
          * Executed on minecraft instance launch
          */
         "onMinecraftLaunch": {
-
-          /**
-           * Executes 'async' or 'sync' functions before any actions.
-           *
-           * @param input - an object that has the 'command', 'auth',
-           * 'builtLaunchArguments', 'instanceId', 'necessaries',
-           * 'parsed', 'versionMeta', and 'javaBinary' fields
-           * is passed as the argument.
-           *
-           * If the hook returns a 'stop' status,
-           * it should also return:
-           * @param output - a failed launch result to veto, or a successful replacement result
-           * in the 'response' field.
-           *
-           * If the hook returns a 'continue' status,
-           * code execution will continue as if that hook did not exist.
-           */
-          "before": HookReturnType<
-            {
-              // [javaBinary, launchCommand]
-              "command": [string, string];
-              "auth"   : {
-                "username": string;
-
-                /**
-                 * Scary!
-                 */
-                "token": string;
-                "uuid" : string;
-                "type" : string;
-                "xuid" : string;
-              };
-              "builtLaunchArguments": {
-                "toReplace" : string;
-                "classPaths": string;
-              };
-              "instanceId" : string;
-              "necessaries": PreLaunchInformationType;
-              "versionMeta": SpecificPatchMetaType;
-              "parsed"     : Array<MappedArtifactType>;
-              "javaBinary" : string;
-            },
-            LaunchResponseType
-          >;
-
-          /**
-           * Executes 'async' or 'sync' functions after the minecraft instance was launched.
-           *
-           * @param input - an object that has the 'process', 'command', 'auth',
-           * 'builtLaunchArguments', 'instanceId', 'necessaries',
-           * 'parsed', 'versionMeta', and 'javaBinary' fields
-           * is passed as the argument.
-           *
-           * Hook should not return anything since the response will not be read.
-           */
-          "after": HookReturnType<
-            {
-              "process": {
-                "pid"  : number;
-                "kill" : () => Promise<void>;
-                "write": (data: string | Uint8Array | number[]) => Promise<void>;
-              };
-              // [javaBinary, launchCommand]
-              "command": [string, string];
-              "auth"   : {
-                "username": string;
-
-                /**
-                 * Scary!
-                 */
-                "token": string;
-                "uuid" : string;
-                "type" : string;
-                "xuid" : string;
-              };
-              "builtLaunchArguments": {
-                "toReplace" : string;
-                "classPaths": string;
-              };
-              "instanceId" : string;
-              "necessaries": PreLaunchInformationType;
-              "versionMeta": SpecificPatchMetaType;
-              "parsed"     : Array<MappedArtifactType>;
-              "javaBinary" : string;
-            },
-            "nothing"
-          >;
+          "before": SyncOrAsyncHookType<MinecraftLaunchPayloadType, LaunchResponseType>;
+          "after": SyncOrAsyncHookType<MinecraftLaunchPayloadType & {
+            "process": MinecraftProcessType;
+          }, "nothing">;
         };
 
-        /**
-         * Executed on minecraft instance kill
-         */
+        /** Executed on Minecraft instance kill. */
         "onMinecraftKill": {
 
           /**

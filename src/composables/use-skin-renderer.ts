@@ -18,7 +18,7 @@
 
 import type { SkinViewer } from "@daidr/minecraft-skin-renderer";
 import {
-  computed, type ComputedRef, inject,
+  computed, type ComputedRef, inject, onScopeDispose,
   type Ref,
   ref, type ShallowRef, shallowRef,
   type TemplateRef, useTemplateRef,
@@ -162,9 +162,17 @@ function useRenderer(
   }
 
   if (render === "2d-head") {
+    let clearCanvas: (() => void) | undefined;
+
+    watch(canvas, () => {
+      clearCanvas?.();
+      clearCanvas = undefined;
+    }, { "flush": "sync" });
+    onScopeDispose(() => clearCanvas?.());
     watch([canvas, source], ([target, skin], _, onCleanup) => {
       if (!target) return;
-      target.width = target.height = 32;
+      if (target.width !== 32) target.width = 32;
+      if (target.height !== 32) target.height = 32;
       const context = target.getContext("2d");
 
       if (!context) {
@@ -172,11 +180,16 @@ function useRenderer(
 
         return;
       }
+      clearCanvas = (): void => {
+        context.clearRect(0, 0, 32, 32);
+        shown.value = false;
+      };
       context.imageSmoothingEnabled = false;
       const image = (new Image);
       const draw = (): void => {
         const size = image.naturalWidth / 8;
 
+        context.clearRect(0, 0, 32, 32);
         context.drawImage(image, size, size, size, size, 0, 0, 32, 32);
         context.drawImage(image, 5 * size, size, size, size, 0, 0, 32, 32);
         shown.value = true;
@@ -193,8 +206,6 @@ function useRenderer(
         image.removeEventListener("load", draw);
         image.removeEventListener("error", failed);
         image.removeAttribute("src");
-        context.clearRect(0, 0, 32, 32);
-        shown.value = false;
       });
       if (!skin.startsWith("data:")) image.crossOrigin = "anonymous";
       image.src = skin;

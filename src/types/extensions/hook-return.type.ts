@@ -26,3 +26,5 @@ export type HookReturnType<
     ? Promise<ExtensionHookResponseType<ResponseType>>
     : ExtensionHookResponseType<ResponseType>
 )>;
+export type SyncOrAsyncHookType<Input, Output> =
+  HookReturnType<Input, Output, "promise" | "non-promise">;

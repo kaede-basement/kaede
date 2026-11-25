@@ -19,7 +19,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import {
-  ProcessHandlers, recordSpawnLifetime,
+  addProcessExitListener, ProcessHandlers, recordSpawnLifetime,
   toProcessHandle,
 } from "@/lib/processes/core.ts";
 import type {
@@ -61,15 +61,11 @@ export async function spawnProcess<Meta>(
 
     return confirmed;
   }
-  ProcessHandlers.set(token, {
-    ...processHandlers,
-    "onExit": payload => {
-      // An exit proves the process spawned even when its IPC reply is still pending.
-      const { kind, meta } = options;
+  ProcessHandlers.set(token, processHandlers);
+  const unsubscribe = addProcessExitListener(token, payload => {
+    const { kind, meta } = options;
 
-      confirm({ token, "pid": payload.pid, kind, meta }, requestedAt);
-      processHandlers.onExit?.(payload);
-    },
+    confirm({ token, "pid": payload.pid, kind, meta }, requestedAt);
   });
 
   try {
@@ -77,8 +73,13 @@ export async function spawnProcess<Meta>(
       "spec": { token, ...options },
     });
 
-    return confirm(dto, performance.now());
+    const handle = confirm(dto, performance.now());
+
+    unsubscribe();
+
+    return handle;
   } catch (error) {
+    unsubscribe();
     ProcessHandlers.delete(token);
     throw error;
   }

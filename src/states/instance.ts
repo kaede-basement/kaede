@@ -20,6 +20,7 @@ import { type Reactive, reactive } from "vue";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { log } from "@/lib/logging/log.ts";
+import { addProcessExitListener } from "@/lib/processes/core.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 
@@ -46,8 +47,52 @@ function storage<T>(action: (store: Storage) => T): T | undefined {
   }
 }
 
-function prefix(kind: "active" | "finished"): string {
+function prefix(kind: "active" | "finished" | "helper"): string {
   return `kaede.playtime:${encodeURIComponent(GlobalInternals.baseDirectory)}:${kind}.`;
+}
+
+export function excludedHelpers(): {
+  has(token: string): boolean;
+  exclude(token: string): void;
+  include(token: string): void;
+  prune(live: ReadonlyArray<{ "token": string }>): void;
+} {
+  const helperPrefix = prefix("helper");
+  const tokens = new Set<string>;
+
+  storage(store => {
+    for (let index = 0; index < store.length; index++) {
+      const key = store.key(index);
+
+      if (key?.startsWith(helperPrefix)) tokens.add(key.slice(helperPrefix.length));
+    }
+  });
+
+  function include(token: string): void {
+    if (tokens.delete(token)) storage(store => store.removeItem(helperPrefix + token));
+  }
+
+  function forgetExited({ token }: { "token": string }): void {
+    include(token);
+  }
+
+  return {
+    "has": (token: string): boolean => tokens.has(token),
+    exclude(token: string): void {
+      addProcessExitListener(token, forgetExited);
+      if (tokens.has(token)) return;
+      tokens.add(token);
+      storage(store => store.setItem(helperPrefix + token, "1"));
+    },
+    include,
+    prune(live: ReadonlyArray<{ "token": string }>): void {
+      if (tokens.size === 0) return;
+      const absent = new Set(tokens);
+
+      for (const { token } of live) absent.delete(token);
+      for (const token of absent) include(token);
+    },
+  };
 }
 
 export let instanceStates: Reactive<InstanceStatesType>;

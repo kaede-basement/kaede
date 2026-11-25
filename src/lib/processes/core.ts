@@ -26,33 +26,56 @@ import type {
 
 export const ProcessHandlers = new Map<string, ProcessHandlersType>;
 
-type Lifetime = { "startedAt": number; "endedAt"?: number };
+type Lifetime = { "startedAt": number; "endedAt"?: number; "instanceId"?: string };
+const identity = Symbol("native process");
+
+type NativeHandle = ProcessHandleType & { [identity]?: object };
+const lifetimes = new WeakMap<object, Lifetime>;
 const live = new Map<string, Lifetime>;
-const recentExitLimit = 64;
 const recentExits = new Map<string, Lifetime>;
-const originalLifetimes = new WeakMap<ProcessHandleType, Lifetime>;
-const pendingSelections = new Set<Map<string, Lifetime>>;
+const recentExitLimit = 64;
 
-export function trackSpawnLifetimes(): {
-  get(process: ProcessHandleType): Readonly<Lifetime> | undefined;
-  close(): void;
-} {
-  const exits = new Map<string, Lifetime>;
+type ExitListener = (payload: ExitPayload, endedAt: number) => void;
+const exitListeners = new Map<string, Set<ExitListener>>;
 
-  pendingSelections.add(exits);
+export function addProcessExitListener(token: string, listener: ExitListener): () => void {
+  const listeners = exitListeners.get(token) ?? new Set<ExitListener>;
 
-  return {
-    "get": process => live.get(process.token) ?? exits.get(process.token) ??
-      recentExits.get(process.token) ?? originalLifetimes.get(process),
-    "close": () => pendingSelections.delete(exits),
+  listeners.add(listener);
+  exitListeners.set(token, listeners);
+
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) exitListeners.delete(token);
   };
 }
 
-export function recordSpawnLifetime(handle: ProcessHandleType, startedAt: number): void {
-  const lifetime = { startedAt };
+export function processLifetime(handle: NativeHandle): Lifetime | undefined {
+  return (handle[identity] && lifetimes.get(handle[identity])) ??
+    live.get(handle.token) ?? recentExits.get(handle.token);
+}
 
+export function* siblingTokens(instanceId: string, selected: string): Generator<string> {
+  for (const [token, lifetime] of live) {
+    if (lifetime.instanceId === instanceId && token !== selected) yield token;
+  }
+}
+
+export function recordSpawnLifetime(handle: NativeHandle, startedAt: number): void {
+  const instanceId = handle.kind === "minecraft" &&
+    (handle.meta as { "instanceId"?: string } | null)?.instanceId;
+  const lifetime = live.get(handle.token) ?? { startedAt, "instanceId": instanceId || undefined };
+
+  bindLifetime(handle, lifetime);
   live.set(handle.token, lifetime);
-  originalLifetimes.set(handle, lifetime);
+}
+
+function bindLifetime(handle: NativeHandle, lifetime: Lifetime): void {
+  // An enumerable symbol preserves the identity across extension object spreads.
+  const key = Object.freeze({});
+
+  handle[identity] = key;
+  lifetimes.set(key, lifetime);
 }
 
 export function toProcessHandle<Meta>({
@@ -87,8 +110,28 @@ export function dispatchProcessExit(payload: ExitPayload): void {
   const handlers = ProcessHandlers.get(payload.token);
 
   ProcessHandlers.delete(payload.token);
+  const listeners = exitListeners.get(payload.token);
+  const errors: Array<unknown> = [];
+
+  for (const listener of listeners ?? []) {
+    try {
+      listener(payload, endedAt);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  exitListeners.delete(payload.token);
+  const lifetime = live.get(payload.token) ?? recentExits.get(payload.token) ??
+    { "startedAt": endedAt };
+
+  lifetime.endedAt ??= endedAt;
+  live.delete(payload.token);
+  recentExits.set(payload.token, lifetime);
+  if (recentExits.size > recentExitLimit) recentExits.delete(recentExits.keys().next().value!);
   if (pendingLists.size > 0) {
-    const exit = { payload, endedAt, "handled": handlers !== undefined };
+    const exit = { payload, endedAt, "handled": !!handlers || !!listeners };
+
+    lifetimes.set(exit, lifetime);
 
     for (const { recent, tracked, trackedExits } of pendingLists) {
       if (tracked.has(payload.token)) {
@@ -98,19 +141,8 @@ export function dispatchProcessExit(payload: ExitPayload): void {
       }
     }
   }
-  try {
-    handlers?.onExit?.(payload);
-  } finally {
-    // An early exit can confirm the spawn inside onExit before the IPC reply arrives.
-    const lifetime = live.get(payload.token) ?? recentExits.get(payload.token) ??
-      { "startedAt": endedAt };
-
-    lifetime.endedAt ??= endedAt;
-    live.delete(payload.token);
-    recentExits.set(payload.token, lifetime);
-    if (recentExits.size > recentExitLimit) recentExits.delete(recentExits.keys().next().value!);
-    for (const exits of pendingSelections) exits.set(payload.token, lifetime);
-  }
+  handlers?.onExit?.(payload);
+  if (errors.length > 0) throw errors[0];
 }
 
 export async function rehydrateProcesses(
@@ -147,10 +179,15 @@ export async function rehydrateProcesses(
 
       if (exit) {
         if (!exit.handled) {
-          onExited?.(toProcessHandle(dto), exit);
+          const handle = toProcessHandle(dto);
+
+          bindLifetime(handle, lifetimes.get(exit)!);
+          onExited?.(handle, exit);
         }
       } else {
         const handle = toProcessHandle(dto);
+
+        recordSpawnLifetime(handle, performance.now());
         const handlers = attach(handle);
 
         if (handlers !== undefined) {
