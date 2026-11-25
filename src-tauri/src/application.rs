@@ -94,7 +94,7 @@ pub async fn get_initial_state(
         None => load_config_files(preloaded_state.base_directory.clone()).await?,
     };
 
-    let executable_hash = APPLICATION_HASH.get_or_try_init(get_executable_hash).await?;
+    let executable_hash = startup_hash(APPLICATION_HASH.get_or_try_init(get_executable_hash).await);
     let basic_state = get_basic_state(
         &app,
         preloaded_state.base_directory.clone(),
@@ -104,7 +104,7 @@ pub async fn get_initial_state(
     Ok(InitialState {
         basic: basic_state,
         parsed: parsed_configs,
-        executable_hash: executable_hash.clone(),
+        executable_hash,
     })
 }
 
@@ -164,4 +164,30 @@ pub fn prepare_log_file(logs_dir: &Path, app_name: &str) -> std::io::Result<()> 
     fs::rename(&latest_log_path, &new_log_path)?;
 
     Ok(())
+}
+
+fn startup_hash(result: Result<&String, String>) -> String {
+    result.cloned().unwrap_or_else(|error| {
+        log::error!("Failed to hash launcher executable: {error}");
+        "no_hash".to_owned()
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn unreadable_executable_leaves_cache_retryable() {
+        let cache = tokio::sync::OnceCell::new();
+        let failure = cache
+            .get_or_try_init(|| async {
+                Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).to_string())
+            })
+            .await;
+        assert_eq!(startup_hash(failure), "no_hash");
+        assert!(cache.get().is_none());
+
+        let retry = cache.get_or_try_init(|| async { Ok("digest".into()) }).await;
+        assert_eq!(startup_hash(retry), "digest");
+    }
 }

@@ -4,7 +4,7 @@ use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use std::io::Write;
+
 use zip::ZipArchive;
 
 #[derive(Deserialize)]
@@ -55,9 +55,7 @@ fn read_entry(archive_path: &Path, entry_path: &str) -> Result<Option<Vec<u8>>, 
     read_limited(&mut entry, MEMORY_ENTRY_LIMIT).map(Some)
 }
 
-const MEMORY_ENTRY_LIMIT: u64 = 256 << 20;
-const DISK_ENTRY_LIMIT: u64 = 2 << 30;
-const EXTRACTION_LIMIT: u64 = 8 << 30;
+const MEMORY_ENTRY_LIMIT: u64 = 16 << 20;
 
 pub(crate) fn open_archive(archive_path: &Path) -> Result<ZipArchive<File>, String> {
     let file = File::open(archive_path)
@@ -72,24 +70,15 @@ pub(crate) fn open_archive(archive_path: &Path) -> Result<ZipArchive<File>, Stri
     })
 }
 
-fn copy_limited(reader: impl Read, mut writer: impl Write, limit: u64) -> Result<u64, String> {
-    let mut reader = reader.take(limit);
-    let count = io::copy(&mut reader, &mut writer).map_err(|e| e.to_string())?;
-    if count == limit
-        && reader
-            .into_inner()
-            .read(&mut [0])
-            .map_err(|e| e.to_string())?
-            != 0
-    {
-        return Err(format!("Archive exceeds decoded byte limit ({limit})"));
-    }
-    Ok(count)
-}
-
 pub(crate) fn read_limited(reader: impl Read, limit: u64) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::new();
-    copy_limited(reader, &mut bytes, limit)?;
+    reader
+        .take(limit + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    if bytes.len() as u64 > limit {
+        return Err(format!("Archive exceeds decoded byte limit ({limit})"));
+    }
     Ok(bytes)
 }
 
@@ -122,7 +111,6 @@ pub(crate) fn relative_name(name: &str) -> Result<&Path, String> {
 pub(crate) struct Extraction {
     root: PathBuf,
     directories: HashSet<PathBuf>,
-    remaining: u64,
 }
 
 impl Extraction {
@@ -131,7 +119,6 @@ impl Extraction {
         Ok(Self {
             root: root.canonicalize().map_err(|e| e.to_string())?,
             directories: HashSet::new(),
-            remaining: EXTRACTION_LIMIT,
         })
     }
 
@@ -171,7 +158,7 @@ impl Extraction {
         name: &str,
         directory: bool,
         mode: Option<u32>,
-        reader: impl Read,
+        mut reader: impl Read,
     ) -> Result<(), String> {
         if directory {
             self.directory(relative_name(name)?)?;
@@ -180,11 +167,7 @@ impl Extraction {
         let path = self.prepare_file(name)?;
         let mut output =
             tempfile::NamedTempFile::new_in(path.parent().unwrap()).map_err(|e| e.to_string())?;
-        let limit = self.remaining.min(DISK_ENTRY_LIMIT);
-        let mut input = reader.take(limit + 1);
-        let copied = copy_limited(&mut input, &mut output, limit);
-        self.remaining = self.remaining.saturating_sub(limit + 1 - input.limit());
-        copied?;
+        io::copy(&mut reader, &mut output).map_err(|e| e.to_string())?;
         #[cfg(unix)]
         if let Some(mode) = mode {
             use std::os::unix::fs::PermissionsExt;
@@ -195,7 +178,9 @@ impl Extraction {
         }
         #[cfg(not(unix))]
         let _ = mode;
-        output.persist(path).map_err(|e| e.to_string())?;
+        let mut temporary = output.into_temp_path();
+        fs::rename(&temporary, path).map_err(|e| e.to_string())?;
+        temporary.disable_cleanup(true);
         Ok(())
     }
 }
@@ -270,13 +255,17 @@ mod tests {
         let path = root.path().join("item");
         fs::write(&path, "old").unwrap();
         let mut extraction = Extraction::new(root.path()).unwrap();
-        extraction.remaining = 3;
-        extraction.extract("first", false, None, &b"a"[..]).unwrap();
+        struct BrokenReader;
+        impl Read for BrokenReader {
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                Err(io::ErrorKind::InvalidData.into())
+            }
+        }
         assert!(extraction
-            .extract("item", false, None, &b"abc"[..])
+            .extract("item", false, None, BrokenReader)
             .is_err());
         assert_eq!(fs::read(path).unwrap(), b"old");
-        assert_eq!(root.path().read_dir().unwrap().count(), 2);
+        assert_eq!(root.path().read_dir().unwrap().count(), 1);
     }
 
     #[cfg(unix)]

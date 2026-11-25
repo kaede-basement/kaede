@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use serde_json::value::RawValue;
+use serde_json::Value;
 
 use crate::application::InitialStateParsedFiles;
 use crate::hashing::HashAlgorithm;
@@ -31,7 +31,7 @@ use crate::translations::extract_locale;
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ParsedFile {
     // For a well-formed JSON
-    Loaded { data: Box<RawValue> },
+    Loaded { data: Value },
     // The file is empty or does not exist.
     // It will be rewritten with default contents
     Missing,
@@ -52,7 +52,7 @@ async fn load_json_file(path: PathBuf) -> Result<ParsedFile, String> {
         return Ok(ParsedFile::Missing);
     }
 
-    match serde_json::from_str::<Box<RawValue>>(&content) {
+    match serde_json::from_str::<Value>(&content) {
         Ok(data) => Ok(ParsedFile::Loaded { data }),
         Err(error) => Ok(ParsedFile::Corrupt {
             raw: content,
@@ -167,9 +167,11 @@ mod tests {
                 })
             );
         }
-        std::fs::write(&path, " {broken ").unwrap();
-        assert!(
-            matches!(load_json_file(path).await.unwrap(), ParsedFile::Corrupt { raw, .. } if raw == " {broken ")
-        );
+        for input in [" {broken ", "1e400", r#""\uD800""#] {
+            std::fs::write(&path, input).unwrap();
+            assert!(
+                matches!(load_json_file(path.clone()).await.unwrap(), ParsedFile::Corrupt { raw, .. } if raw == input)
+            );
+        }
     }
 }

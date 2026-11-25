@@ -20,12 +20,39 @@ use tokio::{
 };
 
 static CLIENT: OnceCell<reqwest::Client> = OnceCell::const_new();
-type StagingDirectories = Mutex<HashMap<Arc<same_file::Handle>, (Arc<tempfile::TempDir>, usize)>>;
+type StagingDirectories = Mutex<HashMap<Arc<same_file::Handle>, (Arc<Staging>, usize)>>;
 static STAGING: OnceLock<StagingDirectories> = OnceLock::new();
+
+struct Staging {
+    directory: tempfile::TempDir,
+    transfers: Mutex<HashMap<Arc<same_file::Handle>, watch::Sender<bool>>>,
+}
+
+enum Claim {
+    Owner(Owner),
+    Waiting(watch::Receiver<bool>),
+}
+
+struct Owner {
+    stage: Arc<Staging>,
+    marker: Option<(Arc<same_file::Handle>, tempfile::TempPath)>,
+    published: bool,
+}
+
+impl Drop for Owner {
+    fn drop(&mut self) {
+        let mut transfers = self.stage.transfers.lock().unwrap();
+        let (identity, marker) = self.marker.take().unwrap();
+        let done = transfers.remove(&identity).unwrap();
+        drop(identity);
+        drop(marker);
+        done.send_replace(self.published);
+    }
+}
 
 struct StagingDirectory {
     parent: Arc<same_file::Handle>,
-    directory: Arc<tempfile::TempDir>,
+    directory: Arc<Staging>,
 }
 
 impl StagingDirectory {
@@ -34,9 +61,13 @@ impl StagingDirectory {
         let mut active = STAGING.get_or_init(Default::default).lock().unwrap();
         let (dir, owners) = match active.entry(parent_id.clone()) {
             std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
-            std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert((Arc::new(tempfile::tempdir_in(parent)?), 0))
-            }
+            std::collections::hash_map::Entry::Vacant(entry) => entry.insert((
+                Arc::new(Staging {
+                    directory: tempfile::tempdir_in(parent)?,
+                    transfers: Mutex::default(),
+                }),
+                0,
+            )),
         };
         *owners += 1;
         let directory = dir.clone();
@@ -47,16 +78,35 @@ impl StagingDirectory {
     }
 
     // create_new lets the destination filesystem decide whether two names alias.
-    fn claim(&self, name: &std::ffi::OsStr) -> std::io::Result<tempfile::NamedTempFile> {
-        let path = self.directory.path().join(name);
-        let file = std::fs::File::options()
+    fn claim(&self, name: &std::ffi::OsStr) -> std::io::Result<Claim> {
+        let stage = &self.directory;
+        let path = stage.directory.path().join(name);
+        let mut transfers = stage.transfers.lock().unwrap();
+        match std::fs::File::options()
+            .read(true)
             .write(true)
             .create_new(true)
-            .open(&path)?;
-        Ok(tempfile::NamedTempFile::from_parts(
-            file,
-            tempfile::TempPath::from_path(path),
-        ))
+            .open(&path)
+        {
+            Ok(file) => {
+                let marker = tempfile::TempPath::from_path(path);
+                let identity = Arc::new(same_file::Handle::from_file(file)?);
+                transfers.insert(identity.clone(), watch::channel(false).0);
+                Ok(Claim::Owner(Owner {
+                    stage: stage.clone(),
+                    marker: Some((identity, marker)),
+                    published: false,
+                }))
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                let identity = same_file::Handle::from_path(path)?;
+                let done = transfers
+                    .get(&identity)
+                    .ok_or_else(|| std::io::Error::other("Missing download owner"))?;
+                Ok(Claim::Waiting(done.subscribe()))
+            }
+            Err(e) => Err(e),
+        }
     }
 }
 impl Drop for StagingDirectory {
@@ -337,28 +387,40 @@ async fn download_one(
     cancel: &mut watch::Receiver<bool>,
 ) -> Result<(), DownloadError> {
     let path = PathBuf::from(&entry.path);
-    let (_staging, partial) = tokio::task::spawn_blocking(move || {
-        let name = path
-            .file_name()
-            .ok_or_else(|| DownloadError::other("Missing destination filename"))?;
-        let parent = path
-            .parent()
-            .filter(|p| !p.as_os_str().is_empty())
-            .unwrap_or(Path::new("."));
-        std::fs::create_dir_all(parent).map_err(DownloadError::other)?;
-        let staging = StagingDirectory::open(parent).map_err(DownloadError::other)?;
-        let partial = staging.claim(name).map_err(DownloadError::other)?;
-        Ok::<_, DownloadError>((staging, partial))
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."))
+        .to_owned();
+    let name = path
+        .file_name()
+        .ok_or_else(|| DownloadError::other("Missing destination filename"))?;
+    let target_dir = parent.clone();
+    let staging = tokio::task::spawn_blocking(move || {
+        std::fs::create_dir_all(&target_dir)?;
+        StagingDirectory::open(&target_dir)
     })
     .await
-    .map_err(DownloadError::other)??;
-
+    .map_err(DownloadError::other)?
+    .map_err(DownloadError::other)?;
+    let mut owner = loop {
+        match staging.claim(name).map_err(DownloadError::other)? {
+            Claim::Owner(owner) => break owner,
+            Claim::Waiting(mut done) => tokio::select! {
+                biased;
+                _ = cancel.wait_for(|value| *value) => return Err(DownloadError::Cancelled),
+                _ = done.changed() => { if *done.borrow() { return Ok(()); } }
+            },
+        }
+    };
     let mut response = tokio::select! {
         biased;
         _ = cancel.wait_for(|value| *value) => return Err(DownloadError::Cancelled),
         result = client.get(&entry.url).send() => result.and_then(|r| r.error_for_status()).map_err(DownloadError::other)?,
     };
-    let (file, partial) = partial.into_parts();
+    let (file, mut partial) = tempfile::NamedTempFile::new_in(parent)
+        .map_err(DownloadError::other)?
+        .into_parts();
     let mut writer = tokio::io::BufWriter::new(tokio::fs::File::from_std(file));
     let downloaded = Arc::new(AtomicU64::new(0));
     progress.lock().unwrap().insert(
@@ -383,32 +445,43 @@ async fn download_one(
                 .map_err(DownloadError::other)?;
             downloaded.fetch_add(chunk.len() as u64, Ordering::Relaxed);
         }
-        writer.flush().await.map_err(DownloadError::other)?;
         Ok(())
     }
     .await;
-    drop(writer);
+    let shutdown = writer.shutdown().await;
+    drop(writer.into_inner().into_std().await);
     progress.lock().unwrap().remove(&entry.path);
     result?;
+    shutdown.map_err(DownloadError::other)?;
     if *cancel.borrow() {
         return Err(DownloadError::Cancelled);
     }
-    partial.persist(&entry.path).map_err(DownloadError::other)
+    tokio::fs::rename(&*partial, path)
+        .await
+        .map_err(DownloadError::other)?;
+    partial.disable_cleanup(true);
+    owner.published = true;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn destination_has_one_owner_until_release() {
+    #[tokio::test]
+    async fn owner_failure_releases_waiters_for_retry() {
         let root = tempfile::tempdir().unwrap();
-        let first = StagingDirectory::open(root.path()).unwrap();
-        let second = StagingDirectory::open(root.path()).unwrap();
-        let name = std::ffi::OsStr::new("test.jar");
-        let owner = first.claim(name).unwrap();
-        assert!(second.claim(name).is_err());
+        let directory = StagingDirectory::open(root.path()).unwrap();
+        let name = std::ffi::OsStr::new("item");
+        let Claim::Owner(owner) = directory.claim(name).unwrap() else {
+            panic!()
+        };
+        let Claim::Waiting(mut done) = directory.claim(name).unwrap() else {
+            panic!()
+        };
         drop(owner);
-        assert!(second.claim(name).is_ok());
+        done.changed().await.unwrap();
+        assert!(!*done.borrow());
+        assert!(matches!(directory.claim(name).unwrap(), Claim::Owner(_)));
     }
     #[tokio::test]
     async fn cancellation_wakes_all_registered_batches_and_resets() {
@@ -459,11 +532,6 @@ mod tests {
                         tokio::task::yield_now().await;
                     }
                 }
-                let mut competing = flags.register("other");
-                assert!(matches!(
-                    download_one(&client, &entry, &Progress::default(), &mut competing).await,
-                    Err(DownloadError::Other(_))
-                ));
                 flags.0.lock().unwrap()["one"].flag.send_replace(true);
                 socket
             };
@@ -476,5 +544,107 @@ mod tests {
             assert_eq!(std::fs::read(path).unwrap(), b"original");
             assert_eq!(dir.path().read_dir().unwrap().count(), 1);
         }
+    }
+    async fn wait_for_competitor(staging: &StagingDirectory) {
+        while !staging
+            .directory
+            .transfers
+            .lock()
+            .unwrap()
+            .values()
+            .any(|done| done.receiver_count() > 0)
+        {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn waiting_transfer_can_cancel_or_take_over_after_owner_failure() {
+        use tokio::net::TcpListener;
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("item");
+        let stage = StagingDirectory::open(root.path()).unwrap();
+        let Claim::Owner(owner) = stage.claim(path.file_name().unwrap()).unwrap() else {
+            panic!()
+        };
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let entry = DownloadEntry {
+            path: path.to_str().unwrap().into(),
+            url: format!("http://{}/", listener.local_addr().unwrap()),
+        };
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
+        let flags = CancelFlags::default();
+        let mut cancel = flags.register("cancel");
+        let mut retry = flags.register("retry");
+        let progress = Progress::default();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let (result, ()) = tokio::join!(
+                download_one(&client, &entry, &progress, &mut cancel),
+                async {
+                    wait_for_competitor(&stage).await;
+                    flags.0.lock().unwrap()["cancel"].flag.send_replace(true);
+                }
+            );
+            assert!(matches!(result, Err(DownloadError::Cancelled)));
+            let (result, ()) = tokio::join!(
+                download_one(&client, &entry, &progress, &mut retry),
+                async {
+                    wait_for_competitor(&stage).await;
+                    drop(owner);
+                    let (mut socket, _) = listener.accept().await.unwrap();
+                    socket
+                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nnew")
+                        .await
+                        .unwrap();
+                }
+            );
+            assert!(result.is_ok());
+        })
+        .await
+        .unwrap();
+        assert_eq!(std::fs::read(path).unwrap(), b"new");
+    }
+
+    #[tokio::test]
+    async fn competing_download_uses_published_file() {
+        use tokio::net::TcpListener;
+        let root = tempfile::tempdir().unwrap();
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let path = root.path().join("item");
+        let owner = DownloadEntry {
+            path: path.to_str().unwrap().into(),
+            url: format!("http://{}/", listener.local_addr().unwrap()),
+        };
+        let waiter = DownloadEntry {
+            path: owner.path.clone(),
+            url: "invalid-url".into(),
+        };
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
+        let flags = CancelFlags::default();
+        let mut a = flags.register("a");
+        let mut b = flags.register("b");
+        let progress = Progress::default();
+        let exercise = async {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let wait = download_one(&client, &waiter, &progress, &mut b);
+            tokio::pin!(wait);
+            let observer = StagingDirectory::open(root.path()).unwrap();
+            let published = async {
+                wait_for_competitor(&observer).await;
+                socket
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+                    .await
+                    .unwrap();
+            };
+            let (result, ()) = tokio::join!(wait, published);
+            result
+        };
+        let (a, b) = tokio::time::timeout(Duration::from_secs(5), async {
+            tokio::join!(download_one(&client, &owner, &progress, &mut a), exercise)
+        })
+        .await
+        .unwrap();
+        assert!(a.is_ok() && b.is_ok());
+        assert_eq!(std::fs::read(path).unwrap(), b"ok");
     }
 }

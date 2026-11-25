@@ -4,6 +4,7 @@ use serde::Serialize;
 /// ATTENTION: AI-generated (by Qwen 3.8-Max and Claude Fable 5 on 'max' reasoning)
 ///
 use std::{
+    collections::VecDeque,
     fs::File,
     io::{self, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -31,22 +32,55 @@ struct Subscription {
     generation: u64,
     viewer: Option<u64>,
     active: bool,
+    stopped: VecDeque<u64>,
 }
 
 impl Subscription {
-    fn begin(&mut self, viewer: Option<u64>) -> u64 {
+    fn remember(&mut self, viewer: Option<u64>) {
+        const RECENT_STOPS: usize = 64;
+        if let Some(id) = viewer {
+            if !self.stopped.contains(&id) {
+                if self.stopped.len() == RECENT_STOPS {
+                    self.stopped.pop_front();
+                }
+                self.stopped.push_back(id);
+            }
+        }
+    }
+    fn begin(&mut self, viewer: Option<u64>) -> Option<u64> {
+        if viewer.is_some_and(|id| self.stopped.contains(&id))
+            || self.active && self.viewer.is_some() && (viewer.is_none() || viewer == self.viewer)
+        {
+            return None;
+        }
+        self.remember(self.viewer);
         self.generation += 1;
         self.viewer = viewer;
         self.active = true;
-        self.generation
+        Some(self.generation)
     }
 
     fn stop(&mut self, viewer: Option<u64>) -> bool {
+        self.remember(viewer);
         if self.active && self.viewer == viewer {
             self.active = false;
             true
         } else {
             false
+        }
+    }
+}
+
+struct ActiveSubscription<'a> {
+    current: &'a Mutex<Subscription>,
+    generation: u64,
+}
+
+impl Drop for ActiveSubscription<'_> {
+    fn drop(&mut self) {
+        let mut current = self.current.lock().unwrap();
+        if current.generation == self.generation {
+            current.active = false;
         }
     }
 }
@@ -95,15 +129,37 @@ impl Cursor {
             let mut bytes = [0; CHUNK];
             let n = file.read(&mut bytes)?;
             self.offset += n as u64;
-            let mut rest = &bytes[..n];
-            while let Some(end) = rest.iter().position(|b| *b == b'\n') {
-                self.partial.extend_from_slice(&rest[..end]);
-                let line = self.partial.strip_suffix(b"\r").unwrap_or(&self.partial);
-                lines.push(String::from_utf8_lossy(line).into_owned());
-                self.partial.clear();
-                rest = &rest[end + 1..];
+            for part in bytes[..n].split_inclusive(|b| *b == b'\n') {
+                let (mut rest, complete) = match part.strip_suffix(b"\n") {
+                    Some(line) => (line, true),
+                    None => (part, false),
+                };
+                while self.partial.len() + rest.len() > CHUNK {
+                    let take = CHUNK - self.partial.len();
+                    self.partial.extend_from_slice(&rest[..take]);
+                    rest = &rest[take..];
+                    // Keep a split UTF-8 character for the next chunk.
+                    let mut end = CHUNK;
+                    if rest[0] & 0xc0 == 0x80 {
+                        while end > CHUNK - 3 && self.partial[end - 1] & 0xc0 == 0x80 {
+                            end -= 1;
+                        }
+                        if end > 0 && self.partial[end - 1] >= 0xc2 {
+                            end -= 1;
+                        } else {
+                            end = CHUNK;
+                        }
+                    }
+                    lines.push(String::from_utf8_lossy(&self.partial[..end]).into_owned());
+                    self.partial.drain(..end);
+                }
+                self.partial.extend_from_slice(rest);
+                if complete {
+                    let line = self.partial.strip_suffix(b"\r").unwrap_or(&self.partial);
+                    lines.push(String::from_utf8_lossy(line).into_owned());
+                    self.partial.clear();
+                }
             }
-            self.partial.extend_from_slice(rest);
         }
         if !self.started {
             events.push(LogStreamEvent::Snapshot(lines));
@@ -126,7 +182,13 @@ pub async fn stream_logs(
     on_event: Channel<LogStreamEvent>,
     subscription_id: Option<u64>,
 ) -> Result<(), String> {
-    let generation = state.current.lock().unwrap().begin(subscription_id);
+    let Some(generation) = state.current.lock().unwrap().begin(subscription_id) else {
+        return Ok(());
+    };
+    let _active = ActiveSubscription {
+        current: &state.current,
+        generation,
+    };
     let mut cursor = Cursor::default();
     let mut path = state.path.clone();
     loop {
@@ -167,6 +229,38 @@ mod tests {
         assert!(!sub.stop(Some(1)));
         assert!(!sub.stop(None));
         assert!(sub.stop(Some(2)));
+    }
+
+    #[test]
+    fn stopped_before_begin_and_replaced_ids_stay_inactive() {
+        let mut sub = Subscription::default();
+        assert!(!sub.stop(Some(100)));
+        assert_eq!(sub.begin(Some(100)), None);
+        assert!(sub.begin(Some(12)).is_some());
+        assert!(sub.begin(Some(1)).is_some());
+        assert!(sub.begin(Some(12)).is_none());
+        assert!(sub.stop(Some(1)));
+    }
+    #[test]
+    fn long_records_are_bounded_and_preserve_utf8() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let data = format!("{}界{}\n", "a".repeat(CHUNK - 1), "b".repeat(CHUNK));
+        std::fs::write(file.path(), &data).unwrap();
+        let mut cursor = Cursor::default();
+        let mut reconstructed = String::new();
+        loop {
+            let (events, more) = cursor.poll(file.path()).unwrap();
+            for event in events {
+                if let LogStreamEvent::Snapshot(lines) | LogStreamEvent::Lines(lines) = event {
+                    reconstructed.push_str(&lines.concat());
+                }
+            }
+            assert!(cursor.partial.len() <= CHUNK);
+            if !more {
+                break;
+            }
+        }
+        assert_eq!(reconstructed, data.trim_end());
     }
 
     #[test]

@@ -1,5 +1,5 @@
-use serde::{de, Deserialize, Deserializer, Serialize};
-
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::fs;
 use tokio::task::JoinSet;
 
@@ -10,51 +10,17 @@ pub fn extract_locale(config: &ParsedFile) -> String {
         return "en".to_string();
     };
 
-    struct Locale;
-    impl<'de> de::Visitor<'de> for Locale {
-        type Value = Option<String>;
-
-        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.write_str("a launcher config object")
-        }
-
-        fn visit_map<M: de::MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
-            #[derive(Deserialize)]
-            #[serde(field_identifier, rename_all = "lowercase")]
-            enum Key {
-                Locale,
-                #[serde(other)]
-                Other,
-            }
-
-            let mut locale = None;
-            while let Some(key) = map.next_key()? {
-                match key {
-                    Key::Locale => {
-                        let raw: &serde_json::value::RawValue = map.next_value()?;
-                        locale = serde_json::from_str(raw.get()).ok();
-                    }
-                    Key::Other => {
-                        map.next_value::<de::IgnoredAny>()?;
-                    }
-                }
-            }
-            Ok(locale)
-        }
-    }
-
-    serde_json::Deserializer::from_str(data.get())
-        .deserialize_map(Locale)
-        .ok()
-        .flatten()
+    data.get("locale")
+        .and_then(Value::as_str)
         .filter(|locale| {
             !locale.is_empty()
                 && locale
-                    .chars()
-                    // I do not want to see '../accounts'
-                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+                .chars()
+                // I do not want to see '../accounts'
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         })
-        .unwrap_or_else(|| "en".to_owned())
+        .unwrap_or("en")
+        .to_string()
 }
 
 #[derive(Serialize)]

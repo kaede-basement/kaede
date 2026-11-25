@@ -13,11 +13,11 @@ use serde_json::Value;
 use shared_child::SharedChild;
 use std::{
     io::{BufReader, Read, Write},
-    process::ChildStdin,
+    process::{ChildStdin, ExitStatus},
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_shellx::{process::Command, ShellExt};
-use tokio::sync::{mpsc, Mutex as AsyncMutex};
+use tokio::sync::{mpsc, oneshot, Mutex as AsyncMutex};
 
 const TICK: Duration = Duration::from_millis(100);
 
@@ -133,15 +133,11 @@ pub async fn spawn_process(
     let child = Arc::new(SharedChild::spawn(&mut command.into()).map_err(|e| e.to_string())?);
     let pid = child.id();
     let stdin = Arc::new(AsyncMutex::new(child.take_stdin().expect("piped stdin")));
-    let (tx, mut rx) = mpsc::channel(1);
-    let stdout = read_pipe(
-        child.take_stdout().expect("piped stdout"),
-        tx.clone(),
-        "stdout",
-    );
-    let stderr = read_pipe(child.take_stderr().expect("piped stderr"), tx, "stderr");
-    let waiter = child.clone();
-    let exit = tokio::task::spawn_blocking(move || waiter.wait());
+    let mut output = ProcessOutput::start(&child).map_err(|e| {
+        let _ = child.kill();
+        let _ = child.wait();
+        e.to_string()
+    })?;
 
     let dto = ProcessDto {
         token: spec.token.clone(),
@@ -172,7 +168,7 @@ pub async fn spawn_process(
         let mut pending_bytes = 0;
         loop {
             tokio::select! {
-                event = rx.recv() => match event {
+                event = output.next() => match event {
                     Some((stream, Ok(line))) => {
                         pending_bytes += line.len() + 1;
                         if stream == "stdout" { stdout_pending.push(line); } else { stderr_pending.push(line); }
@@ -190,22 +186,8 @@ pub async fn spawn_process(
             pending_bytes = 0;
         }
         flush_output(&app, &token, pid, &mut stdout_pending, &mut stderr_pending);
-        for reader in [stdout, stderr] {
-            if let Err(e) = reader.await {
-                let _ = app.emit(
-                    "process-error",
-                    ErrorPayload {
-                        token: token.clone(),
-                        pid,
-                        message: e.to_string(),
-                    },
-                );
-            }
-        }
-        let status = exit
-            .await
-            .map_err(|e| e.to_string())
-            .and_then(|s| s.map_err(|e| e.to_string()));
+        let status = output.status.take().expect("output ends after child exit");
+        drop(output);
         app.state::<ProcessRegistry>().remove_exited(pid, &token);
         let (code, signal) = match status {
             Ok(status) => {
@@ -357,27 +339,88 @@ fn build_command(
 
 type OutputLine = (&'static str, Result<String, String>);
 
+const PIPE_DRAIN: Duration = Duration::from_millis(200);
+
+struct ProcessOutput {
+    lines: mpsc::Receiver<OutputLine>,
+    exit: oneshot::Receiver<std::io::Result<ExitStatus>>,
+    status: Option<Result<ExitStatus, String>>,
+    deadline: tokio::time::Instant,
+}
+
+impl ProcessOutput {
+    fn start(child: &Arc<SharedChild>) -> std::io::Result<Self> {
+        let (tx, lines) = mpsc::channel(32);
+        read_pipe(
+            child.take_stdout().expect("piped stdout"),
+            tx.clone(),
+            "stdout",
+        )?;
+        read_pipe(child.take_stderr().expect("piped stderr"), tx, "stderr")?;
+        let (done, exit) = oneshot::channel();
+        let child = child.clone();
+        std::thread::Builder::new()
+            .name("child-wait".into())
+            .spawn(move || {
+                let _ = done.send(child.wait());
+            })?;
+        Ok(Self {
+            lines,
+            exit,
+            status: None,
+            deadline: tokio::time::Instant::now(),
+        })
+    }
+
+    async fn next(&mut self) -> Option<OutputLine> {
+        if self.status.is_none() {
+            let status = tokio::select! {
+                biased;
+                status = &mut self.exit => status,
+                line = self.lines.recv() => match line {
+                    Some(line) => return Some(line),
+                    None => (&mut self.exit).await,
+                },
+            };
+            self.status = Some(
+                status
+                    .map_err(|e| e.to_string())
+                    .and_then(|s| s.map_err(|e| e.to_string())),
+            );
+            self.deadline = tokio::time::Instant::now() + PIPE_DRAIN;
+        }
+        tokio::select! {
+            biased;
+            _ = tokio::time::sleep_until(self.deadline) => None,
+            line = self.lines.recv() => line,
+        }
+    }
+}
+
 fn read_pipe(
     pipe: impl Read + Send + 'static,
     tx: mpsc::Sender<OutputLine>,
     stream: &'static str,
-) -> tokio::task::JoinHandle<()> {
-    tokio::task::spawn_blocking(move || {
-        let mut reader = BufReader::new(pipe);
-        let mut bytes = Vec::new();
-        loop {
-            bytes.clear();
-            let line = match tauri::utils::io::read_line(&mut reader, &mut bytes) {
-                Ok(0) => break,
-                Ok(_) => Ok(into_line(&bytes)),
-                Err(e) => Err(e.to_string()),
-            };
-            let failed = line.is_err();
-            if tx.blocking_send((stream, line)).is_err() || failed {
-                break;
+) -> std::io::Result<()> {
+    std::thread::Builder::new()
+        .name(format!("child-{stream}"))
+        .spawn(move || {
+            let mut reader = BufReader::new(pipe);
+            let mut bytes = Vec::new();
+            loop {
+                bytes.clear();
+                let line = match tauri::utils::io::read_line(&mut reader, &mut bytes) {
+                    Ok(0) => break,
+                    Ok(_) => Ok(into_line(&bytes)),
+                    Err(e) => Err(e.to_string()),
+                };
+                let failed = line.is_err();
+                if tx.blocking_send((stream, line)).is_err() || failed {
+                    break;
+                }
             }
-        }
-    })
+        })?;
+    Ok(())
 }
 
 impl ProcessRegistry {
@@ -395,6 +438,36 @@ impl ProcessRegistry {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn inherited_pipe_does_not_hold_direct_child_exit() {
+        use std::process::Stdio;
+        let temp = tempfile::tempdir().unwrap();
+        let fifo = temp.path().join("release");
+        assert!(std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .unwrap()
+            .success());
+        let mut cmd = std::process::Command::new("sh");
+        cmd.args(["-c", "cat < \"$1\" & echo ready; exit 7", "test"])
+            .arg(&fifo)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let child = Arc::new(SharedChild::spawn(&mut cmd).unwrap());
+        let mut output = ProcessOutput::start(&child).unwrap();
+        let mut lines = Vec::new();
+        let drain = tokio::time::timeout(Duration::from_secs(3), async {
+            while let Some((_, line)) = output.next().await {
+                lines.push(line.unwrap());
+            }
+        })
+        .await;
+        drop(std::fs::OpenOptions::new().write(true).open(fifo).unwrap());
+        drain.unwrap();
+        assert_eq!(lines, ["ready"]);
+        assert_eq!(output.status.unwrap().unwrap().code(), Some(7));
+    }
+
     #[test]
     fn only_matching_exit_removes_process() {
         let mut cmd = std::process::Command::new("sh");
