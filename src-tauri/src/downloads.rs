@@ -631,7 +631,36 @@ pub(crate) async fn stream_file(
 }
 
 #[cfg(test)]
+pub(crate) mod mock_http {
+    use tokio::{
+        io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+        net::{TcpListener, TcpStream},
+    };
+
+    pub async fn accept_request(listener: &TcpListener) -> (TcpStream, String) {
+        let (socket, _) = listener.accept().await.unwrap();
+        let mut reader = BufReader::new(socket);
+        let mut request_line = String::new();
+        reader.read_line(&mut request_line).await.unwrap();
+        let mut header = Vec::new();
+        loop {
+            header.clear();
+            if reader.read_until(b'\n', &mut header).await.unwrap() == 0 || header == b"\r\n" {
+                break;
+            }
+        }
+        (reader.into_inner(), request_line)
+    }
+
+    pub async fn respond(mut socket: TcpStream, response: &[u8]) {
+        socket.write_all(response).await.unwrap();
+        socket.shutdown().await.unwrap();
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::mock_http::{accept_request, respond};
     use super::*;
     #[test]
     fn cancellation_and_publication_have_one_winner() {
@@ -687,11 +716,8 @@ mod tests {
             let (result, ()) = tokio::join!(
                 download_one(&client, &entry, &progress, &mut cancel),
                 async {
-                    let (mut socket, _) = listener.accept().await.unwrap();
-                    socket
-                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nbad")
-                        .await
-                        .unwrap();
+                    let (socket, _) = accept_request(&listener).await;
+                    respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nbad").await;
                 }
             );
             assert!(matches!(result,Err(DownloadError::Other(e)) if e.contains("mismatch")));
@@ -753,7 +779,7 @@ mod tests {
             let client = reqwest::Client::builder().no_proxy().build().unwrap();
             let download = download_one(&client, &entry, &progress, &mut cancel);
             let exercise = async {
-                let (mut socket, _) = listener.accept().await.unwrap();
+                let (mut socket, _) = accept_request(&listener).await;
                 if send_headers {
                     socket
                         .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\nx")
@@ -831,11 +857,8 @@ mod tests {
                 async {
                     wait_for_competitor(&stage).await;
                     drop(owner);
-                    let (mut socket, _) = listener.accept().await.unwrap();
-                    socket
-                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nnew")
-                        .await
-                        .unwrap();
+                    let (socket, _) = accept_request(&listener).await;
+                    respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nnew").await;
                 }
             );
             assert!(result.is_ok());
@@ -874,7 +897,7 @@ mod tests {
             let mut b = flags.register("b");
             let progress = Progress::default();
             let exercise = async {
-                let (mut socket, _) = listener.accept().await.unwrap();
+                let (socket, _) = accept_request(&listener).await;
                 let wait = download_one(&client, &waiter, &progress, &mut b);
                 tokio::pin!(wait);
                 let response = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
@@ -882,11 +905,11 @@ mod tests {
                 let (result, ()) = tokio::join!(wait, async {
                     wait_for_competitor(&observer).await;
                     if owner_fails {
-                        socket.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await.unwrap();
-                        let (mut retry, _) = listener.accept().await.unwrap();
-                        retry.write_all(response).await.unwrap();
+                        respond(socket, b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await;
+                        let (retry, _) = accept_request(&listener).await;
+                        respond(retry, response).await;
                     } else {
-                        socket.write_all(response).await.unwrap();
+                        respond(socket, response).await;
                     }
                 });
                 result

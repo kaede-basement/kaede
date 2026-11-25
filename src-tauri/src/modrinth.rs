@@ -542,6 +542,7 @@ fn extract_overrides(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::downloads::mock_http::{accept_request, respond};
     use std::io::Write;
     #[test]
     fn missing_corrupt_and_unsafe_manifest_are_distinct() {
@@ -595,7 +596,6 @@ mod tests {
 
     #[tokio::test]
     async fn cancel_preserves_verified_objects_and_retry_is_independent() {
-        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
         let root = tempfile::tempdir().unwrap();
         let store = ModStore::new(root.path());
         let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
@@ -605,22 +605,19 @@ mod tests {
         let (requested, mut requests) = tokio::sync::mpsc::unbounded_channel();
         let server = tokio::spawn(async move {
             loop {
-                let (socket, _) = listener.accept().await.unwrap();
+                let (mut socket, request_line) = accept_request(&listener).await;
                 let requested = requested.clone();
                 tokio::spawn(async move {
-                    let mut reader = tokio::io::BufReader::new(socket);
-                    let mut line = String::new();
-                    reader.read_line(&mut line).await.unwrap();
-                    let route = line.split_whitespace().nth(1).unwrap();
+                    let route = request_line.split_whitespace().nth(1).unwrap();
                     requested.send(route.to_owned()).unwrap();
                     if route == "/stall" {
                         let mut sink = Vec::new();
-                        tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut sink)
+                        tokio::io::AsyncReadExt::read_to_end(&mut socket, &mut sink)
                             .await
                             .unwrap();
                     } else {
                         let body = if route == "/one" { "one" } else { "two" };
-                        reader.into_inner().write_all(format!("HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\n{body}").as_bytes()).await.unwrap();
+                        respond(socket, format!("HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\n{body}").as_bytes()).await;
                     }
                 });
             }
@@ -797,7 +794,6 @@ mod tests {
 
     #[tokio::test]
     async fn installs_reject_contradictions_and_evict_same_size_corruption() {
-        use tokio::io::AsyncWriteExt;
         for corrupt in [false, true] {
             let root = tempfile::tempdir().unwrap();
             let store = ModStore::new(root.path());
@@ -826,11 +822,8 @@ mod tests {
             );
             if corrupt {
                 let (result, ()) = tokio::join!(attempt, async {
-                    let (mut socket, _) = listener.accept().await.unwrap();
-                    socket
-                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nevil")
-                        .await
-                        .unwrap();
+                    let (socket, _) = accept_request(&listener).await;
+                    respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nevil").await;
                 });
                 assert!(matches!(result,Err(e) if e.contains("Hash mismatch")));
                 assert!(!path.exists());
@@ -844,7 +837,6 @@ mod tests {
 
     #[tokio::test]
     async fn fallback_mirror_admits_verified_bytes_after_404() {
-        use tokio::io::AsyncWriteExt;
         let root = tempfile::tempdir().unwrap();
         let store = ModStore::new(root.path());
         let (mut file, path) = seed_blob(root.path(), b"good");
@@ -861,8 +853,8 @@ mod tests {
                 b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".as_slice(),
                 b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ngood",
             ] {
-                let (mut socket, _) = listener.accept().await.unwrap();
-                socket.write_all(response).await.unwrap();
+                let (socket, _) = accept_request(&listener).await;
+                respond(socket, response).await;
             }
         });
         assert_eq!(result.unwrap(), path);
