@@ -11,6 +11,7 @@ mod image;
 #[cfg(any(windows, target_os = "linux"))]
 mod ipc_batch;
 mod ipc_dispatch;
+mod http;
 mod logging;
 mod modrinth;
 mod mod_store;
@@ -52,6 +53,8 @@ fn bind_at_dispatch<R: tauri::Runtime>(
             .inner()
             .clone();
         match invoke.message.command() {
+            "fetch_http_document" => dispatcher.dispatch(invoke, http::fetch_document),
+            "download_mrpack" => dispatcher.dispatch(invoke, modrinth::download_mrpack),
             "concurrently_download" => {
                 dispatcher.dispatch(invoke, downloads::concurrently_download)
             }
@@ -201,7 +204,9 @@ pub fn run() {
                 }
             });
             // Besides hashing, we can also read configs ahead-of-time
-            app.manage(mod_store::ModStore::new(&base_directory));
+            let transport = http::Transport::new()?;
+            app.manage(transport.clone());
+            app.manage(mod_store::ModStore::new(&base_directory, transport));
             app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist

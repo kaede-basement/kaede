@@ -161,6 +161,10 @@ async function retrieve(options: RequestOptions, root: string): Promise<Document
   return document;
 }
 
+export function cachedMetadata<T>(options: RequestOptions & {
+  "validate": (value: unknown) => value is T;
+}): Promise<Document & { "data": T }>;
+export function cachedMetadata(options: RequestOptions): Promise<Document>;
 export async function cachedMetadata(options: RequestOptions): Promise<Document> {
   const { relativePath, expectedHash, expectedSize } = options;
 

@@ -16,11 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { TrustedHashesURL } from "@/constants/application.ts";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/log.ts";
+import { fetchDocument as fetch } from "@/lib/network/fetch-document.ts";
 import { trustedExtensionHashes } from "@/states/extension.ts";
 
 let cached: Array<string> | undefined;

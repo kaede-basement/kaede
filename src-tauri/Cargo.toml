@@ -49,6 +49,9 @@ rayon = "1.11.0"
 zip = { version = "3.0", default-features = false, features = ["deflate"] }
 tokio = { version = "1", features = ["fs", "macros", "rt", "time", "io-util"] }
 reqwest = { version = "0.13" }
+httpdate = "1"
+hyper = "1"
+fastrand = "2"
 image = { version = "0.25.10", default-features = false, features = ["png", "webp", "jpeg"] }
 
 # Non-default installed plugins

@@ -16,9 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { ModrinthAPI } from "@/constants/modrinth.ts";
+import { cachedMetadata } from "@/lib/cache";
+import { getBaseDirectory } from "@/lib/file-manager/path.ts";
 
 export async function fetchVersion(projectId: string): Promise<Array<{
   "id"            : string;
@@ -41,17 +41,12 @@ export async function fetchVersion(projectId: string): Promise<Array<{
     "file_type": null;
   }>>;
 }>> {
-  const response: Response = await fetch(`${ModrinthAPI.Endpoints.Project}/${projectId}/version`);
-
-  if (!response.ok) {
-    throw new Error(`Modrinth answered with the status ${response.status}`);
-  }
-
-  const parsed = await response.json();
-
-  if (!Array.isArray(parsed)) {
-    throw new TypeError("Modrinth returned an invalid project version response");
-  }
+  const { "data": parsed } = await cachedMetadata({
+    "baseDirectory": getBaseDirectory(),
+    "relativePath" : `modrinth/${projectId}/versions.json`,
+    "url"          : `${ModrinthAPI.Endpoints.Project}/${projectId}/version`,
+    "validate"     : Array.isArray,
+  });
 
   return parsed;
 }

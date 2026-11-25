@@ -15,12 +15,9 @@ use std::{
 use crate::hashing::{to_hex, HashAlgorithm};
 use serde::{Deserialize, Serialize};
 use tauri::{ipc::Channel, Manager, ResourceTable, State};
-use tokio::{
-    io::AsyncWriteExt,
-    sync::{watch, OnceCell},
-};
+use tokio::{io::AsyncWriteExt, sync::watch};
 
-static CLIENT: OnceCell<reqwest::Client> = OnceCell::const_new();
+use crate::http::{Attempts, Transport};
 type StagingDirectories = Mutex<HashMap<Arc<same_file::Handle>, (Arc<Staging>, usize)>>;
 static STAGING: OnceLock<StagingDirectories> = OnceLock::new();
 
@@ -632,18 +629,6 @@ impl CancelFlags {
     }
 }
 
-pub(crate) async fn client() -> Result<&'static reqwest::Client, String> {
-    CLIENT
-        .get_or_try_init(|| async {
-            reqwest::Client::builder()
-                .connect_timeout(Duration::from_secs(30))
-                .read_timeout(Duration::from_secs(30))
-                .build()
-        })
-        .await
-        .map_err(|error| error.to_string())
-}
-
 pub(crate) type Progress = Arc<Mutex<HashMap<String, FileProgress>>>;
 
 pub(crate) fn cancel_downloads<R: tauri::Runtime>(
@@ -673,7 +658,11 @@ pub(crate) fn concurrently_download<R: tauri::Runtime>(
     let concurrency = crate::argument(invoke, NAME, "concurrency")?;
     let label = crate::argument(invoke, NAME, "label")?;
     let debug = crate::argument(invoke, NAME, "debug")?;
+    let transport = crate::argument::<State<Transport>, _>(invoke, NAME, "transport")?
+        .inner()
+        .clone();
     Ok(download_batch(
+        transport,
         flags.register(&id),
         entries,
         concurrency,
@@ -684,6 +673,7 @@ pub(crate) fn concurrently_download<R: tauri::Runtime>(
 }
 
 async fn download_batch(
+    client: Transport,
     cancel: Registration,
     entries: Vec<DownloadEntry>,
     concurrency: usize,
@@ -692,7 +682,6 @@ async fn download_batch(
     debug: bool,
 ) -> Result<DownloadReport, String> {
     let concurrency = concurrency.max(1).min(entries.len());
-    let client = client().await?;
     let entries = Arc::new(entries);
     let next_index = Arc::new(AtomicUsize::new(0));
     let progress: Progress = Arc::default();
@@ -756,6 +745,7 @@ async fn download_batch(
         let failed = Arc::clone(&failed);
         let mut cancel = cancel.clone();
 
+        let client = client.clone();
         workers.spawn(async move {
             let mut failures: Vec<FailedDownload> = Vec::new();
 
@@ -770,7 +760,7 @@ async fn download_batch(
                     break;
                 };
 
-                let result = download_one(client, entry, &progress, &mut cancel).await;
+                let result = download_one(&client, entry, &progress, &mut cancel).await;
 
                 match result {
                     Ok(()) => {
@@ -838,7 +828,7 @@ async fn download_batch(
 }
 
 async fn download_one(
-    client: &reqwest::Client,
+    client: &Transport,
     entry: &DownloadEntry,
     progress: &Progress,
     cancel: &mut CancelSignal,
@@ -888,7 +878,11 @@ impl TransferStop {
         Ok(gate)
     }
 
-    fn publish(&self, partial: tempfile::TempPath, path: &Path) -> Result<(), DownloadError> {
+    pub(crate) fn publish(
+        &self,
+        partial: tempfile::TempPath,
+        path: &Path,
+    ) -> Result<(), DownloadError> {
         let _permit = self.publication_permit()?;
         crate::file_system::persist_temp_path(partial, path, true).map_err(DownloadError::other)
     }
@@ -915,7 +909,7 @@ where
 }
 
 async fn staged_transfer(
-    client: &reqwest::Client,
+    client: &Transport,
     entry: ValidatedEntry,
     path: PathBuf,
     progress: &Progress,
@@ -994,7 +988,7 @@ async fn staged_transfer(
 }
 
 pub(crate) async fn stream_file(
-    client: &reqwest::Client,
+    client: &Transport,
     url: &str,
     path: &Path,
     size: Option<u64>,
@@ -1002,101 +996,141 @@ pub(crate) async fn stream_file(
     progress: &Progress,
     cancel: &mut TransferStop,
 ) -> Result<(), DownloadError> {
-    let parent = path
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or(Path::new("."));
-    let mut hashers = Vec::new();
-    for &(kind, hash) in hashes {
-        kind.validate(hash).map_err(DownloadError::other)?;
-        hashers.push((hash, kind.hasher()));
-    }
-    let mut response = tokio::select! {
-        biased;
-        _ = cancel.cancelled() => return Err(DownloadError::Cancelled),
-        result = client.get(url).send() => result.and_then(|r| r.error_for_status()).map_err(DownloadError::other)?,
-    };
-    let parent = parent.to_owned();
-    let (file, partial) =
-        tokio::task::spawn_blocking(move || crate::file_system::staging_file(&parent))
-            .await
-            .map_err(DownloadError::other)?
-            .map_err(DownloadError::other)?
-            .into_parts();
-    let mut writer = tokio::io::BufWriter::new(tokio::fs::File::from_std(file));
-    let downloaded = Arc::new(AtomicU64::new(0));
-    progress.lock().unwrap().insert(
-        path.to_string_lossy().into_owned(),
-        FileProgress {
-            downloaded: downloaded.clone(),
-            total: response.content_length().unwrap_or(0),
-            last_downloaded: 0,
-        },
-    );
-    let result = async {
-        loop {
-            let chunk = tokio::select! {
-                biased;
-                _ = cancel.cancelled() => return Err(DownloadError::Cancelled),
-                result = response.chunk() => result.map_err(DownloadError::other)?,
-            };
-            let Some(chunk) = chunk else { break };
-            if size.is_some_and(|limit| {
-                downloaded
-                    .load(Ordering::Relaxed)
-                    .saturating_add(chunk.len() as u64)
-                    > limit
-            }) {
+    let partial = stream_temp(client, url, path, size, hashes, progress, cancel).await?;
+    let path = path.to_owned();
+    let cancel = cancel.clone();
+    tokio::task::spawn_blocking(move || cancel.publish(partial, &path))
+        .await
+        .map_err(DownloadError::other)?
+}
+
+pub(crate) async fn stream_temp(
+    client: &Transport,
+    url: &str,
+    path: &Path,
+    size: Option<u64>,
+    hashes: &[(HashAlgorithm, &str)],
+    progress: &Progress,
+    cancel: &mut TransferStop,
+) -> Result<tempfile::TempPath, DownloadError> {
+    let request = client.get(url)?;
+    let mut retry = Attempts::read();
+    loop {
+        let parent = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let mut hashers = Vec::new();
+        for &(kind, hash) in hashes {
+            kind.validate(hash).map_err(DownloadError::other)?;
+            hashers.push((hash, kind.hasher()));
+        }
+        let (response, permit) = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(DownloadError::Cancelled),
+            result = client.send(&request, true, &mut retry) => result?,
+        };
+        let mut response = response.error_for_status().map_err(DownloadError::other)?;
+        let parent = parent.to_owned();
+        let (file, partial) =
+            tokio::task::spawn_blocking(move || crate::file_system::staging_file(&parent))
+                .await
+                .map_err(DownloadError::other)?
+                .map_err(DownloadError::other)?
+                .into_parts();
+        let mut writer = tokio::io::BufWriter::new(tokio::fs::File::from_std(file));
+        let downloaded = Arc::new(AtomicU64::new(0));
+        progress.lock().unwrap().insert(
+            path.to_string_lossy().into_owned(),
+            FileProgress {
+                downloaded: downloaded.clone(),
+                total: response.content_length().unwrap_or(0),
+                last_downloaded: 0,
+            },
+        );
+        let mut retry_body = false;
+        let result = async {
+            loop {
+                let chunk = tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => return Err(DownloadError::Cancelled),
+                    result = response.chunk() => match result {
+                        Ok(chunk) => chunk,
+                        Err(error) => {
+                            retry_body = crate::http::transient(&error);
+                            return Err(DownloadError::other(error));
+                        }
+                    },
+                };
+                let Some(chunk) = chunk else { break };
+                if size.is_some_and(|limit| {
+                    downloaded
+                        .load(Ordering::Relaxed)
+                        .saturating_add(chunk.len() as u64)
+                        > limit
+                }) {
+                    return Err(DownloadError::Integrity(format!(
+                        "Size mismatch for {}",
+                        path.display()
+                    )));
+                }
+                for (_, hasher) in &mut hashers {
+                    hasher.update(&chunk);
+                }
+                writer
+                    .write_all(&chunk)
+                    .await
+                    .map_err(DownloadError::other)?;
+                downloaded.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+            }
+            Ok(())
+        }
+        .await;
+        let shutdown = writer.shutdown().await;
+        drop(writer.into_inner().into_std().await);
+        progress
+            .lock()
+            .unwrap()
+            .remove(path.to_string_lossy().as_ref());
+        drop(response);
+        drop(permit);
+        let flushed = shutdown.is_ok();
+        let verified = (|| {
+            shutdown.map_err(DownloadError::other)?;
+            result?;
+            if size.is_some_and(|size| size != downloaded.load(Ordering::Relaxed)) {
                 return Err(DownloadError::Integrity(format!(
                     "Size mismatch for {}",
                     path.display()
                 )));
             }
-            for (_, hasher) in &mut hashers {
-                hasher.update(&chunk);
+            for (expected, hasher) in hashers {
+                if !to_hex(&hasher.finalize()).eq_ignore_ascii_case(expected) {
+                    return Err(DownloadError::Integrity(format!(
+                        "Hash mismatch for {}",
+                        path.display()
+                    )));
+                }
             }
-            writer
-                .write_all(&chunk)
-                .await
-                .map_err(DownloadError::other)?;
-            downloaded.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+            Ok(())
+        })();
+        match verified {
+            Ok(()) => return Ok(partial),
+            Err(error) => {
+                tokio::task::spawn_blocking(move || partial.close())
+                    .await
+                    .map_err(DownloadError::other)?
+                    .map_err(DownloadError::other)?;
+                if !(flushed && retry_body && retry.available()) {
+                    return Err(error);
+                }
+                tokio::select! { biased;
+                    _ = cancel.cancelled() => return Err(DownloadError::Cancelled),
+                    _ = retry.backoff() => (),
+                }
+            }
         }
-        Ok(())
     }
-    .await;
-    let shutdown = writer.shutdown().await;
-    drop(writer.into_inner().into_std().await);
-    progress
-        .lock()
-        .unwrap()
-        .remove(path.to_string_lossy().as_ref());
-    let path = path.to_owned();
-    let cancel = cancel.clone();
-    let verified = (|| {
-        result?;
-        shutdown.map_err(DownloadError::other)?;
-        if size.is_some_and(|size| size != downloaded.load(Ordering::Relaxed)) {
-            return Err(DownloadError::Integrity(format!(
-                "Size mismatch for {}",
-                path.display()
-            )));
-        }
-        for (expected, hasher) in hashers {
-            if !to_hex(&hasher.finalize()).eq_ignore_ascii_case(expected) {
-                return Err(DownloadError::Integrity(format!(
-                    "Hash mismatch for {}",
-                    path.display()
-                )));
-            }
-        }
-        Ok(())
-    })();
-    tokio::task::spawn_blocking(move || {
-        verified?;
-        cancel.publish(partial, &path)
-    })
-    .await
-    .map_err(DownloadError::other)?
 }
 
 #[cfg(test)]
@@ -1268,11 +1302,11 @@ mod tests {
         let (ready, paused) = tokio::sync::oneshot::channel();
         let (resume, wait) = tokio::sync::oneshot::channel();
         let worker = supervise(&registration, None, move |mut stop| async move {
-            let client = client().await.unwrap();
+            let client = Transport::new().unwrap();
             ready.send(()).unwrap();
             wait.await.unwrap();
             staged_transfer(
-                client,
+                &client,
                 ValidatedEntry::default(),
                 dest,
                 &Progress::default(),
@@ -1336,6 +1370,7 @@ mod tests {
         };
         let flags = CancelFlags::default();
         let start = download_batch(
+            Transport::new().unwrap(),
             flags.register("batch"),
             vec![entry],
             1,
@@ -1364,6 +1399,7 @@ mod tests {
             Ok(())
         });
         let report = download_batch(
+            Transport::new().unwrap(),
             flags.register("batch"),
             vec![],
             1,
@@ -1396,6 +1432,7 @@ mod tests {
         let flags = CancelFlags::default();
         let (report, ()) = tokio::join!(
             download_batch(
+                Transport::new().unwrap(),
                 flags.register("id"),
                 vec![bad, good],
                 2,
@@ -1431,7 +1468,7 @@ mod tests {
             path: root.path().join("sub/../item").display().to_string(),
             ..entry.clone()
         };
-        let client = reqwest::Client::new();
+        let client = Transport::new().unwrap();
         let progress = Progress::default();
         let (_tx, mut cancel) = CancelSignal::channel();
         let mut first_cancel = cancel.clone();
@@ -1463,7 +1500,8 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let target = root.path().join("instance");
         let archive = root.path().join("pack.zip");
-        let store = crate::mod_store::ModStore::new(root.path());
+        let store =
+            crate::mod_store::ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let flags = CancelFlags::default();
         let runtime = tokio::runtime::Builder::new_current_thread()
             .max_blocking_threads(1)
@@ -1560,7 +1598,7 @@ mod tests {
             };
             let (_tx, mut cancel) = CancelSignal::channel();
             let progress = Progress::default();
-            let client = reqwest::Client::builder().no_proxy().build().unwrap();
+            let client = Transport::new().unwrap();
             let (result, ()) = tokio::join!(
                 download_one(&client, &entry, &progress, &mut cancel),
                 async {
@@ -1623,7 +1661,7 @@ mod tests {
             let flags = CancelFlags::default();
             let mut cancel = flags.register("one");
             let progress = Progress::default();
-            let client = reqwest::Client::builder().no_proxy().build().unwrap();
+            let client = Transport::new().unwrap();
             let download = download_one(&client, &entry, &progress, &mut cancel);
             let exercise = async {
                 let (mut socket, _) = accept_request(&listener).await;
@@ -1688,7 +1726,7 @@ mod tests {
         else {
             panic!()
         };
-        let client = reqwest::Client::builder().no_proxy().build().unwrap();
+        let client = Transport::new().unwrap();
         let flags = CancelFlags::default();
         let mut cancel = flags.register("cancel");
         let mut retry = flags.register("retry");
@@ -1741,7 +1779,7 @@ mod tests {
                     format!("{}other", owner.url)
                 },
             };
-            let client = reqwest::Client::builder().no_proxy().build().unwrap();
+            let client = Transport::new().unwrap();
             let flags = CancelFlags::default();
             let mut a = flags.register("a");
             let mut b = flags.register("b");

@@ -1,0 +1,24 @@
+diff --git a/dist-js/index.cjs b/dist-js/index.cjs
+index b64701ce998c3fa590af90024c79dfcc55e9f2f1..1a391dd789f6f171fcbeda4e9df6ad6ab61db4ec 100644
+--- a/dist-js/index.cjs
++++ b/dist-js/index.cjs
+@@ -174,6 +174,7 @@ async function fetch(input, init) {
+                 void dropBody();
+             }
+         });
++    if (body === null) await core.invoke("plugin:http|fetch_cancel_body", { rid: responseRid });
+     const res = new Response(body, {
+         status,
+         statusText
+diff --git a/dist-js/index.js b/dist-js/index.js
+index 12e51ed1f386583d99759b83c70f504a3e0890b6..a6ee248ded88371e992bd0e733f70f46e95949b4 100644
+--- a/dist-js/index.js
++++ b/dist-js/index.js
+@@ -172,6 +172,7 @@ async function fetch(input, init) {
+                 void dropBody();
+             }
+         });
++    if (body === null) await invoke("plugin:http|fetch_cancel_body", { rid: responseRid });
+     const res = new Response(body, {
+         status,
+         statusText

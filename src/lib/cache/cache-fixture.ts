@@ -1,8 +1,8 @@
 import * as fs from "@tauri-apps/plugin-fs";
-import * as http from "@tauri-apps/plugin-http";
 import { type Mock, spyOn } from "bun:test";
 
 import * as paths from "@/lib/file-manager/path.ts";
+import * as http from "@/lib/network/fetch-document.ts";
 
 import type { Entry } from "./storage.ts";
 
@@ -26,7 +26,7 @@ export function cache(): Disposable & {
   "root"   : string;
   "path"   : string;
   "files"  : Map<string, Uint8Array<ArrayBuffer>>;
-  "fetch"  : Mock<typeof http.fetch>;
+  "fetch"  : Mock<typeof http.fetchDocument>;
   "index"  : () => Index;
 } {
   const files = (new Map<string, Uint8Array<ArrayBuffer>>);
@@ -53,7 +53,8 @@ export function cache(): Disposable & {
   mocks.use(spyOn(fs, "remove").mockImplementation(async path => {
     files.delete(String(path));
   }));
-  const fetch = mocks.use(spyOn(http, "fetch").mockImplementation(async () => new Response(Raw)));
+  const fetch = mocks.use(spyOn(http, "fetchDocument")
+    .mockImplementation(async () => new Response(Raw)));
   const baseDirectory = crypto.randomUUID();
   const request = { ...Options, baseDirectory };
   const root = baseDirectory + "/cache/";

@@ -1,6 +1,7 @@
 use crate::{
-    downloads::{client, stream_file, CancelSignal, DownloadError, Progress},
+    downloads::{stream_file, CancelSignal, DownloadError, Progress},
     hashing::{modpack_hashes, HashAlgorithm},
+    http::Transport,
     modrinth::ManifestFile,
 };
 use std::sync::{Arc, Once};
@@ -13,13 +14,15 @@ use tokio::sync::{watch, Mutex};
 
 #[derive(Clone)]
 pub struct ModStore {
-    cache: PathBuf,
+    client: Transport,
+    pub(crate) cache: PathBuf,
     active: Arc<Mutex<Option<Arc<ObjectTree>>>>,
     clears: Arc<Mutex<()>>,
     recovery: Arc<Once>,
 }
 
 pub struct ObjectTree {
+    client: Transport,
     root: PathBuf,
     shards: [Mutex<()>; 256],
     retired: watch::Sender<()>,
@@ -70,8 +73,9 @@ fn remove_tree(path: &Path) -> io::Result<()> {
 }
 
 impl ModStore {
-    pub fn new(base: &Path) -> Self {
+    pub(crate) fn new(base: &Path, client: Transport) -> Self {
         Self {
+            client,
             cache: base.join("cache"),
             active: Arc::default(),
             clears: Arc::default(),
@@ -90,10 +94,11 @@ impl ModStore {
             return Ok(tree.clone());
         }
         let cache = self.cache.clone();
+        let client = self.client.clone();
         tokio::task::spawn_blocking(move || -> io::Result<_> {
             plain_directory(&cache)?;
             let selected = selected_tree(&cache)?;
-            let tree = ObjectTree::new(cache.join(selected.unwrap_or(INITIAL)));
+            let tree = ObjectTree::new(cache.join(selected.unwrap_or(INITIAL)), client);
             *active = Some(tree.clone());
             Ok(tree)
         })
@@ -147,6 +152,7 @@ impl ModStore {
         let old = self.active_tree().await?;
         let name = other(old.root.file_name().unwrap().to_str().unwrap());
         let cache = self.cache.clone();
+        let client = self.client.clone();
         let (next, durable) = tokio::task::spawn_blocking(move || -> io::Result<_> {
             plain_directory(&cache)?;
             if selected_tree(&cache)?.unwrap_or(INITIAL) == name {
@@ -165,7 +171,7 @@ impl ModStore {
             let durable = fs::File::open(&cache).and_then(|dir| dir.sync_all());
             #[cfg(not(unix))]
             let durable: io::Result<()> = Ok(());
-            Ok((ObjectTree::new(cache.join(name)), durable))
+            Ok((ObjectTree::new(cache.join(name), client), durable))
         })
         .await
         .map_err(|e| e.to_string())?
@@ -187,10 +193,11 @@ impl ModStore {
 }
 
 impl ObjectTree {
-    fn new(root: PathBuf) -> Arc<Self> {
+    fn new(root: PathBuf, client: Transport) -> Arc<Self> {
         let (retired, lease) = watch::channel(());
         Arc::new(Self {
             root,
+            client,
             shards: std::array::from_fn(|_| Mutex::new(())),
             retired,
             _lease: lease,
@@ -280,12 +287,11 @@ impl ObjectTree {
         if cached {
             return Ok(path);
         }
-        let client = client().await.map_err(DownloadError::Other)?;
         let mut failures = Vec::new();
         let mut observed_error: Option<DownloadError> = None;
         for url in std::iter::once(&file.url).chain(&file.mirrors) {
             match stream_file(
-                client,
+                &self.client,
                 url,
                 &path,
                 Some(file.file_size),
@@ -342,7 +348,7 @@ fn ordinary_directory(meta: &fs::Metadata) -> bool {
     meta.is_dir() && !is_reparse_point(meta)
 }
 
-fn plain_directory(path: &Path) -> io::Result<()> {
+pub(crate) fn plain_directory(path: &Path) -> io::Result<()> {
     match fs::create_dir(path) {
         Err(e)
             if e.kind() == io::ErrorKind::AlreadyExists
@@ -403,7 +409,7 @@ mod tests {
     async fn lost_selector_keeps_initial_tree_and_reclaims_alternate() {
         for startup_recovery in [false, true] {
             let root = tempfile::tempdir().unwrap();
-            let store = ModStore::new(root.path());
+            let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
             let stale = store.cache.join(ALTERNATE);
             fs::create_dir_all(&stale).unwrap();
             fs::write(stale.join("obsolete"), b"stale").unwrap();
@@ -426,7 +432,7 @@ mod tests {
     #[tokio::test]
     async fn clear_owns_lazy_recovery_after_selector_replacement() {
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let serial = store.clears.lock().await;
         let old = store.lease().await.unwrap();
         assert!(!store.recovery.is_completed());
@@ -444,7 +450,7 @@ mod tests {
     #[tokio::test]
     async fn reopening_store_finishes_interrupted_retirement() {
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         store.recover_once().unwrap().await.unwrap();
         store.clear().await.unwrap();
         let selected = store.lease().await.unwrap();
@@ -453,7 +459,7 @@ mod tests {
         fs::create_dir(store.cache.join(INITIAL)).unwrap();
         fs::write(store.cache.join(INITIAL).join("obsolete"), b"old").unwrap();
         drop(store);
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         store.recover_once().unwrap().await.unwrap();
         let current = store.lease().await.unwrap();
         assert_eq!(fs::read(current.root.join("verified")).unwrap(), b"object");
@@ -463,7 +469,7 @@ mod tests {
     #[tokio::test]
     async fn clear_only_removes_objects_and_waits_for_install() {
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         fs::create_dir_all(store.cache.join("objects/sha512")).unwrap();
         for file in ["index.json", "pack.mrpack", "objects/sha512/blob"] {
             fs::write(store.cache.join(file), file).unwrap();

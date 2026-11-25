@@ -519,6 +519,7 @@ pub(super) mod tests {
             .manage(Arc::new(crate::logging::LogTail::new(
                 quiet_file.path().into(),
             )))
+            .manage(crate::http::Transport::new().unwrap())
             .manage(crate::downloads::CancelFlags::default())
             .manage(dispatcher.clone())
             .invoke_handler(crate::bind_at_dispatch(|_| false))
@@ -650,6 +651,35 @@ pub(super) mod tests {
             while !CHANNELS.with_borrow(HashMap::is_empty) {
                 tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
             }
+        }
+        let view: &tauri::Webview<_> = window.as_ref();
+        let baseline = view.resources_table().names().count();
+        let documents = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        for code in [304, 204, 404].into_iter().cycle().take(12) {
+            let (work, reply) = dispatch(
+                "fetch_http_document",
+                serde_json::json!({
+                    "request": { "url": format!("http://{}/", documents.local_addr().unwrap()), "method":"GET","headers":[] }
+                }),
+            );
+            let (worker, ()) = tokio::join!(tokio::spawn(work), async {
+                use crate::downloads::mock_http::{accept_request, respond};
+                let (socket, _) = accept_request(&documents).await;
+                respond(
+                    socket,
+                    format!("HTTP/1.1 {code} test\r\nContent-Length: 0\r\n\r\n").as_bytes(),
+                )
+                .await;
+            });
+            worker.unwrap();
+            tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+            assert!(matches!(
+                reply.try_recv(),
+                Ok(InvokeResponse::Ok(InvokeResponseBody::Raw(_)))
+            ));
+            assert_eq!(view.resources_table().names().count(), baseline);
         }
         let quiet = tauri::WebviewWindowBuilder::new(&app, "quiet", Default::default())
             .build()

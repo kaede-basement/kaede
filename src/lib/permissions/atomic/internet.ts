@@ -153,19 +153,15 @@ function buildSafeResponse(response: Response): RestrictedResponse {
   });
 }
 
-function hook({ id, url, argument, method, label, body }: {
+function hook({ id, url, argument, method, label }: {
   "id"      : string;
   "url"     : string | unknown;
   "argument": string;
   "method"  : "GET" | "POST";
   "label"   : "Web" | "Tauri";
-  "body"   ?: Uint8Array | ArrayBuffer | string;
 }): void {
   guard(url, argument);
-  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-    `The '${id}' plugin made a ${label} fetch call with the next params`,
-    { url, argument, method, body },
-  ));
+  log.debug(__PRE_BUNDLED_FILENAME__, `Extension '${id}' issued a ${label} ${method} request`);
 }
 
 /**
@@ -204,7 +200,9 @@ export function handleInternetPermission({
         "tauriFetch": async (url: string): Promise<RestrictedResponse> => {
           hook({ id, url, argument, method, "label": "Tauri" });
 
-          const response: Response = await tauriFetch(url, { method, "redirect": "manual" });
+          const response: Response = await tauriFetch(url, {
+            "maxRedirections": 0, method, "redirect": "manual",
+          });
 
           return buildSafeResponse(response);
         },
@@ -220,7 +218,7 @@ export function handleInternetPermission({
           contentType: string = "text/plain",
         ): Promise<RestrictedResponse> => {
           validateRequestData(body, contentType);
-          hook({ id, url, argument, method, "label": "Web", body });
+          hook({ id, url, argument, method, "label": "Web" });
 
           const response: Response = await fetch(url, {
             method,
@@ -245,9 +243,9 @@ export function handleInternetPermission({
           contentType: string = "text/plain",
         ): Promise<RestrictedResponse> => {
           validateRequestData(body, contentType);
-          hook({ id, url, argument, method, "label": "Tauri", body });
+          hook({ id, url, argument, method, "label": "Tauri" });
 
-          const response: Response = await tauriFetch(url, {
+          const response: Response = await tauriFetch(url, { "maxRedirections": 0,
             method,
 
             /*
@@ -259,8 +257,7 @@ export function handleInternetPermission({
             "redirect": "manual",
             "headers" : {
               "Content-Type": contentType,
-            },
-          });
+            } });
 
           return buildSafeResponse(response);
         },

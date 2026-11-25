@@ -1,4 +1,4 @@
-import { fetch } from "@tauri-apps/plugin-http";
+import { fetchDocument as fetch } from "@/lib/network/fetch-document.ts";
 
 import type { Entry } from "./storage.ts";
 

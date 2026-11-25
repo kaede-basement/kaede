@@ -16,10 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { MicrosoftAuth } from "@/constants/launcher.ts";
 import { log } from "@/lib/logging/log.ts";
+import { fetchDocument as fetch } from "@/lib/network/fetch-document.ts";
 import type { MicrosoftTokensType } from "@/types/auth/microsoft-auth.type.ts";
 
 /**
@@ -57,39 +56,18 @@ export async function requestMicrosoftTokens(grant: {
   const response: Response = await fetch(MicrosoftAuth.Endpoints.Token, {
     "method" : "POST",
     "headers": {
-
-      /*
-       * The empty value makes 'Origin' header absent from the request.
-       * Otherwise, the appended value is a WebView origin, which leads
-       * to an error 'AADSTS90023'.
-       *
-       * This requires 'unsafe-headers' feature enabled for 'tauri-plugin-http'
-       */
-      "Origin"      : "",
       "Content-Type": "application/x-www-form-urlencoded",
     },
     "body": body.toString(),
   });
 
   if (!response.ok) {
-    /*
-     * Errors are explained in the 'error' and 'error_description' fields.
-     * The description starts with a code ('AADSTS'):
-     * - AADSTS70000:   expired refresh token
-     * - AADSTS9002327: redirect URI is registered as an SPA
-     */
-    const details: string = await response
-      .json()
-      .then((parsed: { "error"?: string; "error_description"?: string }) => {
-        const error: string = parsed?.error ?? "unknown";
-        const description: string = parsed?.error_description ?? "no description";
-
-        return `${error}: ${description.slice(0, 256)}`;
-      })
-      .catch(() => "unknown");
+    const error = await response.json().catch(() => {});
+    const code = typeof error?.error_description === "string"
+      ? (/^AADSTS[0-9]+/).exec(error.error_description)?.[0] : undefined;
 
     throw new Error(
-      `The Microsoft token request failed with the status ${response.status} (${details})`,
+      `Microsoft token request failed with HTTP ${response.status}${code ? ` (${code})` : ""}`,
     );
   }
 

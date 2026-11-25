@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { APIEndpoints } from "@/constants/launcher.ts";
 import { CustomPatches, Patches } from "@/constants/meta.ts";
+import { cachedMetadata } from "@/lib/cache";
+import { getBaseDirectory } from "@/lib/file-manager/path.ts";
 import type {
   ExtendedPatchUIDType,
   PatchDependencyType,
@@ -36,6 +36,11 @@ type BMCLAPIOptiFineType = Partial<{
   "forge"    : string;
 }>;
 
+function hasVersions(value: unknown): value is { "versions": Array<PatchIndexVersionType> } {
+  return !!value && typeof value === "object" && "versions" in value
+    && Array.isArray(value.versions) && typeof value.versions[0]?.version === "string";
+}
+
 export async function fetchAllVersions(
   uid: ExtendedPatchUIDType,
   minecraftPatchVersion?: string,
@@ -47,16 +52,12 @@ export async function fetchAllVersions(
       APIEndpoints.BMCLAPI.Paths.OptiFine.Base +
       minecraftPatchVersion;
 
-    const response: Response = await fetch(versionEndpoint);
-    const data: unknown = await response.json();
-
-    /*
-     * BMCLAPI answers with '{ "msg": "no such optifine" }' when it knows nothing
-     * about a Minecraft version, so this cannot be assumed to be an array
-     */
-    if (!Array.isArray(data)) {
-      throw new TypeError(`No OptiFine versions for Minecraft ${minecraftPatchVersion}`);
-    }
+    const { data } = await cachedMetadata({
+      "baseDirectory": getBaseDirectory(),
+      "relativePath" : `bmclapi/optifine/${minecraftPatchVersion}.json`,
+      "url"          : versionEndpoint,
+      "validate"     : Array.isArray,
+    });
 
     // Reverse as it seems like first entries are the oldest ones
     return (data as Array<BMCLAPIOptiFineType>).reverse().map(entry => ({
@@ -74,26 +75,13 @@ export async function fetchAllVersions(
   }
 
   const url: string = APIEndpoints.Meta.Base + uid;
-  const response: Response = await fetch(url);
-  const parsed: unknown = await response.json();
-
-  if (typeof parsed !== "object" || parsed === null) {
-    throw new Error("The provided metadata is invalid");
-  }
-
-  if (!("versions" in parsed) || !Array.isArray(parsed.versions)) {
-    throw new Error("No versions in the provided metadata");
-  }
-
-  const entry: unknown = parsed.versions?.[0];
-
-  if (typeof entry !== "object" || entry === null) {
-    throw new Error("The parsed versions are invalid");
-  }
-
-  if (!("version" in entry)) {
-    throw new Error("No version field in the parsed versions");
-  }
+  const { "data": parsed } = await cachedMetadata({
+    url,
+    "baseDirectory"      : getBaseDirectory(),
+    "relativePath"       : uid + ".json",
+    "allowUnindexedPatch": true,
+    "validate"           : hasVersions,
+  });
 
   if (uid !== Patches.Minecraft && minecraftPatchVersion) {
     return parsed.versions.filter(currentVersion => {

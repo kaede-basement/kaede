@@ -16,13 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { LaunchStatus } from "@/constants/launcher.ts";
 import { cachedMetadata } from "@/lib/cache";
 import { SchemaError, ValidationError } from "@/lib/cache/storage.ts";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/log.ts";
+import { fetchDocument as fetch } from "@/lib/network/fetch-document.ts";
 import type {
   LaunchKeyType,
   LaunchStatusType,

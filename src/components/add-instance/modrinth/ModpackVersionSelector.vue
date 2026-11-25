@@ -18,22 +18,16 @@
 
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
-import { writeFile } from "@tauri-apps/plugin-fs";
-import { fetch } from "@tauri-apps/plugin-http";
 import { onClickOutside } from "@vueuse/core";
-import { markRaw, ref, useTemplateRef } from "vue";
+import { markRaw, useTemplateRef, watch } from "vue";
 
 import { InstanceCreationSections } from "@/constants/application.ts";
-import FileStructure from "@/constants/file-structure.ts";
 import { ModrinthAPI } from "@/constants/modrinth.ts";
-import Errors from "@/lib/errors";
-import FileManager from "@/lib/file-manager";
-import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
+import { usePackSelection } from "@/lib/modrinth/select-pack.ts";
 import { globalStates } from "@/states/global.ts";
-import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 
-const { idRoot, projectId, projectName, projectIcon, close } = defineProps<{
+const { idRoot, projectId, projectIcon, close } = defineProps<{
   "idRoot"     : string;
   "projectId"  : string;
   "projectName": string;
@@ -43,135 +37,28 @@ const { idRoot, projectId, projectName, projectIcon, close } = defineProps<{
 
 const container = useTemplateRef("container");
 
-const pending = ref<boolean>(false);
-
 const { data, status, error } = useQuery({
   "queryKey": [
     "modrinth",
     ModrinthAPI.ProjectType,
-    projectId,
+    (): string => projectId,
     "version",
   ],
   // For some reason, 'useQuery' makes 'data' deeply reactive...
   "queryFn": async () => markRaw(await Modrinth.fetchVersion(projectId)),
 });
 
-async function handleClick(event: MouseEvent): Promise<void> {
-  if (!data.value) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "The version was clicked, yet the version data is undefined. How did you do it?",
-    );
-  }
-
-  let index: number = Number.NaN;
-
-  if (event.target instanceof HTMLElement) {
-    index = Number(event.target.dataset.entry);
-  }
-
-  if (Number.isNaN(index)) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `The extracted version index of '${projectName}' is not a number`,
-    );
-  }
-
-  pending.value = true;
-  const currentEntry = data.value[index];
-  const packURL: string | undefined = currentEntry.files[0].url;
-
-  if (!packURL) {
-    pending.value = false;
-
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `No '.mrpack' file URL was found in the metadata for '${currentEntry.version_number}'`,
-    );
-  }
-
-  const response: Response | {
-    "status": string;
-    "ok"    : false;
-    // I don't want to wrap it in 'try {} catch {}'
-  } = await fetch(packURL).catch(error => {
-    // Lol
-    return { "status": Errors.prettify(error), "ok": false as const };
-  });
-
-  if (!response.ok) {
-    pending.value = false;
-
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `Fetch failed with '${response.status}'`,
-    );
-  }
-
-  const bytes: Uint8Array | false = await response.bytes().catch(error => {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to get bytes:",
-      Errors.prettify(error),
-    );
-
-    return false;
-  });
-
-  if (bytes === false) {
-    pending.value = false;
-
-    return;
-  }
-
-  const cachePath: string = FileManager.join(
-    FileManager.getBaseDirectory(),
-    FileStructure.Folders.Cache.Path,
-    projectName + currentEntry.version_number + currentEntry.game_versions[0] + ".mrpack",
-  );
-
-  const written: void | false = await writeFile(cachePath, bytes)
-    .catch(error => {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Failed to write file:",
-        Errors.prettify(error),
-      );
-
-      return false;
-    });
-
-  if (written === false) {
-    pending.value = false;
-
-    return;
-  }
-
-  const manifest: MrpackManifestType | undefined | void =
-    await Modrinth.peekMrpack(cachePath)
-      .catch(error => {
-        return log.error(
-          __PRE_BUNDLED_FILENAME__,
-          "Error while peeking the '.mrpack' manifest:",
-          Errors.prettify(error),
-        );
-      });
-
-  pending.value = false;
-
-  if (!manifest) {
-    return;
-  }
+const { pending, failure, select, stop } = usePackSelection(({ manifest, path }) => {
+  Modrinth.applyManifest({ manifest, path });
   close();
-
-  Modrinth.applyManifest({ manifest, "path": cachePath });
   globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
 
   if (projectIcon && globalStates.pages["add-instance"]?.instance) {
     globalStates.pages["add-instance"].instance.icon = projectIcon;
   }
-}
+});
 
+watch((): string => projectId, stop, { "flush": "sync" });
 onClickOutside(container, close);
 </script>
 
@@ -181,18 +68,22 @@ onClickOutside(container, close);
     ref="container"
     class="absolute right-4 top-16 z-100 max-h-120 w-80 overflow-y-auto rounded-md bg-neutral-900 text-white"
   >
-    <button
+    <div :id="`${idRoot}-feedback`" class="sticky top-0 bg-neutral-900">
+      <button v-if="pending" :id="`${idRoot}-stop`" class="p-2" @click="stop">Stop</button>
+      <p v-if="failure" :id="`${idRoot}-failure`" class="break-words p-2" role="alert">
+        {{ failure }}
+      </p>
+    </div>
+    <div
       v-if="data"
-      :disabled="pending"
-      @click="handleClick"
       :id="`${idRoot}-data`"
-      class="w-full flex flex-col break-all text-wrap text-sm disabled:opacity-70"
+      class="w-full flex flex-col break-all text-wrap text-sm"
     >
-      <span
-        v-for="(entry, index) in data"
+      <button
+        v-for="entry in data"
         :key="entry.id"
         :id="`${idRoot}-${entry.id}`"
-        :data-entry="index"
+        @click="select(entry.files)"
         class="flex flex-nowrap border-b border-neutral-600 p-2 hover:bg-[theme(colors.neutral.100/.1)]"
       >
         <span
@@ -213,8 +104,8 @@ onClickOutside(container, close);
         >
           {{ entry.loaders[0] }}
         </span>
-      </span>
-    </button>
+      </button>
+    </div>
     <div
       v-else-if="status !== 'error'"
       :id="`${idRoot}-pending`"
@@ -229,5 +120,6 @@ onClickOutside(container, close);
     >
       An error occurred: {{ error }}
     </div>
+
   </div>
 </template>

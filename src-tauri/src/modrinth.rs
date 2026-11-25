@@ -129,6 +129,83 @@ pub(crate) fn install_mrpack<R: tauri::Runtime>(
     })
 }
 
+#[derive(Deserialize)]
+struct PackRequest {
+    url: String,
+    size: u64,
+    hashes: RawHashes,
+}
+
+#[derive(Serialize)]
+pub(crate) struct SelectedPack {
+    manifest: MrpackManifest,
+    path: PathBuf,
+}
+
+pub(crate) fn download_mrpack<R: tauri::Runtime>(
+    invoke: &crate::Invoke<R>,
+) -> Result<impl std::future::Future<Output = Result<SelectedPack, String>>, tauri::ipc::InvokeError>
+{
+    const NAME: &str = "download_mrpack";
+    let transport = crate::argument::<State<crate::http::Transport>, _>(invoke, NAME, "transport")?
+        .inner()
+        .clone();
+    let cache = crate::argument::<State<ModStore>, _>(invoke, NAME, "store")?
+        .cache
+        .clone();
+    let flags: State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
+    let id: String = crate::argument(invoke, NAME, "cancelId")?;
+    let pack = crate::argument(invoke, NAME, "file")?;
+    let registration = flags.register(&id);
+    Ok(async move {
+        crate::downloads::supervise(&registration, None, move |stop| {
+            stage_pack(transport, cache, pack, stop)
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    })
+}
+
+async fn stage_pack(
+    transport: crate::http::Transport,
+    cache: PathBuf,
+    pack: PackRequest,
+    mut stop: crate::downloads::TransferStop,
+) -> Result<SelectedPack, String> {
+    HashAlgorithm::Sha512.validate(&pack.hashes.sha512)?;
+    HashAlgorithm::Sha1.validate(&pack.hashes.sha1)?;
+    let path = cache.join(format!(
+        "{}.mrpack",
+        pack.hashes.sha512.to_ascii_lowercase()
+    ));
+    tokio::task::spawn_blocking(move || crate::mod_store::plain_directory(&cache))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    let partial = crate::downloads::stream_temp(
+        &transport,
+        &pack.url,
+        &path,
+        Some(pack.size),
+        &[
+            (HashAlgorithm::Sha512, &pack.hashes.sha512),
+            (HashAlgorithm::Sha1, &pack.hashes.sha1),
+        ],
+        &Default::default(),
+        &mut stop,
+    )
+    .await
+    .map_err(DownloadError::install_message)?;
+    tokio::task::spawn_blocking(move || {
+        let manifest = peek(&partial)?.ok_or("Missing modrinth.index.json")?;
+        stop.publish(partial, &path)
+            .map_err(DownloadError::install_message)?;
+        Ok(SelectedPack { manifest, path })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 pub async fn peek_mrpack(archive_path: String) -> Result<Option<MrpackManifest>, String> {
     tokio::task::spawn_blocking(move || peek(Path::new(&archive_path)))
         .await
@@ -697,6 +774,76 @@ mod tests {
     use super::*;
     use crate::downloads::mock_http::{accept_request, respond};
     use std::io::Write;
+    #[tokio::test]
+    async fn selector_restarts_partial_bodies_and_validates_before_publish() {
+        use crate::hashing::hash_bytes;
+        use std::io::{Read, Seek};
+        let mut zip = archive(&[(MANIFEST_ENTRY, "{}")]).into_inner();
+        zip.rewind().unwrap();
+        let mut bytes = Vec::new();
+        zip.read_to_end(&mut bytes).unwrap();
+        for fault in ["truncated", "sha1", "sha512", "size", "manifest", "cancel"] {
+            let root = tempfile::tempdir().unwrap();
+            let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+                .await
+                .unwrap();
+            let body = if fault == "manifest" {
+                b"broken".as_slice()
+            } else {
+                &bytes
+            };
+            let hashes = RawHashes {
+                sha1: hash_bytes::<sha1::Sha1>(if fault == "sha1" { b"" } else { body }),
+                sha512: hash_bytes::<sha2::Sha512>(if fault == "sha512" { b"" } else { body }),
+            };
+            let target = root.path().join(format!("{}.mrpack", hashes.sha512));
+            std::fs::write(&target, b"existing").unwrap();
+            let pack = PackRequest {
+                url: format!("http://{}", listener.local_addr().unwrap()),
+                size: body.len() as u64 + u64::from(fault == "size"),
+                hashes,
+            };
+            let (tx, signal) = CancelSignal::channel();
+            let cache = root.path().to_owned();
+            let transfer = crate::downloads::supervise(&signal, None, move |stop| {
+                stage_pack(crate::http::Transport::new().unwrap(), cache, pack, stop)
+            });
+            let server = async {
+                let (mut socket, _) = accept_request(&listener).await;
+                if fault == "cancel" {
+                    tx.send_replace(true);
+                    return;
+                }
+                if fault == "truncated" {
+                    respond(
+                        socket,
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\ncorrupt prefix",
+                    )
+                    .await;
+                    (socket, _) = accept_request(&listener).await;
+                }
+                let mut response =
+                    format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len())
+                        .into_bytes();
+                response.extend_from_slice(body);
+                respond(socket, &response).await;
+            };
+            let (result, ()) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                tokio::join!(transfer, server)
+            })
+            .await
+            .unwrap();
+            let result = result.unwrap();
+            if fault == "truncated" {
+                assert_eq!(result.unwrap().path, target);
+                assert_eq!(std::fs::read(target).unwrap(), body);
+            } else {
+                assert!(result.is_err(), "{fault}");
+                assert_eq!(std::fs::read(target).unwrap(), b"existing");
+            }
+            assert_eq!(root.path().read_dir().unwrap().count(), 1);
+        }
+    }
     #[test]
     fn missing_corrupt_and_unsafe_manifest_are_distinct() {
         for contents in [
@@ -750,7 +897,7 @@ mod tests {
     #[tokio::test]
     async fn cancel_preserves_verified_objects_and_retry_is_independent() {
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
             .await
             .unwrap();
@@ -908,7 +1055,7 @@ mod tests {
                 zip.start_file("overrides/../../outside", options).unwrap();
             }
             zip.finish().unwrap();
-            let store = ModStore::new(root.path());
+            let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
             let flags = CancelFlags::default();
             let target = root.path().join("instances/id");
             assert!(install(
@@ -962,7 +1109,7 @@ mod tests {
             }
         }
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let target = root.path().join("instance");
         let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
             .await
@@ -1015,7 +1162,7 @@ mod tests {
     async fn override_only_install_does_not_open_object_cache() {
         let root = tempfile::tempdir().unwrap();
         std::fs::write(root.path().join("cache"), b"occupied").unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let target = root.path().join("instance");
         let (_tx, mut cancel) = CancelSignal::channel();
         let manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
@@ -1114,7 +1261,7 @@ mod tests {
             ),
         ] {
             let root = tempfile::tempdir().unwrap();
-            let store = ModStore::new(root.path());
+            let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
             let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
                 .await
                 .unwrap();
@@ -1159,7 +1306,7 @@ mod tests {
     #[tokio::test]
     async fn sibling_404_cancels_stalled_retry_and_reports_prior_integrity_error() {
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
             .await
             .unwrap();
@@ -1231,7 +1378,7 @@ mod tests {
     async fn terminal_integrity_failure_drains_stalled_sibling() {
         use tokio::io::AsyncWriteExt;
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
             .await
             .unwrap();
@@ -1302,7 +1449,7 @@ mod tests {
     async fn clear_admits_install_to_new_tree_while_old_body_stalls() {
         use tokio::io::AsyncWriteExt;
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
             .await
             .unwrap();
@@ -1391,7 +1538,7 @@ mod tests {
     async fn installs_reject_contradictions_and_evict_same_size_corruption() {
         for corrupt in [false, true] {
             let root = tempfile::tempdir().unwrap();
-            let store = ModStore::new(root.path());
+            let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
             let (mut file, path) = seed_blob(root.path(), b"good");
             let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
                 .await
@@ -1437,7 +1584,7 @@ mod tests {
     #[tokio::test]
     async fn fallback_mirror_admits_verified_bytes_after_404() {
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let (mut file, path) = seed_blob(root.path(), b"good");
         std::fs::remove_file(&path).unwrap();
         let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
@@ -1513,7 +1660,7 @@ mod tests {
     #[tokio::test]
     async fn missing_legacy_archive_permits_launch_and_keeps_migration_pending() {
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let flags = CancelFlags::default();
         for path in [root.path().join("moved.mrpack"), root.path().to_owned()] {
             assert_eq!(
@@ -1533,7 +1680,7 @@ mod tests {
     #[tokio::test]
     async fn legacy_repair_restores_missing_files_with_client_precedence() {
         let root = tempfile::tempdir().unwrap();
-        let store = ModStore::new(root.path());
+        let store = ModStore::new(root.path(), crate::http::Transport::new().unwrap());
         let (file, _) = seed_blob(root.path(), b"good");
         let indexed = serde_json::json!({"path":file.path,"hashes":{"sha1":file.sha1,"sha512":file.sha512},"downloads":[file.url],"fileSize":file.file_size});
         let mut existing = indexed.clone();
@@ -1615,7 +1762,7 @@ mod tests {
 
         let other = tempfile::tempdir().unwrap();
         std::fs::write(other.path().join("cache"), b"occupied").unwrap();
-        let unusable = ModStore::new(other.path());
+        let unusable = ModStore::new(other.path(), crate::http::Transport::new().unwrap());
         assert_eq!(
             repair(
                 pack.clone(),

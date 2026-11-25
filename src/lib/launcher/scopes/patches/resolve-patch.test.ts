@@ -18,13 +18,17 @@ test("index resolution pins the digest and explicit versions bypass the index", 
   } as PreLaunchInformationType;
 
   using hooks = spyOn(Hooks, "catchAsyncResponseHooks").mockResolvedValue("continue");
-  using cached = spyOn(cache, "cachedMetadata").mockImplementation(async options => {
+  type Options = Parameters<typeof cache.cachedMetadata>[0];
+
+  using cached = spyOn(cache, "cachedMetadata").mockImplementation(async (options: Options) => {
     if (options.relativePath !== "net.minecraft.json") throw new Error("offline");
     const data = { "versions": [{ "version": "1", sha256 }] };
 
     expect(options.validate?.(data)).toBe(true);
 
-    return { data, "bytes": (new Uint8Array), "hash": { "kind": "sha256", "sum": sha256 } };
+    const hash = { "kind": "sha256", "sum": sha256 } as const;
+
+    return { data, "bytes": (new Uint8Array), hash };
   });
 
   expect(await resolvePatch({ necessaries, "metadata": { "uid": "net.minecraft" } })).toBe(false);
