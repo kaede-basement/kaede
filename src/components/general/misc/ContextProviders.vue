@@ -19,7 +19,6 @@ import {
 } from "@/constants/application.ts";
 import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
-import { GlobalObject } from "@/extendable/global-object.ts";
 import Auth from "@/lib/auth";
 import Errors from "@/lib/errors";
 import Hooks from "@/lib/hooks";
@@ -27,9 +26,12 @@ import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/log.ts";
 import { rehydrateProcesses } from "@/lib/processes/core.ts";
+import { SpawnObservers } from "@/lib/processes/spawn-process.ts";
 import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
-import { ActiveRuns, commitPlaytime, instanceStates, startPlaytime } from "@/states/instance.ts";
+import {
+  ActiveRuns, commitPlaytime, missingRunHandlers, startPlaytime,
+} from "@/states/instance.ts";
 import type {
   ProcessHandlersType,
   ProcessHandleType,
@@ -47,32 +49,33 @@ const accounts = shallowRef(inject<Array<AccountType>>(AuthOneTimeFetchContextKe
 const launches = reactive<Record<string, LauncherStatusesType>>({});
 const logs = shallowReactive<Record<string, { "list": Array<string>; "dropped": number }>>({});
 
-const pendingLaunches = new Map<string, (process: MinecraftProcessType) => void>;
+const pendingLaunches = new Set<string>;
 
-const afterLaunch = GlobalObject.hooks.onMinecraftLaunch.after;
-const recordSpawn: typeof afterLaunch[number] = async ({ instanceId, process }) => {
-  pendingLaunches.get(instanceId)?.(process as MinecraftProcessType);
-};
-
-afterLaunch.unshift(recordSpawn);
-onUnmounted(() => {
-  const index = afterLaunch.indexOf(recordSpawn);
-
-  if (index !== -1) {
-    afterLaunch.splice(index, 1);
+function recordSpawn(handle: ProcessHandleType, startedAt: number): void {
+  if (handle.kind !== "minecraft") {
+    return;
   }
-});
+  const process = handle as MinecraftProcessType;
+  const { instanceId } = process.meta;
+
+  if (pendingLaunches.has(instanceId)) {
+    startPlaytime(instanceId, process, false, startedAt);
+  }
+}
+SpawnObservers.add(recordSpawn);
+onUnmounted(() => SpawnObservers.delete(recordSpawn));
+
+function syncExitedPlaytime(): Promise<void> {
+  return Instances.sync().catch(error => log.error(__PRE_BUNDLED_FILENAME__, "Exit sync:", error));
+}
 
 function onClose(instanceId: string, endedAt = performance.now()): void {
   const process = ActiveRuns.get(instanceId)?.process;
 
   if (process) {
     commitPlaytime(instanceId, process.token, endedAt);
-  } else if (instanceStates[instanceId]) {
-    // The native exit event can arrive before spawn returns its handle.
-    instanceStates[instanceId].lastLaunch = Date.now();
   }
-  void Instances.sync().catch(error => log.error(__PRE_BUNDLED_FILENAME__, "Exit sync:", error));
+  void syncExitedPlaytime();
 
   launches[instanceId].launching = 0;
   launches[instanceId].current = LaunchStatus.General.Aborted;
@@ -152,13 +155,8 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
 
   launches[instanceId] = launchStatus(instanceId, false);
   const statuses = launches[instanceId];
-  const recordProcess = (process: MinecraftProcessType): void => {
-    if (statuses.launching !== 0) {
-      startPlaytime(instanceId, process);
-    }
-  };
 
-  pendingLaunches.set(instanceId, recordProcess);
+  pendingLaunches.add(instanceId);
 
   try {
     const onInput = createLogSink(instanceId);
@@ -191,7 +189,7 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
     } else {
       statuses.launching = success ? 2 : 0;
       if (success && process && !ActiveRuns.has(instanceId)) {
-        recordProcess(process);
+        startPlaytime(instanceId, process);
       }
     }
   } catch (error: unknown) {
@@ -261,9 +259,14 @@ function attach(handle: ProcessHandleType, endedAt?: number): ProcessHandlersTyp
 
 async function rehydrateLaunchedInstances(): Promise<void> {
   await Watchers.watchProcesses();
+  const tracked = missingRunHandlers();
+
   await rehydrateProcesses(attach, (handle, { payload, endedAt }) => {
     attach(handle, endedAt)?.onExit?.(payload);
-  });
+  }, tracked);
+  if (tracked.size > 0) {
+    await syncExitedPlaytime();
+  }
 }
 let hydration: Promise<boolean> | undefined;
 

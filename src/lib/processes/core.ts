@@ -45,7 +45,13 @@ export function toProcessHandle<Meta>({
 type ExitPayload = Parameters<NonNullable<ProcessHandlersType["onExit"]>>[0] & { "token": string };
 type BufferedExit = { "payload": ExitPayload; "endedAt": number; "handled": boolean };
 const maxBufferedExits = 256;
-const pendingLists = new Set<Map<string, BufferedExit>>;
+
+type Recovery = {
+  "recent"      : Map<string, BufferedExit>;
+  "tracked"     : ReadonlyMap<string, (endedAt: number) => void>;
+  "trackedExits": Map<string, BufferedExit>;
+};
+const pendingLists = new Set<Recovery>;
 
 export function dispatchProcessExit(payload: ExitPayload): void {
   const handlers = ProcessHandlers.get(payload.token);
@@ -54,9 +60,11 @@ export function dispatchProcessExit(payload: ExitPayload): void {
   if (pendingLists.size > 0) {
     const exit = { payload, "endedAt": performance.now(), "handled": handlers !== undefined };
 
-    for (const exits of pendingLists) {
-      if (exits.size <= maxBufferedExits) {
-        exits.set(payload.token, exit);
+    for (const { recent, tracked, trackedExits } of pendingLists) {
+      if (tracked.has(payload.token)) {
+        trackedExits.set(payload.token, exit);
+      } else if (recent.size <= maxBufferedExits) {
+        recent.set(payload.token, exit);
       }
     }
   }
@@ -66,42 +74,52 @@ export function dispatchProcessExit(payload: ExitPayload): void {
 export async function rehydrateProcesses(
   attach: (handle: ProcessHandleType) => ProcessHandlersType | undefined,
   onExited?: (handle: ProcessHandleType, exit: BufferedExit) => void,
+  tracked: ReadonlyMap<string, (endedAt: number) => void> = new Map,
 ): Promise<Array<ProcessHandleType>> {
-  const exits = new Map<string, BufferedExit>;
+  const recent = new Map<string, BufferedExit>;
+  const trackedExits = new Map<string, BufferedExit>;
+  const recovery = { recent, tracked, trackedExits };
 
-  pendingLists.add(exits);
+  pendingLists.add(recovery);
   try {
-    let overflow: boolean;
-    const running = [];
+    let processes: Array<ProcessDtoType>;
 
     do {
-      exits.clear();
-      const processes = await invoke<Array<ProcessDtoType>>("list_processes");
+      recent.clear();
+      processes = await invoke<Array<ProcessDtoType>>("list_processes");
+    } while (recent.size > maxBufferedExits);
 
-      overflow = exits.size > maxBufferedExits;
+    const absent = new Map(tracked);
 
-      for (const dto of processes) {
-        const exit = exits.get(dto.token);
+    for (const dto of processes) {
+      absent.delete(dto.token);
+    }
+    for (const [token, finish] of absent) {
+      finish(trackedExits.get(token)?.endedAt ?? performance.now());
+    }
 
-        if (exit) {
-          if (!exit.handled) {
-            onExited?.(toProcessHandle(dto), exit);
-          }
-        } else if (!overflow) {
-          const handle = toProcessHandle(dto);
-          const handlers = attach(handle);
+    const running = [];
 
-          if (handlers !== undefined) {
-            ProcessHandlers.set(dto.token, handlers);
-          }
-          running.push(handle);
+    for (const dto of processes) {
+      const exit = trackedExits.get(dto.token) ?? recent.get(dto.token);
+
+      if (exit) {
+        if (!exit.handled) {
+          onExited?.(toProcessHandle(dto), exit);
         }
+      } else {
+        const handle = toProcessHandle(dto);
+        const handlers = attach(handle);
+
+        if (handlers !== undefined) {
+          ProcessHandlers.set(dto.token, handlers);
+        }
+        running.push(handle);
       }
-      // On overflow, re-list before attaching any potentially stale handles.
-    } while (overflow);
+    }
 
     return running;
   } finally {
-    pendingLists.delete(exits);
+    pendingLists.delete(recovery);
   }
 }

@@ -21,7 +21,7 @@ import { watch } from "vue";
 
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
-import { instanceStates, restoreFinishedPlaytime } from "@/states/instance.ts";
+import { instanceStates, restorePlaytime } from "@/states/instance.ts";
 
 function write(): Promise<void> {
   return Instances.sync().catch(error => {
@@ -35,7 +35,7 @@ function write(): Promise<void> {
 export function watchInstancesSync(): () => void {
   const debouncedWrite = useDebounceFn(write, 300);
 
-  if (restoreFinishedPlaytime()) {
+  if (restorePlaytime()) {
     void write();
   }
 

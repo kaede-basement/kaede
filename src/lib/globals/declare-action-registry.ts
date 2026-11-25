@@ -34,6 +34,7 @@ import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
+import { checkpointActivePlaytime } from "@/states/instance.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { EnsureFreshResultType } from "@/types/auth/microsoft-auth.type.ts";
 import type { LaunchContextType } from "@/types/launcher/launch/launch-context.type.ts";
@@ -115,6 +116,7 @@ export function declareActionRegistry(): void {
     ActionKeys.ContextMenuSoftReload,
     async (): Promise<void> => {
       await Instances.sync();
+      checkpointActivePlaytime();
       window.location.reload();
     },
   );
