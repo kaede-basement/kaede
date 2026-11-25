@@ -4,7 +4,6 @@ use serde::Serialize;
 /// ATTENTION: AI-generated (by Qwen 3.8-Max and Claude Fable 5 on 'max' reasoning)
 ///
 use std::{
-    collections::VecDeque,
     fs::File,
     io::{self, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -32,7 +31,8 @@ struct Subscription {
     generation: u64,
     active: Option<ActiveViewer>,
     sending: Option<ActiveViewer>,
-    stopped: VecDeque<u64>,
+    highest_viewer_id: Option<u64>,
+    last_issued: u64,
 }
 
 #[derive(Clone)]
@@ -43,28 +43,19 @@ struct ActiveViewer {
 }
 
 impl Subscription {
-    fn remember(&mut self, viewer: Option<u64>) {
-        const RECENT_STOPS: usize = 64;
-        if let Some(id) = viewer {
-            if !self.stopped.contains(&id) {
-                if self.stopped.len() == RECENT_STOPS {
-                    self.stopped.pop_front();
-                }
-                self.stopped.push_back(id);
-            }
-        }
-    }
     fn begin(&mut self, viewer: Option<u64>) -> Option<u64> {
-        if viewer.is_some_and(|id| self.stopped.contains(&id))
-            || self
-                .active
-                .as_ref()
-                .is_some_and(|a| a.viewer.is_some() && (viewer.is_none() || viewer == a.viewer))
+        if let Some(id) = viewer {
+            if self.highest_viewer_id.is_some_and(|highest| id <= highest) {
+                return None;
+            }
+            self.highest_viewer_id = Some(id);
+        } else if self
+            .active
+            .as_ref()
+            .is_some_and(|active| active.viewer.is_some())
         {
             return None;
         }
-        let old = self.active.take().and_then(|a| a.viewer);
-        self.remember(old);
         self.generation += 1;
         self.active = Some(ActiveViewer {
             generation: self.generation,
@@ -75,7 +66,7 @@ impl Subscription {
     }
 
     fn stop(&mut self, viewer: Option<u64>) -> bool {
-        self.remember(viewer);
+        self.highest_viewer_id = self.highest_viewer_id.max(viewer);
         if self.active.as_ref().is_some_and(|a| a.viewer == viewer) {
             self.active = None;
             true
@@ -186,10 +177,8 @@ impl Cursor {
 }
 
 #[tauri::command]
-pub fn next_log_subscription_id() -> u64 {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static NEXT: AtomicU64 = AtomicU64::new(1);
-    NEXT.fetch_add(1, Ordering::Relaxed)
+pub fn next_log_subscription_id(state: State<'_, LogTail>) -> Result<u64, String> {
+    state.issue_viewer_id()
 }
 
 #[tauri::command]
@@ -201,6 +190,22 @@ pub async fn stop_log_stream(
 }
 
 impl LogTail {
+    fn issue_viewer_id(&self) -> Result<u64, String> {
+        let mut current = self.current.lock().unwrap();
+        current.last_issued = current
+            .last_issued
+            .max(current.highest_viewer_id.unwrap_or(0))
+            .checked_add(1)
+            .ok_or("Log viewer IDs exhausted")?;
+        Ok(current.last_issued)
+    }
+
+    pub fn stop_all(&self) {
+        let mut current = self.current.lock().unwrap();
+        current.active = None;
+        current.highest_viewer_id = current.highest_viewer_id.max(Some(current.last_issued));
+    }
+
     async fn stop(&self, viewer: Option<u64>) -> bool {
         let (stopped, sending) = {
             let mut current = self.current.lock().unwrap();
@@ -365,8 +370,8 @@ mod tests {
     async fn delayed_stop_leaves_reopened_viewer_receiving_lines() {
         let file = tempfile::NamedTempFile::new().unwrap();
         let tail = LogTail::new(file.path().into());
-        let a = next_log_subscription_id();
-        let b = next_log_subscription_id();
+        let a = tail.issue_viewer_id().unwrap();
+        let b = tail.issue_viewer_id().unwrap();
         let original = tail.stream(Channel::new(|_| Ok(())), Some(a));
         tokio::pin!(original);
         assert!(futures_util::poll!(&mut original).is_pending());
@@ -393,6 +398,36 @@ mod tests {
         }).await.unwrap();
     }
 
+    #[tokio::test]
+    async fn delayed_start_cannot_evict_new_viewer_and_reload_retires_quiet_poll() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let tail = LogTail::new(file.path().into());
+        let a = tail.issue_viewer_id().unwrap();
+        let b = tail.issue_viewer_id().unwrap();
+        let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let stream = tail.stream(
+            Channel::new(move |event| {
+                events.send(event).unwrap();
+                Ok(())
+            }),
+            Some(b),
+        );
+        tokio::pin!(stream);
+        tokio::time::timeout(Duration::from_secs(5), async {
+            tokio::select! { _ = &mut stream => panic!("stream ended"), _ = rx.recv() => {} }
+            tail.stream(Channel::new(|_| panic!("stale start sent")), Some(a)).await.unwrap();
+            assert!(!tail.stop(Some(a)).await);
+            std::fs::write(file.path(), "still watching\n").unwrap();
+            let event = tokio::select! { _ = &mut stream => panic!("stream ended"), e = rx.recv() => e.unwrap() };
+            let tauri::ipc::InvokeResponseBody::Json(json) = event else {panic!()};
+            assert_eq!(serde_json::from_str::<serde_json::Value>(&json).unwrap()["data"], serde_json::json!(["still watching"]));
+            let pending = tail.issue_viewer_id().unwrap();
+            tail.stop_all();
+            stream.await.unwrap();
+            tail.stream(Channel::new(|_| panic!("retired page sent")), Some(pending)).await.unwrap();
+        }).await.unwrap();
+    }
+
     #[test]
     fn replaced_viewer_cannot_stop_current_stream() {
         let mut sub = Subscription::default();
@@ -407,10 +442,11 @@ mod tests {
         let mut sub = Subscription::default();
         assert!(!sub.stop(Some(100)));
         assert_eq!(sub.begin(Some(100)), None);
-        assert!(sub.begin(Some(12)).is_some());
-        assert!(sub.begin(Some(1)).is_some());
         assert!(sub.begin(Some(12)).is_none());
-        assert!(sub.stop(Some(1)));
+        assert!(sub.begin(Some(101)).is_some());
+        assert!(sub.begin(Some(102)).is_some());
+        assert!(sub.begin(Some(101)).is_none());
+        assert!(sub.stop(Some(102)));
     }
     #[test]
     fn long_records_are_bounded_and_preserve_utf8() {

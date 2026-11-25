@@ -121,16 +121,48 @@ fn publish_resize(
 ) -> Result<(), String> {
     if let Err(error) = stage.persist_noclobber(path) {
         // Windows may report a sharing violation when a reader holds the winner open.
-        let winner = std::fs::File::open(path).ok().and_then(|file| {
-            image::ImageReader::with_format(std::io::BufReader::new(file), format)
-                .decode()
-                .ok()
-        });
-        if !winner.is_some_and(|img| img.width() == width && img.height() == height) {
+        let dimensions = published_dimensions(path, format).ok();
+        if dimensions != Some((width, height)) {
             return Err(error.to_string());
         }
     }
     Ok(())
+}
+
+fn published_dimensions(path: &Path, format: image::ImageFormat) -> image::ImageResult<(u32, u32)> {
+    use std::io::{self, Read, Seek, SeekFrom};
+    let mut reader = io::BufReader::new(std::fs::File::open(path)?);
+    // Dimensions alone survive a short write after the header. Check the
+    // container's declared length (WebP) or final empty IEND chunk (PNG).
+    let complete = match format {
+        image::ImageFormat::WebP => {
+            reader.seek(SeekFrom::Start(4))?;
+            let mut size = [0; 4];
+            reader.read_exact(&mut size)?;
+            u64::from(u32::from_le_bytes(size)) + 8 == reader.get_ref().metadata()?.len()
+        }
+        image::ImageFormat::Png => {
+            const IEND: &[u8; 12] = b"\0\0\0\0IEND\xaeB\x60\x82";
+            reader.seek(SeekFrom::End(-12))?;
+            let mut end = [0; 12];
+            reader.read_exact(&mut end)?;
+            &end == IEND
+        }
+        _ => false,
+    };
+    if !complete {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Incomplete resized image").into());
+    }
+    reader.rewind()?;
+    let image = image::ImageReader::new(reader).with_guessed_format()?;
+    if image.format() != Some(format) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Unexpected resized image format",
+        )
+        .into());
+    }
+    image.into_dimensions()
 }
 
 #[cfg(test)]
@@ -155,13 +187,9 @@ mod tests {
         }
         let held = options.open(&path).unwrap();
         let publish = || {
-            publish_resize(
-                crate::file_system::staging_file(root.path()).unwrap(),
-                &path,
-                image::ImageFormat::Png,
-                4,
-                4,
-            )
+            let mut stage = crate::file_system::staging_file(root.path()).unwrap();
+            stage.write_all(bytes.get_ref()).unwrap();
+            publish_resize(stage, &path, image::ImageFormat::Png, 4, 4)
         };
         publish().unwrap();
         drop(held);
@@ -169,6 +197,26 @@ mod tests {
         std::fs::write(&path, b"broken").unwrap();
         assert!(publish().is_err());
         assert_eq!(root.path().read_dir().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn large_webp_collision_checks_dimensions_without_decoding_pixels() {
+        // cwebp -lossless -m 0, solid black 12000 x 12000.
+        const WEBP: &[u8] = b"RIFF\x1a\0\0\0WEBPVP8L\x0e\0\0\0\x2f\xdf\xee\xb7\x0b\x07\x10\x11\xfd\x0f\x44\x44\xff\x03";
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("large.webp");
+        let publish = |width| {
+            let mut stage = crate::file_system::staging_file(root.path()).unwrap();
+            stage.write_all(WEBP).unwrap();
+            publish_resize(stage, &path, image::ImageFormat::WebP, width, 12000)
+        };
+        std::fs::write(&path, WEBP).unwrap();
+        publish(12000).unwrap();
+        assert!(publish(11999).is_err());
+        std::fs::write(&path, &WEBP[..WEBP.len() - 1]).unwrap();
+        assert!(publish(12000).is_err());
+        std::fs::write(&path, &WEBP[..16]).unwrap();
+        assert!(publish(12000).is_err());
     }
 
     #[tokio::test]

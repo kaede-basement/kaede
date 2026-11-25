@@ -45,6 +45,9 @@ pub fn run() {
     let builder = builder.invoke_system(include_str!("hybrid_ipc.js"));
     let builder = builder.on_page_load(|webview, load| {
         if load.event() == tauri::webview::PageLoadEvent::Started {
+            if let Some(tail) = webview.try_state::<logging::LogTail>() {
+                tail.stop_all();
+            }
             downloads::end_reservation_scope(&mut webview.resources_table());
             #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::page_left(webview);
@@ -52,6 +55,9 @@ pub fn run() {
     });
     let builder = builder.on_window_event(|window, event| {
         if matches!(event, tauri::WindowEvent::Destroyed) {
+            if let Some(tail) = window.try_state::<logging::LogTail>() {
+                tail.stop_all();
+            }
             downloads::end_reservation_scope(&mut window.resources_table());
             #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::window_destroyed(window.label());

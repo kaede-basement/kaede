@@ -250,6 +250,7 @@ pub struct DownloadReport {
 #[derive(Debug)]
 pub(crate) enum DownloadError {
     Cancelled,
+    Integrity(String),
     Other(String),
 }
 
@@ -480,31 +481,48 @@ impl CancelFlags {
             return Err("Expired install reservation".into());
         }
         let decision = InstallDecision::default();
-        if *entry.flag.borrow() {
+        entry.install = InstallPhase::Running(decision.clone());
+        let registration = Registration {
+            flags: self.clone(),
+            id: id.into(),
+            receiver: entry.flag.subscribe(),
+            install: Some(decision.clone()),
+        };
+        drop(entries);
+        if *registration.borrow() {
             decision.claim();
         }
-        entry.install = InstallPhase::Running(decision.clone());
-        Ok((
-            Registration {
-                flags: self.clone(),
-                id: id.into(),
-                receiver: entry.flag.subscribe(),
-                install: Some(decision.clone()),
-            },
-            decision,
-        ))
+        Ok((registration, decision))
     }
 
     fn cancel(&self, id: &str) -> bool {
-        let entries = self.0.lock().unwrap();
-        let Some(entry) = entries.get(id) else {
+        let flag = self
+            .0
+            .lock()
+            .unwrap()
+            .get(id)
+            .map(|entry| entry.flag.clone());
+        let Some(flag) = flag else {
             return false;
         };
-        if matches!(&entry.install, InstallPhase::Running(d) if !d.claim()) && entry.batches == 0 {
-            return false;
-        }
-        entry.flag.send_replace(true);
-        true
+        // Acquire the publication fence before the registry: a slow rename
+        // must not hold up registration for other cancellation groups.
+        flag.send_if_modified(|cancelled| {
+            let entries = self.0.lock().unwrap();
+            let Some(entry) = entries.get(id) else {
+                return false;
+            };
+            if !entry.flag.same_channel(&flag) {
+                return false;
+            }
+            if matches!(&entry.install, InstallPhase::Running(d) if !d.claim())
+                && entry.batches == 0
+            {
+                return false;
+            }
+            *cancelled = true;
+            true
+        })
     }
 
     pub(crate) fn register(&self, id: &str) -> Registration {
@@ -535,8 +553,14 @@ pub(crate) async fn client() -> Result<&'static reqwest::Client, String> {
 pub(crate) type Progress = Arc<Mutex<HashMap<String, FileProgress>>>;
 
 #[tauri::command]
-pub fn cancel_downloads(state: State<CancelFlags>, cancel_id: String) -> bool {
-    state.cancel(&cancel_id)
+pub async fn cancel_downloads(
+    state: State<'_, CancelFlags>,
+    cancel_id: String,
+) -> Result<bool, String> {
+    let flags = state.inner().clone();
+    tokio::task::spawn_blocking(move || flags.cancel(&cancel_id))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -662,7 +686,7 @@ async fn download_batch(
                         }
                         break;
                     }
-                    Err(DownloadError::Other(error)) => {
+                    Err(DownloadError::Integrity(error) | DownloadError::Other(error)) => {
                         failed.fetch_add(1, Ordering::Relaxed);
                         log::error!("{label}: could not download '{}': {error}", entry.url);
                         failures.push(FailedDownload {
@@ -723,32 +747,71 @@ async fn download_one(
     let path = PathBuf::from(&entry.path);
     let client = client.clone();
     let progress = progress.clone();
-    supervise(cancel, move |mut local| async move {
+    supervise(cancel, None, move |mut local| async move {
         staged_transfer(&client, transfer, path, &progress, &mut local).await
     })
     .await
     .map_err(DownloadError::other)?
 }
 
-// Closing the only sender wakes a stalled request on abandonment. The worker
-// retains its claim and completes blocking retirement before waking waiters.
+#[derive(Clone)]
+pub(crate) struct TransferStop {
+    user: watch::Receiver<bool>,
+    siblings: Option<watch::Receiver<bool>>,
+    abandoned: watch::Receiver<()>,
+}
+
+impl TransferStop {
+    pub(crate) async fn cancelled(&mut self) {
+        tokio::select! {
+            _ = self.user.wait_for(|v| *v) => (),
+            _ = self.abandoned.changed() => (),
+            _ = async {
+                match &mut self.siblings {
+                    Some(stop) => { let _ = stop.wait_for(|v| *v).await; }
+                    None => std::future::pending().await,
+                }
+            } => (),
+        }
+    }
+
+    fn publish(&self, partial: tempfile::TempPath, path: &Path) -> Result<(), DownloadError> {
+        let cancelled = self.user.borrow();
+        if *cancelled
+            || self.user.has_changed().is_err()
+            || self.abandoned.has_changed().is_err()
+            || self
+                .siblings
+                .as_ref()
+                .is_some_and(|s| *s.borrow() || s.has_changed().is_err())
+        {
+            return Err(DownloadError::Cancelled);
+        }
+        // cancel_downloads can acknowledge cancellation only before or after this rename.
+        partial.persist(path).map_err(DownloadError::other)?;
+        drop(cancelled);
+        Ok(())
+    }
+}
+
+// The supervisor owns the sender until completion. Dropping it wakes the
+// worker, which retains its claim through blocking retirement.
 pub(crate) async fn supervise<F, T>(
-    cancel: &mut watch::Receiver<bool>,
-    work: impl FnOnce(watch::Receiver<bool>) -> F,
+    user: &watch::Receiver<bool>,
+    siblings: Option<&watch::Receiver<bool>>,
+    work: impl FnOnce(TransferStop) -> F,
 ) -> Result<T, tokio::task::JoinError>
 where
     F: std::future::Future<Output = T> + Send + 'static,
     T: Send + 'static,
 {
-    let (stop, local) = watch::channel(*cancel.borrow());
-    let mut worker = tokio::spawn(work(local));
-    tokio::select! {
-        result = &mut worker => return result,
-        _ = cancel.wait_for(|v| *v) => {
-            stop.send_replace(true);
-        }
-    }
-    worker.await
+    let (_owner, abandoned) = watch::channel(());
+    tokio::spawn(work(TransferStop {
+        user: user.clone(),
+        siblings: siblings.cloned(),
+        abandoned,
+    }))
+    .await
 }
 
 async fn staged_transfer(
@@ -756,7 +819,7 @@ async fn staged_transfer(
     entry: ValidatedEntry,
     path: PathBuf,
     progress: &Progress,
-    cancel: &mut watch::Receiver<bool>,
+    cancel: &mut TransferStop,
 ) -> Result<(), DownloadError> {
     let parent = path
         .parent()
@@ -814,7 +877,7 @@ async fn staged_transfer(
             }
             Ok(Claim::Waiting { mut done, matches }) => tokio::select! {
                 biased;
-                _ = cancel.wait_for(|v| *v) => break Err(DownloadError::Cancelled),
+                _ = cancel.cancelled() => break Err(DownloadError::Cancelled),
                 _ = done.changed() => if *done.borrow() {
                     break if matches { Ok(()) } else { Err(DownloadError::other(format!("A different URL or integrity expectation was published for {}", path.display()))) }
                 }
@@ -834,7 +897,7 @@ pub(crate) async fn stream_file(
     size: Option<u64>,
     hashes: &[(HashAlgorithm, &str)],
     progress: &Progress,
-    cancel: &mut watch::Receiver<bool>,
+    cancel: &mut TransferStop,
 ) -> Result<(), DownloadError> {
     let parent = path
         .parent()
@@ -847,7 +910,7 @@ pub(crate) async fn stream_file(
     }
     let mut response = tokio::select! {
         biased;
-        _ = cancel.wait_for(|value| *value) => return Err(DownloadError::Cancelled),
+        _ = cancel.cancelled() => return Err(DownloadError::Cancelled),
         result = client.get(url).send() => result.and_then(|r| r.error_for_status()).map_err(DownloadError::other)?,
     };
     let parent = parent.to_owned();
@@ -871,7 +934,7 @@ pub(crate) async fn stream_file(
         loop {
             let chunk = tokio::select! {
                 biased;
-                _ = cancel.wait_for(|value| *value) => return Err(DownloadError::Cancelled),
+                _ = cancel.cancelled() => return Err(DownloadError::Cancelled),
                 result = response.chunk() => result.map_err(DownloadError::other)?,
             };
             let Some(chunk) = chunk else { break };
@@ -881,7 +944,7 @@ pub(crate) async fn stream_file(
                     .saturating_add(chunk.len() as u64)
                     > limit
             }) {
-                return Err(DownloadError::other(format!(
+                return Err(DownloadError::Integrity(format!(
                     "Size mismatch for {}",
                     path.display()
                 )));
@@ -910,14 +973,14 @@ pub(crate) async fn stream_file(
         result?;
         shutdown.map_err(DownloadError::other)?;
         if size.is_some_and(|size| size != downloaded.load(Ordering::Relaxed)) {
-            return Err(DownloadError::other(format!(
+            return Err(DownloadError::Integrity(format!(
                 "Size mismatch for {}",
                 path.display()
             )));
         }
         for (expected, hasher) in hashers {
             if !to_hex(&hasher.finalize()).eq_ignore_ascii_case(expected) {
-                return Err(DownloadError::other(format!(
+                return Err(DownloadError::Integrity(format!(
                     "Hash mismatch for {}",
                     path.display()
                 )));
@@ -927,11 +990,7 @@ pub(crate) async fn stream_file(
     })();
     tokio::task::spawn_blocking(move || {
         verified?;
-        if *cancel.borrow() || cancel.has_changed().is_err() {
-            return Err(DownloadError::Cancelled);
-        }
-        partial.persist(path).map_err(DownloadError::other)?;
-        Ok(())
+        cancel.publish(partial, &path)
     })
     .await
     .map_err(DownloadError::other)?
@@ -1042,6 +1101,43 @@ mod tests {
         assert!(*sibling.borrow());
         drop((run, sibling));
         assert!(flags.0.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn paused_supervisor_cannot_publish_after_accepted_cancel() {
+        let root = tempfile::tempdir().unwrap();
+        let target = root.path().join("download");
+        std::fs::write(&target, b"original").unwrap();
+        let mut staged = crate::file_system::staging_file(root.path()).unwrap();
+        std::io::Write::write_all(&mut staged, b"downloaded").unwrap();
+        let flags = CancelFlags::default();
+        let registration = flags.register("user");
+        let (ready, at_publication) = tokio::sync::oneshot::channel();
+        let (release, wait) = tokio::sync::oneshot::channel();
+        let (done, finished) = tokio::sync::oneshot::channel();
+        let path = target.clone();
+        let supervisor = supervise(&registration, None, move |stop| async move {
+            ready.send(()).unwrap();
+            wait.await.unwrap();
+            let result =
+                tokio::task::spawn_blocking(move || stop.publish(staged.into_temp_path(), &path))
+                    .await
+                    .unwrap();
+            done.send(result).unwrap();
+        });
+        tokio::pin!(supervisor);
+        assert!(futures_util::poll!(&mut supervisor).is_pending());
+        at_publication.await.unwrap();
+        assert!(flags.cancel("user"));
+        release.send(()).unwrap();
+        // No poll of the supervisor between cancellation and this publication attempt.
+        assert!(matches!(
+            finished.await.unwrap(),
+            Err(DownloadError::Cancelled)
+        ));
+        supervisor.await.unwrap();
+        assert_eq!(std::fs::read(target).unwrap(), b"original");
+        assert_eq!(root.path().read_dir().unwrap().count(), 1);
     }
 
     #[tokio::test]
@@ -1185,7 +1281,7 @@ mod tests {
                     respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nbad").await;
                 }
             );
-            assert!(matches!(result,Err(DownloadError::Other(e)) if e.contains("mismatch")));
+            assert!(matches!(result,Err(DownloadError::Integrity(e)) if e.contains("mismatch")));
             assert_eq!(std::fs::read(&path).unwrap(), b"original");
             assert_eq!(dir.path().read_dir().unwrap().count(), 1);
         }

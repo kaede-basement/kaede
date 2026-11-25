@@ -180,11 +180,12 @@ async fn install_manifest(
                 let Some((index, file)) = missing.next() else {
                     break;
                 };
-                let mut cancel = local.clone();
+                let user = cancel.clone();
+                let local = local.clone();
                 let store = store.clone();
                 pending.push(async move {
                     store
-                        .ensure(file, &mut cancel)
+                        .ensure(file, &user, Some(&local))
                         .await
                         .map(|blob| (index, blob))
                 });
@@ -276,9 +277,9 @@ pub async fn repair_legacy_mrpack(
             let _ = on_progress.send((done, total));
         },
     )
-    .await;
+    .await?;
     check_cancel(&cancel)?;
-    result
+    Ok(result)
 }
 
 fn missing_destination(extraction: &mut Extraction, name: &str) -> Result<Option<PathBuf>, String> {
@@ -421,7 +422,7 @@ async fn repair(
                     objects.insert(tree)
                 }
             };
-            let blob = store.ensure(file, cancel).await?;
+            let blob = store.ensure(file, cancel, None).await?;
             check_cancel(cancel)?;
             let lease = store.clone();
             tokio::task::spawn_blocking(move || {
@@ -896,6 +897,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cancelled_mirror_retry_preserves_first_integrity_failure() {
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (mut file, blob) = seed_blob(root.path(), b"good");
+        std::fs::remove_file(&blob).unwrap();
+        file.url = format!("http://{addr}/primary");
+        file.mirrors = vec![format!("http://{addr}/retry")];
+        let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
+        manifest.files.push(file);
+        let target = root.path().join("instance");
+        let (stop, mut cancel) = watch::channel(false);
+        let install = install_manifest(
+            archive(&[]),
+            manifest,
+            target.clone(),
+            &store,
+            InstallDecision::default(),
+            &mut cancel,
+            |_, _| {},
+        );
+        let server = async {
+            let (socket, route) = accept_request(&listener).await;
+            assert!(route.contains("/primary"));
+            respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nxxxx").await;
+            let (held, route) = accept_request(&listener).await;
+            assert!(route.contains("/retry"));
+            stop.send_replace(true);
+            held
+        };
+        let (result, _held) = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            tokio::join!(install, server)
+        })
+        .await
+        .unwrap();
+        assert!(result.err().unwrap().contains("Hash mismatch"));
+        assert!(!target.exists());
+        assert!(!blob.exists());
+    }
+
+    #[tokio::test]
     async fn terminal_integrity_failure_drains_stalled_sibling() {
         use tokio::io::AsyncWriteExt;
         let root = tempfile::tempdir().unwrap();
@@ -1044,9 +1089,9 @@ mod tests {
         assert!(!blob.exists());
         drop(listener);
         let active = store.lease().await.unwrap();
-        let (_tx, mut cancel) = watch::channel(false);
+        let (_tx, cancel) = watch::channel(false);
         assert_eq!(
-            std::fs::read(active.ensure(&file, &mut cancel).await.unwrap()).unwrap(),
+            std::fs::read(active.ensure(&file, &cancel, None).await.unwrap()).unwrap(),
             b"blob"
         );
     }
@@ -1106,9 +1151,9 @@ mod tests {
         let url = format!("http://{}", listener.local_addr().unwrap());
         file.url = format!("{url}/first");
         file.mirrors = vec![format!("{url}/second")];
-        let (_stop, mut cancel) = watch::channel(false);
+        let (_stop, cancel) = watch::channel(false);
         let store = store.lease().await.unwrap();
-        let (result, ()) = tokio::join!(store.ensure(&file, &mut cancel), async {
+        let (result, ()) = tokio::join!(store.ensure(&file, &cancel, None), async {
             for response in [
                 b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".as_slice(),
                 b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ngood",

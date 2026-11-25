@@ -186,11 +186,12 @@ impl ObjectTree {
     pub async fn ensure(
         self: &Arc<Self>,
         file: &ManifestFile,
-        cancel: &mut watch::Receiver<bool>,
+        cancel: &watch::Receiver<bool>,
+        siblings: Option<&watch::Receiver<bool>>,
     ) -> Result<PathBuf, String> {
         let tree = self.clone();
         let file = file.clone();
-        crate::downloads::supervise(cancel, move |mut local| async move {
+        crate::downloads::supervise(cancel, siblings, move |mut local| async move {
             tree.ensure_object(&file, &mut local).await
         })
         .await
@@ -200,13 +201,13 @@ impl ObjectTree {
     async fn ensure_object(
         self: Arc<Self>,
         file: &ManifestFile,
-        cancel: &mut watch::Receiver<bool>,
+        cancel: &mut crate::downloads::TransferStop,
     ) -> Result<PathBuf, String> {
         let prefix = &file.sha512[..2];
         let shard = usize::from_str_radix(prefix, 16).map_err(|e| e.to_string())?;
         let _guard = tokio::select! {
             biased;
-            _ = cancel.wait_for(|x| *x) => return Err("Installation cancelled".into()),
+            _ = cancel.cancelled() => return Err("Installation cancelled".into()),
             guard = self.shards[shard].lock() => guard,
         };
         let parent = self.root.join("sha512").join(prefix);
@@ -253,6 +254,7 @@ impl ObjectTree {
         }
         let client = client().await?;
         let mut failures = Vec::new();
+        let mut first_integrity_failure = None;
         for url in std::iter::once(&file.url).chain(&file.mirrors) {
             match stream_file(
                 client,
@@ -266,7 +268,15 @@ impl ObjectTree {
             .await
             {
                 Ok(()) => return Ok(path),
-                Err(DownloadError::Cancelled) => return Err("Installation cancelled".into()),
+                Err(DownloadError::Cancelled) => {
+                    return Err(
+                        first_integrity_failure.unwrap_or_else(|| "Installation cancelled".into())
+                    )
+                }
+                Err(DownloadError::Integrity(error)) => {
+                    first_integrity_failure.get_or_insert_with(|| error.clone());
+                    failures.push(error);
+                }
                 Err(DownloadError::Other(error)) => failures.push(error),
             }
         }
