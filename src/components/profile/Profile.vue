@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { inject } from "vue";
+import { inject, useTemplateRef } from "vue";
 
 import AccountRow from "@/components/profile/AccountRow.vue";
 import Microsoft from "@/components/profile/Logins/Microsoft.vue";
 import Offline from "@/components/profile/Logins/Offline.vue";
 import LoginStatus from "@/components/profile/LoginStatus.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
-import { useSkinRenderer } from "@/composables/use-skin-renderer.ts";
+import { useProfileSkinRenderer } from "@/composables/use-skin-renderer.ts";
 import {
   AuthStatesContextKey,
   TranslationsContextKey,
@@ -19,7 +19,8 @@ const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
 const { styles } = useConfigColors();
-const { canvas, viewer, shown } = useSkinRenderer({ "render": "3d", "onDemand": true });
+const viewport = useTemplateRef<HTMLElement>("viewport");
+const { canvas, viewer, shown } = useProfileSkinRenderer(viewport);
 
 function startWalk(): void {
   viewer.value?.playAnimation("walk");
@@ -48,7 +49,7 @@ function stopWalk(): void {
           id="__profile-page__skin-wrapper"
           class="flex flex-1 justify-center"
         >
-          <div id="__profile-page__skin-viewport" class="h-[225px] w-[150px] shrink-0">
+          <div ref="viewport" id="__profile-page__skin-viewport" class="h-[225px] w-[150px] shrink-0">
             <canvas
               ref="canvas"
               id="__profile-page__skin-canvas"

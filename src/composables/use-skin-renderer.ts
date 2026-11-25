@@ -37,7 +37,7 @@ import type { AccountType, WrappedAccountsType } from "@/types/configs/account.t
 
 use(WebGLRendererPlugin);
 
-function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement): () => void {
+function configureDemandRendering(viewer: SkinViewer, resizeTarget: HTMLElement): () => void {
   let loopRunning = false;
   let disposed = false;
   let frame: number | undefined;
@@ -59,8 +59,16 @@ function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement)
     });
   }
 
-  viewer.onZoomChange = scheduleRender;
-  viewer.onRotationChange = scheduleRender;
+  const { onZoomChange, onRotationChange } = viewer;
+
+  viewer.onZoomChange = (zoom): void => {
+    scheduleRender();
+    onZoomChange?.(zoom);
+  };
+  viewer.onRotationChange = (theta, phi): void => {
+    scheduleRender();
+    onRotationChange?.(theta, phi);
+  };
   const observer = new ResizeObserver(([{ "contentRect": { width, height } }]) => {
     if (!disposed && width > 0 && height > 0) {
       viewer.resize(width, height);
@@ -69,9 +77,7 @@ function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement)
   });
 
   // The layout box is independent of the DPR-scaled drawing buffer.
-  if (canvas.parentElement) {
-    observer.observe(canvas.parentElement);
-  }
+  observer.observe(resizeTarget);
 
   const { setRotation, setZoom, resetCamera } = viewer;
 
@@ -88,7 +94,6 @@ function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement)
     scheduleRender();
   };
 
-  // Extensions can also control the viewer's loop and lifetime directly.
   const { startRenderLoop, stopRenderLoop, dispose } = viewer;
 
   viewer.startRenderLoop = (): void => {
@@ -110,20 +115,30 @@ function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement)
   return scheduleRender;
 }
 
+type RendererState = {
+  "canvas": TemplateRef<HTMLCanvasElement>;
+  "shown" : Ref<boolean>;
+  "viewer": ShallowRef<SkinViewer | undefined>;
+};
+
 export function useSkinRenderer({
   render,
   account,
-  onDemand = false,
 }: {
-  "onDemand"?: boolean;
-  "render"   : "3d" | "2d-head";
-  "account"? : ComputedRef<AccountType | undefined>;
-}): {
-  "canvas": TemplateRef<HTMLCanvasElement>;
-  "shown" : Ref<boolean>;
-  // 'viewer' is undefined for '2d-head'
-  "viewer": ShallowRef<SkinViewer | undefined>;
-} {
+  "render"  : "3d" | "2d-head";
+  "account"?: ComputedRef<AccountType | undefined>;
+}): RendererState {
+  return useRenderer(render, account);
+}
+
+export function useProfileSkinRenderer(resizeTarget: TemplateRef<HTMLElement>): RendererState {
+  return useRenderer("3d", undefined, resizeTarget);
+}
+
+function useRenderer(
+  render: "3d" | "2d-head", account?: ComputedRef<AccountType | undefined>,
+  resizeTarget?: TemplateRef<HTMLElement>,
+): RendererState {
   const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
   const selected = computed(() => (
@@ -189,8 +204,10 @@ export function useSkinRenderer({
   } else {
     let requestRender: (() => void) | undefined;
 
-    watch(canvas, async (target, _, onCleanup) => {
-      if (!target) {
+    const viewportElement = computed(() => resizeTarget?.value);
+
+    watch([canvas, viewportElement], async ([target, viewport], _, onCleanup) => {
+      if (!target || (resizeTarget && !viewport)) {
         return;
       }
 
@@ -214,8 +231,8 @@ export function useSkinRenderer({
           created.dispose();
         } else {
           viewer.value = created;
-          if (onDemand) {
-            requestRender = configureDemandRendering(created, target);
+          if (viewport) {
+            requestRender = configureDemandRendering(created, viewport);
           } else {
             created.startRenderLoop();
           }

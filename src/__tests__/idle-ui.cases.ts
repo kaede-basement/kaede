@@ -1,12 +1,11 @@
 import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import { nextTick, reactive, type Ref } from "vue";
 
-import type { DownloadSnapshotType } from "@/types/launcher/artifacts/download.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
 import {
-  cleanupHarness, closeKey, documentState, type Element, instances, invoke, launchKey,
-  launchStatus, mount, noop, overrideGlobals, startKey, state, translationsKey,
+  cleanupHarness, closeKey, documentState, type Element, instances, launchKey,
+  launchStatus, mount, noop, overrideGlobals, startKey, state,
 } from "./idle-ui-harness.ts";
 
 afterEach(cleanupHarness);
@@ -62,107 +61,6 @@ test("video follows initial and changed visibility until unmount", async () => {
   documentState.hidden = false;
   documentState.dispatchEvent(new Event("visibilitychange"));
   expect(video.play).toHaveBeenCalledTimes(1);
-});
-
-test.each([0, 1, 2] as const)("launch state %i polls nonempty Maps", async launching => {
-  const { "default": progress } = await import("@/components/general/layout/LaunchProgress.vue");
-  const launches = reactive({ "first": launchStatus("first") });
-  const status = launches.first;
-
-  status.launching = launching;
-  const interval = spyOn(globalThis, "setInterval");
-  const clear = spyOn(globalThis, "clearInterval");
-  const view = mount<{ "currentDownloadSpeed": Ref<string>; "currentDownloadCount": Ref<number> }>(
-    progress, "container", [[launchKey, launches], [translationsKey, {}]],
-  );
-
-  expect(interval).not.toHaveBeenCalled();
-
-  for (const plain of [false, true]) {
-    if (plain) {
-      status.downloads.current = (new Map);
-    }
-    const current = status.downloads.current;
-    const tuple: [number, number] = [0, 1_048_576];
-
-    current.set("artifact", tuple);
-    if (!plain) {
-      expect(current.get("artifact")).toBe(tuple);
-    }
-    await nextTick();
-    const index = plain ? 1 : 0;
-
-    expect(interval).toHaveBeenCalledTimes(index + 1);
-    expect(view.bindings.currentDownloadCount.value).toBe(1);
-    expect(view.bindings.currentDownloadSpeed.value).toBe("1.00");
-    const [tick, period] = interval.mock.calls[index];
-
-    expect(period).toBe(100);
-    tuple[1] *= 2;
-    tick();
-    expect(view.bindings.currentDownloadSpeed.value).toBe("2.00");
-    if (plain) {
-      current.clear();
-    } else {
-      current.delete("artifact");
-    }
-    await nextTick();
-    expect(clear).toHaveBeenCalledWith(interval.mock.results[index].value);
-    expect(view.bindings.currentDownloadCount.value).toBe(0);
-    expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
-  }
-});
-
-test("post-install artifacts poll at state 0 and clean only their own entries", async () => {
-  const { concurrentlyDownload } = await import("@/lib/network/concurrently-download.ts");
-  const { "default": progress } = await import("@/components/general/layout/LaunchProgress.vue");
-  const launches = reactive({ "first": launchStatus("first") });
-  const status = launches.first;
-  const clear = spyOn(globalThis, "clearInterval");
-  const view = mount<{ "currentDownloadSpeed": Ref<string> }>(
-    progress, "container", [[launchKey, launches], [translationsKey, {}]],
-  );
-
-  status.launching = 0;
-
-  status.downloads.current = (new Map);
-  const original = status.downloads.current;
-  let emit!: (snapshot: DownloadSnapshotType) => void;
-  const report = Promise.withResolvers<object>();
-
-  invoke.mockImplementationOnce(async (_, arguments_) => {
-    emit = (arguments_ as { "onProgress": { "onmessage": typeof emit } }).onProgress.onmessage;
-
-    return report.promise;
-  });
-  const batch = concurrentlyDownload({
-    "statuses"   : status, "entries"    : ["a", "external"].map(path => ({ "url": path, path })),
-    "label"      : "", "concurrency": 2,
-  });
-  const snapshot: DownloadSnapshotType = {
-    "current": { "a": [1, 1_048_576], "external": [0, 0] }, "success": 0, "failed": 0,
-  };
-
-  emit(snapshot);
-  await nextTick();
-  expect(view.bindings.currentDownloadSpeed.value).toBe("1.00");
-  expect(original.get("a")).toEqual([1, 1_048_576]);
-  original.set("external", [7, 70]);
-  status.downloads.current = new Map([["a", [7, 3_145_728]]]);
-  report.resolve({ "cancelled": true, "success": 0, "failed": 0 });
-  await batch;
-  emit(snapshot);
-  expect([...original.entries()]).toEqual([["external", [7, 70]]]);
-  expect(status.downloads.current.get("a")).toEqual([7, 3_145_728]);
-  state.selected.currentInstance = "second";
-  await nextTick();
-  expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
-  expect(clear).toHaveBeenCalledTimes(1);
-  state.selected.currentInstance = "first";
-  await nextTick();
-  expect(view.bindings.currentDownloadSpeed.value).toBe("3.00");
-  view.unmount();
-  expect(clear).toHaveBeenCalledTimes(2);
 });
 
 test("Home accrues only the selected instance's active gameplay time", async () => {

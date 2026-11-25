@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { expect, test } from "bun:test";
 
 test("idle UI lifecycle", () => {
@@ -6,8 +8,11 @@ test("idle UI lifecycle", () => {
     process.execPath,
     "test",
     "--randomize",
-    "./src/__tests__/idle-ui.cases.ts",
-    "./src/__tests__/skin-renderer.cases.ts",
+    "--preload",
+    path.resolve(import.meta.dir, "../../scripts/setup-tests.ts"),
+    path.resolve(import.meta.dir, "idle-ui.cases.ts"),
+    path.resolve(import.meta.dir, "skin-renderer.cases.ts"),
+    path.resolve(import.meta.dir, "download-progress.cases.ts"),
   ]);
 
   if (result.exitCode !== 0) {

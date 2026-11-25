@@ -118,6 +118,9 @@ export async function concurrentlyDownload({
        * 'fileProgress' is '[progress, speed]',
        * where 'progress' is accumulated while 'speed' is not
        */
+      if (current.has(path) && toRaw(current).get(path) !== writtenEntries.get(path)?.tuple) {
+        continue;
+      }
       current.set(path, fileProgress);
       writtenEntries.set(path, { "map": current, "tuple": fileProgress });
     }

@@ -112,13 +112,20 @@ function cleanupHarness(): void {
 
 function mount<T>(
   component: unknown, templateReference: string, provides: Array<[symbol, unknown]> = [],
+  parentReference?: string,
 ): Mounted<T> {
   let bindings: T;
   const app = renderer.createApp({
     setup() {
       bindings = (component as { "setup": Setup<T> }).setup({}, { "expose": () => {} });
 
-      return (): ReturnType<typeof h> => h("div", { "ref": templateReference });
+      return (): ReturnType<typeof h> => {
+        const element = h("div", { "ref": templateReference });
+
+        return parentReference
+          ? h("div", { "ref": parentReference }, [h("div", [element])])
+          : element;
+      };
     },
   });
 

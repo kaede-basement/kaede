@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useDraggable, useElementSize, useIntervalFn, useWindowSize } from "@vueuse/core";
-import { computed, inject, ref, useTemplateRef, watch } from "vue";
+import { computed, inject, isReactive, ref, useTemplateRef, watch } from "vue";
 
 import { useConfigColors } from "@/composables/use-config-colors.ts";
 import {
@@ -86,7 +86,13 @@ const progress = computed<number>((oldValue: number | undefined): number => {
 
 const currentDownloadSpeed = ref("0.00");
 const currentDownloadCount = ref(0);
-const hasDownloads = computed(() => (statuses.value?.downloads?.current.size ?? 0) > 0);
+const downloadMap = computed(() => statuses.value?.downloads?.current);
+// Extensions can supply a raw Map whose size changes without notifying Vue.
+const shouldPoll = computed(() => {
+  const map = downloadMap.value;
+
+  return map !== undefined && (!isReactive(map) || map.size > 0);
+});
 
 function sampleDownloads(): void {
   const current = statuses.value?.downloads?.current;
@@ -103,7 +109,7 @@ function sampleDownloads(): void {
 
 const { resume, pause } = useIntervalFn(sampleDownloads, 100, { "immediate": false });
 
-watch(hasDownloads, (active, _, onCleanup) => {
+watch([shouldPoll, downloadMap], ([active], _, onCleanup) => {
   if (active) {
     sampleDownloads();
     resume();

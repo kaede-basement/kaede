@@ -146,8 +146,7 @@ declare const AccountSchema: Type.TObject<{
 	}>;
 }>;
 export type AccountType = Static<typeof AccountSchema>;
-declare function useSkinRenderer({ render, account, onDemand, }: {
-	"onDemand"?: boolean;
+declare function useSkinRenderer({ render, account, }: {
 	"render": "3d" | "2d-head";
 	"account"?: ComputedRef<AccountType | undefined>;
 }): {

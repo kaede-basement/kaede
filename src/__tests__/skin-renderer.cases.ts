@@ -15,6 +15,7 @@ test("profile draws on demand and releases viewers created before or after teard
   let resized!: (entries: Array<{ "contentRect": { "width": number; "height": number } }>) => void;
 
   overrideGlobals({
+    "devicePixelRatio"     : 2,
     "requestAnimationFrame": (callback: FrameRequestCallback): number => {
       frames.set(++id, callback);
 
@@ -42,6 +43,8 @@ test("profile draws on demand and releases viewers created before or after teard
   const startLoop = mock(() => requestAnimationFrame(render));
   const stopLoop = mock(noop);
   const dispose = mock(noop);
+  const zoomChange = mock(noop);
+  const rotationChange = mock(noop);
   const gpu = {
     "setRotation"     : mock(noop), "resetCamera"     : mock(noop), "setZoom"         : mock(noop),
     render, "resize"          : mock(noop),
@@ -49,7 +52,7 @@ test("profile draws on demand and releases viewers created before or after teard
     "setSkin"         : mock(asyncNoop), "setSlim"         : mock(noop),
     dispose,
     "playAnimation"   : mock(noop), "stopAnimation"   : mock(noop),
-    "onZoomChange"    : noop, "onRotationChange": noop,
+    "onZoomChange"    : zoomChange, "onRotationChange": rotationChange,
   };
   let canvas!: HTMLCanvasElement;
   const create = mock(async (options: { "canvas": HTMLCanvasElement }) => {
@@ -76,7 +79,7 @@ test("profile draws on demand and releases viewers created before or after teard
 
   function mountProfile(): Mounted<{ startWalk(): void; stopWalk(): void }> {
     return mount<{ startWalk(): void; stopWalk(): void }>(
-      profile, "canvas", [[authKey, accounts], [translationsKey, {}]],
+      profile, "canvas", [[authKey, accounts], [translationsKey, {}]], "viewport",
     );
   }
   const view = mountProfile();
@@ -100,7 +103,7 @@ test("profile draws on demand and releases viewers created before or after teard
   drawFrame();
   expect(render).toHaveBeenCalledTimes(2);
 
-  expect(observe).toHaveBeenCalledWith(canvas.parentElement);
+  expect(observe).toHaveBeenCalledWith(canvas.parentElement?.parentElement);
   expect(observe).not.toHaveBeenCalledWith(canvas);
   expect(startLoop).not.toHaveBeenCalled();
   gpu.render.mockClear();
@@ -113,6 +116,8 @@ test("profile draws on demand and releases viewers created before or after teard
   render.mockClear();
   gpu.onRotationChange();
   gpu.onZoomChange();
+  expect(rotationChange).toHaveBeenCalled();
+  expect(zoomChange).toHaveBeenCalled();
   expect(frames.size).toBe(1);
   drawFrame();
   expect(render).toHaveBeenCalledTimes(1);

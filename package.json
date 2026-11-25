@@ -11,7 +11,7 @@
     "dev:frontend": "vite",
     "build:frontend": "vite build",
     "preview:frontend": "vite preview",
-    "test": "bun test src",
+    "test": "bun test --preload ./scripts/setup-tests.ts src",
     "bench": "bun scripts/run-bench.ts",
     "lint": "eslint .",
     "typecheck": "vue-tsc -b",
