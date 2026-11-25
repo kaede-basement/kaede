@@ -30,8 +30,8 @@ import type {
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type {
-  ExtendedPatchUIDType, PatchDependencyType,
-  PatchIndexType, PatchVariantType,
+  ExtendedPatchUIDType,
+  PatchIndexType,
 } from "@/types/launcher/meta/patch-index.type.ts";
 
 const { handleDropdown, currentFilter, currentPatch } = defineProps<{
@@ -66,12 +66,6 @@ const queryKey = computed((): Array<unknown> => [
   currentPatch,
 ]);
 
-const noMatches = {
-  "version"    : "No matches",
-  "recommended": false,
-  "releaseTime": "",
-} as const;
-
 const { data, status } = useQuery({
   "queryKey": queryKey,
   "queryFn" : async (): Promise<PatchIndexType["versions"]> => (
@@ -83,121 +77,25 @@ const { data, status } = useQuery({
   ),
 });
 
-const filteredVersions = computed((): Array<{
-  "recommended": boolean;
-  "releaseTime": string;
-  "version"    : string;
-  "type"      ?: PatchVariantType;
-  "requires"  ?: Array<PatchDependencyType>;
-  "conflicts" ?: Array<PatchDependencyType>;
-}> => {
-  if (status.value !== "success" || !data.value) {
-    return [{
-      "version": status.value === "success"
-        ? "No data?.."
-        : "Loading...",
-      "recommended": false,
-      "releaseTime": "",
-    }];
-  }
+const filteredVersions = computed(() => {
+  const search = currentVersionSearch.value?.input ?? "";
 
-  const filteringValue: string | undefined = currentVersionSearch.value?.input;
-
-  /*
-   * Format the release time ahead-of-time and
-   * re-create the array to avoid changing the Vue Query cache
-   */
-  const mappedData: Array<{
-    "recommended": boolean;
-    "releaseTime": string;
-    "version"    : string;
-    "type"      ?: PatchVariantType;
-    "requires"  ?: Array<PatchDependencyType>;
-    "conflicts" ?: Array<PatchDependencyType>;
-  }> = data
-    .value
-    .map(entry => ({
-      "recommended": entry.recommended,
-      "version"    : entry.version,
-      "type"       : entry.type,
-      "releaseTime": entry.releaseTime,
-      "requires"   : entry.requires,
-      "conflicts"  : entry.conflicts,
-    }));
-
-  if (!filteringValue) {
-    const filteredData = mappedData
-      .filter(({ type }) => (
-
-        /*
-         * If user needs all versions, then the first condition holds.
-         * Otherwise, they only need 'release' ones.
-         * Note that the type filter only applies to Minecraft patches
-         */
-        currentFilter === "all" ||
-        type === currentFilter ||
-        currentPatch !== Patches.Minecraft
-      ));
-
-    if (filteredData.length === 0) {
-      return [noMatches];
-    }
-
-    return filteredData;
-  }
-
-  const filteredData = mappedData
-    .filter(({ version, type }) => (
-      version.includes(filteringValue) &&
-
-      /*
-       * If user needs all versions, then the first condition holds.
-       * Otherwise, they only need 'release' ones.
-       * Note that the type filter only applies to Minecraft patches
-       */
-      (
-        currentFilter === "all" ||
-        type === currentFilter ||
-        currentPatch !== Patches.Minecraft
-      )
-    ));
-
-  if (filteredData.length === 0) {
-    return [noMatches];
-  }
-
-  return filteredData;
+  return data.value?.filter(entry => entry.version.includes(search) && (
+    currentPatch !== Patches.Minecraft || currentFilter === "all" || entry.type === currentFilter
+  )) ?? [];
 });
 
-function selectVersion(event: MouseEvent): void {
-  const target = event?.target as HTMLSpanElement | undefined;
-
-  if (!target) {
-    return;
-  }
-
-  // ["__add", "instance", "page__instance", "version", "dropdown", "item", element_type, version]
-  const splitId: Array<string> = target?.id?.split?.("-");
-  const extractedVersion: string = splitId.slice(7).join("-");
-
-  if (
-    !extractedVersion ||
-    !currentInstance.value ||
-    !currentPatch ||
-    // Sometimes it may happen...
-    extractedVersion === "Loading..." ||
-    // This can happen as well if the user click "No Matches"
-    extractedVersion === noMatches.version
-  ) {
+function selectVersion(entry: PatchIndexType["versions"][number]): void {
+  if (!currentInstance.value) {
     return;
   }
 
   // If user changes the minecraft version, we need to reset all patch versions
   const handledPatchVersions = currentPatch === Patches.Minecraft ? {
-    [currentPatch]: extractedVersion,
+    [currentPatch]: entry.version,
   } : {
     ...currentInstance.value.patchVersions,
-    [currentPatch]: extractedVersion,
+    [currentPatch]: entry.version,
   };
 
   globalStates.pages["add-instance"].instance = {
@@ -205,28 +103,22 @@ function selectVersion(event: MouseEvent): void {
     "patchVersions": handledPatchVersions,
   };
 }
-function slideOverVersions(event: MouseEvent): void {
-  const pressed: number = event.buttons;
-
-  // '1' means that the user has clicked the primary mouse button
-  if (pressed !== 1) {
-    return;
-  }
-
-  selectVersion(event);
-}
 </script>
 
 <template>
-  <button
+  <div
     id="__add-instance-page__instance-version-dropdown-wrapper"
     class="absolute left-0 top-14 z-50 max-h-73 w-full flex flex-col overflow-y-auto break-all rounded-md text-start text-sm"
     :style="styles.widget"
-    @pointerdown="selectVersion"
-    @pointerover="slideOverVersions"
-    @pointerup="event => handleDropdown(false, event)"
   >
-    <span
+    <span v-if="filteredVersions.length === 0" id="__add-instance-page__instance-version-dropdown-placeholder" class="p-2">
+      {{ status !== "success" ? "Loading..." : data ? "No matches" : "No data?.." }}
+    </span>
+    <button
+      @pointerdown.left="selectVersion(entry)"
+      @pointerenter="event => event.buttons === 1 && selectVersion(entry)"
+      @pointerup.left="event => handleDropdown(false, event)"
+      @click="() => { selectVersion(entry); handleDropdown(false) }"
       v-for="entry in filteredVersions"
       :id="`__add-instance-page__instance-version-dropdown-item-wrapper-${entry.version}`"
       :key="entry.version"
@@ -257,6 +149,6 @@ function slideOverVersions(event: MouseEvent): void {
       >
         {{ entry.releaseTime }}
       </span>
-    </span>
-  </button>
+    </button>
+  </div>
 </template>

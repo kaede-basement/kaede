@@ -28,7 +28,7 @@ import type { ConfigType } from "@/types/configs/config.type.ts";
 export async function getMain(properties?: Partial<{
   "baseDirectory": string;
   "parsedFile"   : ParsedFile;
-}>): Promise<ConfigType> {
+}>, regenerate = regenerateConfigFile): Promise<ConfigType> {
   const baseDirectory: string = properties?.baseDirectory ?? FileManager.getBaseDirectory();
   const parsedFile: ParsedFile | undefined = properties?.parsedFile;
   const configFileDirectory = FileManager.join(baseDirectory, FileStructure.Files.Config);
@@ -45,7 +45,7 @@ export async function getMain(properties?: Partial<{
   }
 
   if (parsedFile?.status === "corrupt") {
-    return regenerateConfigFile({
+    return regenerate({
       baseDirectory,
       configFileDirectory,
     });
@@ -59,6 +59,10 @@ export async function getMain(properties?: Partial<{
       "label"          : FileStructure.Files.Config,
       "getDefaultValue": getDefaultConfig,
     });
+
+  if (typeof parsedConfig !== "object" || parsedConfig === null || Array.isArray(parsedConfig)) {
+    return regenerate({ baseDirectory, configFileDirectory });
+  }
 
   const configId: string =
     [
@@ -77,11 +81,17 @@ export async function getMain(properties?: Partial<{
   });
 
   if (config === false) {
-    return regenerateConfigFile({
+    return regenerate({
       baseDirectory,
       configFileDirectory,
     });
   }
 
-  return config;
+  const result = await Hooks.catchAsyncResponseHooks<ConfigType>({
+    "scope" : "onConfigFileGet",
+    "timing": "after",
+    "toPass": config,
+  });
+
+  return result === "continue" || result === undefined ? config : result;
 }

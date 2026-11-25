@@ -1,4 +1,4 @@
-import Errors from "@/lib/errors";
+import { ErrorFormatting } from "@/lib/errors/scopes/prettify.ts";
 import { log } from "@/lib/logging/log.ts";
 
 export async function handleVirtualTextCopy(
@@ -7,7 +7,7 @@ export async function handleVirtualTextCopy(
   logs: Array<string | [number, string]>,
   setCopied: (state: boolean) => void,
 ): Promise<void> {
-  if (copied || !range || !logs[0]) {
+  if (copied || !range || logs.length === 0) {
     return;
   }
 
@@ -38,11 +38,11 @@ export async function handleVirtualTextCopy(
       }
 
       slicedSelectionText = logs
-        .map(mappingEntry => mappingEntry[1])
         .slice(
           relativeIndexStart,
           relativeIndexEnd + 1,
         )
+        .map(mappingEntry => mappingEntry[1])
         .join("\n");
     }
 
@@ -57,7 +57,7 @@ export async function handleVirtualTextCopy(
     log.error(
       __PRE_BUNDLED_FILENAME__,
       "Couldn't copy the selected text in virtualized log viewer:",
-      Errors.prettify(error),
+      ErrorFormatting.prettify(error),
     );
   }
 }

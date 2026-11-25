@@ -45,30 +45,27 @@ async function handleSignIn(): Promise<void> {
   status.pending = true;
   status.error = null;
 
-  const result: SignInResultType = await Auth.signInWithMicrosoft({
-    "onStatus": (current: SignInStatusType): void => {
-      status.step = current;
-    },
-  });
+  try {
+    const result: SignInResultType = await Auth.signInWithMicrosoft({
+      "onStatus": (current: SignInStatusType): void => {
+        status.step = current;
+      },
+    });
 
-  if (result.success && accounts !== undefined) {
-    // A re-login of an existing account updates it
-    accounts.value = [
-      result.account,
-      ...accounts.value.filter(({ profile }) => (
-        profile.uuid !== result.account.profile.uuid
-      )),
-    ];
-
-    await Configs.writeAccounts({ "accounts": accounts.value });
+    if (result.success && accounts) {
+      accounts.value = await Configs.updateAccounts(current => [
+        result.account,
+        ...current.filter(({ profile }) => profile.uuid !== result.account.profile.uuid),
+      ]);
+    } else if (!result.success) {
+      status.error = result.reason;
+    }
+  } catch (error) {
+    status.error = String(error);
+  } finally {
+    status.pending = false;
+    status.step = null;
   }
-
-  if (!result.success) {
-    status.error = result.reason;
-  }
-
-  status.pending = false;
-  status.step = null;
 }
 </script>
 

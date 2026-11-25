@@ -16,17 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { PatchUIDs } from "@/constants/meta.ts";
-
-const patchUIDPrefixes: Array<string> = PatchUIDs.map(uid => uid.slice(0, 4));
-const uniquePatchUIDPrefixes: Array<string> = [...(new Set(patchUIDPrefixes))];
+const patchTargets = ["webview:com.", "webview:net.", "webview:org."];
 
 export function getLogTargetColor(target: string): string {
   if (target.startsWith("webview:/src/lib/schemas")) {
     return "text-orange-300";
   }
 
-  if (target.startsWith("webview:/src/lib/extensions-manager")) {
+  if (target.startsWith("webview:/src/lib/extensions/")) {
     return "text-fuchsia-300";
   }
 
@@ -38,8 +35,8 @@ export function getLogTargetColor(target: string): string {
     return "text-sky-300";
   }
 
-  for (const uidPrefix of uniquePatchUIDPrefixes) {
-    if (target.startsWith(`webview:${uidPrefix}`)) {
+  for (const prefix of patchTargets) {
+    if (target.startsWith(prefix)) {
       return "text-rose-500";
     }
   }

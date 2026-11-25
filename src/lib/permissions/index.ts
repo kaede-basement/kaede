@@ -18,6 +18,30 @@
 
 import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
 import { handlePermission } from "@/lib/permissions/handle-permission.ts";
+import { hardenIfAvailable } from "@/lib/permissions/harden.ts";
+import { permissionSession } from "@/lib/permissions/request-permissions.ts";
+import type { ExtensionUI } from "@/lib/shared/ui-root.ts";
+
+export function bindPermissionRequest(
+  id: string, artifactSha256: string, ui?: ExtensionUI, signal?: AbortSignal,
+) {
+  const service = permissionSession.value;
+
+  if (!service) {
+    throw new Error("Permission session closed");
+  }
+
+  return async (input: unknown): Promise<Array<unknown>> => {
+    const grants = await service.request(input, id, artifactSha256, signal);
+
+    service.assertOpen(signal);
+    const results = grants.map(permission => (
+      permission && handlePermission(permission, id, ui, signal)
+    ));
+
+    return hardenIfAvailable(results);
+  };
+}
 
 export default {
   grantStaticPermissions,

@@ -1,33 +1,29 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import { PermissionCooldownMs } from "@/lib/permissions/request-permissions.ts";
 
 const { onClick } = defineProps<{
   "onClick": () => void;
 }>();
 
 // No one wants to accidentally allow an extension permission
-const timeout = ref<number>(5000);
-let previous: number = performance.now();
+const timeout = ref<number>(PermissionCooldownMs);
+let deadline: number;
+let frame: number;
 
 function decrease(): void {
-  const current: number = performance.now();
-  const difference: number = current - previous;
-
-  timeout.value = timeout.value - difference;
-  previous = current;
-
-  if (timeout.value <= 0) {
-    return;
+  timeout.value = deadline - performance.now();
+  if (timeout.value > 0) {
+    frame = requestAnimationFrame(decrease);
   }
-
-  requestAnimationFrame(decrease);
 }
-
-onMounted((): void => {
-  requestAnimationFrame(decrease);
+onMounted(() => {
+  deadline = performance.now() + PermissionCooldownMs;
+  decrease();
 });
+onUnmounted(() => cancelAnimationFrame(frame));
 </script>
 
 <template>

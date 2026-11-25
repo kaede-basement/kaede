@@ -31,8 +31,8 @@ import type * as TauriUpload from "@tauri-apps/plugin-upload";
 import type DevelopmentMode from "src/lib/development-mode";
 import type { App, ComponentPublicInstance, ComputedRef, ShallowReactive, ShallowRef } from "vue";
 
+import type _Application from "@/bootstrap/application.ts";
 import type Composables from "@/composables";
-import type _Application from "@/constants/application.ts";
 import type _ASCIIArt from "@/constants/ascii-art.ts";
 import type _Browser from "@/constants/browser.ts";
 import type _EventListeners from "@/constants/event-listeners.ts";
@@ -69,7 +69,6 @@ import type { InstanceStatesType } from "@/types/application/instance-states.typ
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
-import type { PermissionType } from "@/types/extensions/permission.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   ArgumentAuthReplacementsType,
@@ -147,11 +146,6 @@ declare global {
           "visible"  : boolean;
           "resizable": boolean;
         };
-        // Requests plugin permissions from user
-        "requestPermissions": (
-          permissions: Array<PermissionType | string> | unknown,
-          extension: string
-        ) => Promise<Array<unknown>>;
         // Platform-specific delimiter
         "joinDelimiter"      : string;
         // Launcher version
@@ -1465,3 +1459,5 @@ declare global {
 
 /* Export the Kaede namespace type */
 export type KaedeNamespaceType = Window["__KAEDE__"];
+
+export type { SafeDocument as SandboxUIDocument } from "ark-of-atrahasis";

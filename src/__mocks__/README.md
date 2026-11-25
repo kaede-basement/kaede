@@ -1,7 +1,5 @@
 [<<< Back](../README.md)
 
-# Vitest mocks
+# Test mocks
 
-This folder contains a code to imitate some libraries behaviour (for example, Tauri) in the `Vitest` testing environment.
-
-See https://vitest.dev/guide/mocking for more.
+`bun run test` preloads [scripts/setup-tests.ts](../../scripts/setup-tests.ts), which registers the mocks in this directory with Bun's `mock.module()`.

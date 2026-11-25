@@ -70,12 +70,15 @@ export function sanitizeFileOrFolderName(input: string): string {
  * @param algorithm - an optional hash algorithm that tells to verify by the passed algorithm
  * @returns an array of absolute file paths that were invalid
  */
-export function verifyPaths({
+export async function verifyPaths({
   paths,
   algorithm,
 }: {
-  "paths"     : Array<{ "path": string; "hash": string }>;
-  "algorithm"?: HashAlgorithmType;
+  "paths"    : Array<{ "path": string; "hash": string; "size"?: number }>;
+  "algorithm": HashAlgorithmType;
+} | {
+  "paths"     : Array<string | { "path": string; "hash"?: string; "size"?: number }>;
+  "algorithm"?: undefined;
 }): Promise<Array<string>> {
   if (algorithm) {
     return invoke("verify_paths_hash", {
@@ -85,6 +88,8 @@ export function verifyPaths({
   }
 
   return invoke("verify_paths", {
-    "paths": paths.map(({ path }) => path),
+    "paths": paths.map(entry => (
+      typeof entry === "string" ? entry : { "path": entry.path, "size": entry.size }
+    )),
   });
 }

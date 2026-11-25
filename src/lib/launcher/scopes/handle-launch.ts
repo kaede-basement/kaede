@@ -16,18 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { confirm } from "@tauri-apps/plugin-dialog";
+import { mkdir } from "@tauri-apps/plugin-fs";
 
-import { LaunchStatus } from "@/constants/launcher.ts";
-import Errors from "@/lib/errors";
-import Launcher from "@/lib/launcher";
+import FileManager from "@/lib/file-manager";
+import Instances from "@/lib/instances";
+import { createCommand } from "@/lib/launcher/scopes/create-command.ts";
 import Extractors from "@/lib/launcher/scopes/extractors";
 import Fetching from "@/lib/launcher/scopes/fetching";
 import Parsers from "@/lib/launcher/scopes/parsers";
 import Patches from "@/lib/launcher/scopes/patches";
-import Validators from "@/lib/launcher/scopes/validators";
+import { spawnMinecraft } from "@/lib/launcher/scopes/spawn-minecraft.ts";
 import { log } from "@/lib/logging/log.ts";
-import Modrinth from "@/lib/modrinth";
+import { repairLegacyMrpack } from "@/lib/modrinth/install-mrpack.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -37,10 +37,14 @@ import type {
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
+import { settleDownloadStages } from "./fetching/settle-download-stages.ts";
+
 const failed: LaunchResponseType = {
   "success": false,
   "process": undefined,
 };
+
+export const LaunchCommands = { createCommand, spawnMinecraft } as const;
 
 export async function handleLaunch({
   instanceId,
@@ -58,6 +62,12 @@ export async function handleLaunch({
   "onInput"        : (lines: Array<string>) => void;
 }): Promise<LaunchResponseType> {
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
+  const { instanceDirectory } = Instances.getMinecraftDirectory({
+    "baseDirectory": FileManager.getBaseDirectory(),
+    instanceId,
+  });
+
+  await mkdir(instanceDirectory, { "recursive": true });
   const necessaries: PreLaunchInformationType | false = Extractors.getNecessaries({
     instanceId,
     instance,
@@ -65,13 +75,6 @@ export async function handleLaunch({
     userPreferences,
     logPrefix,
   });
-
-  // Same as 'necessaries.logPrefix'
-  log.info(logPrefix, log.templates.json.contents(
-    "Pre-launch information contents",
-    necessaries,
-    true,
-  ));
 
   if (necessaries === false) {
     log.warn(
@@ -83,6 +86,20 @@ export async function handleLaunch({
     return failed;
   }
 
+  if (necessaries.directories.instance !== instanceDirectory) {
+    await mkdir(necessaries.directories.instance, { "recursive": true });
+  }
+
+  log.info(logPrefix, log.templates.json.contents(
+    "Pre-launch environment",
+    {
+      "platform" : necessaries.platform,
+      "arch"     : necessaries.arch,
+      "javaMajor": necessaries.user.javaMajor,
+    },
+    true,
+  ));
+
   if (!necessaries.user.account) {
     log.error(__PRE_BUNDLED_FILENAME__, "You cannot launch Minecraft without an account");
 
@@ -90,59 +107,18 @@ export async function handleLaunch({
   }
 
   if (instance.modpackPath) {
-    const installation: { "status": boolean; "failed"?: number } = await Modrinth
-      .installMrpack({
-        "archivePath": instance.modpackPath,
-        "sha1"       : instance.checksum,
-        instanceId,
-        statuses,
-      })
-      .then(({ report }) => {
-        if (report.failed > 0) {
-          return { "status": false, "failed": report.failed };
-        }
-
-        return { "status": true, "failed": report.failed };
-      })
-      .catch(error => {
-        log.error(
-          __PRE_BUNDLED_FILENAME__,
-          "Could not ensure the modpack is downloaded:",
-          Errors.prettify(error),
-        );
-
-        return { "status": false };
-      });
-
-    if (!installation.status) {
-      const additionalMessage: string = "\nDo you still want to continue launching?";
-      const toContinue: boolean = await confirm(
-        installation.failed
-          ? `Failed to download ${installation.failed} files of the modpack.${additionalMessage}`
-          : `Failed to ensure the modpack is fully is installed.${additionalMessage}`,
-        "Modpack installation",
-      );
-
-      log.warn(
-        __PRE_BUNDLED_FILENAME__,
-        toContinue
-          ? "User continued the launching even with an error in modpack installation"
-          : "User aborted the launching due to an error in modpack installation",
-      );
-
-      if (!toContinue) {
-        statuses.current = LaunchStatus.General.Aborted;
-
-        return failed;
+    try {
+      await repairLegacyMrpack(instance, instanceId, instanceDirectory, statuses);
+    } catch (error) {
+      if (error === "Installation cancelled") {
+        log.info(logPrefix, "Legacy modpack repair cancelled");
+      } else {
+        log.error(logPrefix, "Could not repair legacy modpack", String(error));
       }
+
+      return failed;
     }
   }
-
-  await Promise.all([
-    Validators.ensurePatchDirectories(necessaries),
-    Validators.ensureMinecraftDirectory(necessaries),
-    Validators.initializeAssetsDirectories(necessaries),
-  ]);
 
   const entryPatch: SpecificPatchMetaType | false = await Patches.resolvePatch({
     necessaries,
@@ -169,55 +145,48 @@ export async function handleLaunch({
     necessaries,
   });
 
-  log.info(necessaries.logPrefix, log.templates.json.contents(
-    "Finalized patch contents",
-    {
-      ...finalizedPatch,
-      "artifacts": "[ ... ] (" + finalizedPatch.artifacts.length + " entries)",
+  log.info(
+    necessaries.logPrefix,
+    `Resolved ${allPatches.length} patches and ${finalizedPatch.artifacts.length} artifacts`,
+  );
+
+  const cancel = (): Promise<boolean> => Fetching.cancelAll(necessaries.cancelId);
+  const downloaded = await settleDownloadStages(cancel, [
+    (signal): Promise<boolean> => Fetching.downloadAssets({ necessaries, finalizedPatch, signal }),
+    (signal): Promise<boolean> => Fetching.downloadClient({ necessaries, finalizedPatch, signal }),
+    (signal): Promise<boolean> => Fetching.downloadLogging({ necessaries, finalizedPatch, signal }),
+    async (signal): Promise<boolean> => {
+      if (!await Fetching.downloadLibraries({ necessaries, finalizedPatch, signal })) {
+        return false;
+      }
+
+      if (signal.aborted) {
+        return false;
+      }
+
+      await Extractors.unzipNatives({
+        necessaries,
+        "paths": finalizedPatch.artifacts
+          .filter(({ status }) => status === "native")
+          .map(({ path, exclude }) => ({ path, "exclude": exclude ?? [] })),
+      });
+
+      return true;
     },
-    true,
-  ));
-
-  const responses: Array<boolean> = await Promise.all([
-    Fetching.downloadAssets({ necessaries, finalizedPatch }),
-    Fetching.downloadClient({ necessaries, finalizedPatch }),
-    Fetching.downloadLogging({ necessaries, finalizedPatch }),
-    Fetching
-      .downloadLibraries({ necessaries, finalizedPatch })
-      .then(async result => {
-        if (!result) {
-          return false;
-        }
-
-        await Extractors.unzipNatives({
-          necessaries,
-          "paths": finalizedPatch
-            .artifacts
-            .filter(({ status }) => status === "native")
-            .map(({ path, exclude }) => ({ path, "exclude": exclude ?? [] })),
-        });
-
-        return true;
-      }),
   ]);
 
-  for (const status of responses) {
-    if (!status) {
-      log.warn(
-        necessaries.logPrefix,
-        "Aborting the launch process due to an error in artifact downloads",
-      );
+  if (!downloaded) {
+    log.warn(necessaries.logPrefix, "Aborting the launch after an artifact download failed");
 
-      return failed;
-    }
+    return failed;
   }
 
   const command: {
     "java"     : string;
     "arguments": Array<string>;
-  } = await Launcher.createCommand({ necessaries, finalizedPatch });
+  } = await LaunchCommands.createCommand({ necessaries, finalizedPatch });
 
-  return Launcher.spawnMinecraft({
+  return LaunchCommands.spawnMinecraft({
     command,
     instanceId,
     necessaries,

@@ -19,6 +19,7 @@
 import {
   exists,
   type FileInfo,
+  mkdir,
   readTextFile,
   stat,
   writeTextFile,
@@ -46,85 +47,34 @@ export async function handleJsonFile({
   };
 }): Promise<unknown> {
   const filePath: string = join(baseDirectory, ...path);
-  const overwrite: (toWrite: unknown) => Promise<unknown> = async toWrite => {
-    await writeTextFile(
-      filePath,
-      // 'toWrite' might be undefined, and JSON does not support undefined
-      JSON.stringify(toWrite ?? null, null, 2),
-    );
+  let stale = false;
 
-    return toWrite;
-  };
+  if (invalidation) {
+    try {
+      const info: FileInfo = await stat(filePath);
+
+      stale = !info.mtime || General.checkDaysDifference(info.mtime, new Date) > invalidation.days;
+    } catch (error) {
+      // Another launch may publish the file between this stat and the read.
+      log.debug(__PRE_BUNDLED_FILENAME__, `Could not stat '${label}':`, Errors.prettify(error));
+    }
+  }
 
   try {
-    log.debug(__PRE_BUNDLED_FILENAME__, `Checking if the '${label}' file exists`);
-    const fileExists: boolean = await exists(filePath).catch(() => false);
-
-    if (!fileExists) {
-      log.warn(__PRE_BUNDLED_FILENAME__, `The '${label}' file does not exist`);
-      log.debug(__PRE_BUNDLED_FILENAME__, `Getting the default value for '${label}'`);
-      const defaultValue = await getDefaultValue();
-
-      log.debug(__PRE_BUNDLED_FILENAME__, `Initializing the '${label}' file`);
-
-      return await overwrite(defaultValue);
+    if (!stale) {
+      return JSON.parse(await readTextFile(filePath));
     }
-
-    if (invalidation !== undefined) {
-      log.debug(__PRE_BUNDLED_FILENAME__, `Checking if '${label}' needs cache invalidation`);
-      const fileInfo: FileInfo = await stat(filePath);
-      const lastModified: Date | null = fileInfo.mtime;
-      // No last modified time = invalid
-      let invalid: boolean = lastModified === null;
-
-      if (lastModified) {
-        const difference: number = General.checkDaysDifference(lastModified, (new Date));
-
-        // Stale = invalid
-        invalid = difference > invalidation.days;
-      }
-
-      if (invalid) {
-        const newValue = await invalidation.getNewValue();
-
-        return await overwrite(newValue);
-      }
+  } catch (error) {
+    if (!(error instanceof SyntaxError) && await exists(filePath)) {
+      return JSON.parse(await readTextFile(filePath));
     }
-
-    log.debug(__PRE_BUNDLED_FILENAME__, `Reading the '${label}' file`);
-    const storedFileData: string = await readTextFile(filePath);
-    let parsed: unknown;
-
-    try {
-      log.debug(__PRE_BUNDLED_FILENAME__, `Parsing the '${label}' file`);
-      parsed = JSON.parse(storedFileData);
-    } catch (error: unknown) {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        `Could not parse the '${label}' file data:`,
-        Errors.prettify(error),
-      );
-      log.debug(__PRE_BUNDLED_FILENAME__, `Returning the default value for '${label}'`);
-      const defaultValue = await getDefaultValue();
-
-      return await overwrite(defaultValue);
-    }
-
-    log.debug(__PRE_BUNDLED_FILENAME__, `Returning the parsed '${label}' file`);
-
-    return parsed;
-  } catch (error: unknown) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `Could not handle the '${label}' JSON file:`,
-      Errors.prettify(error),
-    );
-
-    /*
-     * All async functions in the 'try' body were awaited,
-     * so no bubbling up should happen. However, here we do not care
-     * about it
-     */
-    return getDefaultValue();
+    log.debug(__PRE_BUNDLED_FILENAME__, `Could not read '${label}':`, Errors.prettify(error));
   }
+
+  const value = stale && invalidation ? await invalidation.getNewValue() : await getDefaultValue();
+
+  await mkdir(join(baseDirectory, ...path.slice(0, -1)), { "recursive": true });
+  await writeTextFile(filePath, JSON.stringify(value ?? null, null, 2));
+
+  return value;
 }

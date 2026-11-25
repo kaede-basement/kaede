@@ -15,49 +15,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 import "ses";
 
 import { createSafeDocument, type SafeDocument } from "ark-of-atrahasis";
 
 import { log } from "@/lib/logging/log.ts";
+import type { ExtensionUI } from "@/lib/shared/ui-root.ts";
+import { restrictUI } from "@/lib/shared/ui-scope.ts";
 
 export function handleUIPermission({
   id,
-  scope,
+  scope, ui,
 }: {
   "id"   : string;
+  "ui"?  : ExtensionUI;
   "scope": "basic" | "interactivity";
 }): unknown {
-  if (scope === "interactivity") {
-    return (elementId: string): unknown => {
-      const gui: SafeDocument = createSafeDocument(elementId);
-
-      log.info(
-        __PRE_BUNDLED_FILENAME__,
-        `Created an interactive safe DOM for '${id}' with '#${elementId}'`,
-      );
-
-      return harden({ ...gui });
-    };
-  }
-
   return (elementId: string): unknown => {
-    const gui: SafeDocument = createSafeDocument(elementId);
+    const gui: SafeDocument = ui ? ui.document(elementId) : createSafeDocument(elementId);
 
     log.info(__PRE_BUNDLED_FILENAME__, `Created a safe DOM for '${id}' with '#${elementId}'`);
 
-    return harden({
-      ...gui,
-      // These will be granted with other permissions
-      "createStyle" : undefined,
-      "createAnchor": undefined,
-      "createCanvas": undefined,
-      "createImage" : undefined,
-      "createVideo" : undefined,
-      "createAudio" : undefined,
-      "createSource": undefined,
-    });
+    return restrictUI(gui, scope === "interactivity");
   };
 }
-

@@ -34,6 +34,7 @@ import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
+import { checkpointActivePlaytime } from "@/states/instance.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { EnsureFreshResultType } from "@/types/auth/microsoft-auth.type.ts";
 import type { LaunchContextType } from "@/types/launcher/launch/launch-context.type.ts";
@@ -113,7 +114,11 @@ export function declareActionRegistry(): void {
   );
   ActionRegistry.register(
     ActionKeys.ContextMenuSoftReload,
-    (): void => window.location.reload(),
+    async (): Promise<void> => {
+      await Instances.sync();
+      checkpointActivePlaytime();
+      window.location.reload();
+    },
   );
   ActionRegistry.register(
     ActionKeys.ContextMenuHardReload,
@@ -125,13 +130,10 @@ export function declareActionRegistry(): void {
   );
   ActionRegistry.register(
     ActionKeys.ContextMenuSafeMode,
-    (): void => {
+    async (): Promise<void> => {
       globalStates.extensions.enabled = false;
-      Configs
-        .sync()
-        .then(() => {
-          window.location.reload();
-        });
+      await Configs.sync();
+      window.location.reload();
     },
   );
   ActionRegistry.register(
@@ -146,13 +148,8 @@ export function declareActionRegistry(): void {
   ActionRegistry.register(
     ActionKeys.ContextMenuMinecraftLogs,
     (): void => {
-      const instanceStatuses = GlobalInternals.logs?.instanceStatuses;
-
-      if (!instanceStatuses) {
-        return void message(GlobalInternals.logs + "No Minecraft logs were found");
-      }
-
-      const key: string | undefined = Object.keys(instanceStatuses)[0];
+      const logs = GlobalInternals.instanceContext?.logs;
+      const key = logs && Object.keys(logs)[0];
 
       if (!key) {
         return void message("No Minecraft logs were found");
@@ -203,7 +200,10 @@ export function declareActionRegistry(): void {
       ContextMenu.close();
 
       if (!currentInstanceId) {
-        log.warn("No instance selected; revealing the root directory in explorer");
+        log.warn(
+          __PRE_BUNDLED_FILENAME__,
+          "No instance selected; revealing the root directory in explorer",
+        );
         revealItemInDir(
           FileManager.join(
             baseDirectory,

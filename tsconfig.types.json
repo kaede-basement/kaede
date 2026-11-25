@@ -4,6 +4,7 @@
     "lib": [
       "ESNext",
       "dom",
+      "dom.iterable",
       "esnext.disposable"
     ],
 

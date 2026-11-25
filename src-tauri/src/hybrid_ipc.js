@@ -90,10 +90,24 @@
     window.ipc.postMessage(withPayload({ cmd, callback, error, options, __TAURI_INVOKE_KEY__: invokeKey }, payload))
   }
 
-  // Commands sent over fetch that have not settled. While there is one, later calls take fetch too,
+  // Commands sent over fetch that have not received headers. While there is one, later calls take fetch too,
   // so they reach Rust in the order they were made, as on Tauri's own transport: a batch sent
   // through postMessage would overtake them.
-  let fetchesInFlight = 0
+  // Map iteration follows submission order. An unresolved fetch has a null slot;
+  // failures and calls submitted after the switch fill their slots with prepared retries.
+  const orderedCalls = new Map()
+
+  function flushFallback() {
+    for (const [slot, item] of orderedCalls) {
+      if (item === null) break
+      orderedCalls.delete(slot)
+      try {
+        sendOverPostMessage(item)
+      } catch (e) {
+        internals.runCallback(item.message.error, e)
+      }
+    }
+  }
 
   // `ordered`: false for a fetch that only collects data for an earlier call (a large response, a
   // Channel's messages), whose order against other commands does not matter.
@@ -105,38 +119,43 @@
       body: raw ? payload : json,
       headers: transportHeaders(message, raw)
     })
-    if (ordered) fetchesInFlight++
-    const settle = () => {
-      if (ordered) fetchesInFlight--
-    }
-    request
-      .then((response) => {
-        const id = response.headers.get('Tauri-Response') === 'ok' ? callback : error
+    if (ordered) orderedCalls.set(message, null)
+    request.then(async (response) => {
+      if (ordered) {
+        orderedCalls.delete(message)
+        if (customProtocolFailed) flushFallback()
+      }
+      const id = response.headers.get('Tauri-Response') === 'ok' ? callback : error
+      let data
+      try {
         switch ((response.headers.get('content-type') || '').split(',')[0]) {
           case 'application/json':
-            return response.json().then((r) => [id, r])
+            data = await response.json()
+            break
           case 'text/plain':
-            return response.text().then((r) => [id, r])
+            data = await response.text()
+            break
           default:
-            return response.arrayBuffer().then((r) => [id, r])
+            data = await response.arrayBuffer()
         }
-      })
-      .then(
-        ([id, data]) => {
-          settle()
-          internals.runCallback(id, data)
-        },
-        (e) => {
-          settle()
-          console.warn('IPC custom protocol failed, Tauri will now use the postMessage interface instead', e)
-          customProtocolFailed = true
-          try {
-            sendOverPostMessage(prepare(message))
-          } catch (e2) {
-            internals.runCallback(error, e2)
-          }
-        }
-      )
+      } catch (e) {
+        internals.runCallback(error, e)
+        return
+      }
+      internals.runCallback(id, data)
+    }, (e) => {
+      console.warn('IPC custom protocol failed, Tauri will now use the postMessage interface instead', e)
+      customProtocolFailed = true
+      try {
+        const item = prepare(message)
+        if (ordered) orderedCalls.set(message, item)
+        else sendOverPostMessage(item)
+      } catch (e2) {
+        orderedCalls.delete(message)
+        internals.runCallback(error, e2)
+      }
+      if (ordered) flushFallback()
+    })
   }
 
   let queue = []
@@ -157,33 +176,35 @@
     queue = []
     queuedChars = 0
     if (items.length === 0) return
-    const registered = []
     try {
-      postBatch(items, registered)
+      postBatch(items)
     } catch (e) {
-      for (const id of registered) internals.unregisterCallback(id)
       for (const { message } of items) internals.runCallback(message.error, e)
     }
   }
 
-  // `registered` collects the callbacks it registers, for the caller to drop if it throws.
-  function postBatch(items, registered) {
-    const calls = items.map(({ message: { cmd, callback, error }, headers, bin, payload }) =>
-      toJson({ cmd, callback, error, headers, bin, payload })
-    )
+  function postBatch(items) {
+    // Tauri parses the entire envelope before dispatch. Keep each payload opaque there:
+    // an invalid surrogate or deeply nested value must only reject its own call.
+    const calls = items.map(({ message: { cmd, callback, error }, headers, bin, payload }) => (
+      { cmd, callback, error, headers, bin, payload: payload === '{}' ? undefined : payload }
+    ))
     const ok = internals.transformCallback(() => internals.unregisterCallback(failed), true)
     const failed = internals.transformCallback((e) => {
       internals.unregisterCallback(ok)
       for (const { message } of items) internals.runCallback(message.error, e)
     }, true)
-    registered.push(ok, failed)
-    const options = { headers: {}, customProtocolIpcBlocked: customProtocolFailed }
-    window.ipc.postMessage(
-      withPayload(
-        { cmd: BATCH_COMMAND, callback: ok, error: failed, options, __TAURI_INVOKE_KEY__: invokeKey },
-        `{"page":"${page}","blocked":${customProtocolFailed},"calls":[${calls.join(',')}]}`
-      )
-    )
+    try {
+      window.ipc.postMessage(JSON.stringify({
+        cmd: BATCH_COMMAND, callback: ok, error: failed, __TAURI_INVOKE_KEY__: invokeKey,
+        options: { headers: {}, customProtocolIpcBlocked: customProtocolFailed },
+        payload: { page, blocked: customProtocolFailed, calls }
+      }))
+    } catch (e) {
+      internals.unregisterCallback(ok)
+      internals.unregisterCallback(failed)
+      throw e
+    }
   }
 
   function sendOverPostMessage(item) {
@@ -214,7 +235,7 @@
     const own = options && options.headers
     const message = { cmd, callback, error, payload, json, headers: own ? new Headers(own) : null }
     const channelData = cmd === FETCH_CHANNEL_DATA_COMMAND
-    const overFetch = channelData || isRaw(payload) || !topFrame || fetchesInFlight > 0
+    const overFetch = channelData || isRaw(payload) || !topFrame || orderedCalls.size > 0
     if (overFetch && !customProtocolFailed) {
       sendQueued()
       return sendOverFetch(message, !channelData)
@@ -224,22 +245,11 @@
       sendQueued()
       return sendOverFetch(message)
     }
-    sendOverPostMessage(item)
-  }
-
-  // An empty batch tells ipc_batch this page replaced the webview's previous one, whose large
-  // responses nobody will take now. Tauri runs invoke_system's script as an init script of its own
-  // before the one with core.js, which defines transformCallback: a task runs after both.
-  if (topFrame) {
-    setTimeout(() => {
-      const registered = []
-      try {
-        postBatch([], registered)
-      } catch (e) {
-        for (const id of registered) internals.unregisterCallback(id)
-        console.warn('ipc_batch: cannot announce the page', e)
-      }
-    }, 0)
+    if (customProtocolFailed && !channelData && orderedCalls.size > 0) {
+      orderedCalls.set(message, item)
+    } else {
+      sendOverPostMessage(item)
+    }
   }
 
   Object.defineProperty(internals, 'postMessage', {

@@ -15,119 +15,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { bench, run } from "mitata";
 
-import { bench, type k_iter, type k_state, run, summary } from "mitata";
-import { markRaw, reactive, ref, watch } from "vue";
-
-import {
-  ActionKeys,
-  ContextMenuItems,
-  DefaultGlobalStatesPagesStates,
-} from "@/constants/application.ts";
-import EnglishTranslations from "@/constants/english.json";
-import { Routes, SidebarRouteGroupItems } from "@/constants/routes.ts";
+import { DefaultGlobalStatesPagesStates } from "@/bootstrap/application.ts";
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
-import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import { projectConfig } from "@/lib/configs/sync.ts";
+import { declareGlobalStates, globalStates } from "@/states/global.ts";
 
-const dirtyMarker = ref<number>(0);
-const counter = ref<number>(0);
+import { watchConfigSync } from "./watch-config-sync.ts";
 
-function none(): void {
-  counter.value++;
-}
+Object.defineProperty(globalThis, "location", { "value": new URL("http://localhost") });
+GlobalInternals.initialConfig = await getDefaultConfig();
+declareGlobalStates(DefaultGlobalStatesPagesStates);
 
-const DefaultConfig = await getDefaultConfig();
-const States = {
-  "UseDeepWatcher"          : 1,
-  "UseDirtyMarker"          : 2,
-  "UseDeepWatcherWithChange": 3,
-  "UseDirtyMarkerWithChange": 4,
-} as const;
+bench("Project reactive config for synchronization", () => projectConfig(globalStates));
+bench("Register and stop config watcher", () => {
+  const stop = watchConfigSync();
 
-summary((): void => {
-  bench("Config sync technique $kind", function* (state: k_iter & k_state) {
-    const current = state.get("kind");
-
-    yield {
-      [0](): GlobalStatesType {
-        return reactive({
-          ...structuredClone(DefaultConfig),
-          "contextMenuItems": markRaw(ContextMenuItems),
-          "currentPage"     : "none",
-          "translations"    : markRaw(EnglishTranslations),
-          "pages"           : DefaultGlobalStatesPagesStates,
-          "sidebarItems"    : markRaw([
-            ...SidebarRouteGroupItems.map(item => {
-              return {
-                "path"  : item.Path,
-                "icon"  : item.Icon,
-                "name"  : item.Path,
-                "action": ActionKeys.SidebarRouteChange,
-              };
-            }),
-            "divider",
-            {
-              "path"  : Routes.AddInstance,
-              "icon"  : "i-lucide-plus",
-              "name"  : Routes.AddInstance,
-              "action": ActionKeys.SidebarRouteChange,
-            },
-          ]),
-        });
-      },
-      bench(localStates: GlobalStatesType): void {
-        switch (current) {
-          case States.UseDeepWatcherWithChange:
-          case States.UseDeepWatcher: {
-            const unwatcher = watch(
-              // Only watch config-related fields
-              () => [
-                localStates.development,
-                localStates.extensions,
-                localStates.ui,
-                localStates.selected,
-                localStates.locale,
-                localStates.logs,
-                localStates.minecraft,
-                // Also watch extension-added config-related fields
-                ...Object
-                  .keys(localStates)
-                  .filter(key => key.startsWith("config/"))
-                  .map(key => (
-                    localStates[key as keyof GlobalStatesType]
-                  )),
-              ],
-              none,
-              { "deep": true, "flush": "sync" },
-            );
-
-            if (current === States.UseDeepWatcherWithChange) {
-              localStates.development.showMemoryUsage = true;
-            }
-
-            unwatcher();
-            break;
-          }
-          case States.UseDirtyMarkerWithChange:
-          case States.UseDirtyMarker: {
-            const unwatcher = watch(dirtyMarker, none, { "flush": "sync" });
-
-            if (current === States.UseDirtyMarkerWithChange) {
-              dirtyMarker.value++;
-            }
-
-            unwatcher();
-            break;
-          }
-        }
-      },
-    };
-  }).args("kind", [
-    States.UseDeepWatcher,
-    States.UseDirtyMarker,
-    States.UseDeepWatcherWithChange,
-    States.UseDirtyMarkerWithChange,
-  ]);
+  stop();
 });
-
 await run();

@@ -17,7 +17,7 @@
     "typecheck": "vue-tsc -b",
     "generate:validators": "bun scripts/compile-typebox-schemas.ts",
     "generate:bundle-analysis": "vite build --sourcemap && bunx source-map-explorer 'dist/assets/*.js' --html bundle-analysis.html --no-border-checks",
-    "generate:types": "dts-bundle-generator ./src/declarations.ts -o ./types/kaede-lib.d.ts --project tsconfig.types.json --inline-declare-global"
+    "generate:types": "dts-bundle-generator ./src/declarations.ts -o ./types/kaede-lib.d.ts --project tsconfig.types.json --inline-declare-global --external-inlines ark-of-atrahasis"
   },
   "dependencies": {
     "@daidr/minecraft-skin-renderer": "^0.3.3",
@@ -76,5 +76,8 @@
     "vite": "^8.3.6",
     "vite-plugin-eslint2": "^5.0.4",
     "vue-tsc": "^2.2.12"
+  },
+  "patchedDependencies": {
+    "ark-of-atrahasis@0.3.1": "patches/ark-of-atrahasis@0.3.1.patch"
   }
 }

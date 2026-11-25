@@ -1,5 +1,6 @@
 import type { KaedeNamespaceType } from "@/declarations.ts";
-import { GlobalObject } from "@/extendable/global-object.ts";
+import { getHooks } from "@/extendable/hooks-registry.ts";
+import { formatHookError } from "@/lib/hooks/format-hook-error.ts";
 import { log } from "@/lib/logging/log.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
@@ -13,14 +14,19 @@ export function catchSyncVoidHooks({
   "toPass": unknown;
   "timing": "before" | "after";
 }): void {
-  const timeMeasurementStartAfter = performance.now();
-  const currentScopeHooks = GlobalObject.hooks[scope];
+  const currentScopeHooks = getHooks()[scope];
 
   if (!IsKeyInObject(timing, currentScopeHooks)) {
     return;
   }
 
   const hooks = currentScopeHooks[timing] as HookReturnType<unknown, "nothing", "non-promise">;
+
+  if (hooks.length === 0) {
+    return;
+  }
+
+  const timeMeasurementStartAfter = performance.now();
 
   log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.start(
     scope,
@@ -36,7 +42,17 @@ export function catchSyncVoidHooks({
       index,
       "sync",
     ));
-    hook(toPass);
+    try {
+      hook(toPass);
+    } catch (error: unknown) {
+      log.error(
+        __PRE_BUNDLED_FILENAME__,
+        `Caught an error while executing hook for '${scope}.${timing}':`,
+        formatHookError(error),
+      );
+
+      continue;
+    }
 
     const timeMeasurementEndHook = performance.now();
     const currentAfterHookTime = timeMeasurementEndHook - timeMeasurementStartHook;

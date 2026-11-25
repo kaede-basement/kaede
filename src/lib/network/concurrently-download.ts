@@ -20,6 +20,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 
 import { log } from "@/lib/logging/log.ts";
 import type {
+  DownloadEntryType,
   DownloadReportType,
   DownloadSnapshotType,
 } from "@/types/launcher/artifacts/download.type.ts";
@@ -36,7 +37,7 @@ export async function concurrentlyDownload({
   debug = false,
 }: {
   "concurrency": number;
-  "entries"    : Array<{ "url": string; "path": string }>;
+  "entries"    : Array<DownloadEntryType>;
   "statuses"   : LauncherStatusesType;
   "label"      : string;
   "cancelId"  ?: string;
@@ -45,15 +46,21 @@ export async function concurrentlyDownload({
   const logPrefix: string = `${label}:${__PRE_BUNDLED_FILENAME__}`;
 
   log.debug(logPrefix, `Removing duplicates for ${entries.length} objects`);
-  const uniqueMap: Map<string, string> = new Map(
-    // It is probably better to filter by unique paths rather than unique URLs...
-    entries.map(({ url, path }) => [path, url]),
-  );
-  const uniqueArtifacts: Array<{ "url": string; "path": string }> = [];
+  const uniqueMap = (new Map<string, DownloadEntryType>);
 
-  for (const [path, url] of uniqueMap.entries()) {
-    uniqueArtifacts.push({ url, path });
+  for (const entry of entries) {
+    const previous = uniqueMap.get(entry.path);
+
+    if (previous && (
+      previous.url !== entry.url || previous.size !== entry.size ||
+      previous.algorithm !== entry.algorithm ||
+      previous.hash?.toLowerCase() !== entry.hash?.toLowerCase()
+    )) {
+      throw new Error(`Conflicting download expectations for ${entry.path}`);
+    }
+    uniqueMap.set(entry.path, entry);
   }
+  const uniqueArtifacts = [...uniqueMap.values()];
 
   log.debug(
     logPrefix,
