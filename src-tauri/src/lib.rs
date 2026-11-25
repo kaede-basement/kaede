@@ -51,8 +51,46 @@ where
     true
 }
 
+// Claim the cancellation ID before dispatch advances. Keep entry-list decoding in the worker.
+fn dispatch_registered<P, T, F>(
+    invoke: Invoke,
+    name: &'static str,
+    work: impl FnOnce(Invoke, downloads::Registration, tauri::ipc::Channel<P>) -> F,
+) -> bool
+where
+    T: tauri::ipc::IpcResponse,
+    F: std::future::Future<Output = Result<T, tauri::ipc::InvokeError>> + Send + 'static,
+{
+    let bind = || -> Result<_, tauri::ipc::InvokeError> {
+        let id: String = argument(&invoke, name, "cancelId")?;
+        let progress = argument(&invoke, name, "onProgress")?;
+        let flags: tauri::State<downloads::CancelFlags> = argument(&invoke, name, "flags")?;
+        Ok((flags.register(&id), progress))
+    };
+    match bind() {
+        Ok((registration, progress)) => {
+            invoke
+                .resolver
+                .clone()
+                .respond_async(work(invoke, registration, progress))
+        }
+        Err(error) => invoke.resolver.invoke_error(error),
+    }
+    true
+}
+
 fn bind_at_dispatch(other: impl Fn(Invoke) -> bool) -> impl Fn(Invoke) -> bool {
     move |invoke| match invoke.message.command() {
+        "concurrently_download" => dispatch_registered(
+            invoke,
+            "concurrently_download",
+            downloads::concurrently_download,
+        ),
+        "repair_legacy_mrpack" => dispatch_registered(
+            invoke,
+            "repair_legacy_mrpack",
+            modrinth::repair_legacy_mrpack,
+        ),
         "cancel_downloads" => dispatch(invoke, downloads::cancel_downloads),
         "install_mrpack" => dispatch(invoke, modrinth::install_mrpack),
         "stream_logs" => dispatch(invoke, logging::stream_logs),
@@ -242,9 +280,7 @@ pub fn run() {
         // Register custom Tauri commands
         .invoke_handler(bind_at_dispatch(tauri::generate_handler![
             application::get_initial_state,
-            downloads::concurrently_download,
             downloads::prepare_mrpack_install,
-            modrinth::repair_legacy_mrpack,
             extensions::read_extensions,
             file_system::verify_paths,
             file_system::verify_paths_hash,

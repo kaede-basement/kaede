@@ -271,16 +271,18 @@ pub enum RepairOutcome {
     ArchiveUnavailable,
 }
 
-#[tauri::command]
-pub async fn repair_legacy_mrpack(
-    archive_path: PathBuf,
-    target_dir_path: PathBuf,
-    store: State<'_, ModStore>,
-    flags: State<'_, CancelFlags>,
-    cancel_id: String,
+pub(crate) async fn repair_legacy_mrpack(
+    invoke: crate::Invoke,
+    mut cancel: crate::downloads::Registration,
     on_progress: Channel<(usize, usize)>,
-) -> Result<RepairOutcome, String> {
-    let mut cancel = flags.register(&cancel_id);
+) -> Result<RepairOutcome, tauri::ipc::InvokeError> {
+    const NAME: &str = "repair_legacy_mrpack";
+    let archive_path = crate::argument(&invoke, NAME, "archivePath")?;
+    let target_dir_path = crate::argument(&invoke, NAME, "targetDirPath")?;
+    let store = crate::argument::<State<ModStore>>(&invoke, NAME, "store")?
+        .inner()
+        .clone();
+    drop(invoke);
     let result = repair(
         archive_path,
         target_dir_path,
@@ -295,27 +297,58 @@ pub async fn repair_legacy_mrpack(
     Ok(result)
 }
 
-fn missing_destination(extraction: &mut Extraction, name: &str) -> Result<Option<PathBuf>, String> {
-    let dest = extraction.prepare_file(name)?;
-    match dest.symlink_metadata() {
-        Ok(meta) if meta.is_file() => return Ok(None),
-        Ok(_) => return Err(format!("Unexpected legacy destination: {}", dest.display())),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-        Err(e) => return Err(e.to_string()),
+struct RepairExtraction {
+    extraction: Extraction,
+    cancel: CancelSignal,
+}
+
+impl RepairExtraction {
+    fn new(root: &Path, cancel: &CancelSignal) -> Result<Self, String> {
+        let _permit = cancel
+            .publication_permit()
+            .map_err(DownloadError::install_message)?;
+        Ok(Self {
+            extraction: Extraction::new(root)?,
+            cancel: cancel.clone(),
+        })
     }
-    if name
-        .split('/')
-        .next()
-        .is_some_and(|part| part.eq_ignore_ascii_case("mods"))
-        && name.ends_with(".jar")
-        && dest
-            .with_extension("jar.disabled")
-            .try_exists()
-            .map_err(|e| e.to_string())?
-    {
-        return Ok(None);
+
+    fn create_directory(&mut self, name: &str) -> Result<(), String> {
+        let _permit = self
+            .cancel
+            .publication_permit()
+            .map_err(DownloadError::install_message)?;
+        self.extraction.extract(name, true, None, std::io::empty())
     }
-    Ok(Some(dest))
+
+    fn missing_destination(&mut self, name: &str) -> Result<Option<PathBuf>, String> {
+        let dest = {
+            let _permit = self
+                .cancel
+                .publication_permit()
+                .map_err(DownloadError::install_message)?;
+            self.extraction.prepare_file(name)?
+        };
+        match dest.symlink_metadata() {
+            Ok(meta) if meta.is_file() => return Ok(None),
+            Ok(_) => return Err(format!("Unexpected legacy destination: {}", dest.display())),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+            Err(e) => return Err(e.to_string()),
+        }
+        if name
+            .split('/')
+            .next()
+            .is_some_and(|part| part.eq_ignore_ascii_case("mods"))
+            && name.ends_with(".jar")
+            && dest
+                .with_extension("jar.disabled")
+                .try_exists()
+                .map_err(|e| e.to_string())?
+        {
+            return Ok(None);
+        }
+        Ok(Some(dest))
+    }
 }
 
 fn accept_existing(result: std::io::Result<()>, dest: &Path) -> std::io::Result<()> {
@@ -403,15 +436,15 @@ async fn repair(
         let overrides = entries.len();
         let total = overrides + manifest.files.len();
         report(0, total);
-        let mut extraction = Extraction::new(&root)?;
+        let mut extraction = RepairExtraction::new(&root, &stop)?;
         // Publish missing client overrides first so lower-priority sources see an existing file.
         for (done, (index, name)) in entries.into_iter().rev().enumerate() {
             check_cancel(&stop)?;
             let entry = archive.by_index(index).map_err(|e| e.to_string())?;
             validate_override(&entry, &name)?;
             if entry.is_dir() {
-                extraction.extract(&name, true, None, std::io::empty())?;
-            } else if let Some(dest) = missing_destination(&mut extraction, &name)? {
+                extraction.create_directory(&name)?;
+            } else if let Some(dest) = extraction.missing_destination(&name)? {
                 publish_repair(stage_override(entry, &dest, &stop)?, &dest, &stop)?;
             }
             report(done + 1, total);
@@ -428,7 +461,7 @@ async fn repair(
         check_cancel(cancel)?;
         let name = file.path.clone();
         let (next, dest) = tokio::task::spawn_blocking(move || {
-            let dest = missing_destination(&mut extraction, &name);
+            let dest = extraction.missing_destination(&name);
             (extraction, dest)
         })
         .await
@@ -919,6 +952,39 @@ mod tests {
             std::fs::read(target.join("minecraft/options.txt")).unwrap(),
             b"content"
         );
+    }
+
+    #[tokio::test]
+    async fn cancelled_repair_cannot_create_archive_directories_or_manifest_parents() {
+        for directory in [true, false] {
+            let root = tempfile::tempdir().unwrap();
+            let flags = CancelFlags::default();
+            let registration = flags.register("repair");
+            let mut extraction = RepairExtraction::new(root.path(), &registration).unwrap();
+            let (ready, at_directory) = tokio::sync::oneshot::channel();
+            let (release, resume) = std::sync::mpsc::channel();
+            let worker = tokio::task::spawn_blocking(move || {
+                ready.send(()).unwrap();
+                resume
+                    .recv_timeout(std::time::Duration::from_secs(5))
+                    .unwrap();
+                if directory {
+                    extraction.create_directory("missing/")
+                } else {
+                    extraction
+                        .missing_destination("missing/mod.jar")
+                        .map(|_| ())
+                }
+            });
+            at_directory.await.unwrap();
+            assert!(flags.cancel("repair").await.unwrap());
+            release.send(()).unwrap();
+            assert_eq!(worker.await.unwrap().unwrap_err(), "Installation cancelled");
+            assert!(!root.path().join("missing").exists());
+            let absent = root.path().join("instance");
+            assert!(RepairExtraction::new(&absent, &registration).is_err());
+            assert!(!absent.exists());
+        }
     }
 
     #[tokio::test]

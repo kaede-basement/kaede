@@ -639,25 +639,20 @@ pub(crate) fn cancel_downloads(
     Ok(flags.cancel(&id))
 }
 
-#[tauri::command]
-pub async fn concurrently_download(
-    state: State<'_, CancelFlags>,
-    entries: Vec<DownloadEntry>,
-    concurrency: usize,
-    label: String,
-    cancel_id: String,
-    on_progress: Channel<DownloadSnapshot>,
-    debug: bool,
-) -> Result<DownloadReport, String> {
-    download_batch(
-        state.register(&cancel_id),
-        entries,
-        concurrency,
-        label,
-        on_progress,
-        debug,
-    )
-    .await
+pub(crate) async fn concurrently_download(
+    invoke: crate::Invoke,
+    registration: Registration,
+    progress: Channel<DownloadSnapshot>,
+) -> Result<DownloadReport, tauri::ipc::InvokeError> {
+    const NAME: &str = "concurrently_download";
+    let entries = crate::argument(&invoke, NAME, "entries")?;
+    let concurrency = crate::argument(&invoke, NAME, "concurrency")?;
+    let label = crate::argument(&invoke, NAME, "label")?;
+    let debug = crate::argument(&invoke, NAME, "debug")?;
+    drop(invoke);
+    download_batch(registration, entries, concurrency, label, progress, debug)
+        .await
+        .map_err(Into::into)
 }
 
 async fn download_batch(
@@ -1266,6 +1261,30 @@ mod tests {
         supervisor.await.unwrap();
         assert_eq!(std::fs::read(target).unwrap(), b"original");
         assert_eq!(root.path().read_dir().unwrap().count(), 1);
+    }
+
+    #[tokio::test]
+    async fn cancel_binds_before_registered_download_is_polled() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("item");
+        let entry = DownloadEntry {
+            path: target.display().to_string(),
+            ..Default::default()
+        };
+        let flags = CancelFlags::default();
+        let start = download_batch(
+            flags.register("batch"),
+            vec![entry],
+            1,
+            "test".into(),
+            Channel::new(|_| Ok(())),
+            false,
+        );
+        assert!(flags.cancel("batch").await.unwrap());
+        let report = start.await.unwrap();
+        assert!(report.cancelled);
+        assert_eq!((report.success, report.failed), (0, 0));
+        assert!(!target.exists());
     }
 
     #[tokio::test]

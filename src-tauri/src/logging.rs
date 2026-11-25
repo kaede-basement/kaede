@@ -46,7 +46,7 @@ struct LogWindow(Mutex<Subscription>);
 impl tauri::Resource for LogWindow {}
 
 impl LogWindow {
-    async fn stop(&self, viewer: Viewer) -> bool {
+    fn stop(&self, viewer: Viewer) -> impl std::future::Future<Output = bool> + 'static {
         let (stopped, sending) = {
             let mut current = self.0.lock().unwrap();
             let stopped = current.stop(viewer);
@@ -58,10 +58,12 @@ impl LogWindow {
                     .filter(|s| stopped || s.viewer == viewer),
             )
         };
-        if let Some(sending) = sending {
-            drop(sending.send.lock().await);
+        async move {
+            if let Some(sending) = sending {
+                drop(sending.send.lock().await);
+            }
+            stopped
         }
-        stopped
     }
 
     fn resource(table: &ResourceTable) -> Option<tauri::ResourceId> {
@@ -186,14 +188,14 @@ impl Subscription {
     }
 }
 
-struct ActiveSubscription<'a> {
-    current: &'a Mutex<Subscription>,
+struct ActiveSubscription {
+    window: Arc<LogWindow>,
     generation: u64,
 }
 
-impl Drop for ActiveSubscription<'_> {
+impl Drop for ActiveSubscription {
     fn drop(&mut self) {
-        let mut current = self.current.lock().unwrap();
+        let mut current = self.window.0.lock().unwrap();
         if current.generation == self.generation {
             current.active = None;
         }
@@ -320,11 +322,12 @@ pub(crate) fn stop_log_stream(
     invoke: &crate::Invoke,
 ) -> Result<impl std::future::Future<Output = Result<bool, String>>, tauri::ipc::InvokeError> {
     let (caller, viewer) = bind_viewer(invoke, "stop_log_stream")?;
+    let completion = caller.0.map(|window| window.stop(viewer));
     Ok(async move {
-        let Some(window) = caller.0 else {
-            return Ok(false);
-        };
-        Ok(window.stop(viewer).await)
+        Ok(match completion {
+            Some(work) => work.await,
+            None => false,
+        })
     })
 }
 
@@ -344,80 +347,88 @@ impl LogTail {
         Ok(id)
     }
 
-    async fn stream(
+    fn stream(
         &self,
         window: &Arc<LogWindow>,
         channel: Channel<LogStreamEvent>,
         viewer: Viewer,
-    ) -> Result<(), String> {
-        let (window, generation, sending) = {
+    ) -> impl std::future::Future<Output = Result<(), String>> + Send + 'static {
+        let admitted = {
             let mut current = window.0.lock().unwrap();
-            let Some(generation) = current.begin(viewer) else {
-                return Ok(());
-            };
-            (window.clone(), generation, current.sending.clone())
-        };
-        let _active = ActiveSubscription {
-            current: &window.0,
-            generation,
-        };
-        if let Some(sending) = sending {
-            drop(sending.send.lock().await);
-        }
-        let mut cursor = Cursor::default();
-        let path = self.path.clone();
-        loop {
-            let current = window.clone();
-            let path = path.clone();
-            let channel = channel.clone();
-            let result = tokio::task::spawn_blocking(move || -> io::Result<_> {
-                let (events, more) = cursor.poll(&path)?;
-                for event in events {
-                    let guard = {
-                        let mut current = current.0.lock().unwrap();
-                        let Some(active) = current
-                            .active
-                            .as_ref()
-                            .filter(|a| a.generation == generation)
-                        else {
-                            return Ok(None);
-                        };
-                        // This generation has one polling worker. Only retired generations have waiters.
-                        let guard = active
-                            .send
-                            .clone()
-                            .try_lock_owned()
-                            .expect("single log sender");
-                        current.sending = Some(active.clone());
-                        guard
-                    };
-                    if channel.send(event).is_err() {
-                        return Ok(None);
-                    }
-                    drop(guard);
-                }
-                Ok(Some((cursor, more)))
+            current.begin(viewer).map(|generation| {
+                (
+                    ActiveSubscription {
+                        window: window.clone(),
+                        generation,
+                    },
+                    current.sending.clone(),
+                )
             })
-            .await
-            .map_err(|e| e.to_string())?
-            .map_err(|e| e.to_string())?;
-            let Some((next, more)) = result else {
+        };
+        let path = self.path.clone();
+        async move {
+            let Some((active, sending)) = admitted else {
                 return Ok(());
             };
-            if window
-                .0
-                .lock()
-                .unwrap()
-                .active
-                .as_ref()
-                .map(|a| a.generation)
-                != Some(generation)
-            {
-                return Ok(());
+            let window = &active.window;
+            let generation = active.generation;
+            if let Some(sending) = sending {
+                drop(sending.send.lock().await);
             }
-            cursor = next;
-            if !more {
-                tokio::time::sleep(TICK).await;
+            let mut cursor = Cursor::default();
+            loop {
+                let current = window.clone();
+                let path = path.clone();
+                let channel = channel.clone();
+                let result = tokio::task::spawn_blocking(move || -> io::Result<_> {
+                    let (events, more) = cursor.poll(&path)?;
+                    for event in events {
+                        let guard = {
+                            let mut current = current.0.lock().unwrap();
+                            let Some(active) = current
+                                .active
+                                .as_ref()
+                                .filter(|a| a.generation == generation)
+                            else {
+                                return Ok(None);
+                            };
+                            // This generation has one polling worker. Only retired generations have waiters.
+                            let guard = active
+                                .send
+                                .clone()
+                                .try_lock_owned()
+                                .expect("single log sender");
+                            current.sending = Some(active.clone());
+                            guard
+                        };
+                        if channel.send(event).is_err() {
+                            return Ok(None);
+                        }
+                        drop(guard);
+                    }
+                    Ok(Some((cursor, more)))
+                })
+                .await
+                .map_err(|e| e.to_string())?
+                .map_err(|e| e.to_string())?;
+                let Some((next, more)) = result else {
+                    return Ok(());
+                };
+                if window
+                    .0
+                    .lock()
+                    .unwrap()
+                    .active
+                    .as_ref()
+                    .map(|a| a.generation)
+                    != Some(generation)
+                {
+                    return Ok(());
+                }
+                cursor = next;
+                if !more {
+                    tokio::time::sleep(TICK).await;
+                }
             }
         }
     }
@@ -432,11 +443,12 @@ pub(crate) fn stream_logs(
     let tail = crate::argument::<State<Arc<LogTail>>>(invoke, NAME, "state")?
         .inner()
         .clone();
+    let completion = caller.0.map(|window| tail.stream(&window, channel, viewer));
     Ok(async move {
-        let Some(window) = caller.0 else {
-            return Ok(());
-        };
-        tail.stream(&window, channel, viewer).await
+        match completion {
+            Some(work) => work.await,
+            None => Ok(()),
+        }
     })
 }
 
@@ -506,37 +518,44 @@ mod tests {
 
     #[tokio::test]
     async fn delayed_stop_leaves_reopened_viewer_receiving_lines() {
-        let file = tempfile::NamedTempFile::new().unwrap();
-        let tail = LogTail::new(file.path().into());
-        let mut table = ResourceTable::default();
-        let window = page(&mut table);
-        let a = tail.issue_viewer_id(&window).unwrap();
-        let b = tail.issue_viewer_id(&window).unwrap();
-        let original = tail.stream(&window, Channel::new(|_| Ok(())), Viewer::Token(a));
-        tokio::pin!(original);
-        assert!(futures_util::poll!(&mut original).is_pending());
-        let delayed_stop = window.stop(Viewer::Token(a));
-        let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let replacement = tail.stream(
-            &window,
-            Channel::new(move |event| {
-                events.send(event).unwrap();
-                Ok(())
-            }),
-            Viewer::Token(b),
-        );
-        tokio::pin!(replacement);
-        tokio::time::timeout(Duration::from_secs(5), async {
+        for keyed in [false, true] {
+            let file = tempfile::NamedTempFile::new().unwrap();
+            let tail = LogTail::new(file.path().into());
+            let mut table = ResourceTable::default();
+            let window = page(&mut table);
+            let viewer = || {
+                if keyed {
+                    Viewer::Token(tail.issue_viewer_id(&window).unwrap())
+                } else {
+                    Viewer::Legacy(None)
+                }
+            };
+            let first = viewer();
+            let second = viewer();
+            let original = tail.stream(&window, Channel::new(|_| Ok(())), first);
+            let delayed_stop = window.stop(first);
+            let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
+            let replacement = tail.stream(
+                &window,
+                Channel::new(move |event| {
+                    events.send(event).unwrap();
+                    Ok(())
+                }),
+                second,
+            );
+            tokio::pin!(replacement);
+            tokio::time::timeout(Duration::from_secs(5), async {
             tokio::select! { _ = &mut replacement => panic!("viewer exited"), _ = rx.recv() => {} }
-            assert!(!delayed_stop.await);
+            assert!(delayed_stop.await);
             std::fs::write(file.path(), "new line\n").unwrap();
             let event = tokio::select! { _ = &mut replacement => panic!("viewer exited"), e = rx.recv() => e.unwrap() };
             let tauri::ipc::InvokeResponseBody::Json(json) = event else { panic!() };
             assert_eq!(serde_json::from_str::<serde_json::Value>(&json).unwrap(), serde_json::json!({"type":"lines","data":["new line"]}));
-            assert!(window.stop(Viewer::Token(b)).await);
+            assert!(window.stop(second).await);
             replacement.await.unwrap();
             original.await.unwrap();
         }).await.unwrap();
+        }
     }
 
     #[tokio::test]
@@ -651,7 +670,11 @@ mod tests {
         }
         let stopped = Viewer::Legacy(Some(1 << 40));
         let delayed = tail.stream(&old, Channel::new(|_| panic!("retired page sent")), stopped);
+        let pending = Viewer::Legacy(Some(42));
+        let stop = old.stop(pending);
         let new = page(&mut table);
+        assert!(!stop.await);
+        assert!(new.0.lock().unwrap().begin(pending).is_none());
         assert!(new.0.lock().unwrap().begin(stopped).is_none());
         let token = tail.issue_viewer_id(&new).unwrap();
         let viewer = Viewer::from_args(None, Some(token));
