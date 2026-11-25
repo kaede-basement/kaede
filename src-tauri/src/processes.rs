@@ -1,15 +1,23 @@
 ///
 /// ATTENTION: AI-generated (by Claude Fable 5 on 'max' reasoning)
 ///
-use std::{collections::HashMap, path::PathBuf, sync::Mutex, time::Duration};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_shellx::{
-    process::{CommandChild, CommandEvent},
-    ShellExt,
+use shared_child::SharedChild;
+use std::{
+    io::{BufReader, Read, Write},
+    process::ChildStdin,
 };
+use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_shellx::{process::Command, ShellExt};
+use tokio::sync::{mpsc, Mutex as AsyncMutex};
 
 const TICK: Duration = Duration::from_millis(100);
 
@@ -42,7 +50,8 @@ struct ProcessEntry {
     token: String,
     kind: String,
     meta: Value,
-    child: CommandChild,
+    child: Arc<SharedChild>,
+    stdin: Arc<AsyncMutex<ChildStdin>>,
 }
 
 #[derive(Default)]
@@ -86,7 +95,7 @@ struct ExitPayload {
 
 fn into_line(bytes: &[u8]) -> String {
     let mut line = String::from_utf8_lossy(bytes).into_owned();
-    line.truncate(line.trim_end_matches(|c| c == '\r' || c == '\n').len());
+    line.truncate(line.trim_end_matches(['\r', '\n']).len());
     line
 }
 
@@ -102,12 +111,15 @@ fn flush_output(
             continue;
         }
 
-        let _ = app.emit("process-output", OutputPayload {
-            token: token.to_owned(),
-            pid,
-            stream,
-            lines: std::mem::take(pending),
-        });
+        let _ = app.emit(
+            "process-output",
+            OutputPayload {
+                token: token.to_owned(),
+                pid,
+                stream,
+                lines: std::mem::take(pending),
+            },
+        );
     }
 }
 
@@ -117,30 +129,37 @@ pub async fn spawn_process(
     registry: State<'_, ProcessRegistry>,
     spec: SpawnSpec,
 ) -> Result<ProcessDto, String> {
-    let mut command = match &spec.program {
-        Program::Path(program) => app.shell().command(program),
-        Program::Sidecar(name) => app.shell().sidecar(name).map_err(|e| e.to_string())?,
+    let command = build_command(&app, spec.program, spec.args, spec.cwd, spec.env)?;
+    let child = Arc::new(SharedChild::spawn(&mut command.into()).map_err(|e| e.to_string())?);
+    let pid = child.id();
+    let stdin = Arc::new(AsyncMutex::new(child.take_stdin().expect("piped stdin")));
+    let (tx, mut rx) = mpsc::channel(1);
+    let stdout = read_pipe(
+        child.take_stdout().expect("piped stdout"),
+        tx.clone(),
+        "stdout",
+    );
+    let stderr = read_pipe(child.take_stderr().expect("piped stderr"), tx, "stderr");
+    let waiter = child.clone();
+    let exit = tokio::task::spawn_blocking(move || waiter.wait());
+
+    let dto = ProcessDto {
+        token: spec.token.clone(),
+        pid,
+        kind: spec.kind.clone(),
+        meta: spec.meta.clone(),
     };
 
-    command = command.args(&spec.args);
-    if let Some(cwd) = &spec.cwd {
-        command = command.current_dir(cwd);
-    }
-    if let Some(env) = &spec.env {
-        command = command.envs(env.clone());
-    }
-
-    let (mut rx, child) = command.spawn().map_err(|e| e.to_string())?;
-    let pid = child.pid();
-
-    let dto = ProcessDto { token: spec.token.clone(), pid, kind: spec.kind.clone(), meta: spec.meta.clone() };
-
-    registry.0.lock().unwrap().insert(pid, ProcessEntry {
-        token: spec.token.clone(),
-        kind: spec.kind,
-        meta: spec.meta,
-        child,
-    });
+    registry.0.lock().unwrap().insert(
+        pid,
+        ProcessEntry {
+            token: spec.token.clone(),
+            kind: spec.kind,
+            meta: spec.meta,
+            child,
+            stdin,
+        },
+    );
 
     let (token, kind, app) = (spec.token, dto.kind.clone(), app.clone());
     tauri::async_runtime::spawn(async move {
@@ -150,37 +169,74 @@ pub async fn spawn_process(
         let mut interval = tokio::time::interval(TICK);
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
+        let mut pending_bytes = 0;
         loop {
             tokio::select! {
                 event = rx.recv() => match event {
-                    Some(CommandEvent::Stdout(bytes)) => stdout_pending.push(into_line(&bytes)),
-                    Some(CommandEvent::Stderr(bytes)) => stderr_pending.push(into_line(&bytes)),
-                    Some(CommandEvent::Error(message)) => {
-                        // Anything printed before the failure arrives before it
+                    Some((stream, Ok(line))) => {
+                        pending_bytes += line.len() + 1;
+                        if stream == "stdout" { stdout_pending.push(line); } else { stderr_pending.push(line); }
+                        if pending_bytes < 64 * 1024 { continue; }
+                    }
+                    Some((_, Err(message))) => {
                         flush_output(&app, &token, pid, &mut stdout_pending, &mut stderr_pending);
                         let _ = app.emit("process-error", ErrorPayload { token: token.clone(), pid, message });
                     }
-                    Some(CommandEvent::Terminated(payload)) => {
-                        // shellx sends 'Terminated' only after both pipes hit EOF,
-                        // so this flush drains every remaining line before the exit event
-                        flush_output(&app, &token, pid, &mut stdout_pending, &mut stderr_pending);
-                        app.state::<ProcessRegistry>().0.lock().unwrap().remove(&pid);
-                        let _ = app.emit("process-exited", ExitPayload {
-                            token: token.clone(), pid, kind: kind.clone(),
-                            code: payload.code, signal: payload.signal,
-                        });
-                    }
-                    Some(_) => {} // #[non_exhaustive]
-                    None => {
-                        flush_output(&app, &token, pid, &mut stdout_pending, &mut stderr_pending);
-                        break;
-                    }
+                    None => break,
                 },
-                _ = interval.tick(), if !stdout_pending.is_empty() || !stderr_pending.is_empty() => {
-                    flush_output(&app, &token, pid, &mut stdout_pending, &mut stderr_pending);
-                }
+                _ = interval.tick(), if pending_bytes > 0 => {}
+            }
+            flush_output(&app, &token, pid, &mut stdout_pending, &mut stderr_pending);
+            pending_bytes = 0;
+        }
+        flush_output(&app, &token, pid, &mut stdout_pending, &mut stderr_pending);
+        for reader in [stdout, stderr] {
+            if let Err(e) = reader.await {
+                let _ = app.emit(
+                    "process-error",
+                    ErrorPayload {
+                        token: token.clone(),
+                        pid,
+                        message: e.to_string(),
+                    },
+                );
             }
         }
+        let status = exit
+            .await
+            .map_err(|e| e.to_string())
+            .and_then(|s| s.map_err(|e| e.to_string()));
+        app.state::<ProcessRegistry>().remove_exited(pid, &token);
+        let (code, signal) = match status {
+            Ok(status) => {
+                #[cfg(unix)]
+                let signal = std::os::unix::process::ExitStatusExt::signal(&status);
+                #[cfg(not(unix))]
+                let signal = None;
+                (status.code(), signal)
+            }
+            Err(message) => {
+                let _ = app.emit(
+                    "process-error",
+                    ErrorPayload {
+                        token: token.clone(),
+                        pid,
+                        message,
+                    },
+                );
+                (None, None)
+            }
+        };
+        let _ = app.emit(
+            "process-exited",
+            ExitPayload {
+                token,
+                pid,
+                kind,
+                code,
+                signal,
+            },
+        );
     });
 
     Ok(dto)
@@ -188,32 +244,60 @@ pub async fn spawn_process(
 
 #[tauri::command]
 pub fn list_processes(registry: State<'_, ProcessRegistry>) -> Vec<ProcessDto> {
-    registry.0.lock().unwrap().iter()
+    registry
+        .0
+        .lock()
+        .unwrap()
+        .iter()
         .map(|(pid, e)| ProcessDto {
-            token: e.token.clone(), pid: *pid, kind: e.kind.clone(), meta: e.meta.clone(),
+            token: e.token.clone(),
+            pid: *pid,
+            kind: e.kind.clone(),
+            meta: e.meta.clone(),
         })
         .collect()
 }
 
 #[tauri::command]
 pub fn kill_process(registry: State<'_, ProcessRegistry>, pid: u32) -> Result<(), String> {
-    let entry = registry.0.lock().unwrap().remove(&pid)
+    let child = registry
+        .0
+        .lock()
+        .unwrap()
+        .get(&pid)
+        .map(|entry| entry.child.clone())
         .ok_or_else(|| format!("no managed process with pid {pid}"))?;
-    entry.child.kill().map_err(|e| e.to_string())
+    child.kill().map_err(|e| e.to_string())
 }
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-pub enum StdinData { Text(String), Bytes(Vec<u8>) }
+pub enum StdinData {
+    Text(String),
+    Bytes(Vec<u8>),
+}
 
 #[tauri::command]
-pub fn write_process(registry: State<'_, ProcessRegistry>, pid: u32, data: StdinData) -> Result<(), String> {
-    let mut map = registry.0.lock().unwrap();
-    let entry = map.get_mut(&pid).ok_or_else(|| format!("no managed process with pid {pid}"))?;
-    match &data {
-        StdinData::Text(s) => entry.child.write(s.as_bytes()),
-        StdinData::Bytes(b) => entry.child.write(b),
-    }.map_err(|e| e.to_string())
+pub async fn write_process(
+    registry: State<'_, ProcessRegistry>,
+    pid: u32,
+    data: StdinData,
+) -> Result<(), String> {
+    let stdin = registry
+        .0
+        .lock()
+        .unwrap()
+        .get(&pid)
+        .map(|entry| entry.stdin.clone())
+        .ok_or_else(|| format!("no managed process with pid {pid}"))?;
+    let mut stdin = stdin.lock_owned().await;
+    tokio::task::spawn_blocking(move || match data {
+        StdinData::Text(s) => stdin.write_all(s.as_bytes()),
+        StdinData::Bytes(b) => stdin.write_all(&b),
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
 }
 
 #[derive(Deserialize)]
@@ -239,19 +323,7 @@ pub struct RunResult {
 
 #[tauri::command]
 pub async fn run_process(app: AppHandle, spec: RunSpec) -> Result<RunResult, String> {
-    let mut command = match &spec.program {
-        Program::Path(program) => app.shell().command(program),
-        Program::Sidecar(name) => app.shell().sidecar(name).map_err(|e| e.to_string())?,
-    };
-
-    command = command.args(&spec.args);
-    if let Some(cwd) = &spec.cwd {
-        command = command.current_dir(cwd);
-    }
-    if let Some(env) = &spec.env {
-        command = command.envs(env.clone());
-    }
-
+    let command = build_command(&app, spec.program, spec.args, spec.cwd, spec.env)?;
     let output = command.output().await.map_err(|e| e.to_string())?;
 
     Ok(RunResult {
@@ -260,4 +332,91 @@ pub async fn run_process(app: AppHandle, spec: RunSpec) -> Result<RunResult, Str
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
     })
+}
+
+fn build_command(
+    app: &AppHandle,
+    program: Program,
+    args: Vec<String>,
+    cwd: Option<PathBuf>,
+    env: Option<HashMap<String, String>>,
+) -> Result<Command, String> {
+    let mut command = match program {
+        Program::Path(program) => app.shell().command(program),
+        Program::Sidecar(name) => app.shell().sidecar(name).map_err(|e| e.to_string())?,
+    }
+    .args(args);
+    if let Some(cwd) = cwd {
+        command = command.current_dir(cwd);
+    }
+    if let Some(env) = env {
+        command = command.envs(env);
+    }
+    Ok(command)
+}
+
+type OutputLine = (&'static str, Result<String, String>);
+
+fn read_pipe(
+    pipe: impl Read + Send + 'static,
+    tx: mpsc::Sender<OutputLine>,
+    stream: &'static str,
+) -> tokio::task::JoinHandle<()> {
+    tokio::task::spawn_blocking(move || {
+        let mut reader = BufReader::new(pipe);
+        let mut bytes = Vec::new();
+        loop {
+            bytes.clear();
+            let line = match tauri::utils::io::read_line(&mut reader, &mut bytes) {
+                Ok(0) => break,
+                Ok(_) => Ok(into_line(&bytes)),
+                Err(e) => Err(e.to_string()),
+            };
+            let failed = line.is_err();
+            if tx.blocking_send((stream, line)).is_err() || failed {
+                break;
+            }
+        }
+    })
+}
+
+impl ProcessRegistry {
+    fn remove_exited(&self, pid: u32, token: &str) {
+        let mut processes = self.0.lock().unwrap();
+        if processes
+            .get(&pid)
+            .is_some_and(|entry| entry.token == token)
+        {
+            processes.remove(&pid);
+        }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    #[test]
+    fn only_matching_exit_removes_process() {
+        let mut cmd = std::process::Command::new("sh");
+        cmd.args(["-c", "exit 0"])
+            .stdin(std::process::Stdio::piped());
+        let child = Arc::new(SharedChild::spawn(&mut cmd).unwrap());
+        let pid = child.id();
+        let registry = ProcessRegistry::default();
+        registry.0.lock().unwrap().insert(
+            pid,
+            ProcessEntry {
+                token: "new".into(),
+                kind: "test".into(),
+                meta: Value::Null,
+                stdin: Arc::new(AsyncMutex::new(child.take_stdin().unwrap())),
+                child: child.clone(),
+            },
+        );
+        child.wait().unwrap();
+        registry.remove_exited(pid, "old");
+        assert!(registry.0.lock().unwrap().contains_key(&pid));
+        registry.remove_exited(pid, "new");
+        assert!(registry.0.lock().unwrap().is_empty());
+    }
 }

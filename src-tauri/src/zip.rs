@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use tokio::task::JoinSet;
+use std::io::Write;
 use zip::ZipArchive;
 
 #[derive(Deserialize)]
@@ -33,12 +34,7 @@ pub async fn read_archive_entry(
 }
 
 fn read_entry(archive_path: &Path, entry_path: &str) -> Result<Option<Vec<u8>>, String> {
-    let file = File::open(archive_path)
-        .map_err(|error| format!("Failed to open {}: {}", archive_path.display(), error))?;
-
-    let mut archive = ZipArchive::new(file)
-        .map_err(|error| format!("Failed to read {} as a zip: {}", archive_path.display(), error))?;
-
+    let mut archive = open_archive(archive_path)?;
     let mut entry = match archive.by_name(entry_path) {
         Ok(entry) => entry,
         Err(zip::result::ZipError::FileNotFound) => return Ok(None),
@@ -56,96 +52,243 @@ fn read_entry(archive_path: &Path, entry_path: &str) -> Result<Option<Vec<u8>>, 
         return Ok(None);
     }
 
-    let mut bytes = Vec::with_capacity(entry.size() as usize);
+    read_limited(&mut entry, MEMORY_ENTRY_LIMIT).map(Some)
+}
 
-    entry.read_to_end(&mut bytes).map_err(|error| {
+const MEMORY_ENTRY_LIMIT: u64 = 256 << 20;
+const DISK_ENTRY_LIMIT: u64 = 2 << 30;
+const EXTRACTION_LIMIT: u64 = 8 << 30;
+
+pub(crate) fn open_archive(archive_path: &Path) -> Result<ZipArchive<File>, String> {
+    let file = File::open(archive_path)
+        .map_err(|error| format!("Failed to open {}: {}", archive_path.display(), error))?;
+
+    ZipArchive::new(file).map_err(|error| {
         format!(
-            "Failed to read the '{}' entry in {}: {}",
-            entry_path,
+            "Failed to read {} as a zip: {}",
             archive_path.display(),
-            error,
+            error
         )
-    })?;
+    })
+}
 
-    Ok(Some(bytes))
+fn copy_limited(reader: impl Read, mut writer: impl Write, limit: u64) -> Result<u64, String> {
+    let mut reader = reader.take(limit);
+    let count = io::copy(&mut reader, &mut writer).map_err(|e| e.to_string())?;
+    if count == limit
+        && reader
+            .into_inner()
+            .read(&mut [0])
+            .map_err(|e| e.to_string())?
+            != 0
+    {
+        return Err(format!("Archive exceeds decoded byte limit ({limit})"));
+    }
+    Ok(count)
+}
+
+pub(crate) fn read_limited(reader: impl Read, limit: u64) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    copy_limited(reader, &mut bytes, limit)?;
+    Ok(bytes)
+}
+
+pub(crate) fn relative_name(name: &str) -> Result<&Path, String> {
+    let name = name.strip_suffix('/').unwrap_or(name);
+    for part in name.split('/') {
+        let stem = part
+            .split('.')
+            .next()
+            .unwrap_or("")
+            .trim_end()
+            .to_ascii_uppercase();
+        if part.is_empty()
+            || part.ends_with(['.', ' '])
+            || part.contains(['\\', ':', '\0'])
+            || matches!(
+                stem.as_str(),
+                "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+            )
+            || (stem.starts_with("COM") || stem.starts_with("LPT"))
+                && stem.chars().count() == 4
+                && stem.ends_with(|c: char| c.is_ascii_digit() || "¹²³".contains(c))
+        {
+            return Err(format!("Unsafe archive path: {name}"));
+        }
+    }
+    Ok(Path::new(name))
+}
+
+pub(crate) struct Extraction {
+    root: PathBuf,
+    directories: HashSet<PathBuf>,
+    remaining: u64,
+}
+
+impl Extraction {
+    pub fn new(root: &Path) -> Result<Self, String> {
+        fs::create_dir_all(root).map_err(|e| e.to_string())?;
+        Ok(Self {
+            root: root.canonicalize().map_err(|e| e.to_string())?,
+            directories: HashSet::new(),
+            remaining: EXTRACTION_LIMIT,
+        })
+    }
+
+    fn directory(&mut self, parent: &Path) -> Result<(), String> {
+        let mut path = self.root.clone();
+        for component in parent.iter() {
+            path.push(component);
+            if self.directories.contains(&path) {
+                continue;
+            }
+            match fs::create_dir(&path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                    if !fs::symlink_metadata(&path)
+                        .map_err(|e| e.to_string())?
+                        .is_dir()
+                        || path.canonicalize().map_err(|e| e.to_string())? != path
+                    {
+                        return Err(format!("Linked extraction directory: {}", path.display()));
+                    }
+                }
+                Err(e) => return Err(e.to_string()),
+            }
+            self.directories.insert(path.clone());
+        }
+        Ok(())
+    }
+
+    pub fn prepare_file(&mut self, name: &str) -> Result<PathBuf, String> {
+        let relative = relative_name(name)?;
+        self.directory(relative.parent().unwrap())?;
+        Ok(self.root.join(relative))
+    }
+
+    pub fn extract(
+        &mut self,
+        name: &str,
+        directory: bool,
+        mode: Option<u32>,
+        reader: impl Read,
+    ) -> Result<(), String> {
+        if directory {
+            self.directory(relative_name(name)?)?;
+            return Ok(());
+        }
+        let path = self.prepare_file(name)?;
+        let mut output =
+            tempfile::NamedTempFile::new_in(path.parent().unwrap()).map_err(|e| e.to_string())?;
+        let limit = self.remaining.min(DISK_ENTRY_LIMIT);
+        let mut input = reader.take(limit + 1);
+        let copied = copy_limited(&mut input, &mut output, limit);
+        self.remaining = self.remaining.saturating_sub(limit + 1 - input.limit());
+        copied?;
+        #[cfg(unix)]
+        if let Some(mode) = mode {
+            use std::os::unix::fs::PermissionsExt;
+            output
+                .as_file()
+                .set_permissions(fs::Permissions::from_mode(mode & 0o777))
+                .map_err(|e| e.to_string())?;
+        }
+        #[cfg(not(unix))]
+        let _ = mode;
+        output.persist(path).map_err(|e| e.to_string())?;
+        Ok(())
+    }
 }
 
 #[tauri::command]
 pub async fn unzip_files(archive_files: Vec<ArchiveFile>, target_dir_path: String) -> UnzipOutcome {
-    let target_dir = PathBuf::from(target_dir_path);
-
-    let mut tasks = JoinSet::new();
-
-    for archive_file in archive_files {
-        let target_dir = target_dir.clone();
-        tasks.spawn_blocking(move || extract_archive(&archive_file, &target_dir));
-    }
-
-    let mut errors = Vec::new();
-
-    while let Some(joined) = tasks.join_next().await {
-        match joined {
-            Ok(Ok(())) => {}
-            Ok(Err(message)) => errors.push(message),
-            Err(join_error) => errors.push(join_error.to_string()),
+    let result = tokio::task::spawn_blocking(move || {
+        let mut extraction = Extraction::new(Path::new(&target_dir_path))?;
+        let mut errors = Vec::new();
+        for file in archive_files {
+            if let Err(error) = extract_archive(&file, &mut extraction) {
+                errors.push(error);
+            }
         }
-    }
-
-    if errors.is_empty() {
-        UnzipOutcome::Success(true)
-    } else {
-        UnzipOutcome::Error(errors.join("\n"))
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("\n"))
+        }
+    })
+    .await;
+    match result {
+        Ok(Ok(())) => UnzipOutcome::Success(true),
+        Ok(Err(e)) => UnzipOutcome::Error(e),
+        Err(e) => UnzipOutcome::Error(e.to_string()),
     }
 }
 
-fn extract_archive(archive_file: &ArchiveFile, target_dir: &Path) -> Result<(), String> {
-    let archive_path = Path::new(&archive_file.path);
-
-    let file = File::open(archive_path)
-        .map_err(|error| format!("Failed to open {}: {}", archive_path.display(), error))?;
-
-    let mut archive = ZipArchive::new(file)
-        .map_err(|error| format!("Failed to read {} as a zip: {}", archive_path.display(), error))?;
-
-    for index in 0..archive.len() {
-        let mut entry = archive
-            .by_index(index)
-            .map_err(|error| format!("Failed to read entry #{} in {}: {}", index, archive_path.display(), error))?;
-
-        // 'extract.exclude' entries are path prefixes, e.g., "META-INF/"
-        if archive_file.exclude.iter().any(|prefix| entry.name().starts_with(prefix.as_str())) {
+fn extract_archive(file: &ArchiveFile, extraction: &mut Extraction) -> Result<(), String> {
+    let mut archive = open_archive(Path::new(&file.path))?;
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        if file
+            .exclude
+            .iter()
+            .any(|prefix| entry.name().starts_with(prefix))
+        {
             continue;
         }
+        let name = entry.name().to_owned();
+        extraction.extract(&name, entry.is_dir(), entry.unix_mode(), entry)?;
+    }
+    Ok(())
+}
 
-        let Some(relative_path) = entry.enclosed_name() else {
-            continue;
-        };
-
-        let output_path = target_dir.join(relative_path);
-
-        if entry.is_dir() {
-            fs::create_dir_all(&output_path)
-                .map_err(|error| format!("Failed to create {}: {}", output_path.display(), error))?;
-            continue;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn archive_names_are_confined_on_every_host() {
+        for name in [
+            "../x",
+            "a/../x",
+            "/x",
+            "C:/x",
+            "a\\..\\x",
+            "//server/x",
+            "a/NUL.txt",
+        ] {
+            assert!(relative_name(name).is_err(), "{name}");
         }
-
-        if let Some(parent) = output_path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|error| format!("Failed to create {}: {}", parent.display(), error))?;
-        }
-
-        let mut output_file = File::create(&output_path)
-            .map_err(|error| format!("Failed to create {}: {}", output_path.display(), error))?;
-
-        io::copy(&mut entry, &mut output_file)
-            .map_err(|error| format!("Failed to write {}: {}", output_path.display(), error))?;
-
-        #[cfg(unix)]
-        if let Some(mode) = entry.unix_mode() {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = fs::set_permissions(&output_path, fs::Permissions::from_mode(mode));
-        }
+        assert!(relative_name("mods/test.jar").is_ok());
+    }
+    #[test]
+    fn cap_checks_actual_output_at_boundary() {
+        assert_eq!(read_limited(&b"abc"[..], 3).unwrap(), b"abc");
+        assert!(read_limited(&b"abcd"[..], 3).is_err());
+    }
+    #[test]
+    fn failed_entry_preserves_destination_and_consumes_no_extra_disk() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("item");
+        fs::write(&path, "old").unwrap();
+        let mut extraction = Extraction::new(root.path()).unwrap();
+        extraction.remaining = 3;
+        extraction.extract("first", false, None, &b"a"[..]).unwrap();
+        assert!(extraction
+            .extract("item", false, None, &b"abc"[..])
+            .is_err());
+        assert_eq!(fs::read(path).unwrap(), b"old");
+        assert_eq!(root.path().read_dir().unwrap().count(), 2);
     }
 
-    Ok(())
+    #[cfg(unix)]
+    #[test]
+    fn linked_parent_is_rejected_before_writing() {
+        let root = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(other.path(), root.path().join("linked")).unwrap();
+        let mut extraction = Extraction::new(root.path()).unwrap();
+        assert!(extraction
+            .extract("linked/sub/file", false, None, &b"abc"[..])
+            .is_err());
+        assert!(!other.path().join("sub").exists());
+    }
 }

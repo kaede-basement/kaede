@@ -10,15 +10,6 @@ use crate::hashing::{APPLICATION_HASH, get_executable_hash};
 
 static LAUNCH_COUNT: AtomicI32 = AtomicI32::new(0);
 
-pub fn is_portable() -> bool {
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            return exe_dir.join("portable.txt").exists();
-        }
-    }
-    false
-}
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InitialStateBasic {
@@ -30,18 +21,12 @@ pub struct InitialStateBasic {
 }
 
 pub fn get_application_directory_info(app: &tauri::AppHandle) -> Result<(PathBuf, bool), String> {
-    let portable = is_portable();
-    let base_directory = if portable {
-        std::env::current_exe()
-            .map_err(|error| error.to_string())?
-            .parent()
-            .ok_or_else(|| "Failed to get executable directory".to_string())?
-            .to_path_buf()
-    } else {
-        app.path().app_data_dir().map_err(|error| error.to_string())?
-    };
-
-    Ok((base_directory, portable))
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent().filter(|dir| dir.join("portable.txt").exists()) {
+            return Ok((dir.to_owned(), true));
+        }
+    }
+    Ok((app.path().app_data_dir().map_err(|e| e.to_string())?, false))
 }
 
 pub fn get_basic_state(app: &tauri::AppHandle, base_directory: PathBuf, portable: bool) -> InitialStateBasic {
@@ -109,7 +94,7 @@ pub async fn get_initial_state(
         None => load_config_files(preloaded_state.base_directory.clone()).await?,
     };
 
-    let executable_hash = APPLICATION_HASH.get_or_init(get_executable_hash).await;
+    let executable_hash = APPLICATION_HASH.get_or_try_init(get_executable_hash).await?;
     let basic_state = get_basic_state(
         &app,
         preloaded_state.base_directory.clone(),

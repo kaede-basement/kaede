@@ -19,22 +19,19 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-use md5::Md5;
-use sha1::Sha1;
-use sha2::Sha256;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::value::RawValue;
 
 use crate::application::InitialStateParsedFiles;
-use crate::hashing::{hash_file, HashAlgorithm};
+use crate::hashing::HashAlgorithm;
 use crate::translations::extract_locale;
 
 #[derive(Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ParsedFile {
     // For a well-formed JSON
-    Loaded { data: Value },
+    Loaded { data: Box<RawValue> },
     // The file is empty or does not exist.
     // It will be rewritten with default contents
     Missing,
@@ -55,7 +52,7 @@ async fn load_json_file(path: PathBuf) -> Result<ParsedFile, String> {
         return Ok(ParsedFile::Missing);
     }
 
-    match serde_json::from_str::<Value>(&content) {
+    match serde_json::from_str::<Box<RawValue>>(&content) {
         Ok(data) => Ok(ParsedFile::Loaded { data }),
         Err(error) => Ok(ParsedFile::Corrupt {
             raw: content,
@@ -77,8 +74,12 @@ pub async fn load_config_files(base_directory: PathBuf) -> Result<InitialStatePa
 
     let locale = extract_locale(&config);
     let translations = load_json_file(
-        base_directory.join("translations").join(format!("{locale}.json")),
-    ).await.map_err(|error| error.to_string())?;
+        base_directory
+            .join("translations")
+            .join(format!("{locale}.json")),
+    )
+    .await
+    .map_err(|error| error.to_string())?;
 
     Ok(InitialStateParsedFiles {
         config,
@@ -101,49 +102,74 @@ pub async fn verify_paths(paths: Vec<String>) -> Result<Vec<String>, String> {
             .into_par_iter()
             .filter(|path| !Path::new(path).exists())
             .collect()
-    }).await.map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub async fn verify_paths_hash(artifacts: Vec<Artifact>, algorithm: HashAlgorithm) -> Result<Vec<String>, String> {
+pub async fn verify_paths_hash(
+    artifacts: Vec<Artifact>,
+    algorithm: HashAlgorithm,
+) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
         let mismatched_paths: Vec<String> = artifacts
-            .par_iter()
+            .into_par_iter()
             .filter_map(|artifact| {
                 let path = Path::new(&artifact.path);
 
-                if !path.exists() {
-                    return Some(artifact.path.clone());
-                }
-
-                // Artifacts that did not specify SHA1 hashes have been assigned to 'ignore' in JS
-                if artifact.hash == "ignore" {
-                    return None;
-                }
-
-                match verify_file_hash(path, &algorithm, &artifact.hash) {
-                    Ok(is_valid) => {
-                        if !is_valid {
-                            Some(artifact.path.clone())
-                        } else {
-                            None
-                        }
-                    }
-                    Err(_) => Some(artifact.path.clone()),
-                }
+                let valid = if artifact.hash == "ignore" {
+                    path.exists()
+                } else {
+                    verify_file_hash(path, &algorithm, &artifact.hash).unwrap_or(false)
+                };
+                (!valid).then_some(artifact.path)
             })
             .collect();
 
         Ok(mismatched_paths)
-    }).await.map_err(|error| error.to_string())?
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
-fn verify_file_hash(path: &Path, algorithm: &HashAlgorithm, expected_hash: &str) -> io::Result<bool> {
-    let hash = match algorithm {
-        HashAlgorithm::Sha256 => hash_file::<Sha256>(path),
-        HashAlgorithm::Sha1   => hash_file::<Sha1>(path),
-        HashAlgorithm::Md5    => hash_file::<Md5>(path),
-    }?;
+fn verify_file_hash(
+    path: &Path,
+    algorithm: &HashAlgorithm,
+    expected_hash: &str,
+) -> io::Result<bool> {
+    match algorithm.hash(path) {
+        Ok(hash) => Ok(hash == expected_hash),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e),
+    }
+}
 
-    Ok(hash == expected_hash)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn startup_json_preserves_wire_values_locale_and_recovery_text() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        for (input, locale) in [
+            (r#"{"other":[0,true],"locale":"fr","locale":"ru"}"#, "ru"),
+            (r#"{"locale":"../accounts"}"#, "en"),
+            (r#"["ru"]"#, "en"),
+        ] {
+            std::fs::write(&path, input).unwrap();
+            let file = load_json_file(path.clone()).await.unwrap();
+            assert_eq!(extract_locale(&file), locale);
+            assert_eq!(
+                serde_json::to_value(&file).unwrap(),
+                serde_json::json!({
+                    "status": "loaded", "data": serde_json::from_str::<serde_json::Value>(input).unwrap()
+                })
+            );
+        }
+        std::fs::write(&path, " {broken ").unwrap();
+        assert!(
+            matches!(load_json_file(path).await.unwrap(), ParsedFile::Corrupt { raw, .. } if raw == " {broken ")
+        );
+    }
 }
