@@ -21,37 +21,26 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
+import FileManager from "@/lib/file-manager";
 import { sanitizeFileOrFolderName } from "@/lib/file-manager/path.ts";
 import { translate } from "@/lib/general/translate.ts";
-import { sync } from "@/lib/instances/sync.ts";
+import { registerInstance } from "@/lib/instances/sync.ts";
 import { log } from "@/lib/logging/log.ts";
 import { persistImportArchive, setImportedModpack } from "@/lib/modrinth/import-archive.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
-type ImportedModpack = NonNullable<GlobalStatesType["pages"]["add-instance"]["importedModpack"]>;
-const awaitingMetadata = new WeakMap<ImportedModpack, { "id": string; "path": string }>;
+type Page = GlobalStatesType["pages"]["add-instance"];
+type Import = { "path": string; "install": (id: string) => Promise<void> };
+const awaitingMetadata = new WeakMap<Page, { "directory": string; "path": string; "id": string }>;
 
-export function create(
-  currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
-  uid: ExtendedPatchUIDType,
-  modpackPath?: string,
-): string | undefined;
-export function create(
-  currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
-  uid: ExtendedPatchUIDType,
-  modpackPath: string,
-  beforeRegister: (id: string) => Promise<void>,
-): Promise<string> | undefined;
-export function create(
-  currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
-  uid: ExtendedPatchUIDType,
-  modpackPath?: string,
-  beforeRegister?: (id: string) => Promise<void>,
-): string | Promise<string> | undefined {
+function prepare(
+  currentInstance: Page["instance"], uid: ExtendedPatchUIDType,
+): InstanceStateType | undefined {
   if (!currentInstance) {
     log.error(
       __PRE_BUNDLED_FILENAME__,
@@ -104,7 +93,7 @@ export function create(
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
 
-  const instance = {
+  return {
     ...DefaultInstanceSettings,
     ...globalStates.minecraft,
     ...currentInstance,
@@ -114,68 +103,98 @@ export function create(
     },
     "entry": uid,
   };
+}
 
+export function createFromDraft(
+  draft: Page["instance"], uid: ExtendedPatchUIDType, pack?: Import,
+): Promise<string> | undefined {
+  const instance = prepare(draft, uid);
+
+  if (instance) {
+    return saveDraft(instance, pack);
+  }
+}
+
+async function saveDraft(instance: InstanceStateType, pack?: Import): Promise<string> {
   const page = globalStates.pages["add-instance"];
   const draft = page.instance;
   const archive = page.importedModpack;
-  const pending = beforeRegister && archive ? awaitingMetadata.get(archive) : undefined;
-  const retryId = pending && pending.path === modpackPath ? pending.id : undefined;
-  const id = retryId ?? sanitizeFileOrFolderName(beforeRegister
-    ? crypto.getRandomValues(new Uint8Array(16)).join("-") + " " + currentInstance.name
-    : currentInstance.name + " " + Math.floor(Math.random() * 1000));
   const draftValues = (): string => JSON.stringify([
     page.instance, page.importedModpack, page.instanceVersionSearch?.patch,
   ]);
-  const initialValues = beforeRegister && draftValues();
+  const initialValues = draftValues();
+  const directory = FileManager.getBaseDirectory();
+  const pending = awaitingMetadata.get(page);
+  const retryId = pending && pending.directory === directory && pending.path === pack?.path
+    ? pending.id
+    : undefined;
+  const id = retryId ?? sanitizeFileOrFolderName(
+    crypto.getRandomValues(new Uint8Array(16)).join("-") + " " + instance.name,
+  );
 
-  function register(): void {
-    instanceStates[id] = {
-      ...instance,
-      ...(modpackPath && !beforeRegister ? { modpackPath } : {}),
-    };
-    if (modpackPath && !beforeRegister) {
-      persistImportArchive(modpackPath);
+  if (pack && !retryId) {
+    await pack.install(id);
+  }
+  if (!await registerInstance(id, instance)) {
+    if (pack) {
+      awaitingMetadata.set(page, { directory, "path": pack.path, id });
     }
-    log.info(__PRE_BUNDLED_FILENAME__, "Created an instance with the entry patch:", uid);
+    const key = pack ? "import.metadata-save-error" : "instance.metadata-save-error";
+
+    throw new Error(translate(key));
   }
 
-  function finish(): string {
-    if (beforeRegister) {
-      if (globalStates.currentPage !== Routes.AddInstance ||
-        (page.tab ?? "clean-minecraft") !== "clean-minecraft" ||
-        globalStates.pages["add-instance"] !== page || page.instance !== draft ||
-        page.importedModpack !== archive || draftValues() !== initialValues) {
-        return id;
-      }
+  if (pending === awaitingMetadata.get(page)) {
+    awaitingMetadata.delete(page);
+  }
+
+  if (globalStates.currentPage === Routes.AddInstance &&
+    (page.tab ?? "clean-minecraft") === "clean-minecraft" &&
+    globalStates.pages["add-instance"] === page && page.instance === draft &&
+    page.importedModpack === archive && draftValues() === initialValues) {
+    if (pack) {
       globalStates.selected.currentInstance = id;
       setImportedModpack();
       page.lastCreated = undefined;
     }
     page.instance = undefined;
     Router.navigate(Routes.Library);
-
-    return id;
   }
 
-  if (beforeRegister) {
-    const installed = retryId ? Promise.resolve() : beforeRegister(id);
+  return id;
+}
 
-    return installed.then(async () => {
-      register();
-      if (!await sync()) {
-        if (archive && archive.path === modpackPath) {
-          awaitingMetadata.set(archive, { id, "path": archive.path });
-        }
-        throw new Error(translate("import.metadata-save-error"));
-      }
-      if (archive) {
-        awaitingMetadata.delete(archive);
-      }
-
-      return finish();
+export function create(
+  currentInstance: Page["instance"], uid: ExtendedPatchUIDType, modpackPath?: string,
+): string | undefined;
+export function create(
+  currentInstance: Page["instance"], uid: ExtendedPatchUIDType, modpackPath: string,
+  beforeRegister: (id: string) => Promise<void>,
+): Promise<string> | undefined;
+export function create(
+  currentInstance: Page["instance"], uid: ExtendedPatchUIDType, modpackPath?: string,
+  beforeRegister?: (id: string) => Promise<void>,
+): string | Promise<string> | undefined {
+  if (beforeRegister && modpackPath !== undefined) {
+    return createFromDraft(currentInstance, uid, {
+      "path": modpackPath, "install": beforeRegister,
     });
   }
-  register();
+  const instance = prepare(currentInstance, uid);
 
-  return finish();
+  if (!instance) {
+    return;
+  }
+
+  const id = sanitizeFileOrFolderName(instance.name + " " + Math.floor(Math.random() * 1000));
+
+  if (modpackPath) {
+    instance.modpackPath = modpackPath;
+    persistImportArchive(modpackPath);
+  }
+  instanceStates[id] = instance;
+  globalStates.pages["add-instance"].instance = undefined;
+  Router.navigate(Routes.Library);
+
+  return id;
 }

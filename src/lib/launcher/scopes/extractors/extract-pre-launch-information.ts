@@ -23,6 +23,7 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import FileManager from "@/lib/file-manager";
 import Hooks from "@/lib/hooks";
 import Instances from "@/lib/instances";
+import { launchAttempts } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { log } from "@/lib/logging/log.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -54,7 +55,7 @@ export function extractPreLaunchInformation({
     return beforeHooksResult;
   }
 
-  const downloadTaskCancelId: string = `${instanceId}-download`;
+  const downloadTaskCancelId = launchAttempts.get(statuses)?.cancelId ?? `${instanceId}-download`;
 
   const providedPlatform: Platform = platform();
   const providedArch: Arch = arch();

@@ -16,6 +16,7 @@ import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
 import { declareInstanceStates, instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
+import type { AccountType } from "@/types/configs/account.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -155,3 +156,52 @@ for (const outcome of ["stopped", "exited", "still running", "stalled Java", "st
     expect(context.root.textContent).toBe("");
   });
 }
+
+const profile = (uuid: string): AccountType => ({
+  "profile": { uuid, "type": "offline", "name": uuid }, "msa"    : null,
+  "skin"   : { "id": "", "data": "", "url": "", "variant": "classic" },
+});
+
+test("removing the launch account during a cached Java probe prevents launch", async () => {
+  declareInstanceStates();
+  instanceStates.game = { "patchVersions": {} } as InstanceStateType;
+  const restore = GlobalInternals.instanceContext;
+
+  using cleanup = new DisposableStack;
+  cleanup.defer(() => GlobalInternals.instanceContext = restore);
+  mockIPC(() => []);
+  using watch = spyOn(Watchers, "watchProcesses").mockResolvedValue(() => {});
+  const first = profile("A");
+  const second = profile("B");
+  const profiles = [first];
+
+  using context = await mountComponent("general/misc/ContextProviders", {}, app => {
+    app.provide(AuthOneTimeFetchContextKey, profiles);
+  });
+  const started = Promise.withResolvers<void>();
+  const java = Promise.withResolvers<number>();
+
+  using probe = spyOn(Launcher, "fetchJavaMajor").mockImplementation(() => {
+    started.resolve();
+
+    return java.promise;
+  });
+  using launch = spyOn(Launcher, "handleLaunch");
+  using notify = spyOn(dialog, "message").mockResolvedValue("Ok");
+  const previous = GlobalInternals.javaMajor;
+
+  cleanup.defer(() => GlobalInternals.javaMajor = previous);
+  GlobalInternals.javaMajor = undefined;
+  const pending = GlobalInternals.instanceContext!.launchInstance("game");
+
+  await started.promise;
+  await Bun.sleep(0);
+  profiles.splice(0, 1, second);
+  java.resolve(17);
+  await pending;
+  expect(notify.mock.calls[0][0]).toContain("Select or add an account");
+  expect(launch).not.toHaveBeenCalled();
+  expect(probe).toHaveBeenCalledTimes(1);
+  expect(watch).toHaveBeenCalledTimes(1);
+  expect(context.root.textContent).toBe("");
+});

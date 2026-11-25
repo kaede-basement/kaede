@@ -18,7 +18,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { log } from "@/lib/logging/log.ts";
+import { cancelWithFeedback } from "@/lib/network/cancel-with-feedback.ts";
+import { hasActiveDownloads } from "@/lib/network/native-download.ts";
 
 export function cancelAll(cancelId: string): Promise<boolean> {
   return invoke<boolean>("cancel_downloads", { cancelId });
@@ -33,9 +34,7 @@ export function retryCancellationOnProgress(
   return (): void => {
     if (signal?.aborted && !retried) {
       retried = true;
-      void cancelAll(cancelId).catch(error => {
-        log.error(__PRE_BUNDLED_FILENAME__, "Download cancellation failed:", String(error));
-      });
+      void cancelWithFeedback(() => cancelAll(cancelId), () => hasActiveDownloads(cancelId));
     }
   };
 }

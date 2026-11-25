@@ -19,7 +19,7 @@
 <script lang="ts">
 import { ref } from "vue";
 
-const creatingModpack = ref(false);
+const creating = ref(false);
 </script>
 
 <script setup lang="ts">
@@ -31,10 +31,13 @@ import { useConfigColors } from "@/composables/use-config-colors.ts";
 import { LaunchStatesContextKey } from "@/constants/application.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import Errors from "@/lib/errors";
+import { translate } from "@/lib/general/translate.ts";
 import Instances from "@/lib/instances";
+import { createFromDraft } from "@/lib/instances/create.ts";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
 import { ActiveInstall } from "@/lib/modrinth/install-mrpack.ts";
+import { cancelWithFeedback } from "@/lib/network/cancel-with-feedback.ts";
 import { globalStates } from "@/states/global.ts";
 import type {
   GlobalStatesType,
@@ -59,7 +62,7 @@ const buttonLabel = computed(() => {
 
   return status
     ? `Cancel installation (${status.downloads.success}/${status.downloads.total} files ready)`
-    : (creatingModpack.value ? "Saving instance..." : "Create an Instance");
+    : (creating.value ? "Saving instance..." : "Create an Instance");
 });
 
 const currentInstance = computed(
@@ -110,36 +113,31 @@ async function handleCreate(): Promise<void> {
   const instance = currentInstance.value;
   const patch = currentPatch.value;
 
-  if (ActiveInstall.value) {
-    await ActiveInstall.value.cancel();
+  const install = ActiveInstall.value;
+
+  if (install) {
+    await cancelWithFeedback(install.cancel, () => ActiveInstall.value === install);
 
     return;
   }
-  if (creatingModpack.value) {
+  if (creating.value) {
     return;
   }
-  if (!archive) {
-    Instances.create(instance, patch);
-
-    return;
-  }
-
-  creatingModpack.value = true;
+  creating.value = true;
   try {
-    await Instances.create(instance, patch, archive.path, async instanceId => {
-      const statuses = trackDownloads(instanceId);
+    await createFromDraft(instance, patch, archive && {
+      "path"   : archive.path,
+      "install": async (instanceId): Promise<void> => {
+        const statuses = trackDownloads(instanceId);
 
-      try {
-        await Modrinth.installMrpack({
-          "archivePath": archive.path,
-          instanceId,
-          statuses,
-        });
-      } finally {
-        if (instanceStatuses) {
-          delete instanceStatuses[instanceId];
+        try {
+          await Modrinth.installMrpack({ "archivePath": archive.path, instanceId, statuses });
+        } finally {
+          if (instanceStatuses) {
+            delete instanceStatuses[instanceId];
+          }
         }
-      }
+      },
     });
   } catch (error: unknown) {
     if (error === "Installation cancelled") {
@@ -149,10 +147,12 @@ async function handleCreate(): Promise<void> {
     }
     const detail = typeof error === "string" ? error : Errors.extract(error).message;
 
-    log.error(__PRE_BUNDLED_FILENAME__, "Modpack installation failed", detail);
-    await message(detail, { "title": "Modpack installation failed", "kind": "error" });
+    const title = archive ? "Modpack installation failed" : translate("instance.creation-failed");
+
+    log.error(__PRE_BUNDLED_FILENAME__, title, detail);
+    await message(detail, { title, "kind": "error" });
   } finally {
-    creatingModpack.value = false;
+    creating.value = false;
   }
 }
 </script>
@@ -165,7 +165,7 @@ async function handleCreate(): Promise<void> {
     <button
       id="__add-instance-page__create-instance-button"
       class="relative rounded-md px-2 py-1 transition-[opacity] bg-[theme(colors.neutral.100/.1)]"
-      :disabled="creatingModpack && !ActiveInstall"
+      :disabled="creating && !ActiveInstall"
       @click="handleCreate"
     >
       {{ buttonLabel }}

@@ -12,8 +12,11 @@ import {
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
+import { launchAttempts } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { cancelLaunchDownloads } from "@/lib/launcher/scopes/handle-launch.ts";
 import { log } from "@/lib/logging/log.ts";
+import { cancelWithFeedback } from "@/lib/network/cancel-with-feedback.ts";
+import { hasActiveDownloads } from "@/lib/network/native-download.ts";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type {
@@ -88,7 +91,12 @@ async function handleClose(): Promise<void> {
   }
 
   if (attempt.launching === 1) {
-    await cancelLaunchDownloads(attempt);
+    const launch = launchAttempts.get(attempt);
+
+    await cancelWithFeedback(
+      () => cancelLaunchDownloads(attempt),
+      () => !!launch && statuses.value === attempt && hasActiveDownloads(launch.cancelId),
+    );
 
     return;
   }

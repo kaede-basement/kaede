@@ -156,26 +156,30 @@ async function startInstance(
     }
 
     const prerequisites = await resolveLaunchPrerequisites(
-      accounts.value, options?.javaPath, attempt.signal,
+      accounts, options?.javaPath, attempt.signal,
     );
 
-    if (!prerequisites?.[1] || attempt.signal.aborted) {
+    const account = prerequisites?.[1];
+    const present = account && accounts.value.some(entry => entry.profile.uuid === account.uuid);
+
+    if (!present || attempt.signal.aborted) {
+      if (account && !present && !attempt.signal.aborted) {
+        await Errors.showError(translate("general.launch-status.missing-account"));
+      }
       statuses.launching = 0;
       statuses.current = LaunchStatus.General.Aborted;
 
       return;
     }
 
-    const [javaMajor, resolved] = prerequisites;
-
-    accounts.value = resolved.accounts;
+    const javaMajor = prerequisites![0];
     const { success, process, reason } = await Launcher.handleLaunch({
       "instance"       : currentInstance.instance,
       "userPreferences": {
         "javaBinary": options?.javaPath ?? currentInstance.instance.javaBinary,
         "javaMajor" : javaMajor,
         "versions"  : currentInstance.instance.patchVersions,
-        "account"   : resolved.auth,
+        account,
       },
       instanceId,
       statuses,

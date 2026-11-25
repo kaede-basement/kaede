@@ -41,13 +41,31 @@ pub(crate) fn staging_file(parent: &Path) -> io::Result<tempfile::NamedTempFile>
     })
 }
 
+fn accounts_destination(base: &Path) -> io::Result<PathBuf> {
+    let path = base.join("accounts.json");
+    match std::fs::symlink_metadata(&path) {
+        Ok(_) => {
+            let target = std::fs::canonicalize(&path)?;
+            if !std::fs::metadata(&target)?.is_file() {
+                return Err(io::Error::other("Account store is not a regular file"));
+            }
+            Ok(target)
+        }
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            Ok(std::fs::canonicalize(base)?.join("accounts.json"))
+        }
+        Err(e) => Err(e),
+    }
+}
+
 fn publish_accounts(
-    parent: &Path,
+    destination: &Path,
     create_new: bool,
     write: impl FnOnce(&mut std::fs::File) -> io::Result<()>,
 ) -> io::Result<()> {
-    #[cfg(windows)]
-    let parent = &std::fs::canonicalize(parent)?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| io::Error::other("Missing accounts directory"))?;
     #[cfg(windows)]
     let mut staged =
         tempfile::Builder::new().make_in(parent, crate::private_account_file::create)?;
@@ -56,7 +74,6 @@ fn publish_accounts(
     write(staged.as_file_mut())?;
     staged.as_file().sync_all()?;
     let mut staged = staged.into_temp_path();
-    let destination = parent.join("accounts.json");
     if create_new {
         staged.persist_noclobber(destination)?;
     } else {
@@ -77,10 +94,17 @@ pub enum AccountsFile {
 
 #[tauri::command]
 pub async fn read_accounts_file(base_directory: PathBuf) -> Result<AccountsFile, String> {
-    match tokio::fs::read_to_string(base_directory.join("accounts.json")).await {
+    let path = base_directory.join("accounts.json");
+    match tokio::fs::read_to_string(&path).await {
         Ok(raw) if json_without_bom(&raw).trim().is_empty() => Ok(AccountsFile::Empty { raw }),
         Ok(raw) => Ok(AccountsFile::Content { raw }),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(AccountsFile::Missing),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            match tokio::fs::symlink_metadata(path).await {
+                Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(AccountsFile::Missing),
+                Err(e) => Err(e.to_string()),
+                Ok(_) => Err("Cannot resolve accounts.json".into()),
+            }
+        }
         Err(e) if e.kind() == io::ErrorKind::InvalidData => Ok(AccountsFile::InvalidUtf8),
         Err(e) => Err(e.to_string()),
     }
@@ -98,8 +122,9 @@ pub async fn save_accounts(
 ) -> Result<bool, String> {
     tokio::task::spawn_blocking(move || {
         let _guard = ACCOUNT_WRITE.lock().map_err(|e| e.to_string())?;
+        let destination = accounts_destination(&base_directory).map_err(|e| e.to_string())?;
         if let Some(previous) = expected_previous {
-            match std::fs::read(base_directory.join("accounts.json")) {
+            match std::fs::read(&destination) {
                 Ok(bytes) if bytes == previous.as_bytes() => {}
                 Ok(_) => return Err(ACCOUNT_CONFLICT.to_owned()),
                 Err(e) if e.kind() == io::ErrorKind::NotFound => {
@@ -108,7 +133,7 @@ pub async fn save_accounts(
                 Err(e) => return Err(e.to_string()),
             }
         }
-        publish_accounts(&base_directory, create_new, |file| {
+        publish_accounts(&destination, create_new, |file| {
             file.write_all(contents.as_bytes())
         })
         .map_err(|e| {
@@ -273,10 +298,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let destination = dir.path().join("accounts.json");
         let save = |data: &[u8], create_new| {
-            publish_accounts(dir.path(), create_new, |file| file.write_all(data))
+            publish_accounts(&destination, create_new, |file| file.write_all(data))
         };
         save(b"original", true).unwrap();
-        let interrupted = publish_accounts(dir.path(), false, |file| {
+        let interrupted = publish_accounts(&destination, false, |file| {
             file.write_all(b"partial")?;
             Err(io::Error::other("disk full"))
         });
@@ -294,6 +319,50 @@ mod tests {
                 0o600
             );
         }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn linked_accounts_publish_privately_beside_the_target() {
+        use std::os::unix::fs::{symlink, PermissionsExt};
+
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().join("launcher");
+        let store = dir.path().join("profile");
+        std::fs::create_dir(&base).unwrap();
+        std::fs::create_dir(&store).unwrap();
+        let target = store.join("credentials.json");
+        std::fs::write(&target, "original").unwrap();
+        let link = base.join("accounts.json");
+        symlink("../profile/credentials.json", &link).unwrap();
+        save_accounts(
+            base.clone(),
+            "updated".into(),
+            false,
+            Some("original".into()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            std::fs::read_link(&link).unwrap(),
+            Path::new("../profile/credentials.json")
+        );
+        assert_eq!(std::fs::read(&target).unwrap(), b"updated");
+        assert_eq!(
+            std::fs::metadata(&target).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        std::fs::remove_file(&target).unwrap();
+        for create_new in [false, true] {
+            assert!(
+                save_accounts(base.clone(), "replacement".into(), create_new, None)
+                    .await
+                    .is_err()
+            );
+        }
+        assert!(read_accounts_file(base).await.is_err());
+        assert!(link.is_symlink());
+        assert!(!target.exists());
     }
 
     #[tokio::test]

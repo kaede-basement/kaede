@@ -25,6 +25,8 @@ import Instances from "@/lib/instances";
 import { retryCancellationOnProgress } from "@/lib/launcher/scopes/fetching/cancel-all.ts";
 import { launchAttempts } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { releaseArchive, retainArchive } from "@/lib/modrinth/import-archive.ts";
+import { cancelWithFeedback } from "@/lib/network/cancel-with-feedback.ts";
+import { invokeDownload, newCancelId } from "@/lib/network/native-download.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -88,7 +90,7 @@ export async function installMrpack({
     statuses.downloads.total = total;
   };
 
-  const cancelId = `${instanceId}-download`;
+  const cancelId = newCancelId(instanceId);
   let ready = false;
   let requested = false;
   const cancel = async (): Promise<void> => {
@@ -104,7 +106,7 @@ export async function installMrpack({
     await invoke("prepare_mrpack_install", { cancelId });
     ready = true;
     if (requested) {
-      await cancel();
+      await cancelWithFeedback(cancel, () => ActiveInstall.value?.cancel === cancel);
     }
 
     return await invoke("install_mrpack", {
@@ -128,7 +130,7 @@ export async function repairLegacyMrpack(
     const onProgress = new Channel<[number, number]>;
     const { total, success } = statuses.downloads;
     let active = true;
-    const cancelId = `${instanceId}-download`;
+    const cancelId = launchAttempts.get(statuses)?.cancelId ?? newCancelId(instanceId);
     const retryCancellation = retryCancellationOnProgress(
       launchAttempts.get(statuses)?.signal, cancelId,
     );
@@ -142,12 +144,14 @@ export async function repairLegacyMrpack(
       }
     };
     try {
-      const result = await invoke<"repaired" | "archiveUnavailable">("repair_legacy_mrpack", {
-        archivePath,
-        onProgress,
-        "targetDirPath": minecraftDirectory,
-        cancelId,
-      });
+      const result = await invokeDownload<"repaired" | "archiveUnavailable">(
+        "repair_legacy_mrpack", {
+          archivePath,
+          onProgress,
+          "targetDirPath": minecraftDirectory,
+          cancelId,
+        },
+      );
 
       if (result !== "repaired") {
         return;

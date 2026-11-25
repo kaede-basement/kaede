@@ -12,7 +12,7 @@ export async function scrollViewport(
 }
 
 export async function checkViewportFocus(
-  view: Awaited<ReturnType<typeof mountComponent>>, viewport: HTMLElement,
+  view: Awaited<ReturnType<typeof mountComponent>>, viewport: HTMLElement, expectedRow: string,
 ): Promise<void> {
   const document = viewport.ownerDocument;
   const first = viewport.querySelector("button")!;
@@ -25,6 +25,8 @@ export async function checkViewportFocus(
   await scrollViewport(view, viewport, 1600);
   expect(first.isConnected).toBe(false);
   expect(viewport.contains(document.activeElement)).toBe(true);
+  expect(document.activeElement === viewport.querySelector(expectedRow)).toBe(true);
+  expect(viewport.scrollTop).toBe(1600);
   if (viewport.querySelector("[data-index]")) {
     viewport.focus({ "preventScroll": true });
     viewport.dispatchEvent(new view.browser.KeyboardEvent("keydown", {

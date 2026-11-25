@@ -46,6 +46,7 @@ export async function mountComponent(
   properties: Record<string, unknown> = {},
   setup?: (app: App, document: Document) => void,
   nested: Array<string> = [],
+  errorBoundary = false,
 ): Promise<Disposable & { "root": HTMLElement; "browser": Window }> {
   const browser = new Window({ "url": "http://localhost" });
   const document = browser.document as unknown as Document;
@@ -67,7 +68,13 @@ export async function mountComponent(
     "createComment": text => document.createComment(text),
     "createText"   : text => document.createTextNode(text),
   });
-  const app = renderer.createApp({ "render": () => h(target, properties) });
+  const boundary = errorBoundary && await component("general/errors/ErrorBoundary", []);
+  const render = (): ReturnType<typeof h> => h(target, properties);
+  const app = renderer.createApp({
+    "render": () => (boundary ? h(boundary, {}, {
+      "default": render, "error": () => h("p", { "role": "alert" }, "Restart required"),
+    }) : render()),
+  });
 
   setup?.(app, document);
   document.body.append(root);

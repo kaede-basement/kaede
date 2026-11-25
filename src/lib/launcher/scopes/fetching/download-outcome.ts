@@ -1,10 +1,14 @@
+import { newCancelId } from "@/lib/network/native-download.ts";
 import type { DownloadReportType } from "@/types/launcher/artifacts/download.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
-export const launchAttempts = new WeakMap<LauncherStatusesType, AbortController>;
+type LaunchAttempt = AbortController & { readonly "cancelId": string };
+export const launchAttempts = new WeakMap<LauncherStatusesType, LaunchAttempt>;
 
-export function beginLaunchAttempt(statuses: LauncherStatusesType): AbortController {
-  const attempt = new AbortController;
+export function beginLaunchAttempt(statuses: LauncherStatusesType): LaunchAttempt {
+  const attempt = Object.assign(new AbortController, {
+    "cancelId": newCancelId(statuses.instanceId),
+  });
 
   launchAttempts.set(statuses, attempt);
 

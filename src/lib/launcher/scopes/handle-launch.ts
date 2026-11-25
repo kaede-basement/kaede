@@ -28,6 +28,7 @@ import Parsers from "@/lib/launcher/scopes/parsers";
 import Patches from "@/lib/launcher/scopes/patches";
 import { log } from "@/lib/logging/log.ts";
 import { repairLegacyMrpack } from "@/lib/modrinth/install-mrpack.ts";
+import { hasActiveDownloads } from "@/lib/network/native-download.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type {
@@ -51,17 +52,20 @@ const failed: LaunchResponseType = {
   "process": undefined,
 };
 
+function cancelActiveDownloads(id: string): Promise<boolean> {
+  return hasActiveDownloads(id) ? Fetching.cancelAll(id) : Promise.resolve(false);
+}
+
 export function cancelLaunchDownloads(statuses: LauncherStatusesType): Promise<boolean> {
   const attempt = launchAttempts.get(statuses);
 
   if (!attempt) {
     return Promise.resolve(false);
   }
-  const id = `${statuses.instanceId}-download`;
 
   attempt.abort(new CancelledDownload);
 
-  return Fetching.cancelAll(id);
+  return cancelActiveDownloads(attempt.cancelId);
 }
 
 export async function handleLaunch({
@@ -176,7 +180,7 @@ export async function handleLaunch({
   );
 
   let failureReason: LaunchStatusType | "cancelled" = LaunchStatus.Errors.Artifact;
-  const cancel = (): Promise<boolean> => Fetching.cancelAll(necessaries.cancelId);
+  const cancel = (): Promise<boolean> => cancelActiveDownloads(attempt.cancelId);
   const downloaded = await settleDownloadStages(cancel, [
     (signal): Promise<boolean> => Fetching.downloadAssets({ necessaries, finalizedPatch, signal }),
     (signal): Promise<boolean> => Fetching.downloadClient({ necessaries, finalizedPatch, signal }),

@@ -30,26 +30,28 @@ export function useVersionViewport<T>(
       const { activeElement, body } = element.ownerDocument;
 
       if (activeElement === body || !activeElement?.isConnected) {
-        element.focus({ "preventScroll": true });
+        focusVisibleRow(element);
       }
     }
     previousFocus = null;
   });
 
+  function focusVisibleRow(element: HTMLElement): void {
+    const firstVisible = Math.min(
+      items.value.length - 1, Math.max(0, Math.floor(element.scrollTop / rowHeight)),
+    );
+    const firstRendered = viewport.list.value[0]?.index ?? 0;
+    const buttons = element.querySelectorAll<HTMLButtonElement>("button");
+    const target = buttons[Math.max(0, firstVisible - firstRendered)] ??
+      element.querySelector<HTMLElement>("p[tabindex]");
+
+    target?.focus({ "preventScroll": true });
+  }
+
   function focusFirstVisible(): void {
     const element = container.value;
 
-    if (element && element.ownerDocument.activeElement === element) {
-      const firstVisible = Math.min(
-        items.value.length - 1, Math.max(0, Math.floor(element.scrollTop / rowHeight)),
-      );
-      const firstRendered = viewport.list.value[0]?.index ?? 0;
-      const buttons = element.querySelectorAll<HTMLButtonElement>("button");
-      const target = buttons[Math.max(0, firstVisible - firstRendered)] ??
-        element.querySelector<HTMLElement>("p[tabindex]");
-
-      target?.focus({ "preventScroll": true });
-    }
+    if (element && element.ownerDocument.activeElement === element) focusVisibleRow(element);
   }
   watch(viewport.list, focusFirstVisible, { "flush": "post" });
 

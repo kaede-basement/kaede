@@ -47,7 +47,7 @@ for (const dropdown of [true, false]) {
     filter?.click();
     await nextTick();
     Object.defineProperty(viewport, "clientHeight", { "value": 256 });
-    await checkViewportFocus(view, viewport);
+    await checkViewportFocus(view, viewport, dropdown ? "[data-index='44']" : "[id$=checkbox-50]");
     viewport.scrollTop = (900 * (dropdown ? 36 : 32)) - 256;
     viewport.dispatchEvent(new view.browser.Event("scroll") as unknown as Event);
     await nextTick();

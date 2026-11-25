@@ -16,11 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { Channel } from "@tauri-apps/api/core";
 
 import { retryCancellationOnProgress } from "@/lib/launcher/scopes/fetching/cancel-all.ts";
 import { launchAttempts } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { log } from "@/lib/logging/log.ts";
+import { invokeDownload } from "@/lib/network/native-download.ts";
 import type {
   DownloadEntryType,
   DownloadReportType,
@@ -35,7 +36,7 @@ export async function concurrentlyDownload({
   entries,
   statuses,
   label,
-  cancelId = `${Math.random()}`,
+  "cancelId": requestedId,
   debug = false,
 }: {
   "concurrency": number;
@@ -45,7 +46,9 @@ export async function concurrentlyDownload({
   "cancelId"  ?: string;
   "debug"     ?: boolean;
 }): Promise<DownloadReportType> {
-  const signal = launchAttempts.get(statuses)?.signal;
+  const attempt = launchAttempts.get(statuses);
+  const signal = attempt?.signal;
+  const cancelId = attempt?.cancelId ?? requestedId ?? `${Math.random()}`;
 
   if (signal?.aborted) {
     return { "cancelled": true, "success": 0, "failed": 0, "failures": [] };
@@ -132,7 +135,7 @@ export async function concurrentlyDownload({
     applySnapshotData(snapshot.success, snapshot.failed);
   };
 
-  const report = await invoke<DownloadReportType>("concurrently_download", {
+  const report = await invokeDownload<DownloadReportType>("concurrently_download", {
     "entries": uniqueArtifacts,
     concurrency,
     label,

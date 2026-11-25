@@ -56,8 +56,13 @@ test("Minecraft-only import replaces Fabric and metadata retry keeps the install
     expect(message.mock.calls[0]?.[0]).toContain("save instance metadata");
     expect(globalStates.currentPage).toBe(Routes.AddInstance);
     expect(globalStates.selected.currentInstance).not.toBe(install.mock.calls[0][0].instanceId);
+    expect(Object.keys(instanceStates)).toEqual([]);
     expect(page.importedModpack?.path).toBe(path);
     expect(remove).not.toHaveBeenCalled();
+    const previous = page.importedModpack;
+
+    Modrinth.applyManifest({ manifest, path });
+    expect(page.importedModpack === previous).toBe(false);
     button.click();
     await Bun.sleep(0);
     const id = globalStates.selected.currentInstance!;
@@ -70,5 +75,53 @@ test("Minecraft-only import replaces Fabric and metadata retry keeps the install
     expect(Object.keys(instanceStates)).toEqual([id]);
     expect(page.importedModpack).toBeUndefined();
     expect(remove).toHaveBeenCalledWith(path);
+    expect(globalStates.currentPage).toBe(Routes.Library);
+  });
+
+test("clean instance creation preserves the draft and library on a failed metadata write",
+  async () => {
+    declareInstanceStates();
+    const existing = { "name": "Existing" } as (typeof instanceStates)[string];
+
+    instanceStates.existing = existing;
+    Router.navigate(Routes.AddInstance);
+    const page = globalStates.pages["add-instance"];
+    const draft = {
+      "name": "New instance", "patchVersions": { "net.minecraft": "1.21" },
+    } as NonNullable<typeof page.instance>;
+
+    page.instance = draft;
+    const selected = globalStates.selected.currentInstance;
+
+    const writing = Promise.withResolvers<void>();
+    const save = Promise.withResolvers<void>();
+
+    using write = spyOn(fs, "writeTextFile").mockImplementationOnce(async () => {
+      writing.resolve();
+      await save.promise;
+    })
+      .mockResolvedValue();
+    using message = spyOn(dialog, "message").mockResolvedValue("Ok");
+    using view = await mountComponent("add-instance/sections/CreateInstance", {}, app => {
+      app.provide(LaunchStatesContextKey, {});
+    });
+    const button = view.root.querySelector("button")!;
+
+    button.click();
+    await writing.promise;
+    expect(instanceStates).toEqual({ existing });
+    expect(globalStates.currentPage).toBe(Routes.AddInstance);
+    save.reject(new Error("disk full"));
+    await Bun.sleep(0);
+    expect(message.mock.calls[0]?.[0]).toContain("save instance metadata");
+    expect(instanceStates).toEqual({ existing });
+    expect(page.instance).toEqual(draft);
+    expect(globalStates.selected.currentInstance).toBe(selected);
+    expect(globalStates.currentPage).toBe(Routes.AddInstance);
+    button.click();
+    await Bun.sleep(0);
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(Object.keys(instanceStates)).toHaveLength(2);
+    expect(JSON.parse(write.mock.lastCall![1])).toEqual(instanceStates);
     expect(globalStates.currentPage).toBe(Routes.Library);
   });

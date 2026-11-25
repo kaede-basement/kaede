@@ -91,7 +91,7 @@ for (const phase of ["spawn", "after-hook"]) {
     expect(necessaries.statuses.current).not.toBe(LaunchStatus.General.Success);
     expect(kill).toHaveBeenCalledTimes(1);
     expect(after).toHaveBeenCalledTimes(phase === "spawn" ? 0 : 1);
-    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(cancel).not.toHaveBeenCalled();
     expect(spawn).toHaveBeenCalledTimes(1);
     expect(mkdir).toHaveBeenCalledTimes(1);
   });

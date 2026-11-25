@@ -63,7 +63,7 @@ test("project releases window and select the last release", async () => {
   const viewport = view.root.querySelector<HTMLElement>("#release-viewport")!;
 
   Object.defineProperty(viewport, "clientHeight", { "value": 320 });
-  await checkViewportFocus(view, viewport);
+  await checkViewportFocus(view, viewport, "#release-id-40");
   await scrollViewport(view, viewport, (350 * 40) - 320);
   expect(viewport.querySelectorAll("button").length).toBeLessThan(16);
   viewport.querySelector<HTMLButtonElement>("#release-id-349")!.click();

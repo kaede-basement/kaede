@@ -43,7 +43,10 @@ test("launch reports missing account and hydration errors, and cancels quietly",
   const repair = mock().mockRejectedValueOnce("Installation cancelled")
     .mockRejectedValueOnce(new Error("Corrupt archive"));
 
+  const nativeBatch = mock();
+
   mockIPC(command => {
+    if (command === "concurrently_download") return nativeBatch();
     if (command === "list_processes") {
       return list();
     }
@@ -107,7 +110,9 @@ test("launch reports missing account and hydration errors, and cancels quietly",
     const started = Promise.withResolvers<void>();
     const stopped = Promise.withResolvers<DownloadReportType>();
 
-    using download = spyOn(Network, "concurrentlyDownload").mockImplementation(() => {
+    using download = spyOn(Network, "concurrentlyDownload");
+
+    nativeBatch.mockImplementationOnce(() => {
       started.resolve();
 
       return stopped.promise;
@@ -153,6 +158,17 @@ test("launch reports missing account and hydration errors, and cancels quietly",
 
     return cleaned.promise;
   }).mockResolvedValueOnce(true);
+  nativeBatch.mockReturnValueOnce(cleaned.promise.then(() => ({
+    "cancelled": true, "success": 0, "failed": 0, "failures": [],
+  })));
+  assets.mockImplementationOnce(async ({ necessaries }) => {
+    const report = await Network.concurrentlyDownload({
+      "statuses"   : necessaries.statuses, "entries"    : [{ "url": "https://example.org/a", "path": "a" }],
+      "label"      : "assets", "concurrency": 1,
+    });
+
+    return downloadSucceeded(report, necessaries.statuses);
+  });
   const native = launch("game");
 
   await cleaning.promise;
