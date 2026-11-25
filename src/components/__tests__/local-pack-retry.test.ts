@@ -1,6 +1,7 @@
 import "@/extendable/global-object.ts";
 
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import paths from "node:path";
 
@@ -21,8 +22,8 @@ import { useUiState } from "./ui-state.ts";
 
 useUiState();
 
-for (const changed of [true, false]) {
-  test("retry of a reselected local archive checks its contents, changed=" + changed, async () => {
+for (const contents of ["unchanged", "replaced", "restored after mismatch"]) {
+  test("local archive registration retries with contents " + contents, async () => {
     declareInstanceStates();
     Router.navigate(Routes.AddInstance);
     const directory = await mkdtemp(paths.join(tmpdir(), "kaede-pack-retry-"));
@@ -32,11 +33,11 @@ for (const changed of [true, false]) {
     const path = paths.join(directory, "local.mrpack");
 
     await writeFile(path, "first");
-    mockIPC(async (cmd, arguments_) => {
+    mockIPC((cmd, arguments_) => {
       if (cmd === "hash_path") {
         const request = arguments_ as { "path": string; "kind": "sha256" };
 
-        return Bun.CryptoHasher.hash(request.kind, await readFile(request.path), "hex");
+        return Bun.CryptoHasher.hash(request.kind, readFileSync(request.path), "hex");
       }
     });
     const manifest = {
@@ -71,23 +72,44 @@ for (const changed of [true, false]) {
     const select = Reflect.get(picker.root.querySelector("test-child")!, "on-click");
     const button = form.root.querySelector("button")!;
 
+    const page = globalStates.pages["add-instance"];
+
+    async function checkRefusal(count: number): Promise<void> {
+      await writeFile(path, "replacement");
+      button.click();
+      await Bun.sleep(0);
+      expect(form.root.querySelector("[role=alert]")?.textContent).toContain("Select it again");
+      expect(page.importedModpack?.name).toBe("Local");
+      expect(globalStates.currentPage).toBe(Routes.AddInstance);
+      expect(Object.keys(instanceStates)).toEqual([]);
+      expect(install).toHaveBeenCalledTimes(count);
+      expect(save).toHaveBeenCalledTimes(count);
+      await writeFile(path, "first");
+    }
+
     await select();
+    expect(page.importedModpack?.sha256).toBe(Bun.CryptoHasher.hash("sha256", "first", "hex"));
+    if (contents === "restored after mismatch") {
+      await checkRefusal(0);
+      await select();
+    }
     button.click();
     await failed.promise;
     expect(message.mock.calls[0]?.[0]).toContain("save instance metadata");
-    if (changed) await writeFile(path, "other");
+    if (contents === "restored after mismatch") await checkRefusal(1);
+    if (contents === "replaced") await writeFile(path, "other");
     await select();
     button.click();
     await persisted.promise;
     await Bun.sleep(0);
-    expect(install).toHaveBeenCalledTimes(changed ? 2 : 1);
+    expect(install).toHaveBeenCalledTimes(contents === "unchanged" ? 1 : 2);
     const installed = install.mock.lastCall![0].instanceId;
 
     expect(Object.keys(instanceStates)).toEqual([installed]);
     expect(globalStates.selected.currentInstance).toBe(installed);
     expect(globalStates.currentPage).toBe(Routes.Home);
     expect(save).toHaveBeenCalledTimes(2);
-    expect(open).toHaveBeenCalledTimes(2);
-    expect(peek).toHaveBeenCalledTimes(2);
+    expect(open).toHaveBeenCalledTimes(contents === "restored after mismatch" ? 3 : 2);
+    expect(peek).toHaveBeenCalledTimes(open.mock.calls.length);
   });
 }

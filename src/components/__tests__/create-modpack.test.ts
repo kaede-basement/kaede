@@ -113,6 +113,8 @@ test("clean instance creation preserves the draft and library on a failed metada
     expect(globalStates.currentPage).toBe(Routes.AddInstance);
     save.reject(new Error("disk full"));
     await Bun.sleep(0);
+    expect(view.root.querySelector("[role=alert]")?.textContent)
+      .toContain("save instance metadata");
     expect(message.mock.calls[0]?.[0]).toContain("save instance metadata");
     expect(instanceStates).toEqual({ existing });
     expect(page.instance).toEqual(draft);
@@ -128,3 +130,30 @@ test("clean instance creation preserves the draft and library on a failed metada
     expect(JSON.parse(write.mock.lastCall![1])).toEqual(instanceStates);
     expect(globalStates.currentPage).toBe(Routes.Home);
   });
+
+test("missing version validation stays inline with an unavailable native dialog", async () => {
+  declareInstanceStates();
+  Router.navigate(Routes.AddInstance);
+  const page = globalStates.pages["add-instance"];
+
+  page.instance = { "patchVersions": {} } as NonNullable<typeof page.instance>;
+  page.instanceVersionSearch = { "patch": Patches.FabricLoader, "input": "" };
+
+  using message = spyOn(dialog, "message").mockRejectedValue(new Error("dialog unavailable"));
+  using view = await mountComponent("add-instance/sections/CreateInstance", {}, app => {
+    app.provide(LaunchStatesContextKey, {});
+  }, [], true);
+  const button = view.root.querySelector("button")!;
+
+  for (const label of ["Vanilla Minecraft", "Fabric MC"]) {
+    button.click();
+    await Bun.sleep(0);
+    expect(view.root.querySelector("[role=alert]")?.textContent)
+      .toContain(`Select a ${label} version`);
+    expect(button.disabled).toBe(false);
+    page.instance.patchVersions[Patches.Minecraft] = "1.20";
+  }
+  expect(message).not.toHaveBeenCalled();
+  expect(Object.keys(instanceStates)).toEqual([]);
+  expect(globalStates.currentPage).toBe(Routes.AddInstance);
+});

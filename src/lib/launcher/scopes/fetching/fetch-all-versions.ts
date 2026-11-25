@@ -20,6 +20,7 @@ import { fetch } from "@tauri-apps/plugin-http";
 
 import { APIEndpoints } from "@/constants/launcher.ts";
 import { CustomPatches, Patches } from "@/constants/meta.ts";
+import { discardResponseBody } from "@/lib/network/discard-response-body.ts";
 import type {
   ExtendedPatchUIDType,
   PatchDependencyType,
@@ -40,6 +41,7 @@ async function fetchCatalog(url: string): Promise<unknown> {
   const response = await fetch(url);
 
   if (!response.ok) {
+    await discardResponseBody(response);
     throw new Error(`Version catalog request failed (HTTP ${response.status})`);
   }
 

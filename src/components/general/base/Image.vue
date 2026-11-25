@@ -13,6 +13,12 @@ const failed = ref(false);
 const cached = ref(false);
 const image = useTemplateRef<HTMLImageElement>("image");
 
+function updateImage(event: Event): void {
+  if (event.currentTarget !== image.value) return;
+  if (event.type === "load") shown.value = true;
+  else failed.value = true;
+}
+
 watch(() => src, () => {
   cached.value = false;
   failed.value = false;
@@ -43,8 +49,8 @@ watchEffect(() => {
     :key="src"
     ref="image"
     decoding="async"
-    @error="failed = true"
-    @load="shown = true"
+    @error="updateImage"
+    @load="updateImage"
     loading="lazy"
     :id="id"
     :alt="alt"

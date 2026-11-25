@@ -33,7 +33,7 @@ import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import Errors from "@/lib/errors";
 import { translate } from "@/lib/general/translate.ts";
 import Instances from "@/lib/instances";
-import { createFromDraft } from "@/lib/instances/create.ts";
+import { createFromDraft, InstanceDraftError } from "@/lib/instances/create.ts";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
 import { ActiveInstall } from "@/lib/modrinth/install-mrpack.ts";
@@ -49,6 +49,7 @@ import type {
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
 const { styles } = useConfigColors();
+const inlineError = ref("");
 
 const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
@@ -111,6 +112,7 @@ async function report(detail: string, options: Parameters<typeof message>[1]): P
   try {
     await message(detail, options);
   } catch (error) {
+    inlineError.value = detail;
     log.error(__PRE_BUNDLED_FILENAME__, "Could not display dialog:", String(error));
   }
 }
@@ -131,6 +133,7 @@ async function handleCreate(): Promise<void> {
   if (creating.value) {
     return;
   }
+  inlineError.value = "";
   creating.value = true;
   try {
     await createFromDraft(instance, patch, archive && {
@@ -148,6 +151,11 @@ async function handleCreate(): Promise<void> {
       },
     });
   } catch (error: unknown) {
+    if (error instanceof InstanceDraftError) {
+      inlineError.value = error.message;
+
+      return;
+    }
     if (error === "Installation cancelled") {
       await report(error, { "title": "Modpack installation", "kind": "info" });
 
@@ -168,7 +176,7 @@ async function handleCreate(): Promise<void> {
 <template>
   <div
     id="__add-instance-page__create-instance-wrapper"
-    class="w-fit flex flex-nowrap gap-2 rounded-md p-2"
+    class="w-fit flex flex-wrap gap-2 rounded-md p-2"
   >
     <button
       id="__add-instance-page__create-instance-button"
@@ -196,5 +204,13 @@ async function handleCreate(): Promise<void> {
         ({{ globalStates.pages["add-instance"].importedModpack.name }})
       </span>
     </div>
+    <p
+      v-if="inlineError"
+      id="__add-instance-page__create-instance-error"
+      role="alert"
+      class="w-full text-sm text-red-300"
+    >
+      {{ inlineError }}
+    </p>
   </div>
 </template>

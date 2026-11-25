@@ -1,5 +1,6 @@
 import { remove, writeTextFile } from "@tauri-apps/plugin-fs";
 
+import { translate } from "@/lib/general/translate.ts";
 import Hashing from "@/lib/hashing.ts";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
@@ -14,9 +15,19 @@ export async function reserveImportArchive(path: string): Promise<void> {
   owners.set(path, 1);
 }
 
+export async function hashLocalArchive(path: string): Promise<string> {
+  const digest = await Hashing.hashPath(path, Hashing.Algorithms.SHA256);
+
+  if (typeof digest !== "string" || !(/^[a-f0-9]{64}$/u).test(digest)) {
+    throw new Error(translate("import.reselect-archive"));
+  }
+
+  return digest;
+}
+
 export async function archiveIdentity(path: string): Promise<string> {
   // A download exclusively owns its unique cache path; a picked local file can be replaced.
-  return owners.has(path) ? path : Hashing.hashPath(path, Hashing.Algorithms.SHA256);
+  return owners.has(path) ? path : hashLocalArchive(path);
 }
 
 export function persistImportArchive(path: string): void {

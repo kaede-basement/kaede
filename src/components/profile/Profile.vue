@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject } from "vue";
+import { inject, ref } from "vue";
 
 import AccountRow from "@/components/profile/AccountRow.vue";
 import Microsoft from "@/components/profile/Logins/Microsoft.vue";
@@ -18,6 +18,7 @@ import type { WrappedAccountsType } from "@/types/configs/account.type.ts";
 import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
 const Translations = inject<TranslationsStateType>(TranslationsContextKey);
+const dialogError = ref("");
 const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
 const { styles } = useConfigColors();
@@ -83,11 +84,13 @@ const { canvas, viewer, shown } = useSkinRenderer({ "render": "3d" });
           >
             {{ Translations?.Messages?.["profile.accounts.empty"] }}
           </div>
+          <p v-if="dialogError" id="__profile-page__dialog-error" role="alert">{{ dialogError }}</p>
           <AccountRow
             v-for="(account, index) of accounts ?? []"
             :key="account.profile.uuid"
             :id-root="`__profile-page__account-${account.profile.uuid}`"
             :account="account"
+            :report-dialog-error="text => dialogError = text"
             :index="index"
           />
         </div>

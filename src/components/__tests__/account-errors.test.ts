@@ -104,14 +104,16 @@ test("all account mutations preserve corrupt disk bytes and both loaded profiles
 
 test("account row enables retry after failed refresh or rejected confirmation", async () => {
   declareActionRegistry();
-  const online = { ...account, "msa": {} } as AccountType;
+  const online = { ...account, "msa": { "token": "old", "refreshToken": "old" } };
   const accounts = shallowRef([online]);
 
   using fresh = spyOn(Auth, "ensureFreshAccount")
     .mockResolvedValue({ account, "status": "failed" });
+  using stored = spyOn(store, "readAccountText").mockResolvedValue(JSON.stringify([online]));
   using confirm = spyOn(dialog, "confirm").mockRejectedValueOnce(new Error("dialog unavailable"))
     .mockResolvedValue(false);
-  using notify = spyOn(dialog, "message").mockResolvedValue("Ok");
+  using notify = spyOn(dialog, "message").mockRejectedValueOnce(new Error("dialog unavailable"))
+    .mockResolvedValue("Ok");
   using cleanup = new DisposableStack;
   if (!("WebGL2RenderingContext" in globalThis)) {
     Object.defineProperty(globalThis, "WebGL2RenderingContext", {
@@ -132,10 +134,15 @@ test("account row enables retry after failed refresh or rejected confirmation", 
       expect(button.disabled).toBe(false);
       button.click();
       await Bun.sleep(0);
+      if (index === 0 && click === 0) {
+        expect(view.root.querySelector("[role=alert]")?.textContent).toContain("Failed to refresh");
+      }
     }
   };
 
   await retry(0);
+  expect(view.root.querySelector("[role=alert]")).toBeNull();
+  expect(stored).toHaveBeenCalledTimes(2);
   await retry(2);
   expect(fresh).toHaveBeenCalledTimes(2);
   expect(confirm).toHaveBeenCalledTimes(2);

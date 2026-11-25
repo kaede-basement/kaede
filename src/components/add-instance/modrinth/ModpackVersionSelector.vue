@@ -33,6 +33,7 @@ import FileManager from "@/lib/file-manager";
 import { translate } from "@/lib/general/translate.ts";
 import Modrinth from "@/lib/modrinth";
 import { releaseArchive, reserveImportArchive } from "@/lib/modrinth/import-archive.ts";
+import { discardResponseBody } from "@/lib/network/discard-response-body.ts";
 import { globalStates } from "@/states/global.ts";
 
 
@@ -89,6 +90,7 @@ async function handleClick(
     const response = await fetch(url);
 
     if (!response.ok) {
+      await discardResponseBody(response);
       throw new Error("HTTP " + response.status);
     }
     const bytes = await response.bytes();

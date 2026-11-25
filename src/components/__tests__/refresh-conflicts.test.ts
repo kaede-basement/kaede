@@ -30,111 +30,151 @@ const original: AccountType = {
 const winner = { ...original, "msa": { "token": "winning", "refreshToken": "winning" } };
 const stale = { ...original, "msa": { "token": "stale", "refreshToken": "stale" } };
 
-test("Profile refresh respects the record at commit and reports a removed UUID", async () => {
+for (const status of ["failed", "refreshed"] as const) {
+  test(status + " Profile refresh respects newer and removed records", async () => {
+    declareActionRegistry();
+    const accounts = shallowRef([original]);
+    const handlers = { "pending": mock(), "reset": mock(), "success": mock(), "error": mock() };
+
+    using fresh = spyOn(Auth, "ensureFreshAccount")
+      .mockResolvedValue({ "account": stale, status });
+    using read = spyOn(store, "readAccountText").mockResolvedValueOnce(JSON.stringify([winner]))
+      .mockResolvedValueOnce("[]");
+    using save = mockSaveAccounts();
+    const run = (): Promise<unknown> => ActionRegistry.execute(ActionKeys.AccountsRefresh, {
+      "account": original, accounts, handlers,
+    });
+
+    await run();
+    expect(accounts.value).toEqual([winner]);
+    expect(handlers.success).toHaveBeenCalledTimes(1);
+    await run();
+    expect(accounts.value).toEqual([]);
+    expect(handlers.success).toHaveBeenCalledTimes(1);
+    expect(handlers.error.mock.calls[0][0]).toContain("account was removed");
+    expect(save).not.toHaveBeenCalled();
+    expect(fresh).toHaveBeenCalledTimes(2);
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  test(status + " launch refresh distinguishes removal, decline and a winning token", async () => {
+    declareInstanceStates();
+    instanceStates.game = { "patchVersions": {} } as InstanceStateType;
+    const context = GlobalInternals.instanceContext;
+
+    using cleanup = new DisposableStack;
+    cleanup.defer(() => GlobalInternals.instanceContext = context);
+    mockIPC(() => []);
+    using watch = spyOn(Watchers, "watchProcesses").mockResolvedValue(() => {});
+    const profiles = [original];
+
+    using view = await mountComponent("general/misc/ContextProviders", {}, app => {
+      app.provide(AuthOneTimeFetchContextKey, profiles);
+    });
+    using fresh = spyOn(refresh, "ensureFreshAccount")
+      .mockResolvedValueOnce({ "account": stale, status })
+      .mockResolvedValueOnce({ "account": original, "status": "failed" })
+      .mockResolvedValueOnce({ "account": stale, status });
+    using read = spyOn(store, "readAccountText").mockResolvedValueOnce("[]")
+      .mockResolvedValueOnce(JSON.stringify([original]))
+      .mockResolvedValueOnce(JSON.stringify([winner]));
+    using confirm = spyOn(dialog, "confirm").mockResolvedValue(false);
+    using notify = spyOn(dialog, "message").mockResolvedValue("Ok");
+    using save = mockSaveAccounts();
+    using handle = spyOn(Launcher, "handleLaunch").mockResolvedValue({
+      "success": false, "process": undefined, "reason": "cancelled",
+    });
+    const launch = GlobalInternals.instanceContext!.launchInstance;
+
+    await launch("game");
+    expect(notify.mock.calls[0][0]).toContain("Select or add an account");
+    await launch("game");
+    expect(handle).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenCalledTimes(1);
+    await launch("game");
+    expect(handle.mock.calls[0][0].userPreferences.account?.token).toBe(winner.msa.token);
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(save).not.toHaveBeenCalled();
+    expect(read).toHaveBeenCalledTimes(3);
+    expect(fresh).toHaveBeenCalledTimes(3);
+    expect(watch).toHaveBeenCalledTimes(1);
+    expect(view.root.textContent).toBe("");
+  });
+}
+
+for (const delay of ["Java detection", "auth confirmation"]) {
+  test("launch takes credentials from the live record after " + delay, async () => {
+    declareInstanceStates();
+    instanceStates.game = { "patchVersions": {} } as InstanceStateType;
+    const context = GlobalInternals.instanceContext;
+    const major = GlobalInternals.javaMajor;
+
+    using cleanup = new DisposableStack;
+    cleanup.defer(() => {
+      GlobalInternals.instanceContext = context;
+      GlobalInternals.javaMajor = major;
+    });
+    GlobalInternals.javaMajor = undefined;
+    mockIPC(() => []);
+    using watch = spyOn(Watchers, "watchProcesses").mockResolvedValue(() => {});
+    const profiles = [original];
+
+    using view = await mountComponent("general/misc/ContextProviders", {}, app => {
+      app.provide(AuthOneTimeFetchContextKey, profiles);
+    });
+    const java = Promise.withResolvers<number>();
+
+    const confirmation = Promise.withResolvers<boolean>();
+    const promptOpened = Promise.withResolvers<void>();
+
+    using confirm = spyOn(dialog, "confirm").mockImplementation(() => {
+      promptOpened.resolve();
+
+      return confirmation.promise;
+    });
+    using read = spyOn(store, "readAccountText").mockResolvedValue(JSON.stringify([original]));
+    using probe = spyOn(Launcher, "fetchJavaMajor").mockReturnValue(java.promise);
+    using fresh = spyOn(refresh, "ensureFreshAccount")
+      .mockResolvedValue({
+        "account": original, "status": delay === "auth confirmation" ? "failed" : "fresh",
+      });
+    using handle = spyOn(Launcher, "handleLaunch").mockResolvedValue({
+      "success": false, "process": undefined, "reason": "cancelled",
+    });
+    const pending = GlobalInternals.instanceContext!.launchInstance("game");
+
+    if (delay === "auth confirmation") {
+      java.resolve(17);
+      await promptOpened.promise;
+    } else {
+      await Bun.sleep(0);
+    }
+    expect(fresh).toHaveBeenCalledTimes(1);
+    profiles.splice(0, 1, winner);
+    java.resolve(17);
+    confirmation.resolve(true);
+    await pending;
+    expect(handle.mock.calls[0][0].userPreferences.account?.token).toBe(winner.msa.token);
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledTimes(delay === "auth confirmation" ? 1 : 0);
+    expect(read).toHaveBeenCalledTimes(delay === "auth confirmation" ? 1 : 0);
+    expect(watch).toHaveBeenCalledTimes(1);
+    expect(view.root.textContent).toBe("");
+  });
+}
+
+test("missing Minecraft logs handle an unavailable native dialog", async () => {
   declareActionRegistry();
-  const accounts = shallowRef([original]);
-  const handlers = { "pending": mock(), "reset": mock(), "success": mock(), "error": mock() };
-
-  using fresh = spyOn(Auth, "ensureFreshAccount")
-    .mockResolvedValue({ "account": stale, "status": "refreshed" });
-  using read = spyOn(store, "readAccountText").mockResolvedValueOnce(JSON.stringify([winner]))
-    .mockResolvedValueOnce("[]");
-  using save = mockSaveAccounts();
-  const run = (): Promise<unknown> => ActionRegistry.execute(ActionKeys.AccountsRefresh, {
-    "account": original, accounts, handlers,
-  });
-
-  await run();
-  expect(accounts.value).toEqual([winner]);
-  expect(handlers.success).toHaveBeenCalledTimes(1);
-  await run();
-  expect(accounts.value).toEqual([]);
-  expect(handlers.success).toHaveBeenCalledTimes(1);
-  expect(handlers.error.mock.calls[0][0]).toContain("account was removed");
-  expect(save).not.toHaveBeenCalled();
-  expect(fresh).toHaveBeenCalledTimes(2);
-  expect(read).toHaveBeenCalledTimes(2);
-});
-
-test("launch distinguishes removal from decline and uses the winning token", async () => {
-  declareInstanceStates();
-  instanceStates.game = { "patchVersions": {} } as InstanceStateType;
-  const context = GlobalInternals.instanceContext;
+  const previous = GlobalInternals.logs;
 
   using cleanup = new DisposableStack;
-  cleanup.defer(() => GlobalInternals.instanceContext = context);
-  mockIPC(() => []);
-  using watch = spyOn(Watchers, "watchProcesses").mockResolvedValue(() => {});
-  const profiles = [original];
+  cleanup.defer(() => GlobalInternals.logs = previous);
+  GlobalInternals.logs = {};
+  using notify = spyOn(dialog, "message").mockRejectedValue(new Error("dialog unavailable"));
+  const { log } = await import("@/lib/logging/log.ts");
 
-  using view = await mountComponent("general/misc/ContextProviders", {}, app => {
-    app.provide(AuthOneTimeFetchContextKey, profiles);
-  });
-  using fresh = spyOn(refresh, "ensureFreshAccount")
-    .mockResolvedValueOnce({ "account": stale, "status": "refreshed" })
-    .mockResolvedValueOnce({ "account": original, "status": "failed" })
-    .mockResolvedValueOnce({ "account": stale, "status": "refreshed" });
-  using read = spyOn(store, "readAccountText").mockResolvedValueOnce("[]")
-    .mockResolvedValueOnce(JSON.stringify([winner]));
-  using confirm = spyOn(dialog, "confirm").mockResolvedValue(false);
-  using notify = spyOn(dialog, "message").mockResolvedValue("Ok");
-  using save = mockSaveAccounts();
-  using handle = spyOn(Launcher, "handleLaunch").mockResolvedValue({
-    "success": false, "process": undefined, "reason": "cancelled",
-  });
-  const launch = GlobalInternals.instanceContext!.launchInstance;
-
-  await launch("game");
-  expect(notify.mock.calls[0][0]).toContain("Select or add an account");
-  await launch("game");
-  expect(handle).not.toHaveBeenCalled();
-  expect(confirm).toHaveBeenCalledTimes(1);
-  await launch("game");
-  expect(handle.mock.calls[0][0].userPreferences.account?.token).toBe(winner.msa.token);
-  expect(notify).toHaveBeenCalledTimes(1);
-  expect(save).not.toHaveBeenCalled();
-  expect(read).toHaveBeenCalledTimes(2);
-  expect(fresh).toHaveBeenCalledTimes(3);
-  expect(watch).toHaveBeenCalledTimes(1);
-  expect(view.root.textContent).toBe("");
-});
-
-test("launch takes credentials from the live record after a delayed Java probe", async () => {
-  declareInstanceStates();
-  instanceStates.game = { "patchVersions": {} } as InstanceStateType;
-  const context = GlobalInternals.instanceContext;
-  const major = GlobalInternals.javaMajor;
-
-  using cleanup = new DisposableStack;
-  cleanup.defer(() => {
-    GlobalInternals.instanceContext = context;
-    GlobalInternals.javaMajor = major;
-  });
-  GlobalInternals.javaMajor = undefined;
-  mockIPC(() => []);
-  using watch = spyOn(Watchers, "watchProcesses").mockResolvedValue(() => {});
-  const profiles = [original];
-
-  using view = await mountComponent("general/misc/ContextProviders", {}, app => {
-    app.provide(AuthOneTimeFetchContextKey, profiles);
-  });
-  const java = Promise.withResolvers<number>();
-
-  using probe = spyOn(Launcher, "fetchJavaMajor").mockReturnValue(java.promise);
-  using fresh = spyOn(refresh, "ensureFreshAccount")
-    .mockResolvedValue({ "account": original, "status": "fresh" });
-  using handle = spyOn(Launcher, "handleLaunch").mockResolvedValue({
-    "success": false, "process": undefined, "reason": "cancelled",
-  });
-  const pending = GlobalInternals.instanceContext!.launchInstance("game");
-
-  await Bun.sleep(0);
-  expect(fresh).toHaveBeenCalledTimes(1);
-  profiles.splice(0, 1, winner);
-  java.resolve(17);
-  await pending;
-  expect(handle.mock.calls[0][0].userPreferences.account?.token).toBe(winner.msa.token);
-  expect(probe).toHaveBeenCalledTimes(1);
-  expect(watch).toHaveBeenCalledTimes(1);
-  expect(view.root.textContent).toBe("");
+  using error = spyOn(log, "error");
+  await ActionRegistry.execute(ActionKeys.ContextMenuMinecraftLogs, {});
+  expect(notify.mock.calls[0][0]).toBe("No Minecraft logs were found.");
+  expect(error.mock.calls[0]).toContain("Error: dialog unavailable");
 });

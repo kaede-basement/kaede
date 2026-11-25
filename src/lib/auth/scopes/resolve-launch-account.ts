@@ -53,10 +53,16 @@ export async function resolveLaunchAccountOutcome(
     return { "status": "missing" };
   }
   const snapshot = snapshotAccount(activeAccount);
-  const { account, status } = await ensureFreshAccount(activeAccount);
+  const result = await ensureFreshAccount(activeAccount);
 
   if (signal?.aborted) return { "status": "cancelled" };
-  if (status === "failed") {
+  if (result.status === "fresh") return { "status": "ready", "account": result.account, accounts };
+
+  const committed = await commitAccountRefresh(snapshot, result, signal);
+
+  if (signal?.aborted) return { "status": "cancelled" };
+  if (committed.status === "missing") return { "status": "missing" };
+  if (committed.status === "failed") {
     const toContinue = await confirm(
       "An error happened while refreshing a token for the selected account." +
       "\nDo you want to continue launching Minecraft? " +
@@ -65,15 +71,9 @@ export async function resolveLaunchAccountOutcome(
     );
 
     if (!toContinue || signal?.aborted) return { "status": "cancelled" };
-  }
-  if (status !== "refreshed") {
-    return { "status": "ready", account, accounts };
-  }
 
-  const committed = await commitAccountRefresh(snapshot, account, signal);
-
-  if (signal?.aborted) return { "status": "cancelled" };
-  if (!committed.account) return { "status": "missing" };
+    return { "status": "ready", "account": committed.account, accounts };
+  }
 
   return { "status": "ready", "account": committed.account, "accounts": committed.accounts };
 }

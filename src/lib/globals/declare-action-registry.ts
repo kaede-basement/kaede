@@ -17,7 +17,7 @@
  */
 
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { confirm, message } from "@tauri-apps/plugin-dialog";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 
@@ -51,22 +51,21 @@ export function declareActionRegistry(): void {
       const snapshot = snapshotAccount(account);
       const result: EnsureFreshResultType = await Auth.ensureFreshAccount(account, true);
 
-      if (result.status === "failed") {
-        return handlers.error("Failed to refresh the account");
-      }
-
       if (!accounts?.value) {
         return handlers
           .error("Failed to update stored accounts as received 'accounts' is undefined");
       }
 
       try {
-        const committed = await commitAccountRefresh(
-          snapshot, result.status === "refreshed" ? result.account : undefined,
-        );
+        const committed = await commitAccountRefresh(snapshot, result);
 
         accounts.value = committed.accounts;
-        if (!committed.account) return handlers.error(translate("profile.accounts.removed"));
+        if (committed.status === "missing") {
+          return handlers.error(translate("profile.accounts.removed"));
+        }
+        if (committed.status === "failed") {
+          return handlers.error(translate("profile.accounts.refresh-error"));
+        }
       } catch (error) {
         return handlers.error(translate("profile.accounts.save-error"), error);
       }
@@ -145,17 +144,13 @@ export function declareActionRegistry(): void {
   );
   ActionRegistry.register(
     ActionKeys.ContextMenuMinecraftLogs,
-    (): void => {
-      const instanceStatuses = GlobalInternals.logs?.instanceStatuses;
-
-      if (!instanceStatuses) {
-        return void message(GlobalInternals.logs + "No Minecraft logs were found");
-      }
-
-      const key: string | undefined = Object.keys(instanceStatuses)[0];
+    async (): Promise<void> => {
+      const key = Object.keys(GlobalInternals.logs?.instanceStatuses ?? {})[0];
 
       if (!key) {
-        return void message("No Minecraft logs were found");
+        await Errors.showError(translate("logs.missing"));
+
+        return;
       }
 
       globalStates.logs.show = true;

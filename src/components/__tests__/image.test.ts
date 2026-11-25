@@ -20,7 +20,14 @@ test("broken icons show their accessible fallback and reset on a new source", as
   const second = view.root.querySelector("img")!;
 
   expect(second.src).toEndWith("second.png");
+  expect(image.isConnected).toBe(false);
+  image.dispatchEvent(new view.browser.Event("load") as unknown as Event);
+  await nextTick();
+  expect(second.classList.contains("!opacity-0")).toBe(true);
   second.dispatchEvent(new view.browser.Event("load") as unknown as Event);
   await nextTick();
+  image.dispatchEvent(new view.browser.Event("error") as unknown as Event);
+  await nextTick();
+  expect(view.root.querySelector("img")).toBe(second);
   expect(second.classList.contains("opacity-100")).toBe(true);
 });

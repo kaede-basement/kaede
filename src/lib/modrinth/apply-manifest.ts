@@ -27,9 +27,11 @@ import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 export function applyManifest({
   manifest,
   path,
+  sha256,
 }: {
   "manifest": MrpackManifestType | undefined;
   "path"    : string;
+  "sha256"? : string;
 }): void {
   if (!manifest) {
     if (globalStates.pages["add-instance"].importedModpack) {
@@ -62,7 +64,7 @@ export function applyManifest({
   ))?.uid ?? Patches.Minecraft;
   const page = globalStates.pages["add-instance"];
 
-  setImportedModpack({ path, "name": manifest.name, loader });
+  setImportedModpack({ path, "name": manifest.name, loader, sha256 });
   page.instance = {
     ...currentInstance, "name": manifest.name || currentInstance.name, "patchVersions": versions,
   };

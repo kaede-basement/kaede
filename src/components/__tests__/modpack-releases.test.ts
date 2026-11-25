@@ -124,12 +124,9 @@ for (const failure of failures) {
     if (failure === "no URL") entry.files = [];
     if (failure === "503") fetch.mockResolvedValueOnce(new Response(null, { "status": 503 }));
     if (failure === "body unreadable") {
-      const response = new Response("unreadable");
+      const body = new ReadableStream({ "start": (stream): void => stream.error(failure) });
 
-      response.bytes = async (): Promise<never> => {
-        throw new Error(failure);
-      };
-      fetch.mockResolvedValueOnce(response);
+      fetch.mockResolvedValueOnce(new Response(body));
     }
     if (failure === "disk full") write.mockRejectedValueOnce(new Error(failure));
     if (failure === "No Modrinth manifest") {
@@ -270,8 +267,11 @@ for (const leave of [true, false]) {
       expect(button.isConnected).toBe(false);
       (document.activeElement as HTMLElement).blur();
       if (leave) other.focus();
-      request.resolve(new Response(null, { "status": 503 }));
+      const cancel = mock();
+
+      request.resolve(new Response(new ReadableStream({ cancel }), { "status": 503 }));
       await Bun.sleep(0);
+      expect(cancel).toHaveBeenCalledTimes(1);
       expect(document.activeElement).toBe(leave ? other : document.getElementById("release-id-40"));
       expect(viewport.scrollTop).toBe(1600);
       pressEnter(view);

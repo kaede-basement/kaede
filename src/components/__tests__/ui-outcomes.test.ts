@@ -105,7 +105,7 @@ test("plain zip clears the previous pack draft and keeps its warning on Import",
   const peek = mock().mockReturnValueOnce(manifest)
     .mockReturnValueOnce(null);
 
-  mockIPC(peek);
+  mockIPC(command => (command === "hash_path" ? "1".repeat(64) : peek()));
   using view = await mountComponent("add-instance/sections/ImportModpack");
   const pick = Reflect.get(view.root.querySelector("test-child")!, "on-click");
 
@@ -139,7 +139,8 @@ test("a stale import resolving after remount cannot clear the newer pack", async
   const started = Promise.withResolvers<void>();
   const older = Promise.withResolvers<null>();
 
-  mockIPC((_, arguments_) => {
+  mockIPC((command, arguments_) => {
+    if (command === "hash_path") return "1".repeat(64);
     if ((arguments_ as { "archivePath": string }).archivePath === "older.zip") {
       started.resolve();
 

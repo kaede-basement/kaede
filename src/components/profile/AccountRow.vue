@@ -30,6 +30,7 @@ import {
 } from "@/constants/application.ts";
 import { ActionRegistry } from "@/extendable/action-registry.ts";
 import Errors from "@/lib/errors";
+import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
 import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
@@ -38,12 +39,14 @@ import type {
   AccountActionType,
 } from "@/types/ui/account-action.type.ts";
 
-const { idRoot, account, index } = defineProps<{
-  "idRoot" : string;
-  "account": AccountType;
-  "index"  : number;
+const { idRoot, account, index, reportDialogError } = defineProps<{
+  "reportDialogError"?: (description: string) => void;
+  "idRoot"            : string;
+  "account"           : AccountType;
+  "index"             : number;
 }>();
 
+const localError = ref("");
 const statuses = ref<Record<string, "pending" | "success" | undefined>>({});
 
 const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
@@ -84,6 +87,11 @@ function handleSelection(): void {
 }
 
 async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<void> {
+  const report = reportDialogError ?? ((description: string): void => {
+    localError.value = description;
+  });
+
+  report("");
   const handlers: AccountActionHandlersType = {
     "reset": () => {
       statuses.value[entry.label] = undefined;
@@ -100,10 +108,14 @@ async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<
     },
     "error": (message, error) => {
       handlers.reset();
-      void notify(
-        `An error (${message}) occurred:\n${Errors.prettify(error)}`,
-        { "title": "Accounts", "kind": "error" },
-      );
+      const description = error === undefined ? message : message + "\n" + Errors.prettify(error);
+
+      void notify(description, { "title": "Accounts", "kind": "error" }).catch(error_ => {
+        report(description);
+        log.error(
+          __PRE_BUNDLED_FILENAME__, "Could not display account error dialog:", String(error_),
+        );
+      });
     },
   };
 
@@ -158,6 +170,7 @@ async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<
       :id="`${idRoot}-information`"
       class="pointer-events-none flex flex-col"
     >
+      <p v-if="localError" :id="`${idRoot}-error`" role="alert">{{ localError }}</p>
       <span
         :id="`${idRoot}-name`"
         class="line-clamp-1 break-all text-sm"

@@ -30,6 +30,7 @@ import { translate } from "@/lib/general/translate.ts";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
+import { hashLocalArchive } from "@/lib/modrinth/import-archive.ts";
 import { globalStates } from "@/states/global.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
@@ -81,6 +82,11 @@ async function handleImport(): Promise<void> {
       return;
     }
 
+    const sha256 = await hashLocalArchive(selectedPath);
+
+    if (!current()) {
+      return;
+    }
     const manifest: MrpackManifestType | undefined =
       await Modrinth.peekMrpack(selectedPath);
 
@@ -88,7 +94,7 @@ async function handleImport(): Promise<void> {
       return;
     }
     unsupportedPath.value = manifest ? undefined : selectedPath;
-    Modrinth.applyManifest({ manifest, "path": selectedPath });
+    Modrinth.applyManifest({ manifest, "path": selectedPath, sha256 });
     if (manifest) {
       globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
     }

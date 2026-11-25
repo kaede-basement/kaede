@@ -424,6 +424,7 @@ export type PagesType = {
 			"path": string;
 			"name": string | undefined;
 			"loader": string;
+			"sha256"?: string;
 		};
 		"instance": {
 			"name": string;
@@ -571,6 +572,7 @@ declare const _default$4: {
 				"path": string;
 				"name": string | undefined;
 				"loader": string;
+				"sha256"?: string;
 			};
 			"instance": {
 				"name": string;
@@ -2757,6 +2759,7 @@ declare const _default$32: {
 					path: string;
 					name: string | undefined;
 					loader: string;
+					sha256?: string;
 				} | undefined;
 				instance?: {
 					name: string;

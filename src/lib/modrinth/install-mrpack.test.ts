@@ -81,6 +81,7 @@ test("remount retains the install and its completion preserves the newer draft",
   const prepared = Promise.withResolvers<void>();
   const started = Promise.withResolvers<void>();
   const ipc = mock(async (cmd: string) => {
+    if (cmd === "hash_path") return "1".repeat(64);
     if (cmd === "repair_legacy_mrpack") {
       return "repaired";
     }
@@ -152,6 +153,7 @@ test("registration consumes the saved draft and preserves an active Modrinth tab
   const written = Promise.withResolvers<void>();
 
   mockIPC(async (command, data) => {
+    if (command === "hash_path") return "2".repeat(64);
     if (command === "plugin:fs|write_text_file") {
       const text = (new TextDecoder).decode(data as Uint8Array);
 
@@ -167,6 +169,7 @@ test("registration consumes the saved draft and preserves an active Modrinth tab
   } as InstanceStateType;
   page.importedModpack = { "path": "pack", "name": "Pack", "loader": Patches.Minecraft };
   page.tab = "clean-minecraft";
+  page.instanceVersionSearch = undefined;
   let finished = false;
   const registered = create(page.instance, Patches.Minecraft, "pack", async () => {})!.then(id => {
     finished = true;
@@ -177,6 +180,7 @@ test("registration consumes the saved draft and preserves an active Modrinth tab
   await writing.promise;
   expect(finished).toBe(false);
   page.tab = "modrinth";
+  page.instanceVersionSearch = { "input": "browse another version", "patch": Patches.Minecraft };
   written.resolve();
   const id = await registered;
 
@@ -184,6 +188,7 @@ test("registration consumes the saved draft and preserves an active Modrinth tab
   expect(page.instance).toBeUndefined();
   expect(page.importedModpack).toBeUndefined();
   expect(page.tab).toBe("modrinth");
+  expect(page.instanceVersionSearch).toBeUndefined();
   expect(globalStates.currentPage).toBe(Routes.AddInstance);
 });
 

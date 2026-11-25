@@ -19,6 +19,7 @@
 import { fetch } from "@tauri-apps/plugin-http";
 
 import { ModrinthAPI } from "@/constants/modrinth.ts";
+import { discardResponseBody } from "@/lib/network/discard-response-body.ts";
 
 export async function fetchVersion(projectId: string): Promise<Array<{
   "id"            : string;
@@ -44,6 +45,7 @@ export async function fetchVersion(projectId: string): Promise<Array<{
   const response: Response = await fetch(`${ModrinthAPI.Endpoints.Project}/${projectId}/version`);
 
   if (!response.ok) {
+    await discardResponseBody(response);
     throw new Error(`Modrinth answered with the status ${response.status}`);
   }
 

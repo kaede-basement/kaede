@@ -22,6 +22,7 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import { checkDownloadSignal } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { log } from "@/lib/logging/log.ts";
+import { discardResponseBody } from "@/lib/network/discard-response-body.ts";
 import type {
   LaunchKeyType,
   LaunchStatusType,
@@ -59,7 +60,12 @@ export async function fetchMetadata({
     return LaunchStatus[scope].FailedToFetch;
   }
 
-  checkDownloadSignal(signal);
+  if (signal?.aborted || !response.ok) {
+    await discardResponseBody(response);
+    checkDownloadSignal(signal);
+
+    return LaunchStatus[scope].FailedToFetch;
+  }
   try {
     data = await response.json();
   } catch (error: unknown) {
