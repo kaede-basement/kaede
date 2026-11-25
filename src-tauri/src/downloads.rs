@@ -488,7 +488,11 @@ pub fn prepare_mrpack_install(
 ) -> Result<u64, String> {
     static NEXT: AtomicU64 = AtomicU64::new(1);
     let token = NEXT.fetch_add(1, Ordering::Relaxed);
-    let archive = archive_path.and_then(|p| staging.pin_install(&p));
+    let archive = archive_path
+        .map(|p| staging.pin_install(&p))
+        .transpose()
+        .map_err(|e| e.to_string())?
+        .flatten();
     let page = {
         let window = webview.window_ref();
         let mut window_table = window.resources_table();
@@ -1169,7 +1173,7 @@ mod tests {
                     1,
                     scope(1),
                     scope(2),
-                    stages.pin_install(&path),
+                    stages.pin_install(&path).unwrap(),
                 )
                 .unwrap();
             drop(draft);

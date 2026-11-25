@@ -17,7 +17,6 @@
  */
 
 import FileStructure from "@/constants/file-structure.ts";
-import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { regenerateConfigFile } from "@/lib/configs/scopes/regenerate-config-file.ts";
 import FileManager from "@/lib/file-manager";
 import Hooks from "@/lib/hooks";
@@ -53,12 +52,7 @@ export async function getMain(properties?: Partial<{
 
   const parsedConfig: unknown = parsedFile?.status === "loaded"
     ? parsedFile.data
-    : await FileManager.handleJsonFile({
-      baseDirectory,
-      "path"           : [FileStructure.Files.Config],
-      "label"          : FileStructure.Files.Config,
-      "getDefaultValue": getDefaultConfig,
-    });
+    : await regenerate({ baseDirectory, configFileDirectory });
 
   if (typeof parsedConfig !== "object" || parsedConfig === null || Array.isArray(parsedConfig)) {
     return regenerate({ baseDirectory, configFileDirectory });

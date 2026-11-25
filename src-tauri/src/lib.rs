@@ -235,7 +235,7 @@ pub fn run() {
 
             let tail = std::sync::Arc::new(logging::LogTail::new(path.join("latest.log")));
             app.manage(tail.clone());
-            let open = || {
+            let open = |strategy, limit: u64| {
                 let tail = tail.clone();
                 tauri_plugin_log::Builder::new()
                     // Clear any default output targets
@@ -266,20 +266,19 @@ pub fn run() {
                             record.target(),
                             message,
                         );
-                        out.finish(format_args!("{line}"));
-                        tail.record_bytes(line.len() + 1);
+                        tail.write_record(line.len() as u64 + 1, limit, || out.finish(format_args!("{line}")));
                     })
                     // Keep the log file size at 8 MiB
-                    .max_file_size(logging::LOG_BYTES as u128)
+                    .max_file_size(limit.into())
                     // Keep the recent log lines if the file size exceeds 8 MiB
-                    .file_open_strategy(tauri_plugin_log::FileOpenStrategy::Rotate)
+                    .file_open_strategy(strategy)
                     .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                     .split(app.handle())
             };
-            let logger = open();
-            #[cfg(windows)]
+            let logger = open(tauri_plugin_log::FileOpenStrategy::Rotate, logging::LOG_BYTES);
             let logger = logging::retry_locked_rotation(&path.join("latest.log"), logger, open);
             let (plugin, level, logger) = logger?;
+            tail.seed_active_size()?;
             tauri_plugin_log::attach_logger(level, logger)?;
             app.handle().plugin(plugin)?;
 

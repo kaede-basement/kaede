@@ -97,3 +97,21 @@ test("preview distinguishes missing keys from backups", () => withTestWindow(asy
   expect(calls).not.toContain("plugin:fs|write_file");
   expect(preview).toHaveBeenCalled();
 }));
+
+test("config recovery backs up raw bytes", () => withTestWindow(async () => {
+  const { regenerateConfigFile } = await import("./regenerate-config-file.ts");
+  const bytes = new Uint8Array([255]);
+  const expectedHash = await digestBytes(bytes);
+  let saved: unknown;
+
+  mockIPC((command, arguments_) => {
+    if (command === "plugin:fs|read_file") return bytes;
+    if (command === "publish_text") saved = arguments_;
+    else throw new Error(command);
+  });
+  const config = await regenerateConfigFile({ "baseDirectory"      : "base",
+    "configFileDirectory": "base/config.json" });
+
+  expect(saved).toMatchObject({ expectedHash, "preserve": true, "path"    : "base/config.json",
+    "contents": JSON.stringify(config, null, 2) });
+}));

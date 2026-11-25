@@ -23,7 +23,7 @@ test("a damaged offline patch defers eviction and allows a fetch", async () => {
     const entries = Object.fromEntries(existing);
 
     c.files.set(c.root + "index.json", encode(JSON.stringify({ "version": 1, entries })));
-    c.files.set(c.root + "net.minecraft/1.json", encode("{"));
+    c.files.set(c.root + "net.minecraft/1.json", encode("{}"));
     const fetched = await cachedMetadata(c.request);
 
     expect(fetched.bytes).toEqual(encode(raw));
@@ -56,4 +56,43 @@ test("the first hit in an existing oversized index schedules protected eviction"
   await checked.promise;
   while (Object.keys(c.index().entries).length === 3) await Bun.sleep(1);
   expect(Object.keys(c.index().entries).sort()).toEqual(["hit.json", "installed.json"]);
+});
+
+test("an inaccessible eviction candidate stays indexed while another is reclaimed", async () => {
+  using c = cache();
+  const fs = await import("@tauri-apps/plugin-fs");
+  const { spyOn } = await import("bun:test");
+  const index = new CacheIndex(c.root.slice(0, -1), async () => new Set, 2);
+
+  for (const name of ["locked.json", "cold.json"]) {
+    c.files.set(c.root + name, encode("1"));
+    await index.update(name, { ...entry, "hash": { "kind": "sha256", "sum": sha(raw) } });
+  }
+  using lock = spyOn(fs, "remove").mockRejectedValueOnce(new Error("sharing violation"));
+  await index.update("fresh.json", { ...entry, "hash": { "kind": "sha256", "sum": sha(raw) } });
+  expect(lock).toHaveBeenCalled();
+  expect(Object.keys(c.index().entries).sort()).toEqual(["fresh.json", "locked.json"]);
+});
+
+test("missing preview patch bytes preserve known keys without blocking eviction", async () => {
+  using c = cache();
+  const fs = await import("@tauri-apps/plugin-fs");
+  const { spyOn } = await import("bun:test");
+  const { "default": browser } = await import("@/lib/browser");
+  const { offlineMetadata } = await import("./offline.ts");
+
+  using preview = spyOn(browser, "detectIsBrowser").mockReturnValue(true);
+  using missing = spyOn(fs, "readFile").mockResolvedValue(new Uint8Array);
+  const release = pinLaunchMetadata({ "entry"        : "net.minecraft",
+    "patchVersions": { "net.minecraft": "1" } });
+
+  try {
+    const keys = await offlineMetadata(c.root.slice(0, -1));
+
+    expect(keys?.has("net.minecraft/1.json")).toBe(true);
+    expect(preview).toHaveBeenCalled();
+    expect(missing).toHaveBeenCalled();
+  } finally {
+    release();
+  }
 });

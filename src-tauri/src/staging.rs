@@ -51,38 +51,47 @@ impl Staging {
                 .and_then(|s| s.to_str())
                 .is_some_and(|s| s.starts_with("modrinth-") && s.ends_with(".mrpack"))
     }
-    pub(crate) fn pin(&self, path: &Path) -> Option<Pin> {
-        if !self.owns(path) {
-            return None;
-        }
-        *self
-            .pins
-            .lock()
-            .unwrap()
-            .entry(path.to_owned())
-            .or_default() += 1;
-        Some(Pin {
-            staging: self.clone(),
-            path: path.to_owned(),
-            collect_on_drop: false,
-        })
-    }
-    pub(crate) fn pin_install(&self, path: &Path) -> Option<Pin> {
-        let mut pin = self.pin(path)?;
-        pin.collect_on_drop = true;
-        Some(pin)
-    }
-    fn cleanup(&self, only: Option<PathBuf>, protected: Vec<PathBuf>) -> io::Result<()> {
+    fn directory(&self) -> io::Result<Option<PathBuf>> {
         let cache = self.base.join("cache");
         let staging = cache.join("mrpack-staging");
         for directory in [&cache, &staging] {
             match fs::symlink_metadata(directory) {
                 Ok(meta) if crate::mod_store::ordinary_directory(&meta) => (),
                 Ok(_) => return Err(io::Error::other("Invalid staging directory")),
-                Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
                 Err(e) => return Err(e),
             }
         }
+        Ok(Some(staging))
+    }
+    pub(crate) fn pin(&self, path: &Path) -> io::Result<Option<Pin>> {
+        if !self.owns(path) {
+            return Ok(None);
+        }
+        self.directory()?;
+        *self
+            .pins
+            .lock()
+            .unwrap()
+            .entry(path.to_owned())
+            .or_default() += 1;
+        Ok(Some(Pin {
+            staging: self.clone(),
+            path: path.to_owned(),
+            collect_on_drop: false,
+        }))
+    }
+    pub(crate) fn pin_install(&self, path: &Path) -> io::Result<Option<Pin>> {
+        let Some(mut pin) = self.pin(path)? else {
+            return Ok(None);
+        };
+        pin.collect_on_drop = true;
+        Ok(Some(pin))
+    }
+    fn cleanup(&self, only: Option<PathBuf>, protected: Vec<PathBuf>) -> io::Result<()> {
+        let Some(staging) = self.directory()? else {
+            return Ok(());
+        };
         let mut paths = Vec::new();
         if let Some(path) = only {
             if self.owns(&path) && !self.pins.lock().unwrap().contains_key(&path) {
@@ -131,15 +140,20 @@ impl Staging {
             if pins.contains_key(&path) {
                 continue;
             }
-            match fs::symlink_metadata(&path) {
-                Ok(meta) if meta.is_file() && !crate::mod_store::is_reparse_point(&meta) => {
-                    if !targets.contains(&path.canonicalize()?) {
-                        fs::remove_file(path)?;
-                    }
+            let remove_unused = || -> io::Result<()> {
+                let meta = fs::symlink_metadata(&path)?;
+                if meta.is_file()
+                    && !crate::mod_store::is_reparse_point(&meta)
+                    && !targets.contains(&path.canonicalize()?)
+                {
+                    fs::remove_file(&path)?;
                 }
-                Ok(_) => (),
-                Err(e) if e.kind() == io::ErrorKind::NotFound => (),
-                Err(e) => return Err(e),
+                Ok(())
+            };
+            if let Err(e) = remove_unused() {
+                if e.kind() != io::ErrorKind::NotFound {
+                    log::warn!("Cannot collect {}: {e}", path.display());
+                }
             }
         }
         Ok(())
@@ -161,11 +175,12 @@ pub(crate) fn pin_stage(
     webview: tauri::Webview,
     staging: tauri::State<Staging>,
     path: PathBuf,
-) -> Option<u32> {
+) -> Result<Option<u32>, String> {
     use tauri::Manager;
     staging
         .pin(&path)
-        .map(|pin| webview.resources_table().add(pin))
+        .map(|pin| pin.map(|pin| webview.resources_table().add(pin)))
+        .map_err(|e| e.to_string())
 }
 
 pub(crate) fn release_page(table: &mut tauri::ResourceTable) {
@@ -182,6 +197,37 @@ pub(crate) fn release_page(table: &mut tauri::ResourceTable) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    #[test]
+    fn admission_and_collection_reject_a_linked_staging_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = dir.path().join("cache");
+        fs::create_dir(&cache).unwrap();
+        let staging = cache.join("mrpack-staging");
+        std::os::unix::fs::symlink(dir.path(), &staging).unwrap();
+        let store = Staging::new(dir.path());
+        assert!(store.pin(&staging.join("modrinth-link.mrpack")).is_err());
+        assert!(store.cleanup(None, vec![]).is_err());
+    }
+    #[cfg(windows)]
+    #[test]
+    fn locked_orphan_does_not_block_other_archives() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let folder = dir.path().join("cache/mrpack-staging");
+        fs::create_dir_all(&folder).unwrap();
+        let locked = folder.join("modrinth-a.mrpack");
+        let other = folder.join("modrinth-b.mrpack");
+        fs::write(&locked, []).unwrap();
+        fs::write(&other, []).unwrap();
+        let _reader = fs::File::options()
+            .read(true)
+            .share_mode(1)
+            .open(&locked)
+            .unwrap();
+        Staging::new(dir.path()).cleanup(None, vec![]).unwrap();
+        assert!(locked.exists() && !other.exists());
+    }
     #[test]
     fn collection_respects_live_pins_legacy_instances_and_external_files() {
         let dir = tempfile::tempdir().unwrap();

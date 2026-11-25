@@ -23,7 +23,7 @@ import { MrpackDependencies } from "@/constants/modrinth.ts";
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
-import { pinPreviewArchive } from "@/lib/modrinth/staging.ts";
+import { pinPreviewArchive, previewArchive } from "@/lib/modrinth/staging.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -102,10 +102,11 @@ export async function installMrpack({
     }
   };
 
-  const releaseArchive = pinPreviewArchive(archivePath);
+  let releaseArchive: (() => Promise<void>) | undefined;
 
   ActiveInstall.value = { instanceId, cancel };
   try {
+    if (previewArchive(archivePath)) releaseArchive = await pinPreviewArchive(archivePath);
     const reservation = await invoke<number>("prepare_mrpack_install", { cancelId, archivePath });
 
     ready = true;

@@ -8,15 +8,15 @@ import { digestBytes, publishText, StateChanged } from "./publish-text.ts";
 
 export async function readState<T>(
   directory: string, filename: string, preloaded: ParsedFile | undefined,
-  empty: T, privateFile: boolean,
-  validate: (input: unknown) => { "value": T; "valid": boolean },
+  defaults: () => T | Promise<T>, privateFile: boolean,
+  validate: (input: unknown) => { "value": T; "valid": boolean } | undefined,
+  path = join(directory, filename),
 ): Promise<T> {
   if (preloaded?.status === "loaded") {
     const result = validate(preloaded.data);
 
-    if (result.valid) return result.value;
+    if (result?.valid) return result.value;
   }
-  const path = join(directory, filename);
 
   // Recovery always validates the exact byte snapshot it will compare and back up.
   for (;;) {
@@ -35,7 +35,7 @@ export async function readState<T>(
     } catch (error) {
       if (await exists(path)) throw error;
     }
-    let value = empty;
+    let recovered: T | undefined;
 
     if (bytes) {
       let parsed: unknown;
@@ -48,12 +48,13 @@ export async function readState<T>(
       if (parsed !== undefined) {
         const result = validate(parsed);
 
-        if (result.valid) return result.value;
-        value = result.value;
+        if (result?.valid) return result.value;
+        recovered = result?.value;
       }
     }
     try {
       if (!bytes) await mkdir(directory, { "recursive": true });
+      const value = recovered ?? await defaults();
       const expected = bytes ? await digestBytes(bytes) : "missing";
 
       await publishText(path, JSON.stringify(value, null, 2), privateFile, !!bytes, expected);

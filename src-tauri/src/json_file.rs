@@ -210,7 +210,7 @@ fn write(
     static STATE_WRITER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let state = matches!(
         path.file_name().and_then(|s| s.to_str()),
-        Some("accounts.json" | "instances.json")
+        Some("accounts.json" | "instances.json" | "config.json")
     );
     let _writer = (state || preserve).then(|| STATE_WRITER.lock().unwrap());
     let dest = destination(path)?;
@@ -257,7 +257,7 @@ mod tests {
     #[test]
     fn state_recovery_preserves_last_three_original_byte_sequences() {
         let dir = tempfile::tempdir().unwrap();
-        for name in ["accounts.json", "instances.json"] {
+        for name in ["accounts.json", "instances.json", "config.json"] {
             let path = dir.path().join(name);
             for i in 0..5 {
                 fs::write(&path, [0xff, i]).unwrap();

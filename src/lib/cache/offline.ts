@@ -1,7 +1,9 @@
 import { exists, readTextFile } from "@tauri-apps/plugin-fs";
 
+import Browser from "@/lib/browser";
 import { join } from "@/lib/file-manager/path.ts";
 import { log } from "@/lib/logging/log.ts";
+import { CheckPatchMeta } from "@/lib/schemas/generated/validators.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 
@@ -48,7 +50,11 @@ async function collectOfflineMetadata(root: string, baseDirectory?: string): Pro
       }
       const bytes = await readOptional(path);
 
-      documents.set(key, bytes ? JSON.parse((new TextDecoder).decode(bytes)) : undefined);
+      const previewEmpty = bytes?.length === 0 && Browser.detectIsBrowser();
+      const absent = !bytes || (previewEmpty && !await exists(path));
+      const decoder = new TextDecoder("utf8", { "fatal": true });
+
+      documents.set(key, absent ? undefined : JSON.parse(decoder.decode(bytes)));
     }
 
     return documents.get(key);
@@ -80,6 +86,8 @@ async function collectOfflineMetadata(root: string, baseDirectory?: string): Pro
       if (version === undefined) {
         const index = await read(uid + ".json") as { "versions"?: Array<{ "version": string }> };
 
+        if (index !== undefined && (!Array.isArray(index?.versions)
+          || !safeComponent(index.versions[0]?.version))) throw new Error("Invalid version index");
         version = index?.versions?.[0]?.version;
       }
       if (!version || !safeComponent(version)) continue;
@@ -89,6 +97,7 @@ async function collectOfflineMetadata(root: string, baseDirectory?: string): Pro
       visited.add(key);
       const patch = await read(key) as Patch;
 
+      if (patch !== undefined && !CheckPatchMeta(patch)) throw new Error("Invalid offline patch");
       if (Array.isArray(patch?.requires)) {
         for (const child of patch.requires) if (child) queue.push(child);
       }

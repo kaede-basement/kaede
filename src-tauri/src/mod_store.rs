@@ -233,9 +233,7 @@ impl ModStore {
                 }
                 let meta = fs::symlink_metadata(entry.path())?;
                 if meta.is_file() && !is_reparse_point(&meta) {
-                    if !partial {
-                        total += meta.len();
-                    }
+                    total += meta.len();
                     files.push((!partial, meta.modified()?, entry.path(), meta.len()));
                 }
             }
@@ -259,11 +257,13 @@ impl ModStore {
             {
                 break;
             }
-            fs::remove_file(path)?;
+            let removed = fs::remove_file(&path);
             drop(active);
-            if object {
-                total -= size;
+            if let Err(error) = removed {
+                log::warn!("Cannot evict {}: {error}", path.display());
+                continue;
             }
+            total -= size;
         }
         Ok(())
     }
@@ -543,6 +543,29 @@ pub fn stage_blob(src: &Path, dst: &Path) -> io::Result<tempfile::TempPath> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn locked_partial_does_not_block_object_eviction() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let store = ModStore::new(dir.path());
+        let lease = store.lease().await.unwrap();
+        lease.prepare().await.unwrap();
+        let shard = lease.root.join("sha512/aa");
+        fs::create_dir(&shard).unwrap();
+        let partial = shard.join("locked.tmp");
+        let object = shard.join("a".repeat(128));
+        fs::write(&partial, [1]).unwrap();
+        fs::write(&object, [2]).unwrap();
+        let _reader = fs::File::options()
+            .read(true)
+            .share_mode(1)
+            .open(&partial)
+            .unwrap();
+        drop(lease);
+        tokio::task::block_in_place(|| store.trim(1)).unwrap();
+        assert!(partial.exists() && !object.exists());
+    }
     #[tokio::test(flavor = "multi_thread")]
     async fn tiny_budget_spares_leases_and_keeps_newest() {
         let dir = tempfile::tempdir().unwrap();

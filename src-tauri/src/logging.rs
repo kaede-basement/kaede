@@ -1,6 +1,6 @@
 use same_file::Handle;
 use serde::Serialize;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 ///
 /// ATTENTION: AI-generated (by Qwen 3.8-Max and Claude Fable 5 on 'max' reasoning)
 ///
@@ -28,7 +28,7 @@ pub struct LogTail {
     path: PathBuf,
     last_issued: Mutex<u64>,
     retention_enabled: AtomicBool,
-    logged_bytes: AtomicUsize,
+    logged_bytes: Mutex<u64>,
 }
 
 const MAX_SAFE_ID: u64 = (1 << 53) - 1;
@@ -863,35 +863,50 @@ mod tests {
 }
 
 const ARCHIVES: usize = 10;
-pub(crate) const LOG_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const LOG_BYTES: u64 = 8 * 1024 * 1024;
 
-// KeepAll still renames a dated archive on a same-second collision. A Windows
-// reader can deny that rename even when latest.log itself is free to rotate.
-#[cfg(windows)]
 pub(crate) fn retry_locked_rotation<T>(
     latest: &Path,
     result: Result<T, tauri_plugin_log::Error>,
-    open: impl FnOnce() -> Result<T, tauri_plugin_log::Error>,
+    open: impl FnOnce(tauri_plugin_log::FileOpenStrategy, u64) -> Result<T, tauri_plugin_log::Error>,
 ) -> Result<T, tauri_plugin_log::Error> {
     let Err(tauri_plugin_log::Error::Io(ref e)) = result else {
         return result;
     };
-    if !matches!(e.raw_os_error(), Some(5 | 32 | 33)) {
+    #[cfg(windows)]
+    let denied = matches!(e.raw_os_error(), Some(5 | 32 | 33));
+    #[cfg(not(windows))]
+    let denied =
+        e.kind() == io::ErrorKind::PermissionDenied || e.raw_os_error() == Some(libc::EROFS);
+    if !denied {
         return result;
     }
 
-    let mut stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(io::Error::other)?
-        .as_nanos();
-    loop {
-        let backup = latest.with_file_name(format!("kaede-{stamp}.log"));
-        match crate::file_system::move_noclobber(latest, &backup) {
-            Ok(()) => return open(),
-            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => stamp += 1,
-            Err(_) => return result,
+    #[cfg(windows)]
+    {
+        // A locked same-second collision archive can leave latest.log itself free to rotate.
+        let mut stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(io::Error::other)?
+            .as_nanos();
+        loop {
+            let backup = latest.with_file_name(format!("kaede-{stamp}.log"));
+            match crate::file_system::move_noclobber(latest, &backup) {
+                Ok(()) => return open(tauri_plugin_log::FileOpenStrategy::Rotate, LOG_BYTES),
+                Err(e) if e.kind() == io::ErrorKind::AlreadyExists => stamp += 1,
+                Err(e) if matches!(e.raw_os_error(), Some(5 | 32 | 33)) => break,
+                Err(_) => return result,
+            }
         }
     }
+    // Even Append rotates on open when the current size reaches the limit.
+    let size = latest.metadata()?.len();
+    let limit = if size >= LOG_BYTES {
+        size.saturating_add(LOG_BYTES)
+    } else {
+        LOG_BYTES
+    };
+    open(tauri_plugin_log::FileOpenStrategy::Append, limit)
 }
 
 fn archive_number(name: &str) -> Option<u64> {
@@ -917,17 +932,26 @@ fn dated_archive(name: &str) -> bool {
 }
 
 impl LogTail {
-    pub(crate) fn record_bytes(self: &Arc<Self>, count: usize) {
-        if self.retention_enabled.load(Ordering::Relaxed) {
-            let prior = self.logged_bytes.fetch_add(count, Ordering::Relaxed);
-            if prior / LOG_BYTES != prior.wrapping_add(count) / LOG_BYTES {
-                let tail = self.clone();
-                tauri::async_runtime::spawn_blocking(move || {
-                    if let Err(error) = tail.trim_archives() {
-                        log::warn!("Cannot trim log archives: {error}");
-                    }
-                });
-            }
+    pub(crate) fn seed_active_size(&self) -> io::Result<()> {
+        *self.logged_bytes.lock().unwrap() = self.path.metadata()?.len();
+        Ok(())
+    }
+
+    pub(crate) fn write_record(self: &Arc<Self>, count: u64, limit: u64, write: impl FnOnce()) {
+        // Serialize dispatch and accounting so concurrent formatters observe the file's write order.
+        let mut active = self.logged_bytes.lock().unwrap();
+        write();
+        let next = active.saturating_add(count);
+        let rotated = *active != 0 && next > limit;
+        *active = if rotated { count } else { next };
+        drop(active);
+        if rotated && self.retention_enabled.load(Ordering::Relaxed) {
+            let tail = self.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                if let Err(error) = tail.trim_archives() {
+                    log::warn!("Cannot trim log archives: {error}");
+                }
+            });
         }
     }
 
@@ -974,6 +998,100 @@ impl LogTail {
 #[cfg(test)]
 mod retention_tests {
     use super::*;
+    #[tokio::test]
+    async fn trim_follows_rotation_after_exact_fit_and_after_an_oversized_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let latest = dir.path().join("latest.log");
+        std::fs::write(&latest, [0; 8]).unwrap();
+        let tail = Arc::new(LogTail::new(latest.clone()));
+        let app = tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+        let writer = tail.clone();
+        let (_, _, logger) = tauri_plugin_log::Builder::new()
+            .clear_targets()
+            .target(tauri_plugin_log::Target::new(
+                tauri_plugin_log::TargetKind::Folder {
+                    path: dir.path().into(),
+                    file_name: Some("latest".into()),
+                },
+            ))
+            .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+            .file_open_strategy(tauri_plugin_log::FileOpenStrategy::Append)
+            .max_file_size(10)
+            .format(move |out, msg, _| {
+                let line = msg.to_string();
+                writer.write_record(line.len() as u64 + 1, 10, || {
+                    out.finish(format_args!("{line}"))
+                });
+            })
+            .split(app.handle())
+            .unwrap();
+        tail.seed_active_size().unwrap();
+        for n in 0..ARCHIVES {
+            File::create(dir.path().join(format!("kaede-{n}.log"))).unwrap();
+        }
+        tail.trim_archives().unwrap();
+        for (line, size) in [("a", 10), ("", 1), ("0123456789", 11), ("b", 2)] {
+            logger.log(
+                &log::Record::builder()
+                    .args(format_args!("{line}"))
+                    .level(log::Level::Info)
+                    .build(),
+            );
+            assert_eq!(latest.metadata().unwrap().len(), size);
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while std::fs::read_dir(dir.path()).unwrap().count() > ARCHIVES + 1 {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            })
+            .await
+            .unwrap();
+        }
+    }
+    #[cfg(windows)]
+    #[test]
+    fn real_plugin_appends_to_delete_locked_latest_including_oversized_files() {
+        use std::os::windows::fs::OpenOptionsExt;
+        use tauri_plugin_log::{Builder, FileOpenStrategy, RotationStrategy, Target, TargetKind};
+        let app = tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+        for size in [3, LOG_BYTES + 1] {
+            let dir = tempfile::tempdir().unwrap();
+            let latest = dir.path().join("latest.log");
+            File::create(&latest).unwrap().set_len(size).unwrap();
+            let _reader = File::options()
+                .read(true)
+                .share_mode(3)
+                .open(&latest)
+                .unwrap();
+            let open = |strategy, limit: u64| {
+                Builder::new()
+                    .clear_targets()
+                    .target(Target::new(TargetKind::Folder {
+                        path: dir.path().into(),
+                        file_name: Some("latest".into()),
+                    }))
+                    .rotation_strategy(RotationStrategy::KeepAll)
+                    .file_open_strategy(strategy)
+                    .max_file_size(limit.into())
+                    .split(app.handle())
+            };
+            let (_, _, logger) =
+                retry_locked_rotation(&latest, open(FileOpenStrategy::Rotate, LOG_BYTES), open)
+                    .unwrap();
+            logger.log(
+                &log::Record::builder()
+                    .args(format_args!("still logging"))
+                    .level(log::Level::Info)
+                    .build(),
+            );
+            assert!(std::fs::read(&latest)
+                .unwrap()
+                .ends_with(b"still logging\n"));
+        }
+    }
     #[cfg(windows)]
     #[test]
     fn same_second_rotation_can_open_a_fresh_log_while_the_dated_archive_is_locked() {
@@ -994,7 +1112,7 @@ mod retention_tests {
             }
             Ok(File::create_new(&latest)?)
         };
-        let fresh = retry_locked_rotation(&latest, open(), open).unwrap();
+        let fresh = retry_locked_rotation(&latest, open(), |_, _| open()).unwrap();
         assert_eq!(fresh.metadata().unwrap().len(), 0);
         drop(locked);
         assert_eq!(std::fs::read(archive).unwrap(), b"older archive");

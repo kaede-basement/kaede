@@ -124,7 +124,7 @@ pub(crate) fn install_mrpack<R: tauri::Runtime>(
     let (mut cancel, decision) =
         flags.bind_install(&id, reservation, &webview.resources_table())?;
     if cancel.archive.as_ref().map(|pin| &pin.path) != Some(&archive) {
-        cancel.archive = staging.pin_install(&archive);
+        cancel.archive = staging.pin_install(&archive).map_err(|e| e.to_string())?;
     }
     Ok(async move {
         install(archive, target, &store, decision, cancel, |ok, total| {

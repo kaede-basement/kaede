@@ -256,7 +256,12 @@ test("installed patches protect their transitive default version and asset index
     states.instanceStates.game = { "entry"        : "net.minecraft",
       "patchVersions": { "net.minecraft": "1" } } as typeof states.instanceStates[string];
     c.files.set(c.root + "net.minecraft/1.json", encode(JSON.stringify({
-      "requires": [{ "uid": "org.lwjgl" }], "assetIndex": { "id": "assets" },
+      "formatVersion": 1,
+      "name"         : "Minecraft",
+      "uid"          : "net.minecraft",
+      "version"      : "1",
+      "requires"     : [{ "uid": "org.lwjgl" }],
+      "assetIndex"   : { "id": "assets", "url": "test", "sha1": "test", "size": 1 },
     })));
     c.files.set(c.root + "org.lwjgl.json", encode("{\"versions\":[{\"version\":\"3\"}]}"));
     expect(await offlineMetadata(c.root.slice(0, -1))).toEqual(new Set([

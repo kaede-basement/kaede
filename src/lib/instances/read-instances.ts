@@ -17,7 +17,7 @@ export async function readInstances(properties?: Partial<{
 
   const filename = FileStructure.Files.Metadata;
 
-  return readState(baseDirectory, filename, properties?.parsedFile, {}, false, validate);
+  return readState(baseDirectory, filename, properties?.parsedFile, () => ({}), false, validate);
 }
 
 function validate(parsedMetadata: unknown): { "value": InstanceStatesType; "valid": boolean } {

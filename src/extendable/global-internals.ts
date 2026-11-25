@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { shallowRef, triggerRef } from "vue";
+import { shallowRef, toRaw, triggerRef } from "vue";
 
 import type { KaedeNamespaceType } from "@/declarations.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
@@ -94,7 +94,7 @@ function observeLogs(values: Array<string>): {
       const receiver = this === buffer.list ? values : this;
       const result = Reflect.apply(original, receiver, arguments_);
 
-      if (receiver === values) {
+      if (toRaw(receiver) === values) {
         trim();
         changed();
       }
@@ -144,7 +144,7 @@ export const GlobalInternals: KaedeNamespaceType["internals"] = {
   set "logsInBrowser"(values: Array<string>) {
     if (values !== BrowserLogs.value.list) {
       BrowserLogs.value.detach();
-      BrowserLogs.value = observeLogs(values);
+      BrowserLogs.value = observeLogs(toRaw(values));
     }
   },
   "logs": {},

@@ -14,7 +14,7 @@ export async function getAccounts(properties?: Partial<{
 
   const filename = FileStructure.Files.Accounts;
 
-  return readState(baseDirectory, filename, properties?.parsedFile, [], true, validate);
+  return readState(baseDirectory, filename, properties?.parsedFile, () => [], true, validate);
 }
 
 function validate(parsedAccounts: unknown): { "value": Array<AccountType>; "valid": boolean } {

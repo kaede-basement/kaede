@@ -224,15 +224,20 @@ export class CacheIndex {
         oldest.sort((a, b) => (a[1].lastUsed ?? 0) - (b[1].lastUsed ?? 0));
 
         for (const [key, value] of oldest) {
-          if (protectedKeys?.has(key.toLowerCase())) continue;
-          let target = this.root;
+          if (key === path || protectedKeys?.has(key.toLowerCase())) continue;
+          try {
+            let target = this.root;
 
-          for (const part of key.split("/")) {
+            for (const part of key.split("/")) {
+              await rejectSymlink(target);
+              target = join(target, part);
+            }
             await rejectSymlink(target);
-            target = join(target, part);
+            if (await fs.exists(target)) await fs.remove(target);
+          } catch (error) {
+            log.warn(__PRE_BUNDLED_FILENAME__, "Cannot evict metadata", key, String(error));
+            continue;
           }
-          await rejectSymlink(target);
-          if (await fs.exists(target)) await fs.remove(target);
           next.delete(key);
           size -= value.size;
           if (next.size <= this.maxEntries && size <= this.maxBytes) break;
