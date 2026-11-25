@@ -12,12 +12,14 @@ type Install = {
   "statuses"  : LauncherStatusesType;
 };
 type Run = {
-  "kind"     : "running" | "stopping";
-  "process"  : MinecraftProcessType;
-  "statuses" : LauncherStatusesType;
-  "startedAt": number;
+  "kind"         : "running" | "stopping";
+  "process"      : MinecraftProcessType;
+  "statuses"     : LauncherStatusesType;
+  "startedAt"    : number;
+  "launchPending": boolean;
 };
-type Operation = Install | Run | { "kind": "launching"; "statuses": LauncherStatusesType };
+type Launch = { "kind": "launching"; "statuses": LauncherStatusesType; "exited": boolean };
+type Operation = Install | Run | Launch;
 const operations = shallowReactive(new Map<string, Operation>);
 
 export const Launches = reactive<Record<string, LauncherStatusesType>>({});
@@ -48,7 +50,7 @@ export function beginLaunch(id: string): LauncherStatusesType | undefined {
   if (operations.has(id)) return;
   const statuses = reactive(status(id));
 
-  operations.set(id, { "kind": "launching", statuses });
+  operations.set(id, { "kind": "launching", statuses, "exited": false });
   Launches[id] = statuses;
 
   return statuses;
@@ -57,9 +59,15 @@ export function beginLaunch(id: string): LauncherStatusesType | undefined {
 export function finishLaunch(id: string, statuses: LauncherStatusesType): void {
   const op = operations.get(id);
 
-  if (op?.kind === "launching" && op.statuses === statuses) {
+  if (!op || op.kind === "installing" || op.statuses !== statuses) return;
+  if (op.kind === "launching") {
+    if (op.exited) statuses.current = LaunchStatus.General.Aborted;
     statuses.launching = 0;
     operations.delete(id);
+  } else {
+    op.launchPending = false;
+    statuses.launching = 2;
+    statuses.current = LaunchStatus.General.Success;
   }
 }
 
@@ -77,6 +85,7 @@ export function beginInstall(id: string, progress = status(id)): Install {
     "kind": "installing", "instanceId": id, "statuses": reactive(progress),
   });
 
+  install.statuses.current = undefined;
   operations.set(id, install);
   Launches[id] = install.statuses;
 
@@ -95,12 +104,14 @@ export function recordRun(
 ): boolean {
   const op = operations.get(id);
 
-  if (op && (op.kind !== "launching" || rehydrated)) return false;
+  if (op && (op.kind !== "launching" || op.exited || rehydrated)) return false;
   const statuses = op?.statuses ?? reactive(status(id));
 
-  operations.set(id, { "kind": "running", process, startedAt, statuses });
-  statuses.launching = 2;
-  statuses.current = LaunchStatus.General.Success;
+  operations.set(id, { "kind": "running", process, startedAt, statuses, "launchPending": !!op });
+  if (!op) {
+    statuses.launching = 2;
+    statuses.current = LaunchStatus.General.Success;
+  }
   Launches[id] = statuses;
 
   return true;
@@ -126,7 +137,11 @@ export function finishRun(id: string, token: string): void {
 
   if (run?.process.token === token) {
     run.statuses.current = LaunchStatus.General.Aborted;
-    run.statuses.launching = 0;
-    operations.delete(id);
+    if (run.launchPending) {
+      operations.set(id, { "kind": "launching", "statuses": run.statuses, "exited": true });
+    } else {
+      run.statuses.launching = 0;
+      operations.delete(id);
+    }
   }
 }

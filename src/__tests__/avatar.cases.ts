@@ -11,7 +11,11 @@ test("heads draw both scaled layers and discard superseded or unmounted loads", 
   class SkinImage extends EventTarget {
     naturalWidth = 64;
     naturalHeight = 64;
-    src = "";
+    crossOrigin: string | null = null;
+    set src(source: string) {
+      expect(this.crossOrigin).toBe(source.startsWith("data:") ? null : "anonymous");
+    }
+
     removeAttribute = mock(noop);
     constructor() {
       super();
@@ -30,7 +34,7 @@ test("heads draw both scaled layers and discard superseded or unmounted loads", 
   overrideGlobals({ "Image": SkinImage });
   try {
     const { useSkinRenderer } = await import("@/composables/use-skin-renderer.ts");
-    const accounts = reactive({ "value": [{ "skin": { "url": "initial" } }] });
+    const accounts = reactive({ "value": [{ "skin": { "url": "data:image/png;base64,AA==" } }] });
     const component = {
       "setup": (): ReturnType<typeof useSkinRenderer> => useSkinRenderer({ "render": "2d-head" }),
     };
@@ -42,7 +46,7 @@ test("heads draw both scaled layers and discard superseded or unmounted loads", 
     for (const [width, height] of [[64, 32], [64, 64], [128, 128], [256, 256]]) {
       const stale = images[images.length - 1];
 
-      accounts.value[0].skin.url = String(width) + "/" + height;
+      accounts.value[0].skin.url = `https://skins.example/${width}/${height}`;
       await nextTick();
       expect(stale.removeAttribute).toHaveBeenCalledWith("src");
       stale.dispatchEvent(new Event("load"));

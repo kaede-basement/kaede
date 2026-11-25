@@ -14,9 +14,13 @@ test("one operation owns each instance through installation, launch, stop and ex
   const install = beginInstall(id);
 
   expect(operation(id)).toBe(install);
+  expect(Launches[id].current).toBeUndefined();
+  expect(Launches[id].downloads.current).toBe(install.statuses.downloads.current);
+  expect(isManagedDownloadMap(Launches[id].downloads.current)).toBe(true);
   expect(beginLaunch(id)).toBeUndefined();
   expect(recordRun(id, process, 0, true)).toBe(false);
   finishInstall(install);
+  expect(Launches[id]).toBeUndefined();
   const failed = beginLaunch(id)!;
 
   expect(beginLaunch(id)).toBeUndefined();
@@ -30,6 +34,8 @@ test("one operation owns each instance through installation, launch, stop and ex
   expect(isManagedDownloadMap(map)).toBe(true);
   expect(recordRun(id, process, 0, false)).toBe(true);
   finishLaunch(id, failed);
+  expect(Launches[id].launching).toBe(1);
+  finishLaunch(id, progress);
   expect(Launches[id]).toBe(progress);
   expect(Launches[id].launching).toBe(2);
   const stopping = beginStop(id)!;

@@ -196,6 +196,7 @@ function useRenderer(
         context.clearRect(0, 0, 32, 32);
         shown.value = false;
       });
+      if (!skin.startsWith("data:")) image.crossOrigin = "anonymous";
       image.src = skin;
     }, { "flush": "post" });
   } else {

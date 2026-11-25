@@ -167,8 +167,6 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
 
     if (success && process && op.kind === "launching" && op.statuses === statuses) {
       startPlaytime(instanceId, process);
-    } else if (statuses.launching === 0) {
-      statuses.current = LaunchStatus.General.Aborted;
     }
   } catch (error: unknown) {
     statuses.current = LaunchStatus.Errors.UnhandledError;
@@ -197,7 +195,9 @@ async function closeInstance(instanceId: string): Promise<void> {
 
       return;
     }
-    if (activeRun(instanceId) === run) await run.process.kill();
+    if (activeRun(instanceId) !== run) return;
+    await run.process.kill();
+    if (activeRun(instanceId) === run) onClose(instanceId);
   } catch (error: unknown) {
     undoStop(instanceId, run);
     log.error(__PRE_BUNDLED_FILENAME__, `Failed to kill ${instanceId}:`, Errors.prettify(error));

@@ -1,21 +1,11 @@
+import "../../scripts/setup-component-tests.ts";
+
 import { mock } from "bun:test";
 import { createRenderer, h, reactive } from "vue";
-import { compileScript, parse } from "vue/compiler-sfc";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
 import { createDownloadMap } from "@/lib/network/download-map.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
-
-Bun.plugin({
-  "name": "vue-component-setup",
-  setup(build) {
-    build.onLoad({ "filter": /\.vue$/ }, async ({ path }) => {
-      const { descriptor } = parse(await Bun.file(path).text(), { "filename": path });
-
-      return { "contents": compileScript(descriptor, { "id": path }).content, "loader": "ts" };
-    });
-  },
-});
 
 const noop = (): void => {};
 const asyncNoop = async (): Promise<void> => {};
