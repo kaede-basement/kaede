@@ -1,5 +1,7 @@
 import { log } from "@/lib/logging/log.ts";
 
+import { CancelledDownload } from "./download-outcome.ts";
+
 export async function settleDownloadStages(
   cancel: () => Promise<boolean>,
   stages: Array<(signal: AbortSignal) => Promise<boolean>>,
@@ -11,6 +13,7 @@ export async function settleDownloadStages(
 
     try {
       success = await stage(controller.signal);
+
 
       return success;
     } finally {
@@ -25,10 +28,17 @@ export async function settleDownloadStages(
   }));
 
   for (const result of results) {
-    if (result.status === "rejected") {
+    if (result.status === "rejected" && !(result.reason instanceof CancelledDownload)) {
       throw result.reason;
     }
   }
 
-  return results.every(result => result.status === "fulfilled" && result.value);
+  if (results.some(result => result.status === "fulfilled" && !result.value)) {
+    return false;
+  }
+  if (results.some(result => result.status === "rejected")) {
+    throw (new CancelledDownload);
+  }
+
+  return true;
 }

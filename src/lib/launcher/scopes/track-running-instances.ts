@@ -1,7 +1,7 @@
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/log.ts";
-import { rehydrateProcesses } from "@/lib/processes/core.ts";
 import Watchers from "@/lib/watchers";
+import { declareServerProcesses } from "@/states/servers.ts";
 import type { ProcessHandlersType } from "@/types/application/server-process.type.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 
@@ -13,7 +13,7 @@ export function trackRunningInstances(
   async function hydrate(): Promise<boolean> {
     try {
       await Watchers.watchProcesses();
-      await rehydrateProcesses(handle => (
+      await declareServerProcesses(handle => (
         handle.kind === "minecraft" ? attach(handle as MinecraftProcessType) : undefined
       ));
 

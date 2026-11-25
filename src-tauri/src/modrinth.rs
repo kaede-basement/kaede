@@ -267,8 +267,9 @@ pub async fn repair_legacy_mrpack(
     )
     .await;
     flags.deregister(&cancel_id);
+    let outcome = result?;
     check_cancel(&cancel)?;
-    result
+    Ok(outcome)
 }
 
 fn missing_destination(extraction: &mut Extraction, name: &str) -> Result<Option<PathBuf>, String> {

@@ -22,19 +22,21 @@ import { log } from "@/lib/logging/log.ts";
 import { rehydrateProcesses } from "@/lib/processes/core.ts";
 import { hydrate } from "@/lib/processes/hydrate.ts";
 import type {
-  ProcessHandleType,
-  ServerMetaType,
+  ProcessHandlersType,
+  ProcessHandleType,   ServerMetaType,
   ServerProcessType,
 } from "@/types/application/server-process.type.ts";
 
 export const serverProcesses = shallowRef<Array<ServerProcessType>>([]);
 
-export async function declareServerProcesses(): Promise<void> {
+export async function declareServerProcesses(
+  attach?: (handle: ProcessHandleType) => ProcessHandlersType | undefined,
+): Promise<void> {
   const servers: Array<ServerProcessType> = [];
 
   await rehydrateProcesses(handle => {
     if (handle.kind !== "extension-server") {
-      return;
+      return attach?.(handle);
     }
 
     const meta = handle.meta as ServerMetaType;

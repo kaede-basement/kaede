@@ -46,14 +46,22 @@ fn publish_accounts(
     create_new: bool,
     write: impl FnOnce(&mut std::fs::File) -> io::Result<()>,
 ) -> io::Result<()> {
+    #[cfg(windows)]
+    let parent = &std::fs::canonicalize(parent)?;
+    #[cfg(windows)]
+    let mut staged =
+        tempfile::Builder::new().make_in(parent, crate::private_account_file::create)?;
+    #[cfg(not(windows))]
     let mut staged = staging_file(parent)?;
     write(staged.as_file_mut())?;
     staged.as_file().sync_all()?;
+    let mut staged = staged.into_temp_path();
     let destination = parent.join("accounts.json");
     if create_new {
         staged.persist_noclobber(destination)?;
     } else {
-        staged.persist(destination)?;
+        std::fs::rename(&staged, destination)?;
+        staged.disable_cleanup(true);
     }
     Ok(())
 }
@@ -63,7 +71,7 @@ pub async fn save_accounts(
     base_directory: PathBuf,
     contents: String,
     create_new: bool,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     tokio::task::spawn_blocking(move || {
         publish_accounts(&base_directory, create_new, |file| {
             file.write_all(contents.as_bytes())
@@ -71,6 +79,7 @@ pub async fn save_accounts(
     })
     .await
     .map_err(|e| e.to_string())?
+    .map(|()| true)
     .map_err(|e| e.to_string())
 }
 

@@ -12,6 +12,7 @@ import type {
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 import { downloadEntries, findMissingEntries } from "./download-missing.ts";
+import { downloadSucceeded, interruptedDownload } from "./download-outcome.ts";
 
 export async function downloadLibraries({
   necessaries,
@@ -23,7 +24,7 @@ export async function downloadLibraries({
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
   if (signal?.aborted) {
-    return false;
+    return interruptedDownload(necessaries.statuses);
   }
 
   const beforeHooksResult: "continue" | boolean | undefined =
@@ -51,8 +52,11 @@ export async function downloadLibraries({
     "label"      : "libraries",
   }, signal);
 
-  if (report.failed > 0 || report.cancelled || signal?.aborted) {
+  if (!downloadSucceeded(report, statuses)) {
     return false;
+  }
+  if (signal?.aborted) {
+    return interruptedDownload(statuses);
   }
 
   const local = missing.filter(({ url }) => url === "");
@@ -75,7 +79,7 @@ export async function downloadLibraries({
     }
 
     if (signal?.aborted) {
-      return false;
+      return interruptedDownload(statuses);
     }
 
     const restored = await extractLaunchWrapper({

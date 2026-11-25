@@ -95,6 +95,10 @@ export const LaunchStatus = {
     "Success"      : "client-success",
   },
   "Errors": {
+    "Native"              : "native-error",
+    "Artifact"            : "artifact-error",
+    "Repair"              : "repair-error",
+    "MissingAccount"      : "missing-account",
     "UnhandledError"      : "errors-unhandled-error",
     "IncompatiblePlatform": "errors-incompatible-platform",
     "IncompatibleArch"    : "errors-incompatible-arch",

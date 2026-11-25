@@ -17,15 +17,22 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { exists, readTextFile } from "@tauri-apps/plugin-fs";
+import { exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 
 import FileStructure from "@/constants/file-structure.ts";
+import Browser from "@/lib/browser";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
 import Schemas from "@/lib/schemas";
 import { CheckAccount } from "@/lib/schemas/generated/validators.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
+
+let bridgeStorage = false;
+
+export function useBridgeAccountStorage(): void {
+  bridgeStorage = true;
+}
 
 let accountWriteChain: Promise<void> = Promise.resolve();
 
@@ -46,7 +53,7 @@ export function writeAccounts(input: AccountWrite): Promise<boolean> {
   return serializeWrite(() => persistAccounts(input));
 }
 
-async function persistAccounts(
+export async function persistAccounts(
   { accounts, baseDirectory }: AccountWrite, createNew = false,
 ): Promise<boolean> {
   for (const [index, entry] of accounts.entries()) {
@@ -70,11 +77,21 @@ async function persistAccounts(
   }
 
   try {
-    await invoke("save_accounts", {
-      "baseDirectory": baseDirectory ?? FileManager.getBaseDirectory(),
-      "contents"     : JSON.stringify(accounts, null, 2),
-      createNew,
-    });
+    const directory = baseDirectory ?? FileManager.getBaseDirectory();
+    const contents = JSON.stringify(accounts, null, 2);
+
+    if (bridgeStorage || Browser.detectIsBrowser()) {
+      const path = FileManager.join(directory, FileStructure.Files.Accounts);
+
+      if (createNew && await exists(path)) {
+        return false;
+      }
+      await writeTextFile(path, contents, { createNew });
+    } else if (await invoke<boolean>("save_accounts", {
+      "baseDirectory": directory, contents, createNew,
+    }) !== true) {
+      return false;
+    }
   } catch (error: unknown) {
     log.error(
       __PRE_BUNDLED_FILENAME__,

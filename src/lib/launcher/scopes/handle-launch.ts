@@ -18,6 +18,7 @@
 
 import { mkdir } from "@tauri-apps/plugin-fs";
 
+import { LaunchStatus } from "@/constants/launcher.ts";
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
@@ -29,46 +30,38 @@ import { log } from "@/lib/logging/log.ts";
 import { repairLegacyMrpack } from "@/lib/modrinth/install-mrpack.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
-import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
+import type {
+  LauncherStatusesType, LaunchStatusType,
+} from "@/types/launcher/launch/launch-status.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
-import type { TranslationKey } from "@/types/translations/translations.type.ts";
 
+import {
+  ArtifactDownloadFailure, CancelledDownload, launchAttempts,
+} from "./fetching/download-outcome.ts";
 import { settleDownloadStages } from "./fetching/settle-download-stages.ts";
 
-type LaunchResult = LaunchResponseType & { "reason"?: TranslationKey | "cancelled" };
+type LaunchResult = LaunchResponseType & { "reason"?: LaunchStatusType | "cancelled" };
 
 const failed: LaunchResponseType = {
   "success": false,
   "process": undefined,
 };
 
-const cancellations = new WeakMap<LauncherStatusesType, Promise<boolean>>;
-
 export function cancelLaunchDownloads(statuses: LauncherStatusesType): Promise<boolean> {
-  const pending = cancellations.get(statuses);
+  const attempt = launchAttempts.get(statuses);
 
-  if (pending) {
-    return pending;
+  if (!attempt) {
+    return Promise.resolve(false);
   }
+  const id = `${statuses.instanceId}-download`;
 
-  const requested = Fetching.cancelAll(`${statuses.instanceId}-download`).then(accepted => {
-    if (!accepted) {
-      cancellations.delete(statuses);
-    }
+  attempt.stop ??= Promise.resolve().then(() => Fetching.cancelAll(id));
 
-    return accepted;
-  }, error => {
-    cancellations.delete(statuses);
-    throw error;
-  });
-
-  cancellations.set(statuses, requested);
-
-  return requested;
+  return attempt.stop;
 }
 
 export async function handleLaunch({
@@ -86,7 +79,9 @@ export async function handleLaunch({
   "onClose"        : (instanceId: string) => void;
   "onInput"        : (lines: Array<string>) => void;
 }): Promise<LaunchResult> {
-  cancellations.delete(statuses);
+  const attempt: { "stop"?: Promise<boolean> } = {};
+
+  launchAttempts.set(statuses, attempt);
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
   const { instanceDirectory } = Instances.getMinecraftDirectory({
     "baseDirectory": FileManager.getBaseDirectory(),
@@ -127,7 +122,7 @@ export async function handleLaunch({
   ));
 
   if (!necessaries.user.account) {
-    return { ...failed, "reason": "general.launch-status.missing-account" };
+    return { ...failed, "reason": LaunchStatus.Errors.MissingAccount };
   }
 
   if (instance.modpackPath) {
@@ -140,10 +135,13 @@ export async function handleLaunch({
 
       log.error(logPrefix, "Could not repair legacy modpack", String(error));
 
-      return { ...failed, "reason": "general.launch-status.repair-error" };
+      return { ...failed, "reason": LaunchStatus.Errors.Repair };
     }
   }
 
+  if (attempt.stop) {
+    return { ...failed, "reason": "cancelled" };
+  }
   let allPatches: Array<SpecificPatchMetaType>;
 
   try {
@@ -153,14 +151,20 @@ export async function handleLaunch({
     });
 
     if (!entryPatch) {
-      return await cancellations.get(statuses) ? { ...failed, "reason": "cancelled" } : failed;
+      return failed;
     }
     allPatches = await Patches.resolveSubPatches({ "patchMeta": entryPatch, necessaries });
   } catch (error) {
-    if (await cancellations.get(statuses)) {
+    if (error instanceof ArtifactDownloadFailure) {
+      return { ...failed, "reason": LaunchStatus.Errors.Artifact };
+    }
+    if (error instanceof CancelledDownload && attempt.stop) {
       return { ...failed, "reason": "cancelled" };
     }
     throw error;
+  }
+  if (attempt.stop) {
+    return { ...failed, "reason": "cancelled" };
   }
   const finalizedPatch: FinalizedPatchType = Parsers.finalizePatches({
     "patches": allPatches,
@@ -172,13 +176,8 @@ export async function handleLaunch({
     `Resolved ${allPatches.length} patches and ${finalizedPatch.artifacts.length} artifacts`,
   );
 
-  let precedingStop: Promise<boolean> | undefined;
-  let failureReason: TranslationKey = "general.launch-status.artifact-error";
-  const cancel = (): Promise<boolean> => {
-    precedingStop = cancellations.get(statuses);
-
-    return Fetching.cancelAll(necessaries.cancelId);
-  };
+  let failureReason: LaunchStatusType | "cancelled" = LaunchStatus.Errors.Artifact;
+  const cancel = (): Promise<boolean> => Fetching.cancelAll(necessaries.cancelId);
   const downloaded = await settleDownloadStages(cancel, [
     (signal): Promise<boolean> => Fetching.downloadAssets({ necessaries, finalizedPatch, signal }),
     (signal): Promise<boolean> => Fetching.downloadClient({ necessaries, finalizedPatch, signal }),
@@ -189,7 +188,7 @@ export async function handleLaunch({
       }
 
       if (signal.aborted) {
-        return false;
+        throw (new CancelledDownload);
       }
 
       await Extractors.unzipNatives({
@@ -199,7 +198,7 @@ export async function handleLaunch({
           .map(({ path, exclude }) => ({ path, "exclude": exclude ?? [] })),
       }).catch(error => {
         if (!signal.aborted) {
-          failureReason = "general.launch-status.native-error";
+          failureReason = LaunchStatus.Errors.Native;
         }
         throw error;
       });
@@ -207,25 +206,31 @@ export async function handleLaunch({
       return true;
     },
   ]).catch(error => {
+    if (error instanceof CancelledDownload && attempt.stop) {
+      failureReason = "cancelled";
+    }
     log.error(necessaries.logPrefix, "Artifact preparation failed:", String(error));
 
     return false;
   });
 
   if (!downloaded) {
-    if (await precedingStop) {
-      return { ...failed, "reason": "cancelled" };
-    }
-
     log.warn(necessaries.logPrefix, "Aborting the launch after artifact preparation failed");
 
     return { ...failed, "reason": failureReason };
   }
 
+  if (attempt.stop) {
+    return { ...failed, "reason": "cancelled" };
+  }
   const command: {
     "java"     : string;
     "arguments": Array<string>;
   } = await Launcher.createCommand({ necessaries, finalizedPatch });
+
+  if (attempt.stop) {
+    return { ...failed, "reason": "cancelled" };
+  }
 
   return Launcher.spawnMinecraft({
     command,

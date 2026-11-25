@@ -5,6 +5,7 @@ import { expect, mock, spyOn, test } from "bun:test";
 import { trackRunningInstances } from "@/lib/launcher/scopes/track-running-instances.ts";
 import { ProcessHandlers } from "@/lib/processes/core.ts";
 import { watchProcesses } from "@/lib/watchers/watch-processes.ts";
+import { serverProcesses } from "@/states/servers.ts";
 
 import { useUiState } from "./ui-state.ts";
 
@@ -14,7 +15,15 @@ test("launch hydration retries listeners and handles each event once", async () 
   const token = "retry-listeners";
   const process = { token, "pid": 1, "kind": "minecraft", "meta": { "instanceId": "game" } };
 
-  mockIPC(() => [process]);
+  const server = {
+    "token": "extension", "pid"  : 2, "kind" : "extension-server",
+    "meta" : { "name": "server", "port": 42 },
+  };
+  const kill = mock();
+
+  mockIPC((command, arguments_) => (
+    command === "list_processes" ? [process, server] : kill(command, arguments_)
+  ));
   const active = (new Set<(name: string) => void>);
   let fail = true;
 
@@ -51,6 +60,13 @@ test("launch hydration retries listeners and handles each event once", async () 
   expect(handlers.onOutput).not.toHaveBeenCalled();
   expect(await hydrate()).toBe(true);
   cleanup.defer(await watchProcesses());
+  cleanup.defer(() => {
+    ProcessHandlers.delete(server.token);
+    serverProcesses.value = [];
+  });
+  expect(serverProcesses.value[0].name).toBe("server");
+  await serverProcesses.value[0].value.kill();
+  expect(kill).toHaveBeenCalledWith("kill_process", { "pid": 2 });
   for (const event of ["process-output", "process-error", "process-exited"]) {
     for (const dispatch of active) {
       dispatch(event);

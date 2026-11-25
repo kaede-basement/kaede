@@ -16,41 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { expect, mock, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
+import * as regeneration from "@/lib/configs/scopes/regenerate-config-file.ts";
+import FileManager from "@/lib/file-manager";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
+import { getMain } from "./get-main.ts";
+
 const defaultConfig: ConfigType = await getDefaultConfig();
-
-// 'handleJsonFile' returns the actually stored config; reassigned by every test case
-let currentFetchedConfig: unknown;
-
-/*
- * Unlike 'vi.mock', 'mock.module' is not hoisted, so it only has to be registered
- * before the dynamic import of the module under test. The factory closures read
- * 'currentFetchedConfig' at call time, which replaces the old 'vi.doMock' dance.
- *
- * Note: 'bun test' runs all test files in a single process with a shared module
- * registry, so these mocks leak into test files that run later. Tests that import
- * concrete scope files instead of the '@/lib/...' barrels stay unaffected.
- */
-mock.module("@/lib/hooks", () => ({
-  "default": {
-    "catchAsyncResponseHooks": async (): Promise<string> => "continue",
-  },
-}));
-mock.module("@/lib/file-manager", () => ({
-  "default": {
-    "handleJsonFile"  : async (): Promise<unknown> => currentFetchedConfig,
-    "join"            : (): string => "",
-    "getBaseDirectory": (): string => "",
-  },
-}));
-mock.module("@/lib/configs/scopes/regenerate-config-file.ts", () => ({
-  // 'regenerateConfigFile' returns a default config
-  "regenerateConfigFile": async (): Promise<unknown> => defaultConfig,
-}));
 
 const testData: Array<{
   "label"    : string;
@@ -155,17 +130,13 @@ const testData: Array<{
 for (const { label, "arguments": testArguments, output } of testData) {
   const testName = `Get Config File: ${label}`;
 
-  // Imported dynamically so that the 'mock.module' calls above are registered first
-  const { getMain } = await import("./get-main.ts");
-
   test(testName, async () => {
-    currentFetchedConfig = testArguments.fetchedConfig;
+    using read = spyOn(FileManager, "handleJsonFile")
+      .mockResolvedValue(testArguments.fetchedConfig);
+    using regenerate = spyOn(regeneration, "regenerateConfigFile").mockResolvedValue(defaultConfig);
 
-    // These 'expect' tests throw an error on test fail which completely destroys next tests
-    expect(
-      JSON.stringify(await getMain()),
-    ).toBe(
-      JSON.stringify(output),
-    );
+    expect<unknown>(await getMain()).toEqual(output);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(regenerate.mock.calls.length).toBeLessThanOrEqual(1);
   });
 }

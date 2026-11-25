@@ -1,9 +1,13 @@
+import { exists, readTextFile } from "@tauri-apps/plugin-fs";
+
 import FileStructure from "@/constants/file-structure.ts";
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
 import Schemas from "@/lib/schemas";
 import type { ParsedFile } from "@/types/application/parsed-file.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
+
+import { persistAccounts } from "./write-accounts.ts";
 
 export async function getAccounts(properties?: Partial<{
   "baseDirectory": string;
@@ -12,19 +16,35 @@ export async function getAccounts(properties?: Partial<{
   const baseDirectory: string = properties?.baseDirectory ?? FileManager.getBaseDirectory();
   const parsedFile: ParsedFile | undefined = properties?.parsedFile;
 
-  const parsedAccounts: unknown = parsedFile?.status === "loaded"
-    ? parsedFile.data
-    : await FileManager.handleJsonFile({
-      baseDirectory,
-      "path"           : [FileStructure.Files.Accounts],
-      "label"          : FileStructure.Files.Accounts,
-      "getDefaultValue": async (): Promise<Array<unknown>> => ([]),
-    });
+  const path = FileManager.join(baseDirectory, FileStructure.Files.Accounts);
+  let parsedAccounts: unknown;
+
+  try {
+    if (parsedFile?.status === "corrupt") {
+      log.error(__PRE_BUNDLED_FILENAME__, "Invalid JSON in accounts.json");
+
+      return [];
+    }
+    if (parsedFile?.status === "loaded") {
+      parsedAccounts = parsedFile.data;
+    } else {
+      const missing = parsedFile?.status === "missing" || !await exists(path);
+
+      if (missing && await persistAccounts({ baseDirectory, "accounts": [] }, true)) {
+        return [];
+      }
+      parsedAccounts = JSON.parse(await readTextFile(path));
+    }
+  } catch {
+    log.error(__PRE_BUNDLED_FILENAME__, "Could not read accounts.json");
+
+    return [];
+  }
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Validating the parsed accounts file");
 
   if (!Array.isArray(parsedAccounts)) {
-    log.info(__PRE_BUNDLED_FILENAME__, "The provided accounts data is not array-like");
+    log.error(__PRE_BUNDLED_FILENAME__, "The provided accounts data is not array-like");
 
     return [];
   }

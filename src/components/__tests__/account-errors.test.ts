@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+import * as core from "@tauri-apps/api/core";
 import * as dialog from "@tauri-apps/plugin-dialog";
 import * as fs from "@tauri-apps/plugin-fs";
 import { expect, mock, spyOn, test } from "bun:test";
@@ -15,6 +16,7 @@ import {
 import English from "@/constants/english.json";
 import { ActionRegistry } from "@/extendable/action-registry.ts";
 import Auth from "@/lib/auth";
+import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
 import { declareActionRegistry } from "@/lib/globals/declare-action-registry.ts";
 import Hashing from "@/lib/hashing";
@@ -138,4 +140,48 @@ test("account row enables retry after failed refresh or rejected confirmation", 
   expect(fresh).toHaveBeenCalledTimes(2);
   expect(confirm).toHaveBeenCalledTimes(2);
   expect(notify).toHaveBeenCalledTimes(3);
+});
+
+test("startup preserves corrupt accounts and reads a concurrently initialized file", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "kaede-startup-"));
+
+  await using cleanup = new AsyncDisposableStack;
+  cleanup.defer(() => rm(directory, { "recursive": true }));
+  const file = path.join(directory, "accounts.json");
+  const raw = "{malformed";
+
+  await Bun.write(file, raw);
+  using write = mockSaveAccounts().mockImplementation(async ({ contents, createNew }) => {
+    await writeFile(file, contents, { "flag": createNew ? "wx" : "w" });
+  });
+  using read = spyOn(fs, "readTextFile").mockImplementation(async () => readFileSync(file, "utf8"));
+  using exists = spyOn(fs, "exists").mockImplementation(() => Bun.file(file).exists());
+  const parsedFile = { "status": "corrupt" as const, raw, "error": "invalid" };
+
+  expect(await Configs.getAccounts({ parsedFile })).toEqual([]);
+  expect(readFileSync(file, "utf8")).toBe(raw);
+  expect(await Configs.getAccounts()).toEqual([]);
+  expect(readFileSync(file, "utf8")).toBe(raw);
+  await Bun.write(file, "{}");
+  expect(await Configs.getAccounts()).toEqual([]);
+  expect(write).not.toHaveBeenCalled();
+  const concurrent = JSON.stringify([account]);
+
+  await Bun.write(file, concurrent);
+  expect(await Configs.getAccounts({ "parsedFile": { "status": "missing" } })).toEqual([account]);
+  expect(readFileSync(file, "utf8")).toBe(concurrent);
+  expect(write.mock.calls[0][0].createNew).toBe(true);
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(exists).toHaveBeenCalledTimes(2);
+});
+
+test("native storage needs acknowledgment and browser writes bypass the command", async () => {
+  using invoke = spyOn(core, "invoke").mockImplementation(async () => undefined as never);
+  expect(await Configs.writeAccounts({ "accounts": [account] })).toBe(false);
+  using browser = spyOn(Browser, "detectIsBrowser").mockReturnValue(true);
+  using write = spyOn(fs, "writeTextFile").mockResolvedValue();
+  expect(await Configs.writeAccounts({ "accounts": [account] })).toBe(true);
+  expect(invoke).toHaveBeenCalledTimes(1);
+  expect(browser).toHaveBeenCalled();
+  expect(JSON.parse(write.mock.calls[0][1])).toEqual([account]);
 });

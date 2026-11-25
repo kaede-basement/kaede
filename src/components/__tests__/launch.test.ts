@@ -2,14 +2,16 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import * as dialog from "@tauri-apps/plugin-dialog";
 import { expect, mock, spyOn, test } from "bun:test";
 
-import { AuthOneTimeFetchContextKey } from "@/constants/application.ts";
+import { AuthOneTimeFetchContextKey, LaunchStatesContextKey } from "@/constants/application.ts";
 import { CustomPatches } from "@/constants/meta.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import FileManager from "@/lib/file-manager";
 import Launcher from "@/lib/launcher";
+import { downloadSucceeded } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { cancelLaunchDownloads } from "@/lib/launcher/scopes/handle-launch.ts";
 import Network from "@/lib/network";
 import Watchers from "@/lib/watchers";
+import { globalStates } from "@/states/global.ts";
 import { declareInstanceStates, instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
@@ -132,9 +134,14 @@ test("launch reports missing account and hydration errors, and cancels quietly",
   cleanup.use(spyOn(Launcher.Parsers, "finalizePatches").mockReturnValue({
     "artifacts": [],
   } as unknown as FinalizedPatchType));
-  for (const stage of ["downloadClient", "downloadLogging", "downloadLibraries"] as const) {
+  for (const stage of ["downloadClient", "downloadLogging"] as const) {
     cleanup.use(spyOn(stages, stage).mockResolvedValue(true));
   }
+  cleanup.use(spyOn(stages, "downloadLibraries").mockImplementation(async ({ necessaries }) => {
+    necessaries.statuses.current = "libraries-success";
+
+    return true;
+  }));
   using assets = spyOn(stages, "downloadAssets").mockResolvedValue(true);
   using extract = spyOn(Launcher.Extractors, "unzipNatives")
     .mockRejectedValue(new Error("disk full"));
@@ -155,27 +162,57 @@ test("launch reports missing account and hydration errors, and cancels quietly",
   expect(extract).toHaveBeenCalledTimes(1);
   expect(notify.mock.calls[3][0]).toContain("extract native libraries");
 
-  const started = Promise.withResolvers<void>();
-  const settling = Promise.withResolvers<boolean>();
+  expect(GlobalInternals.instanceContext!.launches.game.current).toBe("native-error");
+  globalStates.selected.currentInstance = "game";
+  const oldDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
 
-  assets.mockImplementationOnce(() => {
-    started.resolve();
-
-    return settling.promise;
+  cleanup.defer(() => {
+    if (oldDocument) {
+      Object.defineProperty(globalThis, "document", oldDocument);
+    } else {
+      Reflect.deleteProperty(globalThis, "document");
+    }
   });
-  extract.mockResolvedValue();
-  cancel.mockResolvedValueOnce(true);
-  const launching = launch("game");
+  using progress = await mountComponent("general/layout/LaunchProgress", {}, (app, document) => {
+    Object.defineProperty(globalThis, "document", { "configurable": true, "value": document });
+    app.provide(LaunchStatesContextKey, GlobalInternals.instanceContext!.launches);
+  });
+  expect(progress.root.querySelector("[id$=current-status]")?.textContent)
+    .toContain("extract native libraries");
+  using spawn = spyOn(Launcher, "spawnMinecraft");
+  for (const failed of [0, 1]) {
+    const started = Promise.withResolvers<void>();
+    const finish = Promise.withResolvers<void>();
 
-  await started.promise;
-  const attempt = GlobalInternals.instanceContext!.launches.game;
+    if (failed) {
+      assets.mockImplementationOnce(async ({ necessaries }) => {
+        started.resolve();
+        await finish.promise;
 
-  expect(await cancelLaunchDownloads(attempt)).toBe(true);
-  expect(await cancelLaunchDownloads(attempt)).toBe(true);
-  settling.resolve(false);
-  await launching;
-  expect(notify).toHaveBeenCalledTimes(4);
-  expect(attempt.current).toBe("general-aborted");
+        const report = { failed, "cancelled": true, "success": 0, "failures": [] };
+
+        return downloadSucceeded(report, necessaries.statuses);
+      });
+      extract.mockResolvedValue();
+    } else {
+      extract.mockImplementationOnce(async () => {
+        started.resolve();
+        await finish.promise;
+      });
+    }
+    const launching = launch("game");
+
+    await started.promise;
+    const attempt = GlobalInternals.instanceContext!.launches.game;
+
+    expect(await cancelLaunchDownloads(attempt)).toBe(false);
+    expect(await cancelLaunchDownloads(attempt)).toBe(false);
+    finish.resolve();
+    await launching;
+    expect(attempt.current).toBe(failed ? "artifact-error" : "general-aborted");
+    expect(notify).toHaveBeenCalledTimes(4 + failed);
+  }
+  expect(spawn).not.toHaveBeenCalled();
   expect(watch).toHaveBeenCalledTimes(3);
   expect(instanceStates.game.lastLaunch).toBe(0);
   expect(view.root.textContent).toBe("");

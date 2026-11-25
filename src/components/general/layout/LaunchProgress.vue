@@ -5,9 +5,9 @@ import { computed, inject, ref, useTemplateRef, watch } from "vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
 import {
   LaunchStatesContextKey,
-  TranslationsContextKey,
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
+import { translate } from "@/lib/general/translate.ts";
 import Instances from "@/lib/instances";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
@@ -16,14 +16,12 @@ import type {
   WrappedInstanceLauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
-import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
 const progressLimit: number = 90;
 
 const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );
-const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 
 const container = useTemplateRef("container");
 
@@ -177,7 +175,7 @@ watch(
       v-if="statuses.current"
       id="__layout__launch-progress-current-status"
     >
-      {{ Translations?.Messages?.[`general.launch-status.${statuses.current}`] }}
+      {{ translate(`general.launch-status.${statuses.current}`) }}
     </div>
   </div>
   <div

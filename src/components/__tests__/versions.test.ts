@@ -184,6 +184,15 @@ for (const open of [false, true]) {
       }) as unknown as Event);
     };
 
+    if (!open) {
+      page.instanceVersionSearch.patch = "net.minecraft";
+      await nextTick();
+      input.value = "stale vanilla";
+      input.dispatchEvent(new view.browser.Event("input") as unknown as Event);
+      page.instanceVersionSearch = { "patch": "net.fabricmc.fabric-loader", "input": "" };
+      await Bun.sleep(320);
+      expect(page.instanceVersionSearch.input).toBe("");
+    }
     input.focus();
     if (open) {
       input.click();

@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { onClickOutside, useDebounceFn } from "@vueuse/core";
-import { computed, nextTick, onScopeDispose, ref, useTemplateRef } from "vue";
+import { computed, nextTick, onScopeDispose, ref, useTemplateRef, watch } from "vue";
 
 import ChangeInstanceVersionDropdown
   from "@/components/add-instance/sections/ChangeInstanceVersionDropdown.vue";
@@ -118,6 +118,7 @@ function temporaryDropdown(type?: ExtendedPatchUIDType): void {
 
 const queueSearch = useDebounceFn(handleVersionSearch, 300);
 
+watch(currentPatch, queueSearch.cancel, { "flush": "sync" });
 onScopeDispose(queueSearch.cancel);
 
 onClickOutside(target, event => handleDropdown(false, event));

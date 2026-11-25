@@ -211,7 +211,9 @@ async function startInstance(
     } else if (!success) {
       const current = launches[instanceId].current;
       const status = current?.includes("error") ? current : LaunchStatus.Errors.UnhandledError;
-      const key = reason ?? `general.launch-status.${status}` as const;
+
+      statuses.current = reason ?? status;
+      const key = `general.launch-status.${statuses.current}` as const;
 
       await message(translate(key), { "kind": "error" });
     }

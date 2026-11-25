@@ -34,6 +34,8 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
+import { ArtifactDownloadFailure, CancelledDownload } from "../fetching/download-outcome.ts";
+
 export async function resolvePatch(request: {
   "necessaries": PreLaunchInformationType;
   "metadata"   : PatchDependencyType;
@@ -139,6 +141,9 @@ export async function resolveDependency({
       },
     });
   } catch (error: unknown) {
+    if (error instanceof CancelledDownload || error instanceof ArtifactDownloadFailure) {
+      throw error;
+    }
     log.error(
       descriptiveLogPrefix,
       "Caught an error while getting the patch metadata:",

@@ -5,6 +5,8 @@ mod application;
 mod downloads;
 mod extensions;
 mod file_system;
+#[cfg(windows)]
+mod private_account_file;
 mod finalization;
 mod hashing;
 mod image;

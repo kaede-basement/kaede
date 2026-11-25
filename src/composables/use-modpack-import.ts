@@ -1,6 +1,6 @@
-import { onScopeDispose } from "vue";
+import { onScopeDispose, ref } from "vue";
 
-let generation = 0;
+const generation = ref(0);
 
 export function useModpackImport(): () => () => boolean {
   let mounted = true;
@@ -10,8 +10,8 @@ export function useModpackImport(): () => () => boolean {
   });
 
   return () => {
-    const request = ++generation;
+    const request = ++generation.value;
 
-    return () => mounted && request === generation;
+    return () => mounted && request === generation.value;
   };
 }

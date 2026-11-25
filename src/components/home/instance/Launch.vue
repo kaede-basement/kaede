@@ -109,6 +109,8 @@ function handleLaunch(): void {
   void launchInstance(currentInstance.value?.id);
 }
 async function handleClose(): Promise<void> {
+  const attempt = statuses.value;
+  const instanceId = currentInstance.value?.id;
   const toClose: boolean = await ask(
     "Do you really want to cancel the Minecraft launch?",
     "Minecraft",
@@ -118,14 +120,15 @@ async function handleClose(): Promise<void> {
     return;
   }
 
-  const instanceId: string | undefined = currentInstance?.value?.id;
-
+  if (statuses.value !== attempt || !attempt?.launching) {
+    return;
+  }
   if (instanceId === undefined) {
     return log.error(__PRE_BUNDLED_FILENAME__, "The current instance id is undefined");
   }
 
-  if (isDownloading.value && statuses.value) {
-    await cancelLaunchDownloads(statuses.value);
+  if (attempt.launching === 1) {
+    await cancelLaunchDownloads(attempt);
 
     return;
   }

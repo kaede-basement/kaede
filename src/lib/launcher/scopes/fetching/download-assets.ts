@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 import FileStructure from "@/constants/file-structure.ts";
 import { APIEndpoints, GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
@@ -34,6 +33,7 @@ import type {
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 import { downloadMissing } from "./download-missing.ts";
+import { downloadSucceeded, interruptedDownload } from "./download-outcome.ts";
 
 export async function downloadAssets({
   necessaries,
@@ -45,7 +45,7 @@ export async function downloadAssets({
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
   if (signal?.aborted) {
-    return false;
+    return interruptedDownload(necessaries.statuses);
   }
 
   const { directories, statuses, instance, logPrefix, cancelId } = necessaries;
@@ -160,7 +160,7 @@ export async function downloadAssets({
     "label"      : "assets",
   });
 
-  if (report.failed > 0 || report.cancelled) {
+  if (!downloadSucceeded(report, statuses)) {
     return false;
   }
 

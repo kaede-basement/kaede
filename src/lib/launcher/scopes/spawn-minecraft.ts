@@ -31,6 +31,8 @@ import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
+import { launchAttempts } from "./fetching/download-outcome.ts";
+
 export async function spawnMinecraft({
   command,
   instanceId,
@@ -46,7 +48,7 @@ export async function spawnMinecraft({
   "necessaries": PreLaunchInformationType;
   "onClose"    : (instanceId: string) => void;
   "onInput"    : (lines: Array<string>) => void;
-}): Promise<LaunchResponseType> {
+}): Promise<LaunchResponseType & { "reason"?: "cancelled" }> {
   await mkdir(necessaries.directories.instance, { "recursive": true });
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await Hooks.catchAsyncResponseHooks<LaunchResponseType>({
@@ -69,6 +71,9 @@ export async function spawnMinecraft({
   let exited = false;
   let process: MinecraftProcessType;
 
+  if (launchAttempts.get(statuses)?.stop) {
+    return { "success": false, "process": undefined, "reason": "cancelled" };
+  }
   try {
     process = await Processes.spawnProcess<MinecraftMetaType>({
       "program": { "type": "path", "value": command.java },

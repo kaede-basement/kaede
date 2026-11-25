@@ -12,7 +12,7 @@ export function mockSaveAccounts() {
     if (cmd === "save_accounts") {
       await save(args as SaveRequest);
 
-      return undefined as T;
+      return true as T;
     }
 
     return original<T>(cmd, args, options);

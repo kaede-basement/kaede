@@ -2395,6 +2395,7 @@ dependencies = [
  "tempfile",
  "time",
  "tokio",
+ "windows-sys 0.59.0",
  "zip",
 ]
 

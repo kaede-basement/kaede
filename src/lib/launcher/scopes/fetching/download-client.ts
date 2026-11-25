@@ -7,6 +7,7 @@ import type {
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 import { downloadMissing } from "./download-missing.ts";
+import { downloadSucceeded, interruptedDownload } from "./download-outcome.ts";
 
 export async function downloadClient({
   necessaries,
@@ -18,7 +19,7 @@ export async function downloadClient({
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
   if (signal?.aborted) {
-    return false;
+    return interruptedDownload(necessaries.statuses);
   }
 
   const beforeHooksResult: "continue" | boolean | undefined =
@@ -55,7 +56,7 @@ export async function downloadClient({
     "label"      : "client",
   });
 
-  if (report.failed > 0 || report.cancelled) {
+  if (!downloadSucceeded(report, statuses)) {
     return false;
   }
 
