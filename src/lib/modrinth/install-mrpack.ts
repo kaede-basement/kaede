@@ -79,8 +79,13 @@ export async function installMrpack({
   });
   const onProgress = new Channel<[number, number]>;
 
+  let finished = false;
+
   // eslint-disable-next-line unicorn/prefer-add-event-listener
   onProgress.onmessage = ([success, total]): void => {
+    if (finished) {
+      return;
+    }
     statuses.downloads.success = success;
     statuses.downloads.total = total;
   };
@@ -108,6 +113,7 @@ export async function installMrpack({
       archivePath, onProgress, cancelId, reservation, "targetDirPath": instanceRootDirectory,
     });
   } finally {
+    finished = true;
     ActiveInstall.value = undefined;
   }
 }

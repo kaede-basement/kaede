@@ -420,16 +420,24 @@ async fn repair(
     progress: impl Fn(usize, usize) + Send + Clone + 'static,
 ) -> Result<RepairOutcome, String> {
     let updates = progress.clone();
-    let total = repair_files(archive_path, root, store, &cancel, move |done, total| {
+    let result = repair_files(archive_path, root, store, &cancel, move |done, total| {
         if done < total {
             updates(done, total);
         }
     })
-    .await?;
+    .await;
+    finish_repair(cancel, result, progress)
+}
+
+fn finish_repair(
+    cancel: Registration,
+    result: Result<Option<usize>, String>,
+    progress: impl Fn(usize, usize),
+) -> Result<RepairOutcome, String> {
     if cancel.finish() {
         return Err("Installation cancelled".into());
     }
-    match total {
+    match result? {
         Some(total) => {
             progress(total, total);
             Ok(RepairOutcome::Repaired)
@@ -1401,6 +1409,55 @@ mod tests {
         });
         assert_eq!(result.unwrap(), path);
         assert_eq!(std::fs::read(path).unwrap(), b"good");
+    }
+
+    #[tokio::test]
+    async fn acknowledged_cancel_wins_over_interrupted_override_read() {
+        struct InterruptedRead {
+            entered: std::sync::mpsc::Sender<()>,
+            resume: std::sync::mpsc::Receiver<()>,
+        }
+        impl std::io::Read for InterruptedRead {
+            fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+                self.entered.send(()).unwrap();
+                self.resume
+                    .recv_timeout(std::time::Duration::from_secs(5))
+                    .unwrap();
+                Err(std::io::Error::other("override read failed"))
+            }
+        }
+
+        let root = tempfile::tempdir().unwrap();
+        let dest = root.path().join("override");
+        let flags = CancelFlags::default();
+        let cancel = flags.register("repair");
+        let signal = cancel.clone();
+        let (entered, reading) = std::sync::mpsc::channel();
+        let (resume, suspended) = std::sync::mpsc::channel();
+        let read = tokio::task::spawn_blocking(move || {
+            stage_override(
+                InterruptedRead {
+                    entered,
+                    resume: suspended,
+                },
+                &dest,
+                &signal,
+            )
+        });
+        reading
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        assert!(flags.cancel("repair").await.unwrap());
+        resume.send(()).unwrap();
+        let error = read.await.unwrap().unwrap_err();
+        assert_eq!(error, "override read failed");
+        assert_eq!(
+            finish_repair(cancel, Err(error), |_, _| panic!(
+                "failed repair reported progress"
+            )),
+            Err("Installation cancelled".into())
+        );
+        assert_eq!(root.path().read_dir().unwrap().count(), 0);
     }
 
     #[tokio::test]

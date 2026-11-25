@@ -52,22 +52,28 @@ test("cancel requested before registration reaches Rust before installation star
   const prepared = Promise.withResolvers<void>();
   const calls: Array<string> = [];
 
-  mockIPC(async cmd => {
+  let channel!: Channel<[number, number]>;
+  const statuses = { "downloads": { "success": 0, "total": 0 } } as LauncherStatusesType;
+
+  mockIPC(async (cmd, payload) => {
     calls.push(cmd);
     if (cmd === "prepare_mrpack_install") {
       await prepared.promise;
     }
     if (cmd === "install_mrpack") {
+      channel = (payload as { "onProgress": Channel<[number, number]> }).onProgress;
       throw new Error("Installation cancelled");
     }
   });
   const installing = installMrpack({
-    "archivePath": "pack", "instanceId": "id", "statuses": {} as LauncherStatusesType,
+    "archivePath": "pack", "instanceId": "id", statuses,
   });
 
   await ActiveInstall.value!.cancel();
   prepared.resolve();
   await expect(installing).rejects.toThrow("Installation cancelled");
+  channel.onmessage([1, 2]);
+  expect(statuses.downloads).toMatchObject({ "success": 0, "total": 0 });
   expect(calls).toEqual(["prepare_mrpack_install", "cancel_downloads", "install_mrpack"]);
   expect(ActiveInstall.value).toBeUndefined();
 });

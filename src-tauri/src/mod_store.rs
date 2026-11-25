@@ -3,7 +3,7 @@ use crate::{
     hashing::{modpack_hashes, HashAlgorithm},
     modrinth::ManifestFile,
 };
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 use std::{
     fs, io,
     io::Read,
@@ -16,6 +16,7 @@ pub struct ModStore {
     cache: PathBuf,
     active: Arc<Mutex<Option<Arc<ObjectTree>>>>,
     clears: Arc<Mutex<()>>,
+    recovery: Arc<Once>,
 }
 
 pub struct ObjectTree {
@@ -74,10 +75,12 @@ impl ModStore {
             cache: base.join("cache"),
             active: Arc::default(),
             clears: Arc::default(),
+            recovery: Arc::new(Once::new()),
         }
     }
 
     pub async fn lease(&self) -> Result<Arc<ObjectTree>, String> {
+        self.recover_once();
         let mut active = self.active.clone().lock_owned().await;
         if let Some(tree) = &*active {
             return Ok(tree.clone());
@@ -95,10 +98,24 @@ impl ModStore {
         .map_err(|e| e.to_string())
     }
 
-    pub async fn recover(&self) -> Result<(), String> {
-        let _serial = self.clears.lock().await;
+    pub(crate) fn recover_once(&self) -> Option<tokio::task::JoinHandle<()>> {
+        let mut task = None;
+        self.recovery.call_once(|| {
+            let store = self.clone();
+            task = Some(tokio::spawn(async move {
+                if let Err(error) = store.recover().await {
+                    log::error!("Cannot retire interrupted mod cache tree: {error}");
+                }
+            }));
+        });
+        task
+    }
+
+    async fn recover(&self) -> Result<(), String> {
+        let serial = self.clears.clone().lock_owned().await;
         let cache = self.cache.clone();
         tokio::task::spawn_blocking(move || -> io::Result<()> {
+            let _serial = serial;
             match fs::symlink_metadata(&cache) {
                 Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
                 Err(e) => return Err(e),
@@ -117,6 +134,7 @@ impl ModStore {
     }
 
     pub(crate) async fn clear(&self) -> Result<(), String> {
+        self.recover_once();
         // Once the selector changes, retirement must run even if the caller goes away.
         let store = self.clone();
         tokio::spawn(async move { store.retire_tree().await })
@@ -386,13 +404,16 @@ mod tests {
             let stale = store.cache.join(ALTERNATE);
             fs::create_dir_all(&stale).unwrap();
             fs::write(stale.join("obsolete"), b"stale").unwrap();
+            if startup_recovery {
+                store.recover_once().unwrap().await.unwrap();
+                assert!(!stale.exists());
+                fs::create_dir(&stale).unwrap();
+                assert!(store.clone().recover_once().is_none());
+                assert!(stale.exists());
+            }
             let tree = store.lease().await.unwrap();
             tree.prepare().await.unwrap();
-            if startup_recovery {
-                store.recover().await.unwrap();
-                assert!(!stale.exists());
-                assert!(tree.root.is_dir());
-            }
+            assert!(tree.root.is_dir());
             drop(tree);
             store.clear().await.unwrap();
             assert_eq!(selected_tree(&store.cache).unwrap(), Some(ALTERNATE));
@@ -403,6 +424,7 @@ mod tests {
     async fn reopening_store_finishes_interrupted_retirement() {
         let root = tempfile::tempdir().unwrap();
         let store = ModStore::new(root.path());
+        store.recover_once().unwrap().await.unwrap();
         store.clear().await.unwrap();
         let selected = store.lease().await.unwrap();
         selected.prepare().await.unwrap();
@@ -411,7 +433,7 @@ mod tests {
         fs::write(store.cache.join(INITIAL).join("obsolete"), b"old").unwrap();
         drop(store);
         let store = ModStore::new(root.path());
-        store.recover().await.unwrap();
+        store.recover_once().unwrap().await.unwrap();
         let current = store.lease().await.unwrap();
         assert_eq!(fs::read(current.root.join("verified")).unwrap(), b"object");
         assert!(!store.cache.join(INITIAL).exists());

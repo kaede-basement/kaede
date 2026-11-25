@@ -79,6 +79,7 @@ export async function concurrentlyDownload({
    * Snapshot data are cumulative, and since 'concurrentlyDownload'
    * might be called more than once at a time, we need to handle proper merging of statuses
    */
+  let finished = false;
   let previousSuccess: number = 0;
   let previousFailed : number = 0;
   let previousPaths  : Set<string> = new Set;
@@ -97,6 +98,9 @@ export async function concurrentlyDownload({
 
   // eslint-disable-next-line unicorn/prefer-add-event-listener
   onProgress.onmessage = (snapshot: DownloadSnapshotType): void => {
+    if (finished) {
+      return;
+    }
     const current = statuses.downloads.current;
 
     for (const path of previousPaths) {
@@ -120,29 +124,31 @@ export async function concurrentlyDownload({
     applySnapshotData(snapshot.success, snapshot.failed);
   };
 
-  const report = await invoke<DownloadReportType>("concurrently_download", {
-    "entries": uniqueArtifacts,
-    concurrency,
-    label,
-    onProgress,
-    cancelId,
-    debug,
-  });
+  try {
+    const report = await invoke<DownloadReportType>("concurrently_download", {
+      "entries": uniqueArtifacts,
+      concurrency,
+      label,
+      onProgress,
+      cancelId,
+      debug,
+    });
 
-  applySnapshotData(report.success, report.failed);
+    applySnapshotData(report.success, report.failed);
 
-  for (const path of previousPaths) {
-    statuses.downloads.current.delete(path);
+    if (report.cancelled) {
+      log.info(logPrefix, "The Minecraft download tasks were cancelled");
+      statuses.downloads.total = statuses.downloads.total - (
+        uniqueArtifacts.length - report.success - report.failed
+      );
+    }
+
+    return report;
+  } finally {
+    finished = true;
+    for (const path of previousPaths) {
+      statuses.downloads.current.delete(path);
+    }
+    previousPaths.clear();
   }
-
-  previousPaths = new Set;
-
-  if (report.cancelled) {
-    log.info(logPrefix, "The Minecraft download tasks were cancelled");
-    statuses.downloads.total = statuses.downloads.total - (
-      uniqueArtifacts.length - report.success - report.failed
-    );
-  }
-
-  return report;
 }

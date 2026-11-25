@@ -201,13 +201,7 @@ pub fn run() {
                 }
             });
             // Besides hashing, we can also read configs ahead-of-time
-            let store = mod_store::ModStore::new(&base_directory);
-            app.manage(store.clone());
-            tauri::async_runtime::spawn(async move {
-                if let Err(e) = store.recover().await {
-                    log::error!("Cannot retire interrupted mod cache tree: {e}");
-                }
-            });
+            app.manage(mod_store::ModStore::new(&base_directory));
             app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist
