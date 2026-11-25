@@ -26,8 +26,12 @@ import { serverProcesses } from "@/states/servers.ts";
 
 export default {
   extensionStates,
-  globalStates,
-  instanceStates,
+  get "globalStates"() {
+    return globalStates;
+  },
+  get "instanceStates"() {
+    return instanceStates;
+  },
   javaStates,
   modalStates,
   codeOutput,

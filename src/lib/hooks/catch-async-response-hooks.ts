@@ -16,7 +16,6 @@ export async function catchAsyncResponseHooks<T>({
   "toPass": unknown;
   "timing": "before" | "after";
 }): Promise<"continue" | T | undefined> {
-  const timeMeasurementStartBefore = performance.now();
   const currentScopeHooks = GlobalObject.hooks[scope];
 
   if (!IsKeyInObject(timing, currentScopeHooks)) {
@@ -24,6 +23,12 @@ export async function catchAsyncResponseHooks<T>({
   }
 
   const hooks = currentScopeHooks[timing] as HookReturnType<unknown, unknown>;
+
+  if (hooks.length === 0) {
+    return HookResponseStatus.Continue;
+  }
+
+  const timeMeasurementStartBefore = performance.now();
 
   log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.start(
     scope,

@@ -26,75 +26,63 @@ import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
-let lastWritten: string;
+type PersistedConfig = ConfigType & Partial<Record<`config/${string}`, unknown>>;
 
-function saveExtensionFields<Key extends keyof ConfigType>(configStates: ConfigType): void {
-  for (const key of Object.keys(globalStates)) {
-    // Only save config-specific (extensions may add other fields)
-    if (key.startsWith("config/")) {
-      const currentKey = key as Key;
-
-      configStates[currentKey] = globalStates[currentKey];
-    }
-  }
-}
-
-export async function sync(): Promise<void> {
-  if (lastWritten === undefined) {
-    lastWritten = JSON.stringify(GlobalInternals.initialConfig);
-  }
-
-  const startTime: number = performance.now();
-
-  const currentConfigStates: ConfigType = {
-    "development": globalStates.development,
-    "extensions" : globalStates.extensions,
-    "ui"         : globalStates.ui,
-    "selected"   : globalStates.selected,
-    "locale"     : globalStates.locale,
-    "minecraft"  : globalStates.minecraft,
-    "java"       : globalStates.java,
+export function projectConfig(states: PersistedConfig, showLogs = false): PersistedConfig {
+  const currentConfigStates: PersistedConfig = {
+    "development": states.development,
+    "extensions" : states.extensions,
+    "ui"         : states.ui,
+    "selected"   : states.selected,
+    "locale"     : states.locale,
     "logs"       : {
-      ...globalStates.logs,
-      // Make 'logs.show' always false so that the user won't see log viewer on app launch
-      "show": false,
+      ...states.logs,
+      "show": showLogs,
     },
+    "java"     : states.java,
+    "minecraft": states.minecraft,
   };
 
-  saveExtensionFields(currentConfigStates);
+  for (const key of Object.keys(states)) {
+    if (key.startsWith("config/")) {
+      const extensionKey = key as `config/${string}`;
 
-  const currentConfigStatesStringy: string = JSON.stringify(currentConfigStates);
-
-  if (lastWritten === currentConfigStatesStringy) {
-    return log.debug(
-      __PRE_BUNDLED_FILENAME__,
-      "Seems like config didn't change. No need for config sync",
-    );
+      currentConfigStates[extensionKey] = states[extensionKey];
+    }
   }
 
-  const configPath = FileManager.join(
-    FileManager.getBaseDirectory(),
-    FileStructure.Files.Config,
-  );
-
-  try {
-    await writeTextFile(
-      configPath,
-      JSON.stringify(currentConfigStates, null, 2),
-    );
-    lastWritten = currentConfigStatesStringy;
-  } catch (error: unknown) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to sync the config file:",
-      Errors.prettify(error),
-    );
-  }
-
-  log.debug(
-    __PRE_BUNDLED_FILENAME__,
-    "Config file successfully synced in:",
-    (performance.now() - startTime).toFixed(1),
-    "ms",
-  );
+  return currentConfigStates;
 }
+
+export function createStateSync(file: string, initial: () => object, current: () => object) {
+  let lastWritten: string;
+  let queued = Promise.resolve();
+
+  async function write(): Promise<void> {
+    lastWritten ??= JSON.stringify(initial(), null, 2);
+    const contents = JSON.stringify(current(), null, 2);
+
+    if (contents === lastWritten) {
+      return;
+    }
+
+    const path = FileManager.join(FileManager.getBaseDirectory(), file);
+
+    await writeTextFile(path, contents);
+    lastWritten = contents;
+  }
+
+  return (): Promise<void> => {
+    queued = queued.then(write).catch(error => {
+      log.error(__PRE_BUNDLED_FILENAME__, `Failed to sync ${file}:`, Errors.prettify(error));
+    });
+
+    return queued;
+  };
+}
+
+export const sync = createStateSync(
+  FileStructure.Files.Config,
+  () => projectConfig(GlobalInternals.initialConfig, GlobalInternals.initialConfig.logs.show),
+  () => projectConfig(globalStates),
+);

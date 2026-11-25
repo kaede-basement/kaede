@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { type ShallowReactive, watchEffect } from "vue";
+import { markRaw, type ShallowReactive, watch, watchEffect } from "vue";
 
 import Configs from "@/lib/configs";
 import DevelopmentMode from "@/lib/development-mode";
@@ -77,17 +77,22 @@ export function watchDevelopmentStates(): CleanupType<GlobalStatesType["developm
  * Updates translations on locale change.
  */
 export function watchLocaleStates(): () => void {
-  return watchEffect(async () => {
-    const baseDirectory: string = FileManager.getBaseDirectory();
-    const locale: string = globalStates.locale;
+  return watch(() => globalStates.locale, async (locale, _, onCleanup) => {
+    let current = true;
 
-    log.debug(__PRE_BUNDLED_FILENAME__, `Overriding default translations to '${locale}'`);
-    globalStates.translations = await Configs.getTranslations({
-      baseDirectory,
-      "selected": locale,
+    onCleanup(() => {
+      current = false;
     });
-    log.info(__PRE_BUNDLED_FILENAME__, `Successfully set translations to '${locale}'`);
-  });
+    const translations = await Configs.getTranslations({
+      "baseDirectory": FileManager.getBaseDirectory(),
+      "selected"     : locale,
+    });
+
+    if (current) {
+      globalStates.translations = markRaw(translations);
+      log.info(__PRE_BUNDLED_FILENAME__, `Successfully set translations to '${locale}'`);
+    }
+  }, { "immediate": globalStates.locale !== globalStates.translations.Info?.Code });
 }
 
 export function watchLogModeStates(logs: ShallowReactive<Record<string, {

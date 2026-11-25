@@ -23,13 +23,16 @@ import { ProcessHandlers } from "@/lib/processes/core.ts";
 let watchingPromise: Promise<() => void> | undefined;
 
 export function watchProcesses(): Promise<() => void> {
-  watchingPromise ??= attachListeners();
+  watchingPromise ??= attachListeners().catch(error => {
+    watchingPromise = undefined;
+    throw error;
+  });
 
   return watchingPromise;
 }
 
 async function attachListeners(): Promise<() => void> {
-  const unlistenFunctions = await Promise.all([
+  const listeners = await Promise.allSettled([
     listen<
       { "token": string; "pid": number; "stream": "stdout" | "stderr"; "lines": Array<string> }
     >(
@@ -59,9 +62,24 @@ async function attachListeners(): Promise<() => void> {
     ),
   ]);
 
+  function cleanup(): void {
+    for (const listener of listeners.splice(0)) {
+      if (listener.status === "fulfilled") {
+        listener.value();
+      }
+    }
+  }
+  const failed = listeners.find(listener => listener.status === "rejected");
+
+  if (failed) {
+    cleanup();
+    throw failed.reason;
+  }
+
   return () => {
-    for (const unlisten of unlistenFunctions) {
-      unlisten();
+    if (listeners.length > 0) {
+      watchingPromise = undefined;
+      cleanup();
     }
   };
 }

@@ -20,8 +20,8 @@ import { useDebounceFn } from "@vueuse/core";
 import { watch } from "vue";
 
 import Configs from "@/lib/configs";
+import { projectConfig } from "@/lib/configs/sync.ts";
 import { globalStates } from "@/states/global.ts";
-import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 
 /**
  * Updates config file on any config-related global states changes.
@@ -30,23 +30,7 @@ export function watchConfigSync(): () => void {
   const debouncedWrite = useDebounceFn(Configs.sync, 300);
 
   return watch(
-    // Only watch config-related fields
-    () => [
-      globalStates.development,
-      globalStates.extensions,
-      globalStates.ui,
-      globalStates.selected,
-      globalStates.locale,
-      globalStates.logs,
-      globalStates.minecraft,
-      // Also watch extension-added config-related fields
-      ...Object
-        .keys(globalStates)
-        .filter(key => key.startsWith("config/"))
-        .map(key => (
-          globalStates[key as keyof GlobalStatesType]
-        )),
-    ],
+    () => projectConfig(globalStates),
     debouncedWrite,
     { "deep": true },
   );

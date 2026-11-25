@@ -14,7 +14,6 @@ export async function catchAsyncVoidHooks({
   "toPass": unknown;
   "timing": "before" | "after";
 }): Promise<void> {
-  const timeMeasurementStartAfter = performance.now();
   const currentScopeHooks = GlobalObject.hooks[scope];
 
   if (!IsKeyInObject(timing, currentScopeHooks)) {
@@ -22,6 +21,12 @@ export async function catchAsyncVoidHooks({
   }
 
   const hooks = currentScopeHooks[timing] as HookReturnType<unknown, unknown>;
+
+  if (hooks.length === 0) {
+    return;
+  }
+
+  const timeMeasurementStartAfter = performance.now();
 
   log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.start(
     scope,
