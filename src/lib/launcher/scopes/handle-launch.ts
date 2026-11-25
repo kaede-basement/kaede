@@ -144,26 +144,24 @@ export async function handleLaunch({
     }
   }
 
-  const entryPatch: SpecificPatchMetaType | false = await Patches.resolvePatch({
-    necessaries,
-    "metadata": {
-      "uid": instance.entry,
-    },
-  });
+  let allPatches: Array<SpecificPatchMetaType>;
 
-  if (entryPatch === false) {
-    log.warn(
-      necessaries.logPrefix,
-      "Aborting the launch process due to an error in entry patch resolving",
-    );
+  try {
+    const entryPatch = await Patches.resolvePatch({
+      necessaries,
+      "metadata": { "uid": instance.entry },
+    });
 
-    return failed;
+    if (!entryPatch) {
+      return await cancellations.get(statuses) ? { ...failed, "reason": "cancelled" } : failed;
+    }
+    allPatches = await Patches.resolveSubPatches({ "patchMeta": entryPatch, necessaries });
+  } catch (error) {
+    if (await cancellations.get(statuses)) {
+      return { ...failed, "reason": "cancelled" };
+    }
+    throw error;
   }
-
-  const allPatches: Array<SpecificPatchMetaType> = await Patches.resolveSubPatches({
-    "patchMeta": entryPatch,
-    necessaries,
-  });
   const finalizedPatch: FinalizedPatchType = Parsers.finalizePatches({
     "patches": allPatches,
     necessaries,
@@ -174,8 +172,13 @@ export async function handleLaunch({
     `Resolved ${allPatches.length} patches and ${finalizedPatch.artifacts.length} artifacts`,
   );
 
-  const cancel = (): Promise<boolean> => Fetching.cancelAll(necessaries.cancelId);
+  let precedingStop: Promise<boolean> | undefined;
   let failureReason: TranslationKey = "general.launch-status.artifact-error";
+  const cancel = (): Promise<boolean> => {
+    precedingStop = cancellations.get(statuses);
+
+    return Fetching.cancelAll(necessaries.cancelId);
+  };
   const downloaded = await settleDownloadStages(cancel, [
     (signal): Promise<boolean> => Fetching.downloadAssets({ necessaries, finalizedPatch, signal }),
     (signal): Promise<boolean> => Fetching.downloadClient({ necessaries, finalizedPatch, signal }),
@@ -195,7 +198,9 @@ export async function handleLaunch({
           .filter(({ status }) => status === "native")
           .map(({ path, exclude }) => ({ path, "exclude": exclude ?? [] })),
       }).catch(error => {
-        failureReason = "general.launch-status.native-error";
+        if (!signal.aborted) {
+          failureReason = "general.launch-status.native-error";
+        }
         throw error;
       });
 
@@ -208,7 +213,7 @@ export async function handleLaunch({
   });
 
   if (!downloaded) {
-    if (await cancellations.get(statuses)) {
+    if (await precedingStop) {
       return { ...failed, "reason": "cancelled" };
     }
 

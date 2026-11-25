@@ -94,70 +94,116 @@ for (const dropdown of [true, false]) {
   });
 }
 
-test("version dropdown offers retry after fetch failure", async () => {
-  using fetch = spyOn(Launcher.Fetching, "fetchAllVersions")
-    .mockRejectedValueOnce(new Error("offline"))
-    .mockResolvedValue(all);
-  const client = new QueryClient({ "defaultOptions": { "queries": { "retry": false } } });
+for (const dropdown of [true, false]) {
+  const selector = dropdown ? "sections/ChangeInstanceVersionDropdown" : "modrinth/VersionScroller";
 
-  using view = await mountComponent("add-instance/sections/ChangeInstanceVersionDropdown", {
-    "currentPatch": "net.minecraft", "currentFilter": "release", "handleDropdown": mock(),
-  }, app => app.use(VueQueryPlugin, { "queryClient": client }));
-  await Bun.sleep(0);
-  expect(view.root.textContent).toContain("Could not load versions");
-  view.root.querySelector<HTMLButtonElement>("#__version-dropdown-retry")!.click();
-  await Bun.sleep(0);
-  expect(view.root.querySelectorAll("[data-index]")).toHaveLength(3);
-  expect(fetch).toHaveBeenCalledTimes(2);
-  client.clear();
-});
+  for (const empty of [true, false]) {
+    test(selector + " restores focus after retry, empty=" + empty, async () => {
+      using fetch = spyOn(Launcher.Fetching, "fetchAllVersions")
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValue(empty ? [] : all);
+      const client = new QueryClient({ "defaultOptions": { "queries": { "retry": false } } });
+      const onToggle = mock();
 
-test("keyboard search opens a new modloader's versions and restores input focus", async () => {
-  const page = globalStates.pages["add-instance"];
+      using view = await mountComponent("add-instance/" + selector, {
+        "currentPatch"  : "net.minecraft", "currentFilter" : "release", "handleDropdown": mock(),
+        "selected"      : [], onToggle,
+      }, app => app.use(VueQueryPlugin, { "queryClient": client }), ["general/base/Checkbox"]);
+      await Bun.sleep(0);
+      expect(view.root.textContent).toContain("Could not load versions");
+      const retry = view.root.querySelector<HTMLButtonElement>("[id$=-retry]")!;
 
-  page.instanceVersionSearch = { "patch": "net.fabricmc.fabric-loader", "input": "" };
-  using fetch = spyOn(Launcher.Fetching, "fetchAllVersions").mockResolvedValue(all.slice(0, 3));
-  const client = (new QueryClient);
+      const pressEnter = (): void => {
+        const target = view.root.ownerDocument.activeElement as HTMLButtonElement;
 
-  using cleanup = new DisposableStack;
-  const raf = Object.getOwnPropertyDescriptor(globalThis, "requestAnimationFrame");
+        expect(target.tagName).toBe("BUTTON");
+        const event = new view.browser.KeyboardEvent("keydown", {
+          "key": "Enter", "bubbles": true, "cancelable": true,
+        });
 
-  Object.defineProperty(globalThis, "requestAnimationFrame", {
-    "configurable": true, "value": () => 0,
-  });
-  cleanup.defer(() => {
-    if (raf) {
-      Object.defineProperty(globalThis, "requestAnimationFrame", raf);
-    } else {
-      Reflect.deleteProperty(globalThis, "requestAnimationFrame");
+        // Happy DOM leaves the native button default action to the caller.
+        if (target.dispatchEvent(event as unknown as Event)) {
+          target.click();
+        }
+      };
+
+      retry.focus();
+      pressEnter();
+      await Bun.sleep(0);
+      const focused = view.root.ownerDocument.activeElement as HTMLElement;
+
+      if (empty) {
+        expect(focused.matches("p[tabindex]")).toBe(true);
+      } else {
+        expect(focused.getAttribute("aria-label")).toContain("version-0");
+        pressEnter();
+        if (dropdown) {
+          expect(globalStates.pages["add-instance"].instance?.patchVersions["net.minecraft"])
+            .toBe("version-0");
+        } else {
+          expect(onToggle).toHaveBeenCalledWith("version-0", "success");
+        }
+      }
+      expect(fetch).toHaveBeenCalledTimes(2);
+      client.clear();
+    });
+  }
+}
+
+for (const open of [false, true]) {
+  test("immediate keyboard search selects a matching modloader version, open=" + open, async () => {
+    const page = globalStates.pages["add-instance"];
+
+    page.instanceVersionSearch = { "patch": "net.fabricmc.fabric-loader", "input": "" };
+    using fetch = spyOn(Launcher.Fetching, "fetchAllVersions").mockResolvedValue(all.slice(0, 3));
+    const client = (new QueryClient);
+
+    using cleanup = new DisposableStack;
+    const raf = Object.getOwnPropertyDescriptor(globalThis, "requestAnimationFrame");
+
+    Object.defineProperty(globalThis, "requestAnimationFrame", {
+      "configurable": true, "value": () => 0,
+    });
+    cleanup.defer(() => {
+      if (raf) {
+        Object.defineProperty(globalThis, "requestAnimationFrame", raf);
+      } else {
+        Reflect.deleteProperty(globalThis, "requestAnimationFrame");
+      }
+    });
+    using view = await mountComponent(
+      "add-instance/sections/ChangeInstanceVersion",
+      {},
+      app => app.use(VueQueryPlugin, { "queryClient": client }),
+      ["general/base/CustomInput", "add-instance/sections/ChangeInstanceVersionDropdown"],
+    );
+    const input = view.root.querySelector("input")!;
+    const key = (target: Element, value: string): void => {
+      target.dispatchEvent(new view.browser.KeyboardEvent("keydown", {
+        "key": value, "bubbles": true, "cancelable": true,
+      }) as unknown as Event);
+    };
+
+    input.focus();
+    if (open) {
+      input.click();
+      await Bun.sleep(0);
+      expect(view.root.querySelectorAll("[data-index]")).toHaveLength(3);
     }
+    input.value = "version-2";
+    input.dispatchEvent(new view.browser.Event("input", { "bubbles": true }) as unknown as Event);
+    key(input, "ArrowDown");
+    await Bun.sleep(0);
+    const row = view.root.ownerDocument.activeElement!;
+
+    expect(row.getAttribute("aria-label")).toContain("version-2");
+    key(row, "Enter");
+    await nextTick();
+    expect(page.instance?.patchVersions["net.fabricmc.fabric-loader"])
+      .toBe("version-2");
+    expect(page.instanceVersionSearch.input).toBe("version-2");
+    expect(view.root.ownerDocument.activeElement).toBe(input);
+    expect(fetch.mock.calls[0][0]).toBe("net.fabricmc.fabric-loader");
+    client.clear();
   });
-  using view = await mountComponent(
-    "add-instance/sections/ChangeInstanceVersion",
-    {},
-    app => app.use(VueQueryPlugin, { "queryClient": client }),
-    ["general/base/CustomInput", "add-instance/sections/ChangeInstanceVersionDropdown"],
-  );
-  const input = view.root.querySelector("input")!;
-  const key = (target: Element, value: string): void => {
-    target.dispatchEvent(new view.browser.KeyboardEvent("keydown", {
-      "key": value, "bubbles": true, "cancelable": true,
-    }) as unknown as Event);
-  };
-
-  input.focus();
-  key(input, "ArrowDown");
-  await Bun.sleep(0);
-  key(view.root.ownerDocument.activeElement!, "ArrowDown");
-  await nextTick();
-  const row = view.root.ownerDocument.activeElement!;
-
-  expect(row.getAttribute("aria-label")).toContain("version-");
-  key(row, "Enter");
-  await nextTick();
-  expect(page.instance?.patchVersions["net.fabricmc.fabric-loader"])
-    .toBe(row.textContent?.match(/version-\d+/)?.[0]);
-  expect(view.root.ownerDocument.activeElement).toBe(input);
-  expect(fetch.mock.calls[0][0]).toBe("net.fabricmc.fabric-loader");
-  client.clear();
-});
+}

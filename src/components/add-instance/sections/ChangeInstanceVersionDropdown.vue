@@ -84,7 +84,7 @@ const filteredVersions = computed(() => (data.value ?? []).filter(({ version, ty
   (currentFilter === "all" || type === currentFilter || currentPatch !== Patches.Minecraft)
 )));
 const rowHeight = 36;
-const { list, containerProps, wrapperProps, scrollTo } = useVersionViewport(
+const { list, containerProps, wrapperProps, scrollTo, retry } = useVersionViewport(
   filteredVersions, rowHeight,
 );
 
@@ -136,9 +136,9 @@ function selectVersion(extractedVersion: string): void {
   >
     <p v-if="status === 'error'" id="__version-dropdown-error">
       {{ translate("versions.failed") }}
-      <button id="__version-dropdown-retry" @click="refetch()">{{ translate("general.retry") }}</button>
+      <button id="__version-dropdown-retry" @click="retry($event, refetch)">{{ translate("general.retry") }}</button>
     </p>
-    <p v-else-if="filteredVersions.length === 0" id="__version-dropdown-status">
+    <p v-else-if="filteredVersions.length === 0" id="__version-dropdown-status" :tabindex="status === 'success' ? -1 : undefined">
       {{ translate(status === "pending" ? "general.loading" : "versions.empty") }}
     </p>
     <div v-else id="__version-dropdown-rows" v-bind="wrapperProps">

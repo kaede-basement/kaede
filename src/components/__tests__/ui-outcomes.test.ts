@@ -6,10 +6,12 @@ import * as fs from "@tauri-apps/plugin-fs";
 import { expect, mock, spyOn, test } from "bun:test";
 import { computed, nextTick, shallowRef } from "vue";
 
+import { mockSaveAccounts } from "@/__mocks__/save-accounts.ts";
 import {
   ActionKeys, AuthStatesContextKey, TranslationsContextKey,
 } from "@/constants/application.ts";
 import English from "@/constants/english.json";
+import { DefaultInstanceIcon, DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { ActionRegistry } from "@/extendable/action-registry.ts";
 import Auth from "@/lib/auth";
 import { declareActionRegistry } from "@/lib/globals/declare-action-registry.ts";
@@ -39,7 +41,7 @@ test("account actions report write failure and keep committed accounts", async (
     "account": { ...account, "profile": { ...account.profile, "name": "updated" } },
   });
   using read = spyOn(fs, "readTextFile").mockResolvedValue(JSON.stringify([account]));
-  using write = spyOn(fs, "writeTextFile").mockRejectedValue(new Error("Disk full"));
+  using write = mockSaveAccounts().mockRejectedValue(new Error("Disk full"));
   using confirm = spyOn(dialog, "confirm").mockResolvedValue(true);
 
   for (const key of [ActionKeys.AccountsRefresh, ActionKeys.AccountsRemove]) {
@@ -59,7 +61,7 @@ test("failed offline account write keeps nickname and retries in place", async (
 
   using read = spyOn(fs, "readTextFile").mockResolvedValue(JSON.stringify([account]));
   using hash = spyOn(Hashing, "hashOfflineNickname").mockResolvedValue("new-id");
-  using write = spyOn(fs, "writeTextFile").mockRejectedValueOnce(new Error("Disk full"))
+  using write = mockSaveAccounts().mockRejectedValueOnce(new Error("Disk full"))
     .mockResolvedValue();
   using view = await mountComponent("profile/Logins/Offline", {}, app => {
     app.provide(AuthStatesContextKey, accounts);
@@ -86,30 +88,81 @@ test("failed offline account write keeps nickname and retries in place", async (
   expect(hash).toHaveBeenCalledWith("nickname");
 });
 
-test("plain zip stays on Import with filename, warning and working file picker", async () => {
+const manifest = {
+  "name"        : "Fabric pack", "versionId"   : "v1", "files"       : [],
+  "dependencies": { "minecraft": "1.20", "fabric-loader": "0.16" },
+};
+
+test("plain zip clears the previous pack draft and keeps its warning on Import", async () => {
+  const page = globalStates.pages["add-instance"];
   const select = mock();
 
-  globalStates.pages["add-instance"].select = select;
-  globalStates.pages["add-instance"].importedModpack = {
-    "name": "old", "path": "old.mrpack", "loader": "net.minecraft",
-  };
-  using open = spyOn(dialog, "open").mockResolvedValueOnce("packs/plain.zip")
+  page.select = select;
+  using open = spyOn(dialog, "open").mockResolvedValueOnce("old.mrpack")
+    .mockResolvedValueOnce("packs/plain.zip")
     .mockRejectedValueOnce(new Error("Unavailable"));
-  const peek = mock(() => null);
+  const peek = mock().mockReturnValueOnce(manifest)
+    .mockReturnValueOnce(null);
 
   mockIPC(peek);
   using view = await mountComponent("add-instance/sections/ImportModpack");
   const pick = Reflect.get(view.root.querySelector("test-child")!, "on-click");
 
   await pick();
-  expect(globalStates.pages["add-instance"].importedModpack).toBeUndefined();
-  expect(select).not.toHaveBeenCalled();
+  expect(page.instance?.name).toBe(manifest.name);
+  expect(page.instance?.patchVersions["net.fabricmc.fabric-loader"]).toBe("0.16");
+  page.instance!.icon = "old-icon.png";
+  page.instanceVersionSearch!.input = "old search";
+  await pick();
+  expect(page.importedModpack).toBeUndefined();
+  expect(page.instance?.name).toBe(DefaultInstanceSettings.name);
+  expect(page.instance?.icon).toBe(DefaultInstanceIcon);
+  expect(page.instance?.patchVersions).toEqual({ "net.minecraft": "1.16.5" });
+  expect(page.instanceVersionSearch).toEqual({ "patch": "net.minecraft", "input": "" });
+  expect(select).toHaveBeenCalledTimes(1);
   expect(view.root.textContent).toContain("plain.zip");
   expect(view.root.textContent).toContain("No Modrinth manifest inside");
   await pick();
   expect(view.root.textContent).toContain("Unavailable");
+  expect(open).toHaveBeenCalledTimes(3);
+  expect(peek).toHaveBeenCalledTimes(2);
+});
+
+test("a stale import resolving after remount cannot clear the newer pack", async () => {
+  const page = globalStates.pages["add-instance"];
+  const select = mock();
+
+  page.select = select;
+  using open = spyOn(dialog, "open").mockResolvedValueOnce("older.zip")
+    .mockResolvedValueOnce("newer.mrpack");
+  const started = Promise.withResolvers<void>();
+  const older = Promise.withResolvers<null>();
+
+  mockIPC((_, arguments_) => {
+    if ((arguments_ as { "archivePath": string }).archivePath === "older.zip") {
+      started.resolve();
+
+      return older.promise;
+    }
+
+    return manifest;
+  });
+  let first: Promise<void>;
+
+  {
+    using view = await mountComponent("add-instance/sections/ImportModpack");
+
+    first = Reflect.get(view.root.querySelector("test-child")!, "on-click")();
+    await started.promise;
+  }
+  using view = await mountComponent("add-instance/sections/ImportModpack");
+  await Reflect.get(view.root.querySelector("test-child")!, "on-click")();
+  older.resolve(null);
+  await first;
+  expect(page.importedModpack?.path).toBe("newer.mrpack");
+  expect(page.instance?.name).toBe(manifest.name);
+  expect(select).toHaveBeenCalledTimes(1);
   expect(open).toHaveBeenCalledTimes(2);
-  expect(peek).toHaveBeenCalledTimes(1);
 });
 
 test("Java scan retries, shares pending work and retains empty success", async () => {

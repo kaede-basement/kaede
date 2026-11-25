@@ -32,7 +32,9 @@ export function applyManifest({
   "path"    : string;
 }): void {
   if (!manifest) {
-    globalStates.pages["add-instance"].importedModpack = undefined;
+    if (globalStates.pages["add-instance"].importedModpack) {
+      Instances.resetPageStates();
+    }
 
     return;
   }

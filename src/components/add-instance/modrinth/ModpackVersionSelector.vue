@@ -23,6 +23,7 @@ import { fetch } from "@tauri-apps/plugin-http";
 import { onClickOutside } from "@vueuse/core";
 import { markRaw, ref, useTemplateRef } from "vue";
 
+import { useModpackImport } from "@/composables/use-modpack-import.ts";
 import { InstanceCreationSections } from "@/constants/application.ts";
 import FileStructure from "@/constants/file-structure.ts";
 import { ModrinthAPI } from "@/constants/modrinth.ts";
@@ -32,6 +33,8 @@ import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
 import { globalStates } from "@/states/global.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
+
+const beginImport = useModpackImport();
 
 const { idRoot, projectId, projectName, projectIcon, close } = defineProps<{
   "idRoot"     : string;
@@ -76,6 +79,8 @@ async function handleClick(event: MouseEvent): Promise<void> {
       `The extracted version index of '${projectName}' is not a number`,
     );
   }
+
+  const current = beginImport();
 
   pending.value = true;
   const currentEntry = data.value[index];
@@ -159,7 +164,7 @@ async function handleClick(event: MouseEvent): Promise<void> {
 
   pending.value = false;
 
-  if (!manifest) {
+  if (!manifest || !current()) {
     return;
   }
   close();

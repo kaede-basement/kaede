@@ -62,7 +62,7 @@ const versions = computed((): Array<string> => {
     .filter(({ type }) => filter.value === "all" || type === filter.value)
     .map(({ version }) => version);
 });
-const { list, wrapperProps, containerProps } = useVersionViewport(versions, rowSize);
+const { list, wrapperProps, containerProps, retry } = useVersionViewport(versions, rowSize);
 
 function toggleFilter(): void {
   filter.value = filter.value === "release" ? "all" : "release";
@@ -99,13 +99,14 @@ function toggleFilter(): void {
       id="__add-instance-page__modrinth-versions-bound"
       class="relative w-full overflow-y-auto"
       v-bind="containerProps"
+      tabindex="-1"
       style="height: 256px"
     >
       <p v-if="status === 'error'" id="__modrinth-versions-error">
         {{ translate("versions.failed") }}
-        <button id="__modrinth-versions-retry" @click="refetch()">{{ translate("general.retry") }}</button>
+        <button id="__modrinth-versions-retry" @click="retry($event, refetch)">{{ translate("general.retry") }}</button>
       </p>
-      <p v-else-if="versions.length === 0" id="__modrinth-versions-status">
+      <p v-else-if="versions.length === 0" id="__modrinth-versions-status" :tabindex="status === 'success' ? -1 : undefined">
         {{ translate(status === "pending" ? "general.loading" : "versions.empty") }}
       </p>
       <div v-else id="__add-instance-page__modrinth-versions-placeholder" v-bind="wrapperProps">

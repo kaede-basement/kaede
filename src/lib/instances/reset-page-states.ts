@@ -33,7 +33,7 @@ export function resetPageStates(): void {
   }
 
   globalStates.pages["add-instance"].instanceVersionSearch = {
-    "input": globalStates.pages["add-instance"].instanceVersionSearch?.input ?? "",
+    "input": "",
     "patch": "net.minecraft",
   };
   globalStates.pages["add-instance"].instance = {

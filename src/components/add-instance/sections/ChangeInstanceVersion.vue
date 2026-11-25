@@ -17,8 +17,8 @@
   -->
 
 <script setup lang="ts">
-import { onClickOutside } from "@vueuse/core";
-import { computed, nextTick, ref, useTemplateRef } from "vue";
+import { onClickOutside, useDebounceFn } from "@vueuse/core";
+import { computed, nextTick, onScopeDispose, ref, useTemplateRef } from "vue";
 
 import ChangeInstanceVersionDropdown
   from "@/components/add-instance/sections/ChangeInstanceVersionDropdown.vue";
@@ -71,6 +71,10 @@ async function openFromKeyboard(event: KeyboardEvent): Promise<void> {
     return;
   }
   event.preventDefault();
+  const input = event.target as HTMLInputElement;
+
+  queueSearch.cancel();
+  handleVersionSearch(input.value);
   restoreSearchFocus = true;
   handleDropdown(true);
   await nextTick();
@@ -112,6 +116,10 @@ function temporaryDropdown(type?: ExtendedPatchUIDType): void {
     : Patches.Minecraft;
 }
 
+const queueSearch = useDebounceFn(handleVersionSearch, 300);
+
+onScopeDispose(queueSearch.cancel);
+
 onClickOutside(target, event => handleDropdown(false, event));
 </script>
 
@@ -151,9 +159,9 @@ onClickOutside(target, event => handleDropdown(false, event));
       type="text"
       :placeholder="`Version of '${currentPatch}'`"
       :tooltip="`Searching for this version of '${currentPatch}'...`"
-      :debounce-time="300"
+      :debounce-time="0"
       :default-value="currentVersionSearch?.input"
-      :on-input="handleVersionSearch"
+      :on-input="queueSearch"
       :on-escape="() => handleDropdown(false)"
       @click="() => handleDropdown(true)"
       :class-names="{ 'wrapper': 'h-8 flex-1' }"

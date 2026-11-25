@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use rayon::prelude::*;
@@ -39,6 +39,39 @@ pub(crate) fn staging_file(parent: &Path) -> io::Result<tempfile::NamedTempFile>
         }
         options.open(path)
     })
+}
+
+fn publish_accounts(
+    parent: &Path,
+    create_new: bool,
+    write: impl FnOnce(&mut std::fs::File) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut staged = staging_file(parent)?;
+    write(staged.as_file_mut())?;
+    staged.as_file().sync_all()?;
+    let destination = parent.join("accounts.json");
+    if create_new {
+        staged.persist_noclobber(destination)?;
+    } else {
+        staged.persist(destination)?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn save_accounts(
+    base_directory: PathBuf,
+    contents: String,
+    create_new: bool,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        publish_accounts(&base_directory, create_new, |file| {
+            file.write_all(contents.as_bytes())
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
@@ -179,6 +212,34 @@ fn verify_file_hash(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn failed_partial_account_write_preserves_original_and_retry_publishes() {
+        let dir = tempfile::tempdir().unwrap();
+        let destination = dir.path().join("accounts.json");
+        let save = |data: &[u8], create_new| {
+            publish_accounts(dir.path(), create_new, |file| file.write_all(data))
+        };
+        save(b"original", true).unwrap();
+        let interrupted = publish_accounts(dir.path(), false, |file| {
+            file.write_all(b"partial")?;
+            Err(io::Error::other("disk full"))
+        });
+        assert!(interrupted.is_err());
+        assert!(save(b"raced", true).is_err());
+        assert_eq!(std::fs::read(&destination).unwrap(), b"original");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        save(b"complete", false).unwrap();
+        assert_eq!(std::fs::read(&destination).unwrap(), b"complete");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                destination.metadata().unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+    }
+
     #[tokio::test]
     async fn fast_verification_accepts_legacy_paths_and_checks_file_sizes() {
         let dir = tempfile::tempdir().unwrap();

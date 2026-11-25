@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
+import { exists, readTextFile } from "@tauri-apps/plugin-fs";
 
 import FileStructure from "@/constants/file-structure.ts";
 import Errors from "@/lib/errors";
@@ -48,11 +49,6 @@ export function writeAccounts(input: AccountWrite): Promise<boolean> {
 async function persistAccounts(
   { accounts, baseDirectory }: AccountWrite, createNew = false,
 ): Promise<boolean> {
-  const accountsPath: string = FileManager.join(
-    baseDirectory ?? FileManager.getBaseDirectory(),
-    FileStructure.Files.Accounts,
-  );
-
   for (const [index, entry] of accounts.entries()) {
     const account: AccountType | false = Schemas.validate.account({
       "value": entry,
@@ -74,11 +70,11 @@ async function persistAccounts(
   }
 
   try {
-    await writeTextFile(
-      accountsPath,
-      JSON.stringify(accounts, null, 2),
-      { createNew },
-    );
+    await invoke("save_accounts", {
+      "baseDirectory": baseDirectory ?? FileManager.getBaseDirectory(),
+      "contents"     : JSON.stringify(accounts, null, 2),
+      createNew,
+    });
   } catch (error: unknown) {
     log.error(
       __PRE_BUNDLED_FILENAME__,

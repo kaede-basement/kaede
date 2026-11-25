@@ -18,11 +18,12 @@
 
 <script setup lang="ts">
 import { open } from "@tauri-apps/plugin-dialog";
-import { computed, ref } from "vue";
+import { computed, ref, shallowRef } from "vue";
 
 import CustomButton from "@/components/general/base/CustomButton.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
+import { useModpackImport } from "@/composables/use-modpack-import.ts";
 import { InstanceCreationSections } from "@/constants/application.ts";
 import Errors from "@/lib/errors";
 import { translate } from "@/lib/general/translate.ts";
@@ -33,10 +34,12 @@ import { globalStates } from "@/states/global.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 
+const beginImport = useModpackImport();
+
 const { styles } = useConfigColors();
 
 type ImportStatus = { "kind": "idle" | "loading" } | { "kind": "error"; "message": string };
-const status = ref<ImportStatus>({ "kind": "idle" });
+const status = shallowRef<ImportStatus>({ "kind": "idle" });
 
 const unsupportedPath = ref<string>();
 const imported = computed(
@@ -51,6 +54,8 @@ const displayedName = computed(() => (
 ));
 
 function clearSelection(): void {
+  beginImport();
+  status.value = { "kind": "idle" };
   if (imported.value) {
     Instances.resetPageStates();
   }
@@ -58,7 +63,11 @@ function clearSelection(): void {
 }
 
 async function handleImport(): Promise<void> {
-  status.value = { "kind": "loading" };
+  const current = beginImport();
+
+  const loading = { "kind": "loading" } as const;
+
+  status.value = loading;
 
   try {
     const selectedPath: string | null = await open({
@@ -68,29 +77,35 @@ async function handleImport(): Promise<void> {
       "filters"  : [{ "name": "Modpack", "extensions": ["mrpack", "zip"] }],
     });
 
-    if (!selectedPath) {
-      status.value = { "kind": "idle" };
-
+    if (!current() || !selectedPath) {
       return;
     }
 
     const manifest: MrpackManifestType | undefined =
       await Modrinth.peekMrpack(selectedPath);
 
+    if (!current()) {
+      return;
+    }
     unsupportedPath.value = manifest ? undefined : selectedPath;
     Modrinth.applyManifest({ manifest, "path": selectedPath });
     if (manifest) {
       globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
     }
-
-    status.value = { "kind": "idle" };
   } catch (error: unknown) {
+    if (!current()) {
+      return;
+    }
     status.value = { "kind": "error", "message": Errors.prettify(error) };
     log.error(
       __PRE_BUNDLED_FILENAME__,
       "Could not import modpack:",
       status.value.message,
     );
+  } finally {
+    if (status.value === loading) {
+      status.value = { "kind": "idle" };
+    }
   }
 }
 </script>

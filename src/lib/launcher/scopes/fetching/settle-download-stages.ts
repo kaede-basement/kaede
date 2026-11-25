@@ -15,10 +15,10 @@ export async function settleDownloadStages(
       return success;
     } finally {
       if (!success) {
-        controller.abort();
         cancellation ??= cancel().catch(error => {
           log.warn(__PRE_BUNDLED_FILENAME__, "Download cancellation failed:", String(error));
         });
+        controller.abort();
         await cancellation;
       }
     }

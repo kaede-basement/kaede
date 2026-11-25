@@ -179,6 +179,7 @@ pub fn run() {
             downloads::prepare_mrpack_install,
             modrinth::repair_legacy_mrpack,
             extensions::read_extensions,
+            file_system::save_accounts,
             file_system::verify_paths,
             file_system::verify_paths_hash,
             finalization::finalize_initialization,

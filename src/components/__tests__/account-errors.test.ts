@@ -8,6 +8,7 @@ import * as fs from "@tauri-apps/plugin-fs";
 import { expect, mock, spyOn, test } from "bun:test";
 import { computed, nextTick, shallowRef } from "vue";
 
+import { mockSaveAccounts } from "@/__mocks__/save-accounts.ts";
 import {
   ActionKeys, AuthStatesContextKey, TranslationsContextKey,
 } from "@/constants/application.ts";
@@ -46,8 +47,8 @@ test("all account mutations preserve corrupt disk bytes and both loaded profiles
 
   using read = spyOn(fs, "readTextFile")
     .mockImplementation(async () => readFileSync(filename, "utf8"));
-  using write = spyOn(fs, "writeTextFile").mockImplementation(async (_, raw, options) => {
-    await writeFile(filename, raw, { "flag": options?.createNew ? "wx" : "w" });
+  using write = mockSaveAccounts().mockImplementation(async ({ contents, createNew }) => {
+    await writeFile(filename, contents, { "flag": createNew ? "wx" : "w" });
   });
   using confirm = spyOn(dialog, "confirm").mockResolvedValue(true);
   using fresh = spyOn(Auth, "ensureFreshAccount")
