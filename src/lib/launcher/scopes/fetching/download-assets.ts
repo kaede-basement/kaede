@@ -33,7 +33,7 @@ import type {
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 import { downloadMissing } from "./download-missing.ts";
-import { downloadSucceeded, interruptedDownload } from "./download-outcome.ts";
+import { checkDownloadSignal, downloadSucceeded, interruptedDownload } from "./download-outcome.ts";
 
 export async function downloadAssets({
   necessaries,
@@ -73,12 +73,14 @@ export async function downloadAssets({
       log.warn(logPrefix, "No cache; fetching the assets metadata");
       statuses.current = LaunchStatus.AssetIndex.Fetching;
       const fetched: { "data": unknown } | LaunchStatusType = await fetchMetadata({
+        signal,
         "url"   : assetIndex.url,
         "label" : "assets index",
         "scope" : "AssetIndex",
         "prefix": metaFilename,
       });
 
+      checkDownloadSignal(signal);
       // Just return the assets index
       if (typeof fetched === "object") {
         return fetched.data;
@@ -113,6 +115,7 @@ export async function downloadAssets({
       },
     });
   } catch (error: unknown) {
+    if (signal?.aborted) return interruptedDownload(statuses);
     log.error(
       logPrefix,
       `${metaFilename} | Caught an error while getting the asset index:`,
@@ -122,6 +125,7 @@ export async function downloadAssets({
     return false;
   }
 
+  if (signal?.aborted) return interruptedDownload(statuses);
   log.debug(logPrefix, "Validating the assets metadata");
   const shallowlyValidIndex: AssetObjectsType | false = shallowlyValidateMeta({
     "meta": parsedIndex,

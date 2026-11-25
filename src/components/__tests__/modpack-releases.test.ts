@@ -243,8 +243,8 @@ test("an archive superseded during validation is removed; reset waits for its ac
     expect(remove.mock.calls).toEqual([[oldPath], [newPath]]);
   });
 
-for (const moveOutside of [true, false]) {
-  test("release import keyboard retry keeps intended focus, moved outside=" + moveOutside,
+for (const leave of [true, false]) {
+  test("release import keyboard retry keeps intended focus, moved outside=" + leave,
     async () => {
       const request = Promise.withResolvers<Response>();
 
@@ -257,11 +257,9 @@ for (const moveOutside of [true, false]) {
       await Bun.sleep(0);
       const document = view.root.ownerDocument;
       const button = view.root.querySelector("button")!;
-      const outside = document.createElement("button");
+      const other = document.createElement("button");
 
-      outside.id = "outside";
-
-      document.body.append(outside);
+      document.body.append(other);
       button.focus();
       pressEnter(view);
       await nextTick();
@@ -271,14 +269,15 @@ for (const moveOutside of [true, false]) {
       await scrollViewport(view, viewport, 1600);
       expect(button.isConnected).toBe(false);
       (document.activeElement as HTMLElement).blur();
-      if (moveOutside) outside.focus();
+      if (leave) other.focus();
       request.resolve(new Response(null, { "status": 503 }));
       await Bun.sleep(0);
-      expect(document.activeElement?.id).toBe(moveOutside ? outside.id : button.id);
+      expect(document.activeElement).toBe(leave ? other : document.getElementById("release-id-40"));
+      expect(viewport.scrollTop).toBe(1600);
       pressEnter(view);
       await Bun.sleep(0);
-      expect(fetch).toHaveBeenCalledTimes(moveOutside ? 1 : 2);
-      expect(peek).toHaveBeenCalledTimes(moveOutside ? 0 : 1);
-      expect(write).toHaveBeenCalledTimes(moveOutside ? 0 : 1);
+      expect(fetch).toHaveBeenCalledTimes(leave ? 1 : 2);
+      expect(peek).toHaveBeenCalledTimes(leave ? 0 : 1);
+      expect(write).toHaveBeenCalledTimes(leave ? 0 : 1);
     });
 }

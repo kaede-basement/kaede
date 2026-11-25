@@ -41,7 +41,11 @@ import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 import {
-  ArtifactDownloadFailure, beginLaunchAttempt, CancelledDownload, launchAttempts,
+  ArtifactDownloadFailure,
+  beginLaunchAttempt,
+  CancelledDownload,
+  checkDownloadSignal,
+  launchAttempts,
 } from "./fetching/download-outcome.ts";
 import { settleDownloadStages } from "./fetching/settle-download-stages.ts";
 
@@ -150,13 +154,17 @@ export async function handleLaunch({
   try {
     const entryPatch = await Patches.resolvePatch({
       necessaries,
+      "signal"  : attempt.signal,
       "metadata": { "uid": instance.entry },
     });
 
+    checkDownloadSignal(attempt.signal);
     if (!entryPatch) {
       return failed;
     }
-    allPatches = await Patches.resolveSubPatches({ "patchMeta": entryPatch, necessaries });
+    allPatches = await Patches.resolveSubPatches({
+      "patchMeta": entryPatch, necessaries, "signal": attempt.signal,
+    });
   } catch (error) {
     if (error instanceof ArtifactDownloadFailure) {
       return { ...failed, "reason": LaunchStatus.Errors.Artifact };

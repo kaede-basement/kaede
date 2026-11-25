@@ -26,7 +26,9 @@ import { sanitizeFileOrFolderName } from "@/lib/file-manager/path.ts";
 import { translate } from "@/lib/general/translate.ts";
 import { registerInstance } from "@/lib/instances/sync.ts";
 import { log } from "@/lib/logging/log.ts";
-import { persistImportArchive, setImportedModpack } from "@/lib/modrinth/import-archive.ts";
+import {
+  archiveIdentity, persistImportArchive, setImportedModpack,
+} from "@/lib/modrinth/import-archive.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
@@ -36,7 +38,13 @@ import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.typ
 
 type Page = GlobalStatesType["pages"]["add-instance"];
 type Import = { "path": string; "install": (id: string) => Promise<void> };
-const awaitingMetadata = new WeakMap<Page, { "directory": string; "path": string; "id": string }>;
+type PendingRegistration = {
+  "directory": string;
+  "path"     : string;
+  "identity" : string;
+  "id"       : string;
+};
+const awaitingMetadata = new WeakMap<Page, PendingRegistration>;
 
 function prepare(
   currentInstance: Page["instance"], uid: ExtendedPatchUIDType,
@@ -120,12 +128,14 @@ async function saveDraft(instance: InstanceStateType, pack?: Import): Promise<st
   const draft = page.instance;
   const archive = page.importedModpack;
   const draftValues = (): string => JSON.stringify([
-    page.instance, page.importedModpack, page.instanceVersionSearch?.patch,
+    page.instance, page.importedModpack, page.instanceVersionSearch,
   ]);
   const initialValues = draftValues();
   const directory = FileManager.getBaseDirectory();
+  const identity = pack && await archiveIdentity(pack.path);
   const pending = awaitingMetadata.get(page);
-  const retryId = pending && pending.directory === directory && pending.path === pack?.path
+  const retryId = pending && pending.directory === directory && pending.path === pack?.path &&
+    pending.identity === identity
     ? pending.id
     : undefined;
   const id = retryId ?? sanitizeFileOrFolderName(
@@ -136,8 +146,8 @@ async function saveDraft(instance: InstanceStateType, pack?: Import): Promise<st
     await pack.install(id);
   }
   if (!await registerInstance(id, instance)) {
-    if (pack) {
-      awaitingMetadata.set(page, { directory, "path": pack.path, id });
+    if (pack && identity) {
+      awaitingMetadata.set(page, { directory, "path": pack.path, identity, id });
     }
     const key = pack ? "import.metadata-save-error" : "instance.metadata-save-error";
 
@@ -148,17 +158,19 @@ async function saveDraft(instance: InstanceStateType, pack?: Import): Promise<st
     awaitingMetadata.delete(page);
   }
 
-  if (globalStates.currentPage === Routes.AddInstance &&
-    (page.tab ?? "clean-minecraft") === "clean-minecraft" &&
-    globalStates.pages["add-instance"] === page && page.instance === draft &&
+  if (globalStates.pages["add-instance"] === page && page.instance === draft &&
     page.importedModpack === archive && draftValues() === initialValues) {
     if (pack) {
-      globalStates.selected.currentInstance = id;
       setImportedModpack();
       page.lastCreated = undefined;
     }
     page.instance = undefined;
-    Router.navigate(Routes.Library);
+    page.instanceVersionSearch = undefined;
+    if (globalStates.currentPage === Routes.AddInstance &&
+      (page.tab ?? "clean-minecraft") === "clean-minecraft") {
+      globalStates.selected.currentInstance = id;
+      Router.navigate(Routes.Home);
+    }
   }
 
   return id;

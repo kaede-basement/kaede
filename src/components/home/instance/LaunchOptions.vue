@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { message } from "@tauri-apps/plugin-dialog";
 import { onClickOutside } from "@vueuse/core";
 import { computed, type ComputedRef, inject, ref, useTemplateRef } from "vue";
 
@@ -10,6 +9,7 @@ import {
   LaunchOptionItems,
 } from "@/constants/application.ts";
 import { ActionRegistry } from "@/extendable/action-registry.ts";
+import Errors from "@/lib/errors";
 import { translate } from "@/lib/general/translate.ts";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
@@ -51,7 +51,7 @@ function wrapAction(item: (typeof LaunchOptionItems)[number], event: MouseEvent)
   const instance = Instances.findCurrent(globalStates?.selected?.currentInstance);
 
   if (instance === undefined) {
-    void message(translate("general.launch-status.instance-error"), { "kind": "error" });
+    void Errors.showError(translate("general.launch-status.instance-error"));
 
     return;
   }
@@ -61,7 +61,7 @@ function wrapAction(item: (typeof LaunchOptionItems)[number], event: MouseEvent)
 
   void ActionRegistry
     .execute(item.action, { event, item, instance, "launch": launchInstance }, () => {
-      void message(translate("general.launch-status.errors-unhandled-error"), { "kind": "error" });
+      void Errors.showError(translate("general.launch-status.errors-unhandled-error"));
     })
     .finally(() => disabled.value.delete(item.label));
 }

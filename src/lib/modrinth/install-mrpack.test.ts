@@ -143,7 +143,7 @@ test("remount retains the install and its completion preserves the newer draft",
   }
 });
 
-test("registration awaits the instance write and preserves an active Modrinth tab", async () => {
+test("registration consumes the saved draft and preserves an active Modrinth tab", async () => {
   using initial = spyOn(Router, "getInitialPage").mockReturnValue(Routes.AddInstance);
   declareGlobalStates();
   declareInstanceStates();
@@ -181,8 +181,9 @@ test("registration awaits the instance write and preserves an active Modrinth ta
   const id = await registered;
 
   expect(instanceStates[id].name).toBe("Pack");
-  expect(page.instance.name).toBe("Pack");
-  expect(page.importedModpack.path).toBe("pack");
+  expect(page.instance).toBeUndefined();
+  expect(page.importedModpack).toBeUndefined();
+  expect(page.tab).toBe("modrinth");
   expect(globalStates.currentPage).toBe(Routes.AddInstance);
 });
 

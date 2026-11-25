@@ -54,11 +54,11 @@ export async function mountComponent(
   const target = await component(name, nested);
   const renderer = createRenderer<Node, Element>({
     ...nodeOps,
-    patchProp(element, key, previous, value): void {
+    patchProp(element, key, previous, value, namespace, parentComponent): void {
       if (element.tagName === "TEST-CHILD") {
         Reflect.set(element, key, value);
       } else {
-        patchProp(element, key, previous, value);
+        patchProp(element, key, previous, value, namespace, parentComponent);
       }
     },
     createElement(tag): Element {

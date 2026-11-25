@@ -17,6 +17,10 @@ export function beginLaunchAttempt(statuses: LauncherStatusesType): LaunchAttemp
 export class ArtifactDownloadFailure extends Error {}
 export class CancelledDownload extends Error {}
 
+export function checkDownloadSignal(signal?: AbortSignal): void {
+  if (signal?.aborted) throw (new CancelledDownload);
+}
+
 export function interruptedDownload(statuses: LauncherStatusesType): false {
   if (launchAttempts.has(statuses)) {
     throw (new CancelledDownload);

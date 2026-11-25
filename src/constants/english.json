@@ -18,6 +18,7 @@
     "versions.failed": "Could not load versions.",
     "java.failed": "Could not detect Java runtimes.",
     "java.empty": "No Java runtimes found",
+    "profile.accounts.removed": "This account was removed before the refresh finished.",
     "profile.accounts.save-error": "Could not save accounts. Please try again.",
     "import.no-manifest": "No Modrinth manifest inside",
     "import.read-error": "Could not read the archive",

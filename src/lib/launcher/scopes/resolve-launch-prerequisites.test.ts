@@ -1,7 +1,9 @@
+import "@/extendable/global-object.ts";
+
 import { expect, spyOn, test } from "bun:test";
 import { shallowRef } from "vue";
 
-import Auth from "@/lib/auth";
+import * as resolution from "@/lib/auth/scopes/resolve-launch-account.ts";
 import Launcher from "@/lib/launcher";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
@@ -20,10 +22,10 @@ test("profile changes during the Java probe survive a committed refresh", async 
   const refresh = Promise.withResolvers<void>();
 
   using java = spyOn(Launcher, "fetchJavaMajor").mockReturnValue(probe.promise);
-  using auth = spyOn(Auth, "resolveLaunchAccount").mockImplementation(async () => {
+  using auth = spyOn(resolution, "resolveLaunchAccountOutcome").mockImplementation(async () => {
     await refresh.promise;
 
-    return { "auth": Auth.buildLaunchAuth(refreshed), "accounts": [refreshed] };
+    return { "status": "ready", "account": refreshed, "accounts": [refreshed] };
   });
   const launch = resolveLaunchPrerequisites(accounts, "java", (new AbortController).signal);
 

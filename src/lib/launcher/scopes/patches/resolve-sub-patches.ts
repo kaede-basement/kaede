@@ -26,7 +26,9 @@ import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch
 export async function resolveSubPatches({
   necessaries,
   patchMeta,
+  signal,
 }: {
+  "signal"?    : AbortSignal;
   "necessaries": PreLaunchInformationType;
   "patchMeta"  : SpecificPatchMetaType;
 }): Promise<Array<SpecificPatchMetaType>> {
@@ -77,7 +79,7 @@ export async function resolveSubPatches({
       const key = keys[index];
 
       if (!cache.has(key)) {
-        cache.set(key, await resolveDependency({ necessaries, metadata, patchMeta }));
+        cache.set(key, await resolveDependency({ necessaries, metadata, patchMeta, signal }));
       }
 
       return cache.get(key);

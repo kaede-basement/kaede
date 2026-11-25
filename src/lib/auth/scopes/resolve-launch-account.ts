@@ -20,86 +20,60 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 
 import { buildLaunchAuth } from "@/lib/auth/scopes/build-launch-auth.ts";
 import { ensureFreshAccount } from "@/lib/auth/scopes/ensure-fresh-account.ts";
-import Configs from "@/lib/configs";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 import type { LaunchAuthType } from "@/types/auth/microsoft-auth.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
-/**
- * Returning undefined means no instance will be launched
- *
- * @param accounts - an array of accounts to resolve the account from
- */
+import { commitAccountRefresh, snapshotAccount } from "./commit-account-refresh.ts";
+
+export type AccountResolution =
+  | { "status": "ready"; "account": AccountType; "accounts": Array<AccountType> }
+  | { "status": "missing" }
+  | { "status": "cancelled" };
+
 export async function resolveLaunchAccount(
   accounts: Array<AccountType>, signal?: AbortSignal,
-): Promise<{
-  "auth"    : LaunchAuthType;
-  "accounts": Array<AccountType>;
-} | undefined> {
-  return resolveAccountAtIndex(accounts, globalStates.selected.account, signal);
+): Promise<{ "auth": LaunchAuthType; "accounts": Array<AccountType> } | undefined> {
+  const result = await resolveLaunchAccountOutcome(accounts, signal);
+
+  if (result.status === "ready") {
+    return { "auth": buildLaunchAuth(result.account), "accounts": result.accounts };
+  }
 }
 
-export async function resolveAccountAtIndex(
-  accounts: Array<AccountType>,
-  selectedIndex: number, signal?: AbortSignal,
-): ReturnType<typeof resolveLaunchAccount> {
-  const activeAccount: AccountType | undefined = accounts[selectedIndex];
+export async function resolveLaunchAccountOutcome(
+  accounts: Array<AccountType>, signal?: AbortSignal, selectedIndex = globalStates.selected.account,
+): Promise<AccountResolution> {
+  const activeAccount = accounts[selectedIndex];
 
   if (!activeAccount) {
-    log.info(
-      __PRE_BUNDLED_FILENAME__,
-      "No accounts are present",
-    );
+    log.info(__PRE_BUNDLED_FILENAME__, "No accounts are present");
 
-    return undefined;
+    return { "status": "missing" };
   }
-
+  const snapshot = snapshotAccount(activeAccount);
   const { account, status } = await ensureFreshAccount(activeAccount);
 
-  if (signal?.aborted) return;
+  if (signal?.aborted) return { "status": "cancelled" };
   if (status === "failed") {
-    const toContinue: boolean = await confirm(
+    const toContinue = await confirm(
       "An error happened while refreshing a token for the selected account." +
-      "\n" +
-      "Do you want to continue launching Minecraft? You won't be able to play on premium servers.",
+      "\nDo you want to continue launching Minecraft? " +
+      "You won't be able to play on premium servers.",
       "Account refreshing",
     );
 
-    if (!toContinue || signal?.aborted) {
-      return undefined;
-    }
+    if (!toContinue || signal?.aborted) return { "status": "cancelled" };
   }
-
   if (status !== "refreshed") {
-    return {
-      "auth": buildLaunchAuth(account),
-      accounts,
-    };
+    return { "status": "ready", account, accounts };
   }
 
-  if (activeAccount.profile.uuid !== account.profile.uuid) {
-    throw new Error("The refreshed account does not match the selected profile");
-  }
+  const committed = await commitAccountRefresh(snapshot, account, signal);
 
-  const updatedAccounts = await Configs.updateAccounts(current => {
-    if (signal?.aborted) return;
-    const index = current.findIndex(({ profile }) => profile.uuid === account.profile.uuid);
+  if (signal?.aborted) return { "status": "cancelled" };
+  if (!committed.account) return { "status": "missing" };
 
-    if (index === -1) {
-      return;
-    }
-
-    const next = [...current];
-
-    next[index] = account;
-
-    return next;
-  });
-
-  if (!updatedAccounts.some(({ profile }) => profile.uuid === account.profile.uuid)) {
-    return;
-  }
-
-  return { "auth": buildLaunchAuth(account), "accounts": updatedAccounts };
+  return { "status": "ready", "account": committed.account, "accounts": committed.accounts };
 }

@@ -26,6 +26,7 @@ import FileStructure from "@/constants/file-structure.ts";
 import { ActionRegistry } from "@/extendable/action-registry.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Auth from "@/lib/auth";
+import { commitAccountRefresh, snapshotAccount } from "@/lib/auth/scopes/commit-account-refresh.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
@@ -47,14 +48,11 @@ export function declareActionRegistry(): void {
     async ({ account, accounts, handlers }: AccountActionPropertiesType) => {
       // We use 'pending' only for time-consuming tasks
       handlers.pending();
+      const snapshot = snapshotAccount(account);
       const result: EnsureFreshResultType = await Auth.ensureFreshAccount(account, true);
 
       if (result.status === "failed") {
         return handlers.error("Failed to refresh the account");
-      }
-
-      if (result.status === "fresh") {
-        return handlers.success();
       }
 
       if (!accounts?.value) {
@@ -63,9 +61,12 @@ export function declareActionRegistry(): void {
       }
 
       try {
-        accounts.value = await Configs.updateAccounts(stored => stored.map(current => (
-          current.profile.uuid === account.profile.uuid ? result.account : current
-        )));
+        const committed = await commitAccountRefresh(
+          snapshot, result.status === "refreshed" ? result.account : undefined,
+        );
+
+        accounts.value = committed.accounts;
+        if (!committed.account) return handlers.error(translate("profile.accounts.removed"));
       } catch (error) {
         return handlers.error(translate("profile.accounts.save-error"), error);
       }

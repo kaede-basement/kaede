@@ -65,7 +65,9 @@ const { data, status, error } = useQuery({
 
 const releases = computed(() => data.value ?? []);
 const rowHeight = 40;
-const { list, containerProps, wrapperProps, scrollTo } = useVersionViewport(releases, rowHeight);
+const {
+  list, containerProps, wrapperProps, focusFirstVisible,
+} = useVersionViewport(releases, rowHeight);
 
 async function handleClick(
   entry: (typeof releases.value)[number], event: MouseEvent,
@@ -140,16 +142,8 @@ async function handleClick(
       active.value = undefined;
       if (importError.value && wasFocused) {
         await nextTick();
-        if (current() && document.activeElement === document.body && !button.isConnected) {
-          const index = releases.value.findIndex(release => release.id === entry.id);
-
-          if (index !== -1) {
-            scrollTo(index);
-            await nextTick();
-          }
-        }
         if (current() && document.activeElement === document.body) {
-          document.getElementById(button.id)?.focus({ "preventScroll": true });
+          focusFirstVisible();
         }
       }
     }

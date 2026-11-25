@@ -75,7 +75,7 @@ test("Minecraft-only import replaces Fabric and metadata retry keeps the install
     expect(Object.keys(instanceStates)).toEqual([id]);
     expect(page.importedModpack).toBeUndefined();
     expect(remove).toHaveBeenCalledWith(path);
-    expect(globalStates.currentPage).toBe(Routes.Library);
+    expect(globalStates.currentPage).toBe(Routes.Home);
   });
 
 test("clean instance creation preserves the draft and library on a failed metadata write",
@@ -101,10 +101,10 @@ test("clean instance creation preserves the draft and library on a failed metada
       await save.promise;
     })
       .mockResolvedValue();
-    using message = spyOn(dialog, "message").mockResolvedValue("Ok");
+    using message = spyOn(dialog, "message").mockRejectedValueOnce(new Error("dialog unavailable"));
     using view = await mountComponent("add-instance/sections/CreateInstance", {}, app => {
       app.provide(LaunchStatesContextKey, {});
-    });
+    }, [], true);
     const button = view.root.querySelector("button")!;
 
     button.click();
@@ -116,12 +116,15 @@ test("clean instance creation preserves the draft and library on a failed metada
     expect(message.mock.calls[0]?.[0]).toContain("save instance metadata");
     expect(instanceStates).toEqual({ existing });
     expect(page.instance).toEqual(draft);
+    expect(view.root.contains(button)).toBe(true);
+    expect(button.disabled).toBe(false);
     expect(globalStates.selected.currentInstance).toBe(selected);
     expect(globalStates.currentPage).toBe(Routes.AddInstance);
     button.click();
     await Bun.sleep(0);
     expect(write).toHaveBeenCalledTimes(2);
     expect(Object.keys(instanceStates)).toHaveLength(2);
+    expect(instanceStates[globalStates.selected.currentInstance!].name).toBe(draft.name);
     expect(JSON.parse(write.mock.lastCall![1])).toEqual(instanceStates);
-    expect(globalStates.currentPage).toBe(Routes.Library);
+    expect(globalStates.currentPage).toBe(Routes.Home);
   });

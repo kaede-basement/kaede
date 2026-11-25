@@ -34,7 +34,7 @@ test("launch options report rejected callbacks and stay quiet on deliberate stop
     .mockResolvedValue(false);
 
   Actions[key] = action;
-  using notify = spyOn(dialog, "message").mockResolvedValue("Ok");
+  using notify = spyOn(dialog, "message").mockRejectedValueOnce(new Error("dialog unavailable"));
   using view = await mountComponent("home/instance/LaunchOptions", {}, app => {
     app.provide(LaunchInstanceContextKey, mock());
     app.provide(LaunchInstanceStatusesContextKey, { "launchable": computed(() => true) });

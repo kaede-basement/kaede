@@ -1,5 +1,6 @@
 import { remove, writeTextFile } from "@tauri-apps/plugin-fs";
 
+import Hashing from "@/lib/hashing.ts";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
@@ -11,6 +12,11 @@ export async function reserveImportArchive(path: string): Promise<void> {
   // Reserve the name first so a failed binary write can safely remove its partial file.
   await writeTextFile(path, "", { "createNew": true });
   owners.set(path, 1);
+}
+
+export async function archiveIdentity(path: string): Promise<string> {
+  // A download exclusively owns its unique cache path; a picked local file can be replaced.
+  return owners.has(path) ? path : Hashing.hashPath(path, Hashing.Algorithms.SHA256);
 }
 
 export function persistImportArchive(path: string): void {

@@ -107,6 +107,14 @@ function trackDownloads(instanceId: string): LauncherStatusesType {
   return instanceStatuses[instanceId];
 }
 
+async function report(detail: string, options: Parameters<typeof message>[1]): Promise<void> {
+  try {
+    await message(detail, options);
+  } catch (error) {
+    log.error(__PRE_BUNDLED_FILENAME__, "Could not display dialog:", String(error));
+  }
+}
+
 async function handleCreate(): Promise<void> {
   const archive = imported.value;
 
@@ -141,7 +149,7 @@ async function handleCreate(): Promise<void> {
     });
   } catch (error: unknown) {
     if (error === "Installation cancelled") {
-      await message(error, { "title": "Modpack installation", "kind": "info" });
+      await report(error, { "title": "Modpack installation", "kind": "info" });
 
       return;
     }
@@ -150,7 +158,7 @@ async function handleCreate(): Promise<void> {
     const title = archive ? "Modpack installation failed" : translate("instance.creation-failed");
 
     log.error(__PRE_BUNDLED_FILENAME__, title, detail);
-    await message(detail, { title, "kind": "error" });
+    await report(detail, { title, "kind": "error" });
   } finally {
     creating.value = false;
   }

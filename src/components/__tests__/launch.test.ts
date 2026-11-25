@@ -7,7 +7,9 @@ import { CustomPatches } from "@/constants/meta.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import FileManager from "@/lib/file-manager";
 import Launcher from "@/lib/launcher";
-import { downloadSucceeded } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
+import {
+  beginLaunchAttempt, CancelledDownload, downloadSucceeded,
+} from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { cancelLaunchDownloads } from "@/lib/launcher/scopes/handle-launch.ts";
 import Network from "@/lib/network";
 import Watchers from "@/lib/watchers";
@@ -23,6 +25,7 @@ import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 import { mountComponent } from "./mount-component.ts";
+import { stallFetch } from "./stall-metadata-fetch.ts";
 import { useUiState } from "./ui-state.ts";
 
 useUiState();
@@ -132,6 +135,26 @@ test("launch reports missing account and hydration errors, and cancels quietly",
     expect(notify).toHaveBeenCalledTimes(3);
     expect(cache).toHaveBeenCalledTimes(1);
   }
+  instanceStates.game.entry = "net.minecraft";
+  for (const version of [undefined, "1.21"]) {
+    if (version) instanceStates.game.patchVersions["net.minecraft"] = version;
+    const entered = Promise.withResolvers<void>();
+
+    using cache = spyOn(FileManager, "handleJsonFile")
+      .mockImplementation(({ getDefaultValue }) => getDefaultValue());
+    using fetch = stallFetch(entered.resolve);
+    const pending = launch("game");
+
+    await entered.promise;
+    const state = GlobalInternals.instanceContext!.launches.game;
+
+    await cancelLaunchDownloads(state);
+    await pending;
+    expect(state.current).toBe("general-aborted");
+    expect(notify).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(cache).toHaveBeenCalledTimes(1);
+  }
   const patch = {} as SpecificPatchMetaType;
 
   cleanup.use(spyOn(Launcher.Patches, "resolvePatch").mockResolvedValue(patch));
@@ -232,4 +255,30 @@ test("launch reports missing account and hydration errors, and cancels quietly",
   expect(watch).toHaveBeenCalledTimes(3);
   expect(instanceStates.game.lastLaunch).toBe(0);
   expect(view.root.textContent).toBe("");
+});
+
+test("Stop interrupts an uncached asset index before any artifact transfer", async () => {
+  const entered = Promise.withResolvers<void>();
+  const statuses = {} as PreLaunchInformationType["statuses"];
+  const attempt = beginLaunchAttempt(statuses);
+
+  using cache = spyOn(FileManager, "handleJsonFile")
+    .mockImplementation(({ getDefaultValue }) => getDefaultValue());
+  using fetch = stallFetch(entered.resolve);
+  using download = spyOn(Network, "concurrentlyDownload");
+  const pending = Launcher.Fetching.downloadAssets({
+    "necessaries"   : { statuses, "directories": {} } as PreLaunchInformationType,
+    "finalizedPatch": {
+      "assetIndex": { "url": "https://example.org/index.json", "id": "test" },
+    } as FinalizedPatchType,
+    "signal": attempt.signal,
+  });
+
+  await entered.promise;
+  await cancelLaunchDownloads(statuses);
+  await expect(pending).rejects.toBeInstanceOf(CancelledDownload);
+  expect(statuses.current).toBe("asset-index-pending-fetching");
+  expect(cache).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(download).not.toHaveBeenCalled();
 });

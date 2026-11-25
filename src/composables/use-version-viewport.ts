@@ -30,13 +30,16 @@ export function useVersionViewport<T>(
       const { activeElement, body } = element.ownerDocument;
 
       if (activeElement === body || !activeElement?.isConnected) {
-        focusVisibleRow(element);
+        focusFirstVisible();
       }
     }
     previousFocus = null;
   });
 
-  function focusVisibleRow(element: HTMLElement): void {
+  function focusFirstVisible(): void {
+    const element = container.value;
+
+    if (!element) return;
     const firstVisible = Math.min(
       items.value.length - 1, Math.max(0, Math.floor(element.scrollTop / rowHeight)),
     );
@@ -48,12 +51,12 @@ export function useVersionViewport<T>(
     target?.focus({ "preventScroll": true });
   }
 
-  function focusFirstVisible(): void {
+  function focusFromContainer(): void {
     const element = container.value;
 
-    if (element && element.ownerDocument.activeElement === element) focusVisibleRow(element);
+    if (element && element.ownerDocument.activeElement === element) focusFirstVisible();
   }
-  watch(viewport.list, focusFirstVisible, { "flush": "post" });
+  watch(viewport.list, focusFromContainer, { "flush": "post" });
 
   async function retry(event: MouseEvent, refetch: () => Promise<unknown>): Promise<void> {
     const element = container.value;
@@ -63,7 +66,7 @@ export function useVersionViewport<T>(
     }
     await refetch();
     await nextTick();
-    focusFirstVisible();
+    focusFromContainer();
   }
 
   return { ...viewport, retry, focusFirstVisible };

@@ -6,7 +6,7 @@ import * as store from "@/lib/configs/scopes/account-store.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
 import * as refresh from "./ensure-fresh-account.ts";
-import { resolveAccountAtIndex } from "./resolve-launch-account.ts";
+import { resolveLaunchAccountOutcome } from "./resolve-launch-account.ts";
 
 function profile(uuid: string): AccountType {
   return {
@@ -29,14 +29,15 @@ test("refresh merges by UUID against the latest persisted accounts", async () =>
     .mockResolvedValue(JSON.stringify([added, second, first]));
   using write = mockSaveAccounts().mockResolvedValue();
 
-  const result = await resolveAccountAtIndex([first, second], 1);
+  const result = await resolveLaunchAccountOutcome([first, second], undefined, 1);
 
   expect(fresh).toHaveBeenCalledWith(second);
-  expect(result?.accounts).toEqual([added, refreshed, first]);
+  expect(result.status === "ready" && result.accounts).toEqual([added, refreshed, first]);
   expect(JSON.parse(write.mock.calls[0][0].contents)).toEqual([added, refreshed, first]);
 
   latest.mockResolvedValue(JSON.stringify([added, first]));
-  expect(await resolveAccountAtIndex([first, second], 1)).toBeUndefined();
+  expect(await resolveLaunchAccountOutcome([first, second], undefined, 1))
+    .toEqual({ "status": "missing" });
   expect(write).toHaveBeenCalledTimes(1);
 });
 
@@ -55,11 +56,12 @@ test("concurrent refreshes preserve both updates and recover from a failed write
   });
 
   write.mockRejectedValueOnce(new Error("write failed"));
-  await expect(resolveAccountAtIndex(original, 0)).rejects.toThrow("Failed to save");
+  await expect(resolveLaunchAccountOutcome(original, undefined, 0))
+    .rejects.toThrow("Failed to save");
   await Promise.all([
-    resolveAccountAtIndex(original, 0),
+    resolveLaunchAccountOutcome(original, undefined, 0),
     Configs.updateAccounts(current => [...current, profile("added")]),
-    resolveAccountAtIndex(original, 1),
+    resolveLaunchAccountOutcome(original, undefined, 1),
     Configs.updateAccounts(current => current.filter(entry => entry.profile.uuid !== "removed")),
   ]);
 

@@ -77,7 +77,11 @@ async function handleClose(): Promise<void> {
   const toClose: boolean = await ask(
     "Do you really want to cancel the Minecraft launch?",
     "Minecraft",
-  );
+  ).catch(error => {
+    log.error(__PRE_BUNDLED_FILENAME__, "Could not confirm Stop:", String(error));
+
+    return false;
+  });
 
   if (!toClose) {
     return;

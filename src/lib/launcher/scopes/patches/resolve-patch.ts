@@ -34,9 +34,12 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
-import { ArtifactDownloadFailure, CancelledDownload } from "../fetching/download-outcome.ts";
+import {
+  ArtifactDownloadFailure, CancelledDownload, checkDownloadSignal,
+} from "../fetching/download-outcome.ts";
 
 export async function resolvePatch(request: {
+  "signal"?    : AbortSignal;
   "necessaries": PreLaunchInformationType;
   "metadata"   : PatchDependencyType;
   "patchMeta" ?: SpecificPatchMetaType;
@@ -49,6 +52,7 @@ export async function resolveDependency({
   necessaries,
   metadata,
   patchMeta,
+  signal,
 }: Parameters<typeof resolvePatch>[0]): Promise<SpecificPatchMetaType | false | undefined> {
   const beforeHooksResult: "continue" | SpecificPatchMetaType | false | undefined =
     await Hooks.catchAsyncResponseHooks<SpecificPatchMetaType | false>({
@@ -62,8 +66,11 @@ export async function resolveDependency({
   }
 
   const { directories, statuses, logPrefix } = necessaries;
-  const version: string | false = await Patches.resolvePatchVersion({ necessaries, metadata });
+  const version: string | false = await Patches.resolvePatchVersion({
+    necessaries, metadata, signal,
+  });
 
+  checkDownloadSignal(signal);
   if (version === false) {
     return false;
   }
@@ -104,12 +111,14 @@ export async function resolveDependency({
       );
       statuses.current = LaunchStatus.PatchMetadata.Fetching;
       const fetched: { "data": unknown } | LaunchStatusType = await Fetching.fetchMetadata({
+        signal,
         "url"   : url,
         "label" : "patch metadata",
         "scope" : "PatchMetadata",
         "prefix": descriptiveLogPrefix,
       });
 
+      checkDownloadSignal(signal);
       // Just return the patch metadata
       if (typeof fetched === "object") {
         return fetched.data;
@@ -144,6 +153,7 @@ export async function resolveDependency({
     if (error instanceof CancelledDownload || error instanceof ArtifactDownloadFailure) {
       throw error;
     }
+    checkDownloadSignal(signal);
     log.error(
       descriptiveLogPrefix,
       "Caught an error while getting the patch metadata:",
@@ -153,6 +163,7 @@ export async function resolveDependency({
     return false;
   }
 
+  checkDownloadSignal(signal);
   log.debug(descriptiveLogPrefix, "Validating the patch metadata");
   const validPatch: SpecificPatchMetaType | false = Schemas.validate.patchMeta({
     "value": parsedPatch,

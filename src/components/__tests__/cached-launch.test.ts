@@ -9,7 +9,7 @@ import {
   LaunchInstanceContextKey, LaunchStatesContextKey,
 } from "@/constants/application.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
-import Auth from "@/lib/auth";
+import * as resolution from "@/lib/auth/scopes/resolve-launch-account.ts";
 import Launcher from "@/lib/launcher";
 import Processes from "@/lib/processes";
 import Watchers from "@/lib/watchers";
@@ -55,7 +55,7 @@ for (const outcome of ["stopped", "exited", "still running", "stalled Java", "st
       app.provide(LaunchStatesContextKey, launches);
       app.provide(CloseInstanceContextKey, closeInstance);
       app.provide(LaunchInstanceContextKey, launchInstance);
-    });
+    }, [], true);
     using launch = spyOn(Launcher, "handleLaunch").mockImplementation(async input => (
       Launcher.spawnMinecraft({
         ...input, "command"    : { "java": "java", "arguments": [] },
@@ -79,7 +79,7 @@ for (const outcome of ["stopped", "exited", "still running", "stalled Java", "st
         return 17;
       }));
     } else if (outcome === "stalled account") {
-      cleanup.use(spyOn(Auth, "resolveLaunchAccount").mockImplementation(async () => {
+      cleanup.use(spyOn(resolution, "resolveLaunchAccountOutcome").mockImplementation(async () => {
         entered.resolve();
         await resume.promise;
         throw new Error("late refresh failure");
@@ -116,6 +116,14 @@ for (const outcome of ["stopped", "exited", "still running", "stalled Java", "st
     const stop = view.root.querySelector<HTMLButtonElement>("[id$=abort-button]")!;
 
     expect(stop.disabled).toBe(false);
+    if (outcome === "stalled Java") {
+      ask.mockRejectedValueOnce(new Error("dialog unavailable"));
+      stop.click();
+      await Bun.sleep(0);
+      expect(launches.game.launching).toBe(1);
+      expect(view.root.contains(stop)).toBe(true);
+      expect(stop.disabled).toBe(false);
+    }
     stop.click();
     await Bun.sleep(0);
     if (outcome.startsWith("stalled")) {

@@ -13,6 +13,7 @@ import {
 } from "@/constants/application.ts";
 import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
+import { buildLaunchAuth } from "@/lib/auth/scopes/build-launch-auth.ts";
 import { accountStoreError } from "@/lib/configs/scopes/account-store.ts";
 import Errors from "@/lib/errors";
 import { translate } from "@/lib/general/translate.ts";
@@ -159,11 +160,12 @@ async function startInstance(
       accounts, options?.javaPath, attempt.signal,
     );
 
-    const account = prerequisites?.[1];
-    const present = account && accounts.value.some(entry => entry.profile.uuid === account.uuid);
+    const resolved = prerequisites?.[1];
+    const active = resolved?.status === "ready" &&
+      accounts.value.find(entry => entry.profile.uuid === resolved.account.profile.uuid);
 
-    if (!present || attempt.signal.aborted) {
-      if (account && !present && !attempt.signal.aborted) {
+    if (!active || attempt.signal.aborted) {
+      if (resolved && resolved.status !== "cancelled" && !attempt.signal.aborted) {
         await Errors.showError(translate("general.launch-status.missing-account"));
       }
       statuses.launching = 0;
@@ -179,7 +181,7 @@ async function startInstance(
         "javaBinary": options?.javaPath ?? currentInstance.instance.javaBinary,
         "javaMajor" : javaMajor,
         "versions"  : currentInstance.instance.patchVersions,
-        account,
+        "account"   : buildLaunchAuth(active),
       },
       instanceId,
       statuses,
