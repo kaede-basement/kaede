@@ -19,25 +19,15 @@
     "icon": "i-lucide-mouse-pointer-click",
     "description": "Allows the extension to change the user interface of Kaede and act on your interactions"
   },
-  "events::page": {
-    "label": "",
-    "icon": "i-lucide-hat-glasses",
-    "description": ""
-  },
-  "events::instance-selection": {
-    "label": "",
-    "icon": "i-lucide-hat-glasses",
-    "description": ""
-  },
   "internet::http-get": {
-    "label": "",
+    "label": "fetch data",
     "icon": "i-lucide-globe",
-    "description": ""
+    "description": "Allows the extension to read from the requested URL scope."
   },
   "internet::http-post": {
-    "label": "",
+    "label": "send data",
     "icon": "i-lucide-globe",
-    "description": ""
+    "description": "Allows the extension to send data to the requested URL scope."
   },
   "log::write": {
     "label": "log messages",
@@ -48,30 +38,5 @@
     "label": "read logs",
     "icon": "i-lucide-eye",
     "description": "Allows the extension to read launcher logs"
-  },
-  "log::stream": {
-    "label": "stream logs",
-    "icon": "i-lucide-view",
-    "description": "Allows the extension to constantly read all the latest launcher logs"
-  },
-  "internal-storage::read": {
-    "label": "",
-    "icon": "i-lucide-package-search",
-    "description": ""
-  },
-  "internal-storage::write": {
-    "label": "",
-    "icon": "i-lucide-package-open",
-    "description": ""
-  },
-  "external-storage::read": {
-    "label": "",
-    "icon": "i-lucide-folder-key",
-    "description": ""
-  },
-  "external-storage::write": {
-    "label": "",
-    "icon": "i-lucide-folder-key",
-    "description": ""
   }
 }

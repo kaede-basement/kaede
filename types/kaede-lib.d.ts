@@ -323,6 +323,7 @@ export type ExtensionsType = {
 	}>;
 	"permissions": Record<string, Record<string, boolean>>;
 	"enabled": boolean;
+	"sandboxEngine"?: "ses" | "worker";
 	"allowUnrestrictedUntrusted": boolean;
 	"showAppAfterExtensionsLoad": boolean;
 };
@@ -943,11 +944,6 @@ declare const _default$9: {
 		readonly ExpirationMargin: 300000;
 	};
 };
-export type PermissionsObjectType = typeof Permissions$1;
-export type PermissionsKeyType = keyof PermissionsObjectType;
-export type PermissionType = {
-	[Key in PermissionsKeyType]: PermissionsObjectType[Key][keyof PermissionsObjectType[Key]];
-}[PermissionsKeyType];
 declare const Permissions$1: {
 	readonly Time: {
 		readonly Performance: "time::performance";
@@ -957,10 +953,6 @@ declare const Permissions$1: {
 		readonly Basic: "ui::basic";
 		readonly Interactivity: "ui::interactivity";
 	};
-	readonly Events: {
-		readonly Page: "events::page";
-		readonly InstanceSelection: "events::instance-selection";
-	};
 	readonly Internet: {
 		readonly HTTPGet: "internet::http-get";
 		readonly HTTPPost: "internet::http-post";
@@ -968,15 +960,6 @@ declare const Permissions$1: {
 	readonly Log: {
 		readonly Write: "log::write";
 		readonly Read: "log::read";
-		readonly Stream: "log::stream";
-	};
-	readonly InternalStorage: {
-		readonly Read: "internal-storage::read";
-		readonly Write: "internal-storage::write";
-	};
-	readonly ExternalStorage: {
-		readonly Read: "external-storage::read";
-		readonly Write: "external-storage::write";
 	};
 };
 declare const _default$10: {
@@ -989,10 +972,6 @@ declare const _default$10: {
 			readonly Basic: "ui::basic";
 			readonly Interactivity: "ui::interactivity";
 		};
-		readonly Events: {
-			readonly Page: "events::page";
-			readonly InstanceSelection: "events::instance-selection";
-		};
 		readonly Internet: {
 			readonly HTTPGet: "internet::http-get";
 			readonly HTTPPost: "internet::http-post";
@@ -1000,19 +979,11 @@ declare const _default$10: {
 		readonly Log: {
 			readonly Write: "log::write";
 			readonly Read: "log::read";
-			readonly Stream: "log::stream";
-		};
-		readonly InternalStorage: {
-			readonly Read: "internal-storage::read";
-			readonly Write: "internal-storage::write";
-		};
-		readonly ExternalStorage: {
-			readonly Read: "external-storage::read";
-			readonly Write: "external-storage::write";
 		};
 	};
-	readonly PermissionsList: PermissionType[];
+	readonly PermissionsList: ("time::performance" | "time::date" | "ui::basic" | "ui::interactivity" | "internet::http-get" | "internet::http-post" | "log::write" | "log::read")[];
 	readonly getPermissionDisplayData: (id: string | undefined) => {
+		"permission": string;
 		"label": string;
 		"icon": string;
 		"description": string;
@@ -1139,6 +1110,10 @@ declare const ConfigSchema: Type.TObject<{
 		}>>;
 		permissions: Type.TAny;
 		enabled: Type.TBoolean;
+		sandboxEngine: Type.TOptional<Type.TUnion<[
+			Type.TLiteral<"ses">,
+			Type.TLiteral<"worker">
+		]>>;
 		allowUnrestrictedUntrusted: Type.TBoolean;
 		showAppAfterExtensionsLoad: Type.TBoolean;
 	}>;
@@ -1329,6 +1304,13 @@ declare class ExtensionAPI {
 	subscribe(event: unknown, callback: (data: unknown) => Promise<unknown>): ExtensionAPI;
 	unsubscribe(event: unknown, callback: (data: unknown) => Promise<unknown>): ExtensionAPI;
 }
+export type PermissionsObjectType = typeof Permissions$1;
+export type PermissionsKeyType = keyof PermissionsObjectType;
+type PermissionName$1 = {
+	[Key in PermissionsKeyType]: PermissionsObjectType[Key][keyof PermissionsObjectType[Key]];
+}[PermissionsKeyType];
+export type InternetPermission = typeof Permissions$1.Internet[keyof typeof Permissions$1.Internet];
+export type PermissionType = Exclude<PermissionName$1, InternetPermission> | `${InternetPermission}::${"http" | "https"}://${string}`;
 export type MetadataType = {
 	"logo": string;
 	"name": string;
@@ -1346,49 +1328,48 @@ export type MetadataType = {
 export type ExtensionType = {
 	"id": string;
 	"code": string;
-	"sha256": string;
+	"artifactSha256": string;
+	"codeSha256": string;
 	"metadata": MetadataType;
 };
-export type SandboxedAPI = {
-	"enable": () => void | Promise<void>;
-	"disable": () => void | Promise<void>;
-	"afterDisable": () => void | Promise<void>;
+export type Setting = {
+	"enabled": boolean;
 };
-declare const extensionStates: ShallowReactive<{
-	"valid": Array<ExtensionType>;
-	"invalid": Array<DeepPartial<ExtensionType>>;
-	"executed": Array<{
-		"extension": ExtensionType;
-		"api": ExtensionAPI | SandboxedAPI;
-	}>;
-}>;
-export type ExecutedListType = (typeof extensionStates)["executed"];
-declare function dirtyLifecycle(executedList: ExecutedListType, { id, sha256, metadata }: ExtensionType, enable: boolean): Promise<boolean>;
+export type ActivationResult = "policy-skipped" | void;
+declare function startExtensionSession(): () => void;
+declare function setExtensionEnabled(extension: ExtensionType, enabled: boolean | "restore", setting?: Setting): Promise<ActivationResult>;
 declare function readExtensions(): Promise<{
 	"valid": Array<ExtensionType>;
 	"invalid": Array<DeepPartial<ExtensionType>>;
 }>;
-declare function runInUnrestricted(id: string, code: string, metadata: ExtensionType["metadata"], sha256: string): Promise<ExtensionAPI | void>;
+declare function runInUnrestricted(id: string, code: string, metadata: ExtensionType["metadata"], artifactSha256: string): Promise<ExtensionAPI | void>;
 declare function onGlobalStateChange<Key extends keyof GlobalStatesType>(key: Key, value: unknown): void;
 declare function onInstanceStateChange<Key extends keyof InstanceStatesType>(key: Key, value: InstanceStatesType[Key]): void;
 declare function grantEventListeners({ id, }: {
 	"id": string;
 }): void;
 declare function lockdownEnvironment(): void;
-declare function runInSandbox({ id, code, permissions, }: {
+declare const methods: readonly [
+	"enable",
+	"disable",
+	"afterDisable"
+];
+export type Lifecycle = typeof methods[number];
+export type Hook = () => void | Promise<void>;
+export type SandboxHooks = Record<Lifecycle, Hook>;
+declare function runInSandbox({ id, artifactSha256, code, lifetime, permissions, }: {
 	"id": string;
+	"artifactSha256": string;
 	"code": string;
+	"lifetime"?: AbortController;
 	"permissions"?: Array<PermissionType>;
-}): void | {
-	"enable": () => void | Promise<void>;
-	"disable": () => void | Promise<void>;
-	"afterDisable": () => void | Promise<void>;
-};
+}): void | SandboxHooks;
 declare function showWebviewWindow(): Promise<void>;
 declare function updateTrustedHashes(): Promise<void>;
 declare const _default$16: {
-	readonly requestPermissions: (permissions: Array<PermissionType | string> | unknown, extension: string) => Promise<Array<unknown>>;
-	readonly dirtyLifecycle: typeof dirtyLifecycle;
+	readonly requestPermissions: (input: unknown, id: string, artifactSha256: string) => Promise<Array<unknown>>;
+	readonly setExtensionEnabled: typeof setExtensionEnabled;
+	readonly startExtensionSession: typeof startExtensionSession;
 	readonly readExtensions: typeof readExtensions;
 	readonly runInUnrestricted: typeof runInUnrestricted;
 	readonly onGlobalStateChange: typeof onGlobalStateChange;
@@ -2225,11 +2206,306 @@ declare function concurrentlyDownload({ concurrency, entries, statuses, label, c
 declare const _default$26: {
 	readonly concurrentlyDownload: typeof concurrentlyDownload;
 };
-declare function grantStaticPermissions({ id, permissions, }: {
+export interface SafeEvent {
+	type: string;
+	ctrlKey: boolean;
+	altKey: boolean;
+	shiftKey: boolean;
+	metaKey: boolean;
+	target: {
+		id: string;
+		value: unknown;
+	};
+	currentTarget: {
+		id: string;
+		value: unknown;
+	};
+	preventDefault(): void;
+	stopPropagation(): void;
+	stopImmediatePropagation(): void;
+}
+export type SafeStyle = Record<string, string>;
+export type EventHandler = (event: SafeEvent) => void;
+export type EventCleanup = () => void;
+export interface SafeTextNode {
+	setText(value: string): void;
+	getText(): string;
+	remove(): void;
+}
+export interface SafeStyleSheet {
+	setCSS(value: string): void;
+	getCSS(): string;
+	remove(): void;
+}
+export interface DeclarativeListenerOptions {
+	preventDefault?: boolean;
+	stopPropagation?: boolean;
+	stopImmediatePropagation?: boolean;
+}
+export interface SafeElement {
+	addEventListener(type: string, handler: EventHandler, options?: DeclarativeListenerOptions): EventCleanup;
+	appendChild(child: SafeElement | SafeTextNode): void;
+	insertBefore(newChild: SafeElement | SafeTextNode, reference: SafeElement | SafeTextNode): void;
+	removeChild(child: SafeElement | SafeTextNode): void;
+	replaceChild(newChild: SafeElement | SafeTextNode, oldChild: SafeElement | SafeTextNode): void;
+	remove(): void;
+	setText(value: string): void;
+	getText(): string;
+	setClass(value: string): void;
+	getClass(): string;
+	setId(value: string): void;
+	getId(): string;
+	setTitle(value: string): void;
+	setRole(value: string): void;
+	setTabIndex(value: number): void;
+	setHidden(value: boolean): void;
+	setLang(value: string): void;
+	setDir(value: string): void;
+	setSpellcheck(value: boolean): void;
+	setData(key: string, value: string): void;
+	getData(key: string): string | undefined;
+	setAria(key: string, value: string): void;
+	getAria(key: string): string | undefined;
+	onClick(handler: EventHandler): EventCleanup;
+	onDblClick(handler: EventHandler): EventCleanup;
+	onMouseDown(handler: EventHandler): EventCleanup;
+	onMouseUp(handler: EventHandler): EventCleanup;
+	onMouseEnter(handler: EventHandler): EventCleanup;
+	onMouseLeave(handler: EventHandler): EventCleanup;
+	onMouseMove(handler: EventHandler): EventCleanup;
+	onPointerDown(handler: EventHandler): EventCleanup;
+	onPointerUp(handler: EventHandler): EventCleanup;
+	onPointerMove(handler: EventHandler): EventCleanup;
+	onContextMenu(handler: EventHandler): EventCleanup;
+	onKeyDown(handler: EventHandler): EventCleanup;
+	onKeyUp(handler: EventHandler): EventCleanup;
+	onFocus(handler: EventHandler): EventCleanup;
+	onBlur(handler: EventHandler): EventCleanup;
+	onTouchStart(handler: EventHandler): EventCleanup;
+	onTouchEnd(handler: EventHandler): EventCleanup;
+	onTouchMove(handler: EventHandler): EventCleanup;
+	onScroll(handler: EventHandler): EventCleanup;
+	style: SafeStyle;
+}
+export interface SafeInputElement extends SafeElement {
+	setType(type: string): void;
+	setValue(value: string): void;
+	getValue(): string;
+	setPlaceholder(value: string): void;
+	setDisabled(value: boolean): void;
+	setReadonly(value: boolean): void;
+	setRequired(value: boolean): void;
+	setChecked(value: boolean): void;
+	getChecked(): boolean;
+	setMin(value: string): void;
+	setMax(value: string): void;
+	setStep(value: string): void;
+	setMinLength(value: number): void;
+	setMaxLength(value: number): void;
+	setPattern(value: string): void;
+	setAutocomplete(value: string): void;
+	setAutofocus(value: boolean): void;
+	setName(value: string): void;
+	setInputMode(value: string): void;
+	setEnterKeyHint(value: string): void;
+	onChange(handler: EventHandler): EventCleanup;
+	onInput(handler: EventHandler): EventCleanup;
+}
+export interface SafeTextareaElement extends SafeElement {
+	setValue(value: string): void;
+	getValue(): string;
+	setPlaceholder(value: string): void;
+	setDisabled(value: boolean): void;
+	setReadonly(value: boolean): void;
+	setRequired(value: boolean): void;
+	setMinLength(value: number): void;
+	setMaxLength(value: number): void;
+	setRows(value: number): void;
+	setCols(value: number): void;
+	setWrap(value: string): void;
+	setName(value: string): void;
+	setAutocomplete(value: string): void;
+	onChange(handler: EventHandler): EventCleanup;
+	onInput(handler: EventHandler): EventCleanup;
+}
+export interface SafeSelectElement extends SafeElement {
+	setValue(value: string): void;
+	getValue(): string;
+	setDisabled(value: boolean): void;
+	setRequired(value: boolean): void;
+	setMultiple(value: boolean): void;
+	setName(value: string): void;
+	onChange(handler: EventHandler): EventCleanup;
+}
+export interface SafeOptionElement extends SafeElement {
+	setValue(value: string): void;
+	setSelected(value: boolean): void;
+	setDisabled(value: boolean): void;
+	setLabel(value: string): void;
+}
+export interface SafeButtonElement extends SafeElement {
+	setType(type: string): void;
+	setDisabled(value: boolean): void;
+	setName(value: string): void;
+	setValue(value: string): void;
+}
+export interface SafeLabelElement extends SafeElement {
+	setFor(value: string): void;
+}
+export interface SafeFieldsetElement extends SafeElement {
+	setDisabled(value: boolean): void;
+}
+export interface SafeImageElement extends SafeElement {
+	setSrc(url: string): void;
+	setAlt(value: string): void;
+	setWidth(value: number): void;
+	setHeight(value: number): void;
+	setLoading(value: string): void;
+}
+export interface SafeAnchorElement extends SafeElement {
+	setHref(url: string): void;
+}
+export interface SafeVideoElement extends SafeElement {
+	setSrc(url: string): void;
+	setWidth(value: number): void;
+	setHeight(value: number): void;
+	setControls(value: boolean): void;
+	setAutoplay(value: boolean): void;
+	setLoop(value: boolean): void;
+	setMuted(value: boolean): void;
+	setPoster(url: string): void;
+}
+export interface SafeAudioElement extends SafeElement {
+	setSrc(url: string): void;
+	setControls(value: boolean): void;
+	setAutoplay(value: boolean): void;
+	setLoop(value: boolean): void;
+	setMuted(value: boolean): void;
+}
+export interface SafeSourceElement extends SafeElement {
+	setSrc(url: string): void;
+	setType(value: string): void;
+}
+export interface SafeCanvasElement extends SafeElement {
+	setWidth(value: number): void;
+	setHeight(value: number): void;
+}
+export interface SafeTableCellElement extends SafeElement {
+	setColspan(value: number): void;
+	setRowspan(value: number): void;
+	setScope(value: string): void;
+	setHeaders(value: string): void;
+}
+export interface SafeDetailsElement extends SafeElement {
+	setOpen(value: boolean): void;
+}
+export interface SafeDialogElement extends SafeElement {
+	setOpen(value: boolean): void;
+}
+export interface SafeProgressElement extends SafeElement {
+	setValue(value: number): void;
+	setMax(value: number): void;
+}
+export interface SafeMeterElement extends SafeElement {
+	setValue(value: number): void;
+	setMin(value: number): void;
+	setMax(value: number): void;
+}
+export type ListType = "unordered" | "ordered" | "description";
+export interface SafeListElement extends SafeElement {
+	createItem(): SafeElement;
+}
+export interface SafeDescriptionListElement extends SafeElement {
+	createTerm(): SafeElement;
+	createDescription(): SafeElement;
+}
+export type FormattingTag = "strong" | "em" | "small" | "b" | "i" | "u" | "code" | "kbd" | "samp" | "var" | "sub" | "sup" | "mark" | "abbr" | "cite";
+export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
+interface SafeDocument {
+	createDiv(): SafeElement;
+	createSpan(): SafeElement;
+	createSection(): SafeElement;
+	createArticle(): SafeElement;
+	createNav(): SafeElement;
+	createHeader(): SafeElement;
+	createFooter(): SafeElement;
+	createMain(): SafeElement;
+	createAside(): SafeElement;
+	createFigure(): SafeElement;
+	createFigcaption(): SafeElement;
+	createText(): SafeElement;
+	createHeading(level: HeadingLevel): SafeElement;
+	createFormatting(format: FormattingTag): SafeElement;
+	createBlockquote(): SafeElement;
+	createPre(): SafeElement;
+	createList(type: ListType): SafeListElement | SafeDescriptionListElement;
+	createListItem(): SafeElement;
+	createTerm(): SafeElement;
+	createDescription(): SafeElement;
+	createTable(): SafeElement;
+	createThead(): SafeElement;
+	createTbody(): SafeElement;
+	createTfoot(): SafeElement;
+	createTr(): SafeElement;
+	createTh(): SafeTableCellElement;
+	createTd(): SafeTableCellElement;
+	createCaption(): SafeElement;
+	createColgroup(): SafeElement;
+	createCol(): SafeElement;
+	createButton(): SafeButtonElement;
+	createInput(): SafeInputElement;
+	createSelect(): SafeSelectElement;
+	createOption(): SafeOptionElement;
+	createOptgroup(): SafeElement;
+	createTextarea(): SafeTextareaElement;
+	createLabel(): SafeLabelElement;
+	createFieldset(): SafeFieldsetElement;
+	createLegend(): SafeElement;
+	createImage(): SafeImageElement;
+	createVideo(): SafeVideoElement;
+	createAudio(): SafeAudioElement;
+	createSource(): SafeSourceElement;
+	createTrack(): SafeElement;
+	createPicture(): SafeElement;
+	createCanvas(): SafeCanvasElement;
+	createAnchor(): SafeAnchorElement;
+	createDetails(): SafeDetailsElement;
+	createSummary(): SafeElement;
+	createDialog(): SafeDialogElement;
+	createHr(): SafeElement;
+	createBr(): SafeElement;
+	createWbr(): SafeElement;
+	createProgress(): SafeProgressElement;
+	createMeter(): SafeMeterElement;
+	createOutput(): SafeElement;
+	createTime(): SafeElement;
+	createData(): SafeElement;
+	createRuby(): SafeElement;
+	createRt(): SafeElement;
+	createRp(): SafeElement;
+	createRawText(): SafeTextNode;
+	createStyle(): SafeStyleSheet;
+	getElement(id: string): SafeElement | null;
+}
+declare class ExtensionUI {
+	private id;
+	private signal;
+	private frame?;
+	private aliases;
+	private names;
+	constructor(id: string, signal: AbortSignal);
+	private frameDocument;
+	factories(): SafeDocument;
+	document(alias: string, handle?: number): SafeDocument;
+}
+declare function grantStaticPermissions({ id, artifactSha256, permissions, ui, signal, }: {
 	"id": string;
+	"artifactSha256": string;
+	"signal"?: AbortSignal;
+	"ui"?: ExtensionUI;
 	"permissions"?: Array<PermissionType>;
 }): Record<string, unknown>;
-declare function handlePermission<Key extends PermissionType>(permission: Key, id: string): unknown;
+declare function handlePermission(raw: string, id: string, ui?: ExtensionUI, signal?: AbortSignal): unknown;
 declare const _default$27: {
 	readonly grantStaticPermissions: typeof grantStaticPermissions;
 	readonly handlePermission: typeof handlePermission;
@@ -2326,6 +2602,7 @@ declare const _default$30: {
 				useNativeColorPicker: boolean;
 			};
 			extensions: {
+				sandboxEngine?: "ses" | "worker" | undefined;
 				list: {
 					enabled: boolean;
 					sha256: string;
@@ -2536,6 +2813,7 @@ declare const _default$32: {
 			}[];
 			permissions: Record<string, Record<string, boolean>>;
 			enabled: boolean;
+			sandboxEngine?: "ses" | "worker" | undefined;
 			allowUnrestrictedUntrusted: boolean;
 			showAppAfterExtensionsLoad: boolean;
 		};
@@ -2865,7 +3143,6 @@ declare global {
 					"visible": boolean;
 					"resizable": boolean;
 				};
-				"requestPermissions": (permissions: Array<PermissionType | string> | unknown, extension: string) => Promise<Array<unknown>>;
 				"joinDelimiter": string;
 				"launcherVersion": string;
 				"executableHash": string;
@@ -3958,5 +4235,9 @@ declare global {
 	}
 }
 export type KaedeNamespaceType = Window["__KAEDE__"];
+
+export {
+	SafeDocument as SandboxUIDocument,
+};
 
 export {};

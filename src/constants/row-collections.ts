@@ -23,10 +23,9 @@ import { computed, type ShallowReactive, shallowReactive } from "vue";
 import { DefaultLocale, DefaultLocaleName } from "@/constants/application.ts";
 import Permissions from "@/constants/permissions.ts";
 import { GlobalObject } from "@/extendable/global-object.ts";
-import Errors from "@/lib/errors";
+import { supportsWorkerSandbox } from "@/lib/extensions/sandbox/worker/availability.ts";
 import General from "@/lib/general";
 import Launcher from "@/lib/launcher";
-import { log } from "@/lib/logging/log.ts";
 import Modals from "@/lib/modals";
 import { extensionStates, trustedExtensionHashes } from "@/states/extension.ts";
 import { globalStates } from "@/states/global.ts";
@@ -44,147 +43,14 @@ const emptyPermissions = [
 ];
 
 const extensionHandler = {
-  "generic": async (
-    index: number,
-    extension: ExtensionType,
-    cleanEnable: () => Promise<void>,
-  ): Promise<void> => {
-    const enabled: boolean = globalStates.extensions.list[index].enabled;
+  "toggle": async (index: number, extension: ExtensionType): Promise<void> => {
+    const entry = globalStates.extensions.list[index];
 
-    /*
-     * If extensions are disabled, we are allowing free-toggling.
-     * 'ExtensionLoader.vue' handles the disabling of all executed extensions,
-     * so no worries here
-     */
-    if (!globalStates.extensions.enabled) {
-      globalStates.extensions.list[index].enabled = !enabled;
-
-      return;
+    if (globalStates.extensions.enabled) {
+      await GlobalObject.libs.Extensions.setExtensionEnabled(extension, !entry.enabled, entry);
+    } else {
+      entry.enabled = !entry.enabled;
     }
-
-    /*
-     * If we import 'Extensions' from our 'libs/' folder, then we will break our
-     * code-splitting, adding more than 100 KB of packages ('SES', 'ark-of-atrahasis', etc.)
-     * to the index JavaScript file. Those packages are loaded only when extensions feature
-     * are enabled, and since this code changes extensions, we can imply that the extensions
-     * are enabled.
-     *
-     * Another scenario is that the user has enabled extensions, loaded extensions
-     * (therefore, making these 'extensionHandler' variable functions accessible), and then
-     * disabled extensions while still having these functions accessible. In such case,
-     * everything will still work as 'ExtensionLoader' was already loaded, making 'Extensions'
-     * and the rest of the libs stay exposed to globals
-     *
-     * UPD: Yeah, I have tested the output. With direct imports:
-     *
-     * ```
-     * dist/assets/ExtensionLoader-DeFIFzDe.js       14.43 kB │ gzip:   5.70 kB
-     * dist/assets/PluginPlayground-C6G2CMXN.js      30.28 kB │ gzip:  13.36 kB
-     * dist/assets/index-CD2zf8AX.js                 73.45 kB │ gzip:  20.75 kB
-     * dist/assets/index-CKXFTzdX.js                518.37 kB │ gzip: 164.68 kB
-     * ```
-     *
-     * Without direct imports (via 'GlobalObject.libs.Extensions'):
-     *
-     * ```
-     * dist/assets/PluginPlayground-CCMrxMdk.js      30.28 kB │ gzip:  13.36 kB
-     * dist/assets/index-CC3e8Kpc.js                 73.45 kB │ gzip:  20.75 kB
-     * dist/assets/ExtensionLoader-BJ6kEj8G.js      116.04 kB │ gzip:  37.97 kB
-     * dist/assets/index-Co3Wt_c7.js                416.64 kB │ gzip: 131.89 kB
-     * ```
-     */
-    const Extensions = GlobalObject.libs.Extensions;
-    const needsCleanRun: boolean = await Extensions.dirtyLifecycle(
-      extensionStates.executed,
-      extension,
-      !enabled,
-    );
-
-    // Dirty lifecycle handler executed if 'needsCleanRun' is true
-    if (!needsCleanRun) {
-      globalStates.extensions.list[index].enabled = !enabled;
-
-      // 'enabled' being true means that the extension is being enabled
-      if (enabled) {
-        const existing = extensionStates.executed.find(searching => (
-          searching.extension.sha256 === extension.sha256 &&
-
-          /*
-           * Just to be sure... Maybe there will be extensions that can work in both environments
-           * with the same code
-           */
-          searching.extension.metadata.type === extension.metadata.type
-        ));
-
-        existing?.api?.afterDisable?.();
-      }
-
-      return;
-    }
-
-    /*
-     * Lifecycle handlers were not found if we got here with 'enabled' being true...
-     * This means, that the extension is shown as enabled, yet the execution wasn't made,
-     * so now we make it disabled.
-     *
-     * Re-enabling won't trigger 'globalStates.extensions.list[index].enabled = true',
-     * the thing to note is that 'globalStates.extensions.list[index].enabled' can be true
-     * if the user loaded extensions, disabled extensions loading, and enabled an extension
-     * that in the next run didn't launch. Wait, then we should probably show the extension as
-     * disabled?
-     *
-     * Alright, I tried handling this scenario, so this branch is essentially useless,
-     * but let it stay as a memorial. Holy shit why all of this is so complex,
-     * I try to code everything as simple as possible...
-     *
-     * Wait, this branch is not useless if user played around with enabling extensions feature
-     * and 'allowUnrestrictedUntrusted' while having the toggle for an unrestricted extension,
-     * which leads to dirty lifecycle handlers being undefined
-     */
-    if (enabled) {
-      globalStates.extensions.list[index].enabled = !enabled;
-
-      return;
-    }
-
-    try {
-      await cleanEnable();
-
-      globalStates.extensions.list[index].enabled = true;
-    } catch (error: unknown) {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        `Error while re-enabling extension '${extension.id}' (sha256: ${extension.sha256}):`,
-        Errors.prettify(error),
-      );
-    }
-  },
-  "trusted": (index: number, extension: ExtensionType): Promise<void> => {
-    return extensionHandler.generic(
-      index,
-      extension,
-      async (): Promise<void> => {
-        /*
-         * See the comments above for explanations for why we don't import directly
-         */
-        const Extensions = GlobalObject.libs.Extensions;
-        const api = await Extensions.runInUnrestricted(
-          extension.id,
-          extension.code,
-          extension.metadata,
-          extension.sha256,
-        );
-
-        if (!api) {
-          throw new Error("Failed to run extension");
-        }
-
-        extensionStates.executed = [
-          ...extensionStates.executed,
-          { extension, api },
-        ];
-      },
-    );
   },
   "communityUnrestricted": async (index: number, extension: ExtensionType): Promise<void> => {
     const alreadyEnabled: boolean = globalStates.extensions.list[index].enabled;
@@ -227,17 +93,17 @@ const extensionHandler = {
       return;
     }
 
-    return extensionHandler.trusted(index, extension);
+    return extensionHandler.toggle(index, extension);
   },
   "communitySandboxed": async (index: number, extension: ExtensionType): Promise<void> => {
     const alreadyEnabled: boolean = globalStates.extensions.list[index].enabled;
     const mappedRows = (extension.metadata?.permissions ?? []).map(currentPermission => {
-      const displayData =Permissions.getPermissionDisplayData(currentPermission);
+      const displayData = Permissions.getPermissionDisplayData(currentPermission);
 
       return {
         "icon"       : displayData.icon,
         "title"      : General.capitalize(displayData.label),
-        "description": displayData.description,
+        "description": `${displayData.description} (${displayData.permission})`,
       };
     });
     const confirmed: boolean = alreadyEnabled || await Modals.confirm({
@@ -252,31 +118,7 @@ const extensionHandler = {
       return;
     }
 
-    return extensionHandler.generic(
-      index,
-      extension,
-      async (): Promise<void> => {
-        const permissions = extension.metadata.permissions ?? [];
-
-        /*
-         * See the comments above for explanations for why we don't import directly
-         */
-        const Extensions = GlobalObject.libs.Extensions;
-        // This is a sync function, but the lifecycle handlers might be async
-        const api = Extensions.runInSandbox(
-          { "id": extension.id, permissions, "code": extension.code },
-        );
-
-        if (!api) {
-          throw new Error("Failed to run extension");
-        }
-
-        extensionStates.executed = [
-          ...extensionStates.executed,
-          { extension, api },
-        ];
-      },
-    );
+    return extensionHandler.toggle(index, extension);
   },
 } as const;
 
@@ -342,6 +184,18 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
     },
   })),
   computed(() => ({
+    "idRoot"  : "__settings-page__worker-sandbox",
+    "icon"    : "i-lucide-cpu",
+    "title"   : "Run sandboxed extensions in Web Workers",
+    "disabled": !supportsWorkerSandbox() && globalStates.extensions.sandboxEngine !== "worker",
+    "subtitle": "Switch between a dedicated Worker and the launcher’s SES compartment",
+    "onClick" : (): void => {
+      globalStates.extensions.sandboxEngine = globalStates.extensions.sandboxEngine === "worker"
+        ? "ses" : "worker";
+    },
+    "inner": { "kind": "toggle", "value": globalStates.extensions.sandboxEngine === "worker" },
+  })),
+  computed(() => ({
     "idRoot"  : "__settings-page__extensions-show-after-initialization",
     "icon"    : "i-lucide-clock",
     "title"   : "Show the window after extensions load",
@@ -367,11 +221,13 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
     "subtitle": "Enable or disable safe extensions",
     "inner"   : extensionStates
       .valid
-      .filter(({ sha256 }) => trustedExtensionHashes.value.has(sha256))
+      .filter(({ metadata, codeSha256 }) => (
+        metadata.type === "unrestricted" && trustedExtensionHashes.value.has(codeSha256)
+      ))
       .map(currentExtension => {
-        const { id, metadata, sha256 } = currentExtension;
+        const { id, metadata, artifactSha256 } = currentExtension;
         const index = globalStates.extensions.list.findIndex(searching => (
-          searching.sha256 === sha256
+          searching.sha256 === artifactSha256
         ));
 
         if (index === -1) {
@@ -384,7 +240,7 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
         }
 
         const isInExecuted: boolean = extensionStates.executed.some(searching => (
-          searching.extension.sha256 === sha256
+          searching.extension.artifactSha256 === artifactSha256
         ));
         const status: string = isInExecuted ? "<executed> " : "";
 
@@ -393,7 +249,7 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
           "image"   : metadata.logo,
           "title"   : `${status}${metadata.name}`,
           "subtitle": metadata?.description,
-          "onClick" : (): Promise<void> => extensionHandler.trusted(index, currentExtension),
+          "onClick" : (): Promise<void> => extensionHandler.toggle(index, currentExtension),
           "inner"   : {
             "kind" : "toggle",
             "value": globalStates.extensions.list[index].enabled,
@@ -415,9 +271,9 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
       .valid
       .filter(({ metadata }) => metadata.type === "sandbox")
       .map(currentExtension => {
-        const { id, metadata, sha256 } = currentExtension;
+        const { id, metadata, artifactSha256 } = currentExtension;
         const index = globalStates.extensions.list.findIndex(searching => (
-          searching.sha256 === sha256
+          searching.sha256 === artifactSha256
         ));
 
         if (index === -1) {
@@ -430,7 +286,7 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
         }
 
         const isInExecuted: boolean = extensionStates.executed.some(searching => (
-          searching.extension.sha256 === sha256
+          searching.extension.artifactSha256 === artifactSha256
         ));
         const status: string = isInExecuted ? "<executed> " : "";
 
@@ -461,14 +317,14 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
     "subtitle": "Enable or disable unsafe extensions",
     "inner"   : extensionStates
       .valid
-      .filter(({ metadata, sha256 }) => (
+      .filter(({ metadata, codeSha256 }) => (
         metadata.type === "unrestricted" &&
-        !trustedExtensionHashes.value.has(sha256)
+        !trustedExtensionHashes.value.has(codeSha256)
       ))
       .map(currentExtension => {
-        const { id, metadata, sha256 } = currentExtension;
+        const { id, metadata, artifactSha256 } = currentExtension;
         const index = globalStates.extensions.list.findIndex(searching => (
-          searching.sha256 === sha256
+          searching.sha256 === artifactSha256
         ));
 
         if (index === -1) {
@@ -481,7 +337,7 @@ export const ExtensionsSettingsRows: SettingsRowCollectionType = [
         }
 
         const isInExecuted: boolean = extensionStates.executed.some(searching => (
-          searching.extension.sha256 === sha256
+          searching.extension.artifactSha256 === artifactSha256
         ));
         const status: string = isInExecuted ? "<executed> " : "";
 

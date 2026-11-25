@@ -28,6 +28,9 @@ html {
 }
 
 #app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   /* Text selections are going to be whitelisted */
   user-select: none;
 }

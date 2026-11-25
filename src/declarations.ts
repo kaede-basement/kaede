@@ -69,7 +69,6 @@ import type { InstanceStatesType } from "@/types/application/instance-states.typ
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
-import type { PermissionType } from "@/types/extensions/permission.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   ArgumentAuthReplacementsType,
@@ -147,11 +146,6 @@ declare global {
           "visible"  : boolean;
           "resizable": boolean;
         };
-        // Requests plugin permissions from user
-        "requestPermissions": (
-          permissions: Array<PermissionType | string> | unknown,
-          extension: string
-        ) => Promise<Array<unknown>>;
         // Platform-specific delimiter
         "joinDelimiter"      : string;
         // Launcher version
@@ -1465,3 +1459,5 @@ declare global {
 
 /* Export the Kaede namespace type */
 export type KaedeNamespaceType = Window["__KAEDE__"];
+
+export type { SafeDocument as SandboxUIDocument } from "ark-of-atrahasis";

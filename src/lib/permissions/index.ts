@@ -16,8 +16,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type { ExtensionUI } from "@/lib/extensions/sandbox/ui-root.ts";
 import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
 import { handlePermission } from "@/lib/permissions/handle-permission.ts";
+import { hardenIfAvailable } from "@/lib/permissions/harden.ts";
+import { permissionSession } from "@/lib/permissions/request-permissions.ts";
+
+export function bindPermissionRequest(
+  id: string, artifactSha256: string, ui?: ExtensionUI, signal?: AbortSignal,
+) {
+  const service = permissionSession.value;
+
+  if (!service) {
+    throw new Error("Permission session closed");
+  }
+
+  return async (input: unknown): Promise<Array<unknown>> => {
+    const grants = await service.request(input, id, artifactSha256, signal);
+
+    const results = grants.map(permission => (
+      permission && handlePermission(permission, id, ui, signal)
+    ));
+
+    return hardenIfAvailable(results);
+  };
+}
 
 export default {
   grantStaticPermissions,
