@@ -20,11 +20,9 @@ import FileStructure from "@/constants/file-structure.ts";
 import { APIEndpoints, GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
-import { Algorithms } from "@/lib/hashing.ts";
 import { fetchMetadata } from "@/lib/launcher/scopes/fetching/fetch-metadata.ts";
 import { shallowlyValidateMeta } from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
 import { log } from "@/lib/logging/log.ts";
-import Network from "@/lib/network";
 import type { AssetObjectsType } from "@/types/launcher/artifacts/asset-objects.type.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
@@ -35,13 +33,21 @@ import type {
 } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
+import { downloadMissing } from "./download-missing.ts";
+
 export async function downloadAssets({
   necessaries,
   finalizedPatch,
+  signal,
 }: {
+  "signal"?       : AbortSignal;
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
+  if (signal?.aborted) {
+    return false;
+  }
+
   const { directories, statuses, instance, logPrefix, cancelId } = necessaries;
 
   log.debug(logPrefix, "Getting the assetIndex metadata");
@@ -128,24 +134,13 @@ export async function downloadAssets({
     return false;
   }
 
-  const mappedAssetObjects: Array<{
-    "shortHashPath": string;
-    "hash"         : string;
-    "url"          : string;
-    "path"         : string;
-  }> = Object
+  const mappedAssetObjects = Object
     .values(shallowlyValidIndex.objects)
     .map(({ hash }) => {
       const shortHash = hash.slice(0, 2);
       const url = APIEndpoints.Resources.Base + shortHash + "/" + hash;
-      const shortHashPath = FileManager.join(
-        directories.assetObjects,
-        shortHash,
-      );
-      const filePath = FileManager.join(
-        shortHashPath,
-        hash,
-      );
+      const shortHashPath = FileManager.join(directories.assetObjects, shortHash);
+      const filePath = FileManager.join(shortHashPath, hash);
 
       return {
         shortHashPath,
@@ -155,53 +150,20 @@ export async function downloadAssets({
       };
     });
 
-  log.debug(
-    logPrefix,
-    `Verifying ${mappedAssetObjects.length} assets for their existence.`,
-    `SHA1 checks enabled: ${instance.checksum}`,
-  );
-  const startTime: number = performance.now();
-  const hashesToReDownload: Set<string> = new Set(
-    await FileManager.verifyPaths({
-      "paths"    : mappedAssetObjects,
-      "algorithm": instance.checksum ? Algorithms.SHA1 : undefined,
-    }),
-  );
-  const endTime: number = performance.now();
-  const totalTime: string = (endTime - startTime).toFixed(2);
-
-  log.info(
-    logPrefix,
-    `Successfully verified ${mappedAssetObjects.length} assets in ${totalTime} ms.`,
-    `Total mismatches: ${hashesToReDownload.size}.`,
-    `SHA1 checks enabled: ${instance.checksum}`,
-  );
-
-  const missingAssetObjects: Array<{
-    "shortHashPath": string;
-    "url"          : string;
-    "path"         : string;
-  }> = mappedAssetObjects.filter(({ path }) => {
-    return hashesToReDownload.has(path);
-  });
-
-  const report = await Network.concurrentlyDownload({
+  const report = await downloadMissing({
+    signal,
     statuses,
     cancelId,
+    "entries"    : mappedAssetObjects,
+    "checksum"   : instance.checksum,
     "concurrency": GeneralSettings.ConcurrentDownloads.Assets,
-    "entries"    : missingAssetObjects,
     "label"      : "assets",
   });
 
-  if (report.cancelled) {
+  if (report.failed > 0 || report.cancelled) {
     return false;
   }
 
-  log.info(
-    logPrefix,
-    `Successfully handled ${mappedAssetObjects.length} assets`,
-    `and re-downloaded ${hashesToReDownload.size} of them`,
-  );
   statuses.current = LaunchStatus.AssetObjects.Success;
 
   return true;

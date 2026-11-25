@@ -26,7 +26,7 @@ export function handleHookResponse<T>({
 
   log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.response(
     scope,
-    { status, response },
+    status,
     timing,
     index,
     currentHookTime,

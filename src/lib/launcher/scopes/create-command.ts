@@ -33,7 +33,6 @@ export async function createCommand({
   "arguments": Array<string>;
 }> {
   const [
-    // Java applet, unused: launcherJar,
     javaBinary,
     jvmArguments,
     { "argument": classPathsArgument, classPaths },
@@ -46,7 +45,6 @@ export async function createCommand({
     Array<string>,
     Array<string>,
   ] = await Promise.all([
-    // Java applet, unused: resolveResource(ResourceLauncher),
     Arguments.getJavaBinary({ necessaries, finalizedPatch }),
     Arguments.getJvmArguments({ necessaries, finalizedPatch }),
     Arguments.getClassPaths({ necessaries, finalizedPatch }),
@@ -83,7 +81,6 @@ export async function createCommand({
   });
 
   return {
-    // Unused: "program": launcherJar
     "java"     : javaBinary,
     "arguments": launchArguments,
   };

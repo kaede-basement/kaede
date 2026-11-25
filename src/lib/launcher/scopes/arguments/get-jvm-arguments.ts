@@ -8,6 +8,8 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
+import { removeArguments } from "./remove-arguments.ts";
+
 export async function getJvmArguments({
   necessaries,
   finalizedPatch,
@@ -96,10 +98,12 @@ export async function getJvmArguments({
     jvmArguments.push(loggingArguments);
   }
 
+  removeArguments(jvmArguments, necessaries.instance.remove?.jvmArguments);
+
   const afterHooksResult: "continue" | Array<string> | undefined =
     await Hooks.catchAsyncResponseHooks<Array<string>>({
       "scope" : "onJVMArgumentsGet",
-      "toPass": { necessaries, finalizedPatch },
+      "toPass": { jvmArguments, necessaries, finalizedPatch },
       "timing": "after",
     });
 

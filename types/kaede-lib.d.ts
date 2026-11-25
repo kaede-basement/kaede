@@ -810,7 +810,7 @@ declare const _default$9: {
 	readonly JVMArguments: {
 		readonly Default: {
 			readonly Log4J: "-Dlog4j2.formatMsgNoLookups=true";
-			readonly SystemProxies: "-Djava.net.useSystemProxiestrue";
+			readonly SystemProxies: "-Djava.net.useSystemProxies=true";
 			readonly FMLIgnoreCertificates: "-Dfml.ignoreInvalidMinecraftCertificates=true";
 			readonly FMLIgnorePatchDiscrepancies: "-Dfml.ignorePatchDiscrepancies=true";
 			readonly LibrariesDirectory: "-DlibraryDirectory=${libraries_directory}";
@@ -1286,10 +1286,12 @@ declare function regenerateConfigFile({ baseDirectory, configFileDirectory, }: {
 	"baseDirectory": string;
 	"configFileDirectory": string;
 }): Promise<ConfigType>;
-declare function writeAccounts({ accounts, baseDirectory, }: {
+export type AccountWrite = {
 	"accounts": Array<AccountType>;
 	"baseDirectory"?: string;
-}): Promise<boolean>;
+};
+declare function writeAccounts(input: AccountWrite): Promise<boolean>;
+declare function updateAccounts(mutate: (current: ReadonlyArray<AccountType>) => Array<AccountType> | undefined): Promise<Array<AccountType>>;
 declare function sync(): Promise<void>;
 declare const _default$14: {
 	readonly getMain: typeof getMain;
@@ -1302,6 +1304,7 @@ declare const _default$14: {
 	readonly getAccounts: typeof getAccounts;
 	readonly getTranslations: typeof getTranslations;
 	readonly writeAccounts: typeof writeAccounts;
+	readonly updateAccounts: typeof updateAccounts;
 };
 export type NativeErrorType = {
 	"name": string;
@@ -1976,19 +1979,23 @@ declare function extractPreLaunchInformation({ statuses, instance, instanceId, u
 	"logPrefix": string;
 }): PreLaunchInformationType | false;
 declare function cancelAll(cancelId: string): Promise<boolean>;
-declare function downloadAssets({ necessaries, finalizedPatch, }: {
+declare function downloadAssets({ necessaries, finalizedPatch, signal, }: {
+	"signal"?: AbortSignal;
 	"necessaries": PreLaunchInformationType;
 	"finalizedPatch": FinalizedPatchType;
 }): Promise<boolean>;
-declare function downloadClient({ necessaries, finalizedPatch, }: {
+declare function downloadClient({ necessaries, finalizedPatch, signal, }: {
+	"signal"?: AbortSignal;
 	"necessaries": PreLaunchInformationType;
 	"finalizedPatch": FinalizedPatchType;
 }): Promise<boolean>;
-declare function downloadLibraries({ necessaries, finalizedPatch, }: {
+declare function downloadLibraries({ necessaries, finalizedPatch, signal, }: {
+	"signal"?: AbortSignal;
 	"necessaries": PreLaunchInformationType;
 	"finalizedPatch": FinalizedPatchType;
 }): Promise<boolean>;
-declare function downloadLogging({ necessaries, finalizedPatch, }: {
+declare function downloadLogging({ necessaries, finalizedPatch, signal, }: {
+	"signal"?: AbortSignal;
 	"necessaries": PreLaunchInformationType;
 	"finalizedPatch": FinalizedPatchType;
 }): Promise<boolean>;
@@ -2062,7 +2069,7 @@ declare function unifyPlatformWithArch(name: SpecificPatchLibraryOSNameType | Sp
 	"platform": PreLaunchInformationType["platform"];
 	"arch": PreLaunchInformationType["arch"] | "any";
 };
-declare function resolvePatch({ necessaries, metadata, patchMeta, }: {
+declare function resolvePatch(request: {
 	"necessaries": PreLaunchInformationType;
 	"metadata": PatchDependencyType;
 	"patchMeta"?: SpecificPatchMetaType;
@@ -2094,7 +2101,6 @@ declare function shallowlyValidateMeta({ meta }: {
 	"meta": unknown;
 }): AssetObjectsType | false;
 declare const _default$24: {
-	readonly __unused: {};
 	readonly detectJavaInstallations: typeof detectJavaInstallations;
 	readonly fetchJavaMajor: typeof fetchJavaMajor;
 	readonly Arguments: {

@@ -17,15 +17,11 @@
  */
 
 export function joinArguments(input: Array<string> | undefined): string {
-  return (input ?? [])
-    .map(currentArgument => {
-      // Arguments containing spaces should be double-quoted
-      if (currentArgument.includes(" ")) {
-        // Double quotes inside the argument should be escaped
-        return `"${currentArgument.replace(/"/g, String.raw`\"`)}"`;
-      }
+  return (input ?? []).map(argument => {
+    if (argument.length > 0 && !(/[\s"]/).test(argument)) {
+      return argument;
+    }
 
-      return currentArgument;
-    })
-    .join(" ");
+    return `"${argument.replace(/(\\*)"/g, String.raw`$1$1\"`).replace(/(\\+)$/, "$1$1")}"`;
+  }).join(" ");
 }
