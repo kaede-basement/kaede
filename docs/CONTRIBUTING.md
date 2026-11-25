@@ -7,9 +7,13 @@
 
 # Contributions Guidelines
 
-## Note
+## Important
 
 Thanks for your interest in contributing to Kaede!
+
+This is my hobby project that I make without any usage of Artificial Intelligence (AI) models, but I review and welcome all pull requests (PRs), even if they were fully made by an AI model.
+
+Keep in mind that I usually spend time on my studies, so I may take quite some time before reviewing your PR.
 
 ## Translations
 
@@ -19,17 +23,12 @@ Translations are done externally via a [Kaede Translations repository](https://g
 
 Information about extensions can be found [here](./EXTENSIONS.md).
 
-## Code of Conduct
-
-See [this file](./CODE_OF_CONDUCT.md).
-
 ## Code Formatting
 
 All TypeScript files are formatted with [ESLint](https://eslint.org/) using the configuration in `eslint.config.js`. Ensure linting is run on changed files before committing them!
 
 Please also follow the project's conventions for the frontend:
 
-- No AI slops in the launcher code (plugins do not count as the part of the launcher).
 - TypeScript is highly recommended. If type checking drives you insane, ask me for the help :d
 - `.vue` file names should be formatted as `PascalCase`. All other files should use `kebab-case`.
 - Exported constants should be formatted as `PascalCase`.

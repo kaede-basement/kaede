@@ -25,7 +25,7 @@ import {
 } from "@tauri-apps/plugin-fs";
 
 import Errors from "@/lib/errors";
-import { join } from "@/lib/file-manager/join.ts";
+import { join } from "@/lib/file-manager/path.ts";
 import General from "@/lib/general";
 import { log } from "@/lib/logging/log.ts";
 

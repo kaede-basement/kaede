@@ -48,8 +48,9 @@ async function getUtilities(): Promise<{
     const [marked, { "default": purify }] = await Promise.all([
 
       /*
-       * These libraries are around 65 KBs minified,
-       * so we load them only if the user expands the modpack body
+       * These libraries are around 77 KBs minified,
+       * so we load them only if the user expands the modpack body.
+       * In the output code, both of these libraries go into a single chunk of code
        */
       import("marked"),
       import("dompurify"),

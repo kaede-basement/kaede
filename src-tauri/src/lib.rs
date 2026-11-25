@@ -1,11 +1,14 @@
 use tauri::Manager;
-use log::error;
+use log::{warn, error};
 
+mod application;
 mod downloads;
 mod extensions;
+mod file_system;
 mod finalization;
-mod hashes;
-mod launcher;
+mod hashing;
+mod image;
+mod ipc_batch;
 mod logging;
 mod modrinth;
 mod processes;
@@ -32,6 +35,13 @@ pub fn run() {
 
     let builder = tauri::Builder::default();
 
+    // Tauri's default IPC sends every invoke as its own 'fetch', which is slow in WebView2.
+    // 'hybrid_ipc.js' sends small calls through 'postMessage' instead, and the calls made
+    // in one tick go as one message to 'ipc_batch'.
+    // macOS keeps the default transport since it was not tested there
+    #[cfg(any(windows, target_os = "linux"))]
+    let builder = builder.invoke_system(include_str!("hybrid_ipc.js"));
+
     // The "notifications" feature is disabled for Windows 7 builds
     #[cfg(feature = "notifications")]
     let builder = builder.plugin(tauri_plugin_notification::init());
@@ -41,11 +51,13 @@ pub fn run() {
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // If user tries to open the launcher when it is already opened,
-            // then focus the already opened window.
+            // then focus the already opened window
             if let Some(window) = app.get_webview_window("main") {
+				warn!("An already opened Kaede process exists");
                 let _ = window.set_focus();
             }
         }))
+        // 'true' makes the plugin accept any shell command
         .plugin(tauri_plugin_shellx::init(true))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
@@ -55,32 +67,36 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
-            // Just so you know:
-            //
             // Initially, checking whether the application is in a portable mode or not
-            // was made by reading the window label to find a 'Portable' string
-            //
-            // Those chained calls took only '225.60µs' on my laptop though,
-            // not as slow as I thought at first.
+            // was made by reading the window label to find a 'Portable' string, which
+            // only took '225.60µs' on my laptop, not as slow as I thought.
             //
             // Nevertheless, I was enlightened by Prism Launcher
-            // which uses 'portable.txt' to make the launcher portable
-            let portable = launcher::is_portable();
+            // that uses 'portable.txt' to make the launcher portable
+            let (base_directory, portable) = application::get_application_directory_info(app.handle())?;
+            let path = base_directory.join("logs");
 
-            let mut path;
-
-            if portable {
-                // Resolves to the launcher executable file directory
-                path = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
-            } else {
-                // Resolves to '${dataDir}/${bundleIdentifier}'
-                path = app.path().app_data_dir()?;
-            }
-
-            path.push("logs");
+            // 'app.get_webview_window("main").is_some()' is true at this point since Tauri initializes a WebView
+            // creation somewhere right before this 'setup' code. Sleeping the thread for 5 seconds makes
+            // the tauri IPC hang while the WebView itself is already loaded (?)
+            //
+            // '09:57:54.326 | ... | Hi: true' - 'info!("Hi: {}", app.get_webview_window("main").is_some());'
+            // '09:57:59.358 | ... | WebView for Kaede has loaded >.<'
+            // '...'
+            // '09:58:00.104 | ... | Launcher successfully initialized in: 5810.9 ms'
+            //
+            // Since 'get_initial_state' fetches the hash of the executable only when the frontend
+            // makes a call to it, I decided that we can offload the hash calculation to a one-time
+            // action that runs *while* the WebView is loading, i.e., before the frontend itself
+            // can make such a call
+            tauri::async_runtime::spawn(async {
+                hashing::APPLICATION_HASH.get_or_init(hashing::get_executable_hash).await;
+            });
+            // Besides hashing, we can also read configs ahead-of-time
+            app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist
-            let _ = std::fs::create_dir_all(&path)?;
+            std::fs::create_dir_all(&path)?;
 
             // Prepare the log file.
             //
@@ -98,39 +114,35 @@ pub fn run() {
             // so deleting that file while application is still working will lead to errors.
             //
             // Clearly, at this point of code Tauri logging plugin has NOT been loaded yet.
-            // This information means that the log file can be manipulated in any way.
+            // This means that the log file can be manipulated in any way.
             //
             // But in JavaScript, the logging plugin has already been loaded.
             // Thus, the logging preparation strategy provided below will fail,
             // requiring the JavaScript code to copy the contents from the log file into another one
-            // instead of just renaming that file. Of course, copying takes more time.
-            if let Err(error) = launcher::prepare_log_file(&path, APP_NAME) {
+            // instead of just renaming that file. Of course, copying takes more time than renaming
+            if let Err(error) = application::prepare_log_file(&path, APP_NAME) {
                 error!("Failed to prepare the log file: {}", error);
             }
 
-            // Handle logging targets differently based on a build mode
-            let logging_builder = if cfg!(debug_assertions) {
-                // Debug mode
-                tauri_plugin_log::Builder::default()
-            } else {
-                // Release mode
-                // Clear any default output targets, such as 'stdout', etc.
-                tauri_plugin_log::Builder::new().clear_targets()
-            };
-
             app.manage(logging::LogTail::new(path.join("latest.log")));
             app.handle().plugin(
-                logging_builder
-                    // Do not log log messages from 'reqwest::connect'
+                tauri_plugin_log::Builder::new()
+                    // Clear any default output targets
+                    .clear_targets()
+                    // Do not log messages from 'reqwest::connect'
                     .filter(|metadata| metadata.target() != "reqwest::connect")
                     // Do not log 'trace' level messages
                     .level(log::LevelFilter::Debug)
                     // Make a new output target that will save logs in a log file
                     .target(tauri_plugin_log::Target::new(
                         tauri_plugin_log::TargetKind::Folder {
-                            path: path,
-                            file_name: Some(format!("latest")),
+                            path,
+                            file_name: Some("latest".to_string()),
                         },
+                    ))
+                    // Also log to terminal
+                    .target(tauri_plugin_log::Target::new(
+                        tauri_plugin_log::TargetKind::Stdout,
                     ))
                     // Make a custom logs format
                     .format(|out, message, record| {
@@ -147,9 +159,9 @@ pub fn run() {
                             message,
                         ))
                     })
-                    // Keep the log file size at 8 MB
+                    // Keep the log file size at 8 MiB
                     .max_file_size(8_388_608)
-                    // Keep the recent log lines if the file size exceeds 8 MBs
+                    // Keep the recent log lines if the file size exceeds 8 MiB
                     .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
                     .build(),
             )?;
@@ -160,18 +172,25 @@ pub fn run() {
         .manage(downloads::CancelFlags::default())
         // Register custom Tauri commands
         .invoke_handler(tauri::generate_handler![
+            application::get_initial_state,
             downloads::concurrently_download,
             downloads::cancel_downloads,
             extensions::read_extensions,
+            file_system::verify_paths,
+            file_system::verify_paths_hash,
             finalization::finalize_initialization,
+            // TODO move to java::get_java_major and java::detect_java_installations
             finalization::get_java_major,
             finalization::detect_java_installations,
-            hashes::hash_md5,
-            hashes::hash_sha1_file,
-            hashes::hash_sha256,
-            launcher::get_initial_state,
-            launcher::get_missing_files,
-            launcher::verify_file_paths,
+            hashing::hash_path,
+            hashing::hash_request_sha256,
+            hashing::hash_request_sha1,
+            hashing::hash_request_md5,
+            image::resize_image,
+            // Used by 'hybrid_ipc.js'. If app commands ever get an ACL manifest
+            // ('tauri_build::AppManifest'), these two must be allowed for every window
+            ipc_batch::ipc_batch,
+            ipc_batch::ipc_batch_take,
             logging::stream_logs,
             logging::stop_log_stream,
             modrinth::install_mrpack,

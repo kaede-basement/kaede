@@ -2,6 +2,7 @@ import { mkdir } from "@tauri-apps/plugin-fs";
 
 import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import FileManager from "@/lib/file-manager";
+import { Algorithms } from "@/lib/hashing.ts";
 import Hooks from "@/lib/hooks";
 import { log } from "@/lib/logging/log.ts";
 import Network from "@/lib/network";
@@ -42,8 +43,8 @@ export async function downloadLibraries({
   const startTime: number = performance.now();
   const missing: Set<string> = new Set(
     await FileManager.verifyPaths({
-      "paths": artifacts,
-      "sha1" : instance.checksum,
+      "paths"    : artifacts,
+      "algorithm": instance.checksum ? Algorithms.SHA1 : undefined,
     }),
   );
   const endTime: number = performance.now();

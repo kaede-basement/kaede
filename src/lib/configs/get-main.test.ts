@@ -18,94 +18,10 @@
 
 import { expect, mock, test } from "bun:test";
 
+import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
-const defaultConfig: ConfigType = {
-  "development": {
-    "loadErudaDevTools"         : false,
-    "showFPS"                   : false,
-    "showCPUUsage"              : false,
-    "showMemoryUsage"           : false,
-    "enableDebugMode"           : false,
-    "enableNativeContextMenu"   : false,
-    "enableNativeReloadKeyBinds": false,
-    "useNativeColorPicker"      : false,
-  },
-  "extensions": {
-    "list"                      : [],
-    "permissions"               : {},
-    "enabled"                   : false,
-    "allowUnrestrictedUntrusted": false,
-    "showAppAfterExtensionsLoad": false,
-  },
-  "ui": {
-    "ripple": {
-      "color"   : "#ffffff15",
-      "sparkles": "255 255 255",
-    },
-    "background": {
-      "image"  : null,
-      "blur"   : null,
-      "color"  : null,
-      "isVideo": null,
-      "key"    : null,
-    },
-    "text": {
-      "font"          : null,
-      "mainColor"     : null,
-      "secondaryColor": null,
-    },
-    "widget": {
-      "blur"          : null,
-      "textColor"     : null,
-      "secondaryColor": null,
-      "background"    : null,
-    },
-    "atAGlance": [
-      {
-        "title"   : "Welcome~",
-        "subtitle": "you can change this text",
-      },
-      {
-        "title"   : "These messages",
-        "subtitle": "were inspired by the \"At a Glance\" Android widget",
-      },
-      {
-        "title"   : "%date%",
-        "subtitle": "What a great day to play Minecraft, right?",
-      },
-    ],
-  },
-  "selected": {
-    "account"        : 0,
-    "currentInstance": null,
-    "stats"          : "playtime",
-  },
-  "locale": "en",
-  "logs"  : {
-    "show"      : false,
-    "mode"      : "kaede-launcher",
-    "filtering" : "",
-    "lineHeight": 20,
-    "partsShown": { "time": true, "level": true, "target": true, "message": true },
-    "partsSize" : { "time": 12, "level": 5, "target": 32 },
-  },
-  "java"     : [],
-  "minecraft": {
-    "windowHeight": 480,
-    "windowWidth" : 854,
-    "icon"        : "",
-    "javaBinary"  : "java",
-    "add"         : {
-      "jvmArguments" : [],
-      "gameArguments": [],
-    },
-    "remove": {
-      "jvmArguments" : [],
-      "gameArguments": [],
-    },
-  },
-};
+const defaultConfig: ConfigType = await getDefaultConfig();
 
 // 'handleJsonFile' returns the actually stored config; reassigned by every test case
 let currentFetchedConfig: unknown;
@@ -136,19 +52,22 @@ mock.module("@/lib/configs/scopes/regenerate-config-file.ts", () => ({
   "regenerateConfigFile": async (): Promise<unknown> => defaultConfig,
 }));
 
-const tests: Array<{
+const testData: Array<{
+  "label"    : string;
   "arguments": {
     "fetchedConfig": unknown;
   };
   "output": unknown;
 }> = [
   {
+    "label"    : "Empty Object",
     "arguments": {
       "fetchedConfig": {},
     },
     "output": defaultConfig,
   },
   {
+    "label"    : "Extra Fields",
     "arguments": {
       "fetchedConfig": {
         ...defaultConfig,
@@ -171,6 +90,7 @@ const tests: Array<{
     },
   },
   {
+    "label"    : "Number as a String",
     "arguments": {
       "fetchedConfig": {
         ...defaultConfig,
@@ -192,6 +112,7 @@ const tests: Array<{
     "output": defaultConfig,
   },
   {
+    "label"    : "Different 'ui.background.image' Value",
     "arguments": {
       "fetchedConfig": {
         ...defaultConfig,
@@ -216,12 +137,14 @@ const tests: Array<{
     },
   },
   {
+    "label"    : "Non-object (0)",
     "arguments": {
       "fetchedConfig": 0,
     },
     "output": defaultConfig,
   },
   {
+    "label"    : "Non-object (\"\")",
     "arguments": {
       "fetchedConfig": "",
     },
@@ -229,12 +152,14 @@ const tests: Array<{
   },
 ];
 
-test.each(tests)(
-  "Get Config File: %o", async ({ "arguments": testArguments, output }) => {
-    currentFetchedConfig = testArguments.fetchedConfig;
+for (const { label, "arguments": testArguments, output } of testData) {
+  const testName = `Get Config File: ${label}`;
 
-    // Imported dynamically so that the 'mock.module' calls above are registered first
-    const { getMain } = await import("./get-main.ts");
+  // Imported dynamically so that the 'mock.module' calls above are registered first
+  const { getMain } = await import("./get-main.ts");
+
+  test(testName, async () => {
+    currentFetchedConfig = testArguments.fetchedConfig;
 
     // These 'expect' tests throw an error on test fail which completely destroys next tests
     expect(
@@ -242,5 +167,5 @@ test.each(tests)(
     ).toBe(
       JSON.stringify(output),
     );
-  },
-);
+  });
+}

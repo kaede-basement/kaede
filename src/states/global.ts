@@ -81,7 +81,7 @@ export function declareGlobalStates(): void {
   /*
    * I genuinely do not know why importing 'GlobalObject' leads
    * to fucking module evaluation errors, completely breaking
-   * the whole fucking app?????????
+   * the whole fucking app, despite 'GlobalInternals' working normally?????????
    * Therefore, we directly assign the new reference of global states
    * to the 'window' by accessing the Kaede namespace
    */
