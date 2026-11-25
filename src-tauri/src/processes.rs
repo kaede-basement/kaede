@@ -428,6 +428,32 @@ mod pipes {
     }
 }
 
+#[cfg(any(windows, test))]
+fn publish_records<T>(
+    queues: [&mut std::collections::VecDeque<T>; 2],
+    turn: &mut usize,
+    mut send: impl FnMut(T) -> Result<(), mpsc::error::TrySendError<T>>,
+) -> bool {
+    loop {
+        let index = if queues[*turn].is_empty() {
+            *turn ^ 1
+        } else {
+            *turn
+        };
+        let Some(record) = queues[index].pop_front() else {
+            return true;
+        };
+        match send(record) {
+            Ok(()) => *turn = index ^ 1,
+            Err(mpsc::error::TrySendError::Full(record)) => {
+                queues[index].push_front(record);
+                return true;
+            }
+            Err(mpsc::error::TrySendError::Closed(_)) => return false,
+        }
+    }
+}
+
 #[cfg(windows)]
 mod pipes {
     use super::*;
@@ -739,11 +765,13 @@ mod pipes {
         }
 
         fn close(&mut self, error: Option<io::Error>) {
-            if let Some(handle) = self.handle.take() {
-                unsafe {
-                    DisconnectNamedPipe(handle.as_raw_handle());
-                }
+            let Some(handle) = self.handle.take() else {
+                return;
+            };
+            unsafe {
+                DisconnectNamedPipe(handle.as_raw_handle());
             }
+            drop(handle);
             if let Some(tail) = self.parser.finish(error.is_some()) {
                 self.outbox.push_back((self.name, Ok(tail)));
             }
@@ -808,20 +836,6 @@ mod pipes {
             }
             self.close(None);
         }
-
-        fn publish(&mut self, tx: &mpsc::Sender<OutputLine>) -> bool {
-            while let Some(record) = self.outbox.pop_front() {
-                match tx.try_send(record) {
-                    Ok(()) => (),
-                    Err(mpsc::error::TrySendError::Full(record)) => {
-                        self.outbox.push_front(record);
-                        break;
-                    }
-                    Err(mpsc::error::TrySendError::Closed(_)) => return false,
-                }
-            }
-            true
-        }
     }
 
     impl Drop for ReadStream {
@@ -851,25 +865,27 @@ mod pipes {
         tx: &mpsc::Sender<OutputLine>,
         stop: HANDLE,
         space: HANDLE,
+        turn: &mut usize,
     ) -> io::Result<()> {
-        let mut first = 0;
         loop {
             if signaled(stop)? {
                 return Ok(());
             }
-            first ^= 1;
             let mut again = false;
             let mut handles = [stop; 4];
             let mut len = 1;
             let mut needs_space = false;
-            for index in [first, first ^ 1] {
-                let stream = &mut streams[index];
+            for stream in streams.iter_mut() {
                 if stream.pending && signaled(stream.event.as_raw_handle())? {
                     stream.finish_read(false);
                 }
-                if !stream.publish(tx) {
-                    return Ok(());
-                }
+            }
+            if !publish_records(streams.each_mut().map(|s| &mut s.outbox), turn, |r| {
+                tx.try_send(r)
+            }) {
+                return Ok(());
+            }
+            for stream in streams.iter_mut() {
                 if stream.handle.is_some() && !stream.pending && stream.outbox.is_empty() {
                     stream.submit();
                     again |= !stream.pending;
@@ -924,11 +940,13 @@ mod pipes {
                         ReadStream::new("stdout", stdout, out_event, drain),
                         ReadStream::new("stderr", stderr, err_event, drain),
                     ];
+                    let mut turn = 0;
                     let result = pump(
                         &mut streams,
                         &tx,
                         thread_stop.as_raw_handle(),
                         thread_space.as_raw_handle(),
+                        &mut turn,
                     );
                     for stream in &mut streams {
                         stream.stop();
@@ -936,13 +954,10 @@ mod pipes {
                     if let Err(e) = result {
                         streams[1].outbox.push_back(("stderr", Err(e.to_string())));
                     }
-                    'flush: for stream in &mut streams {
-                        for record in stream.outbox.drain(..) {
-                            if tx.blocking_send(record).is_err() {
-                                break 'flush;
-                            }
-                        }
-                    }
+                    publish_records(streams.each_mut().map(|s| &mut s.outbox), &mut turn, |r| {
+                        tx.blocking_send(r)
+                            .map_err(|e| mpsc::error::TrySendError::Closed(e.0))
+                    });
                     drop(streams);
                     drop(tx);
                     drop(finished);
@@ -1375,11 +1390,8 @@ impl LineParser {
     }
 
     fn finish(&mut self, read_failed: bool) -> Option<Vec<u8>> {
-        if self.bytes.is_empty() || (read_failed && !self.trailing_cr) {
-            None
-        } else {
-            Some(std::mem::take(&mut self.bytes))
-        }
+        let bytes = std::mem::take(&mut self.bytes);
+        (!bytes.is_empty() && (!read_failed || self.trailing_cr)).then_some(bytes)
     }
 }
 
@@ -1697,6 +1709,19 @@ mod tests {
                 assert_eq!(queued, 96);
             }
             Drain::Collect => {
+                // Consume every complete record. Both inherited pipes are now silent,
+                // so closing the channel alone cannot wake the native reader.
+                let mut queued = 0;
+                let mut diagnostic = false;
+                while queued < 96 || !diagnostic {
+                    match output.next().await {
+                        Record::Line("stdout", Ok(b)) if b == b"queued\n" => queued += 1,
+                        Record::Line("stderr", Ok(b)) if b == b"final stderr\n" => {
+                            diagnostic = true
+                        }
+                        _ => panic!("unexpected output before abandonment"),
+                    }
+                }
                 let mut collecting = Box::pin(collect_child((launch, stdin, output)));
                 tokio::select! {
                     biased;
@@ -2082,6 +2107,37 @@ mod tests {
             );
         }
         assert!(matches!(output.next().await, Record::Exit(_)));
+    }
+
+    #[test]
+    fn full_channel_preserves_next_streams_turn() {
+        use std::collections::VecDeque;
+        let (tx, mut rx) = mpsc::channel(2);
+        let mut queues = [VecDeque::from([1, 3, 5, 7]), VecDeque::from([2, 4, 6])];
+        let mut turn = 0;
+        let mut publish = || publish_records(queues.each_mut(), &mut turn, |r| tx.try_send(r));
+        for burst in [&[1][..], &[2, 3], &[4], &[5, 6], &[7]] {
+            assert!(publish());
+            if burst.len() == 2 {
+                assert!(publish());
+            }
+            for &expected in burst {
+                assert_eq!(rx.try_recv().unwrap(), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn read_error_finalizes_the_fragment_once() {
+        for (mut input, expected) in [
+            (b"partial".as_slice(), None),
+            (b"a\r", Some(b"a\r".to_vec())),
+        ] {
+            let mut parser = LineParser::new(Drain::Collect);
+            assert_eq!(parser.next(&mut input), None);
+            assert_eq!(parser.finish(true), expected);
+            assert_eq!(parser.finish(false), None);
+        }
     }
 
     #[tokio::test]
