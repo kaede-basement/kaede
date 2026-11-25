@@ -22,12 +22,11 @@ import Hooks from "@/lib/hooks";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/log.ts";
-import { ProcessHandlers, rehydrateProcesses } from "@/lib/processes/core.ts";
-import { spawnLifetime } from "@/lib/processes/spawn-process.ts";
+import { ProcessHandlers, rehydrateProcesses, trackSpawnLifetimes } from "@/lib/processes/core.ts";
 import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
 import {
-  commitPlaytime, missingRunHandlers, startPlaytime,
+  commitPlaytime, missingRunHandlers, restoredRunTokens, startPlaytime,
 } from "@/states/instance.ts";
 import {
   activeRun, beginLaunch, finishLaunch, Launches as launches, operation, stopRun,
@@ -122,6 +121,8 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
   const statuses = beginLaunch(instanceId);
 
   if (!statuses) return;
+  const lifetimes = trackSpawnLifetimes();
+
   try {
     const onInput = createLogSink(instanceId);
 
@@ -154,7 +155,7 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
     const op = operation(instanceId);
 
     if (success && process && op.kind === "launching" && op.statuses === statuses) {
-      const lifetime = spawnLifetime(process);
+      const lifetime = lifetimes.get(process);
       const handlers = ProcessHandlers.get(process.token);
 
       if (startPlaytime(instanceId, process, false, lifetime?.startedAt, !!handlers)) {
@@ -179,6 +180,7 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
       Errors.prettify(error),
     );
   } finally {
+    lifetimes.close();
     finishLaunch(instanceId, statuses);
   }
 };
@@ -191,7 +193,14 @@ async function closeInstance(instanceId: string): Promise<void> {
     });
 
     if (result !== "continue" || activeRun(instanceId) !== run) return;
-    await run.process.kill();
+    try {
+      await run.process.kill();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : error;
+
+      if (!run.exit || (reason !== "no managed process" &&
+        reason !== `no managed process with pid ${run.process.pid}`)) throw error;
+    }
     if (run.exit) await run.exit.promise;
     else if (activeRun(instanceId) === run) onClose(instanceId);
   }).catch(error => {
@@ -199,34 +208,41 @@ async function closeInstance(instanceId: string): Promise<void> {
   });
 }
 
-function attach(handle: ProcessHandleType, endedAt?: number): ProcessHandlersType | undefined {
-  if (handle.kind !== "minecraft") {
-    return;
-  }
-
-  const process = handle as MinecraftProcessType;
-  const { instanceId } = process.meta;
-
-  if (!startPlaytime(instanceId, process, true)) return;
-
-  return {
-    "onOutput": createLogSink(instanceId),
-    "onExit"  : (payload): void => {
-      if (activeRun(instanceId)?.process.token === handle.token) {
-        onClose(instanceId, endedAt);
-      }
-      Hooks.catchAsyncVoidHooks({
-        "scope" : "onMinecraftKill",
-        "toPass": payload.pid,
-        "timing": "after",
-      });
-    },
-  };
-}
-
 async function rehydrateLaunchedInstances(): Promise<void> {
   await Watchers.watchProcesses();
   const tracked = missingRunHandlers();
+
+  let preferred: Map<string, string> | undefined;
+
+  function attach(handle: ProcessHandleType, endedAt?: number): ProcessHandlersType | undefined {
+    if (handle.kind !== "minecraft") {
+      return;
+    }
+
+    const process = handle as MinecraftProcessType;
+    const { instanceId } = process.meta;
+
+    // Missing checkpoints have been reconciled by the time the first handle is attached.
+    preferred ??= restoredRunTokens();
+    const token = preferred.get(instanceId);
+
+    if (token !== undefined && token !== process.token) return;
+    if (!startPlaytime(instanceId, process, true)) return;
+
+    return {
+      "onOutput": createLogSink(instanceId),
+      "onExit"  : (payload): void => {
+        if (activeRun(instanceId)?.process.token === handle.token) {
+          onClose(instanceId, endedAt);
+        }
+        Hooks.catchAsyncVoidHooks({
+          "scope" : "onMinecraftKill",
+          "toPass": payload.pid,
+          "timing": "after",
+        });
+      },
+    };
+  }
 
   await rehydrateProcesses(attach, (handle, { payload, endedAt }) => {
     attach(handle, endedAt)?.onExit?.(payload);

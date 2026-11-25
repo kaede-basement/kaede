@@ -12,9 +12,10 @@ import type { handleLaunch } from "@/lib/launcher/scopes/handle-launch.ts";
 import { spawnMinecraft } from "@/lib/launcher/scopes/spawn-minecraft.ts";
 import { dispatchProcessExit, toProcessHandle } from "@/lib/processes/core.ts";
 import { spawnProcess } from "@/lib/processes/spawn-process.ts";
-import { declareInstanceStates, instanceStates } from "@/states/instance.ts";
+import { declareInstanceStates, instanceStates, restorePlaytime } from "@/states/instance.ts";
 import { activeRun, operation } from "@/states/instance-operation.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
+import type { ProcessDtoType } from "@/types/application/server-process.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -29,6 +30,7 @@ const prepareAndSpawn = mock(({ instanceId, statuses, onClose, onInput, onSpawn 
   })
 ));
 
+const listProcesses = mock((): Array<ProcessDtoType> => []);
 const nativeKill = mock((pid: number) => pid);
 const noop = (): void => {};
 const asyncNoop = async (): Promise<void> => {};
@@ -38,7 +40,7 @@ beforeAll(async () => {
   let pid = 0;
 
   mockIPC((cmd, arguments_) => {
-    if (cmd === "list_processes") return [];
+    if (cmd === "list_processes") return listProcesses();
     if (cmd === "kill_process") nativeKill((arguments_ as { "pid": number }).pid);
     if (cmd === "spawn_process") {
       return { ...(arguments_ as { "spec": object }).spec, "pid": ++pid };
@@ -60,13 +62,17 @@ beforeAll(async () => {
   GlobalInternals.javaMajor = 21;
   GlobalInternals.initialInstances = { [id]: { "playTime": 0 } as InstanceStateType };
   declareInstanceStates();
+  await mountProvider();
+});
+
+async function mountProvider(): Promise<void> {
   const { "default": provider } = await import("@/components/general/misc/ContextProviders.vue");
 
   const app = createSSRApp({ ...provider, "render": () => null });
 
   app.provide(AuthOneTimeFetchContextKey, []);
   await renderToString(app);
-});
+}
 
 afterEach(() => {
   getHooks().onMinecraftLaunch.before.length = 0;
@@ -78,7 +84,7 @@ function exit(token: string): void {
   dispatchProcessExit({ token, "pid": 1, "code": 0, "signal": null });
 }
 
-test("await close permits relaunch only after the native exit arrives", async () => {
+test.each(["success", "missing"])("close waits for native exit after kill %s", async outcome => {
   const { launchInstance, closeInstance, launches } = GlobalInternals.instanceContext!;
   const clock = spyOn(performance, "now").mockReturnValue(100);
   const initial = instanceStates[id].playTime;
@@ -86,6 +92,11 @@ test("await close permits relaunch only after the native exit arrives", async ()
   await launchInstance(id);
   const token = activeRun(id)!.process.token;
 
+  if (outcome === "missing") {
+    nativeKill.mockImplementationOnce(pid => {
+      throw new Error(`no managed process with pid ${pid}`);
+    });
+  }
   clock.mockReturnValue(250);
   const closed = mock(noop);
   const close = closeInstance(id).then(closed);
@@ -123,7 +134,6 @@ test("a replacement process can reject Stop, then close without an exit notifica
 
   kill.mockRejectedValueOnce(new Error("kill rejected"));
   process.kill = kill;
-  // @ts-expect-error JavaScript extensions can return a process despite the void declaration.
   getHooks().onMinecraftLaunch.before.push(async () => ({
     "status": "stop", "response": { "success": true, process },
   }));
@@ -144,7 +154,6 @@ test("a before hook owns only its selected child and awaits that child's native 
   let selected!: Awaited<ReturnType<typeof spawnProcess<{ "instanceId": string }>>>;
   const childExit = mock(noop);
 
-  // @ts-expect-error JavaScript extensions can return a process despite the void declaration.
   getHooks().onMinecraftLaunch.before.push(async () => {
     const helper = await spawnProcess(spec);
 
@@ -164,6 +173,67 @@ test("a before hook owns only its selected child and awaits that child's native 
   await closing;
   expect(childExit).toHaveBeenCalledTimes(1);
   expect(operation(id).kind).toBe("idle");
+});
+
+test("a decorated child returned after native exit credits its actual lifetime once", async () => {
+  const clock = spyOn(performance, "now").mockReturnValue(100);
+  const { launchInstance } = GlobalInternals.instanceContext!;
+  const initial = instanceStates[id].playTime;
+
+  getHooks().onMinecraftLaunch.before.push(async () => {
+    const child = await spawnProcess({
+      "program": { "type": "path", "value": "java" },
+      "kind"   : "minecraft", "meta"   : { "instanceId": id },
+    });
+
+    clock.mockReturnValue(200);
+    exit(child.token);
+    clock.mockReturnValue(900);
+
+    const process = { ...child, "kill": (): Promise<void> => child.kill() };
+
+    return { "status": "stop", "response": { "success": true, process } };
+  });
+  await launchInstance(id);
+  expect(operation(id).kind).toBe("idle");
+  expect(instanceStates[id].playTime).toBe(initial + 100);
+  getHooks().onMinecraftLaunch.before.pop();
+  await launchInstance(id);
+  expect(operation(id).kind).toBe("running");
+  exit(activeRun(id)!.process.token);
+  expect(instanceStates[id].playTime).toBe(initial + 100);
+});
+
+test.each(["helper first", "selected first"])("restore the checkpoint owner: %s", async order => {
+  const instanceId = order;
+  const selected = {
+    "token": "selected-" + instanceId, "pid": 4, "kind": "minecraft", "meta": { instanceId },
+  };
+  const helper = { ...selected, "token": "helper-" + instanceId, "pid": 5 };
+  const key = "kaede.playtime::active." + instanceId;
+  const checkpoint = JSON.stringify({
+    "token"       : selected.token, "savedAt"     : Date.now(),
+    "carriedMs"   : 100, "basePlayTime": 0, "lastLaunch"  : 1,
+  });
+
+  Object.assign(globalThis, { "localStorage": {
+    "length": 1, "key": () => key, "getItem": () => checkpoint, "setItem": noop,
+  } });
+  try {
+    instanceStates[instanceId] = { ...instanceStates[id] };
+    restorePlaytime();
+    const processes = order === "helper first" ? [helper, selected] : [selected, helper];
+
+    listProcesses.mockReturnValueOnce(processes);
+    await mountProvider();
+    await GlobalInternals.instanceContext!.launchInstance(instanceId);
+    expect(activeRun(instanceId)?.process.token).toBe(selected.token);
+    exit(helper.token);
+    expect(activeRun(instanceId)?.process.token).toBe(selected.token);
+    exit(selected.token);
+  } finally {
+    Reflect.deleteProperty(globalThis, "localStorage");
+  }
 });
 
 test.each(["exit", "kill"])("%s retains ownership until the after hook settles", async mode => {

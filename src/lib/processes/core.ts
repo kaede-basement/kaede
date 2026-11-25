@@ -26,6 +26,33 @@ import type {
 
 export const ProcessHandlers = new Map<string, ProcessHandlersType>;
 
+type Lifetime = { "startedAt": number; "endedAt"?: number };
+const live = new Map<string, Lifetime>;
+const originalLifetimes = new WeakMap<ProcessHandleType, Lifetime>;
+const pendingSelections = new Set<Map<string, Lifetime>>;
+
+export function trackSpawnLifetimes(): {
+  get(process: ProcessHandleType): Readonly<Lifetime> | undefined;
+  close(): void;
+} {
+  const exits = new Map<string, Lifetime>;
+
+  pendingSelections.add(exits);
+
+  return {
+    "get": process => live.get(process.token) ?? exits.get(process.token) ??
+      originalLifetimes.get(process),
+    "close": () => pendingSelections.delete(exits),
+  };
+}
+
+export function recordSpawnLifetime(handle: ProcessHandleType, startedAt: number): void {
+  const lifetime = { startedAt };
+
+  live.set(handle.token, lifetime);
+  originalLifetimes.set(handle, lifetime);
+}
+
 export function toProcessHandle<Meta>({
   token,
   pid,
@@ -54,11 +81,12 @@ type Recovery = {
 const pendingLists = new Set<Recovery>;
 
 export function dispatchProcessExit(payload: ExitPayload): void {
+  const endedAt = performance.now();
   const handlers = ProcessHandlers.get(payload.token);
 
   ProcessHandlers.delete(payload.token);
   if (pendingLists.size > 0) {
-    const exit = { payload, "endedAt": performance.now(), "handled": handlers !== undefined };
+    const exit = { payload, endedAt, "handled": handlers !== undefined };
 
     for (const { recent, tracked, trackedExits } of pendingLists) {
       if (tracked.has(payload.token)) {
@@ -68,7 +96,18 @@ export function dispatchProcessExit(payload: ExitPayload): void {
       }
     }
   }
-  handlers?.onExit?.(payload);
+  try {
+    handlers?.onExit?.(payload);
+  } finally {
+    // An early exit can confirm the spawn inside onExit before the IPC reply arrives.
+    const lifetime = live.get(payload.token);
+
+    if (lifetime) {
+      lifetime.endedAt = endedAt;
+      live.delete(payload.token);
+      for (const exits of pendingSelections) exits.set(payload.token, lifetime);
+    }
+  }
 }
 
 export async function rehydrateProcesses(

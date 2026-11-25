@@ -176,6 +176,14 @@ function finish(id: string, checkpoint: FinishedCheckpoint): void {
   storage(store => store.setItem(prefix("finished") + id, JSON.stringify(checkpoint)));
 }
 
+export function restoredRunTokens(): Map<string, string> {
+  const tokens = new Map<string, string>;
+
+  for (const [token, { id }] of restored) tokens.set(id, token);
+
+  return tokens;
+}
+
 export function missingRunHandlers(): Map<string, (endedAt: number) => void> {
   const handlers = new Map<string, (endedAt: number) => void>;
 

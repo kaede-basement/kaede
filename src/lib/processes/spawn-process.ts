@@ -19,7 +19,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import {
-  ProcessHandlers,
+  ProcessHandlers, recordSpawnLifetime,
   toProcessHandle,
 } from "@/lib/processes/core.ts";
 import type {
@@ -28,13 +28,6 @@ import type {
   ProcessHandleType,
   ProgramSpecType,
 } from "@/types/application/server-process.type.ts";
-
-type Lifetime = { "startedAt": number; "endedAt"?: number };
-const lifetimes = new WeakMap<ProcessHandleType, Lifetime>;
-
-export function spawnLifetime(process: ProcessHandleType): Readonly<Lifetime> | undefined {
-  return lifetimes.get(process);
-}
 
 // 'crypto.randomUUID()' is unavailable outside secure contexts on webkitgtk...
 function createToken(): string {
@@ -62,7 +55,7 @@ export async function spawnProcess<Meta>(
   function confirm(dto: ProcessDtoType<Meta>, startedAt: number): ProcessHandleType<Meta> {
     if (!confirmed) {
       confirmed = toProcessHandle(dto);
-      lifetimes.set(confirmed, { startedAt });
+      recordSpawnLifetime(confirmed, startedAt);
       onSpawn?.(confirmed, startedAt);
     }
 
@@ -74,9 +67,7 @@ export async function spawnProcess<Meta>(
       // An exit proves the process spawned even when its IPC reply is still pending.
       const { kind, meta } = options;
 
-      const process = confirm({ token, "pid": payload.pid, kind, meta }, requestedAt);
-
-      lifetimes.get(process)!.endedAt = performance.now();
+      confirm({ token, "pid": payload.pid, kind, meta }, requestedAt);
       processHandlers.onExit?.(payload);
     },
   });

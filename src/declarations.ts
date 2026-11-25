@@ -74,6 +74,7 @@ import type {
   ArgumentAuthReplacementsType,
   ArgumentReplacementsType,
 } from "@/types/launcher/launch/argument-replacements.type.ts";
+import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type {
   LauncherStatusesType,
   WrappedInstanceLauncherStatusesType,
@@ -1276,7 +1277,7 @@ declare global {
            *
            * If the hook returns a 'stop' status,
            * it should also return:
-           * @param output - a 'void'
+           * @param output - a replacement launch result or void
            * in the 'response' field.
            *
            * If the hook returns a 'continue' status,
@@ -1307,7 +1308,7 @@ declare global {
               "parsed"     : Array<MappedArtifactType>;
               "javaBinary" : string;
             },
-            void
+            LaunchResponseType | void
           >;
 
           /**

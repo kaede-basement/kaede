@@ -4094,7 +4094,7 @@ declare global {
 					 *
 					 * If the hook returns a 'stop' status,
 					 * it should also return:
-					 * @param output - a 'void'
+					 * @param output - a replacement launch result or void
 					 * in the 'response' field.
 					 *
 					 * If the hook returns a 'continue' status,
@@ -4124,7 +4124,7 @@ declare global {
 						"versionMeta": SpecificPatchMetaType;
 						"parsed": Array<MappedArtifactType>;
 						"javaBinary": string;
-					}, void>;
+					}, LaunchResponseType | void>;
 					/**
 					 * Executes 'async' or 'sync' functions after the minecraft instance was launched.
 					 *
