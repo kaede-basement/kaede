@@ -113,20 +113,17 @@ async function saveDraft(instance: InstanceStateType, pack?: Import): Promise<st
   if (pack) {
     const expected = archive?.path === pack.path ? archive.sha256 : undefined;
 
-    if (expected !== undefined) {
+    if (expected === undefined) {
+      identity = await archiveIdentity(pack.path);
+    } else {
       try {
         identity = await hashLocalArchive(pack.path);
       } catch (error) {
         log.error(__PRE_BUNDLED_FILENAME__, "Could not verify selected archive:", String(error));
       }
       if (identity !== expected) {
-        if (pending?.directory === directory && pending.path === pack.path) {
-          awaitingMetadata.delete(page);
-        }
         throw new InstanceDraftError(translate("import.reselect-archive"));
       }
-    } else {
-      identity = await archiveIdentity(pack.path);
     }
   }
   const retryId = pending && pending.directory === directory && pending.path === pack?.path &&

@@ -27,6 +27,7 @@ const original: AccountType = {
   "msa"    : { "token": "original", "refreshToken": "original" },
   "skin"   : { "variant": "classic", "id": "", "data": "", "url": "" },
 };
+const skinEdit = { ...original, "skin": { ...original.skin, "url": "updated" } };
 const winner = { ...original, "msa": { "token": "winning", "refreshToken": "winning" } };
 const stale = { ...original, "msa": { "token": "stale", "refreshToken": "stale" } };
 
@@ -52,9 +53,16 @@ for (const status of ["failed", "refreshed"] as const) {
     expect(accounts.value).toEqual([]);
     expect(handlers.success).toHaveBeenCalledTimes(1);
     expect(handlers.error.mock.calls[0][0]).toContain("account was removed");
-    expect(save).not.toHaveBeenCalled();
     expect(fresh).toHaveBeenCalledTimes(2);
     expect(read).toHaveBeenCalledTimes(2);
+    if (status === "failed") {
+      read.mockResolvedValueOnce(JSON.stringify([skinEdit]));
+      await run();
+      expect(accounts.value).toEqual([skinEdit]);
+      expect(handlers.success).toHaveBeenCalledTimes(1);
+      expect(handlers.error.mock.lastCall![0]).toContain("Failed to refresh");
+    }
+    expect(save).not.toHaveBeenCalled();
   });
 
   test(status + " launch refresh distinguishes removal, decline and a winning token", async () => {
@@ -76,7 +84,7 @@ for (const status of ["failed", "refreshed"] as const) {
       .mockResolvedValueOnce({ "account": original, "status": "failed" })
       .mockResolvedValueOnce({ "account": stale, status });
     using read = spyOn(store, "readAccountText").mockResolvedValueOnce("[]")
-      .mockResolvedValueOnce(JSON.stringify([original]))
+      .mockResolvedValueOnce(JSON.stringify([skinEdit]))
       .mockResolvedValueOnce(JSON.stringify([winner]));
     using confirm = spyOn(dialog, "confirm").mockResolvedValue(false);
     using notify = spyOn(dialog, "message").mockResolvedValue("Ok");

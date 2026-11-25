@@ -13,6 +13,7 @@ import { installMrpack } from "@/lib/modrinth/install-mrpack.ts";
 import { globalStates } from "@/states/global.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
+import { manifest, releases } from "./modpack-fixtures.ts";
 import { mountComponent, pressEnter } from "./mount-component.ts";
 import { useUiState } from "./ui-state.ts";
 import { checkViewportFocus, scrollViewport } from "./viewport-focus.ts";
@@ -30,24 +31,6 @@ afterEach(() => {
   files.dispose();
 });
 
-const releases = Array.from({ "length": 350 }, (_, n) => ({
-  "id"            : "id-" + n,
-  "name"          : "Release " + n,
-  "version_number": "1",
-  "game_versions" : ["1.20"],
-  "loaders"       : ["fabric" as const],
-  "featured"      : false,
-  "files"         : [{ "url": "https://example.org/" + n }],
-}));
-const manifest = {
-  "formatVersion": 1,
-  "versionId"    : "1",
-  "name"         : "Pack",
-  "files"        : [],
-  "overrides"    : 0,
-  "summary"      : null,
-  "dependencies" : { "minecraft": "1.20" },
-};
 const mount = (): ReturnType<typeof mountComponent> => mountComponent(
   "add-instance/modrinth/ModpackVersionSelector", {
     "idRoot": "release", "projectId": "project", "projectIcon": null, "close": mock(),
@@ -90,9 +73,16 @@ test("superseded release cannot publish after a newer identically numbered relea
   first.root.querySelector<HTMLButtonElement>("#release-id-0")!.click();
   second.root.querySelector<HTMLButtonElement>("#release-id-1")!.click();
   await Bun.sleep(0);
-  older.resolve(new Response("older"));
+  const cancel = mock();
+  const stale = new Response(new ReadableStream({ cancel }));
+
+  using bytes = spyOn(stale, "bytes");
+
+  older.resolve(stale);
   await Bun.sleep(0);
   expect(write).toHaveBeenCalledTimes(1);
+  expect(bytes).not.toHaveBeenCalled();
+  expect(cancel).toHaveBeenCalledTimes(1);
   expect(write.mock.calls[0][0].toString()).toMatch(/69642d31-[0-9a-f]{32}\.mrpack$/);
   expect(peek).toHaveBeenCalledTimes(1);
   expect(fetch).toHaveBeenCalledTimes(2);

@@ -4,10 +4,16 @@ import { updateAccounts } from "@/lib/configs/scopes/write-accounts.ts";
 import type { EnsureFreshResultType } from "@/types/auth/microsoft-auth.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
-type RefreshSnapshot = { "uuid": string; "key": string };
+type RefreshSnapshot = { "uuid": string; "key": string; "credentials": string };
+
+function credentialsKey(account: AccountType): string {
+  return hashKey([account.profile.type, account.msa]);
+}
 
 export function snapshotAccount(account: AccountType): RefreshSnapshot {
-  return { "uuid": account.profile.uuid, "key": hashKey([account]) };
+  return {
+    "uuid": account.profile.uuid, "key": hashKey([account]), "credentials": credentialsKey(account),
+  };
 }
 
 export async function commitAccountRefresh(
@@ -39,7 +45,7 @@ export async function commitAccountRefresh(
   const account = accounts.find(entry => entry.profile.uuid === uuid);
 
   if (!account) return { accounts, "status": "missing" };
-  const failed = result.status === "failed" && hashKey([account]) === key;
+  const failed = result.status === "failed" && credentialsKey(account) === snapshot.credentials;
 
   return { account, accounts, "status": failed ? "failed" : "ready" };
 }

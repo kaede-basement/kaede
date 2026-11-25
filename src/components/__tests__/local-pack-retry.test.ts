@@ -102,9 +102,10 @@ for (const contents of ["unchanged", "replaced", "restored after mismatch"]) {
     button.click();
     await persisted.promise;
     await Bun.sleep(0);
-    expect(install).toHaveBeenCalledTimes(contents === "unchanged" ? 1 : 2);
+    expect(install).toHaveBeenCalledTimes(contents === "replaced" ? 2 : 1);
     const installed = install.mock.lastCall![0].instanceId;
 
+    if (contents !== "replaced") expect(installed).toBe(install.mock.calls[0][0].instanceId);
     expect(Object.keys(instanceStates)).toEqual([installed]);
     expect(globalStates.selected.currentInstance).toBe(installed);
     expect(globalStates.currentPage).toBe(Routes.Home);

@@ -144,7 +144,7 @@ async function startInstance(
   try {
     const onInput = createLogSink(instanceId);
 
-    if (accountStoreError.value || !accounts.value[globalStates.selected.account]) {
+    if (!accounts.value[globalStates.selected.account]) {
       const key = accountStoreError.value
         ? "profile.accounts.storage-error"
         : "general.launch-status.missing-account";

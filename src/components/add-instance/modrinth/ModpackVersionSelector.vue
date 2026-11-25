@@ -89,8 +89,9 @@ async function handleClick(
     }
     const response = await fetch(url);
 
-    if (!response.ok) {
+    if (!current() || !response.ok) {
       await discardResponseBody(response);
+      if (!current()) return;
       throw new Error("HTTP " + response.status);
     }
     const bytes = await response.bytes();
