@@ -8,6 +8,7 @@ mod file_system;
 mod finalization;
 mod hashing;
 mod image;
+#[cfg(any(windows, target_os = "linux"))]
 mod ipc_batch;
 mod logging;
 mod modrinth;
@@ -40,7 +41,18 @@ pub fn run() {
     // in one tick go as one message to 'ipc_batch'.
     // macOS keeps the default transport since it was not tested there
     #[cfg(any(windows, target_os = "linux"))]
-    let builder = builder.invoke_system(include_str!("hybrid_ipc.js"));
+    let builder = builder
+        .invoke_system(include_str!("hybrid_ipc.js"))
+        .on_page_load(|webview, load| {
+            if load.event() == tauri::webview::PageLoadEvent::Started {
+                ipc_batch::page_left(webview);
+            }
+        })
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                ipc_batch::window_destroyed(window.label());
+            }
+        });
 
     // The "notifications" feature is disabled for Windows 7 builds
     #[cfg(feature = "notifications")]
@@ -189,7 +201,9 @@ pub fn run() {
             image::resize_image,
             // Used by 'hybrid_ipc.js'. If app commands ever get an ACL manifest
             // ('tauri_build::AppManifest'), these two must be allowed for every window
+            #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::ipc_batch,
+            #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::ipc_batch_take,
             logging::stream_logs,
             logging::stop_log_stream,
