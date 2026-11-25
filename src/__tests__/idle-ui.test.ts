@@ -5,8 +5,7 @@ test("idle UI lifecycle", () => {
   const result = Bun.spawnSync([
     process.execPath,
     "test",
-    "--preload",
-    "./scripts/setup-tests.ts",
+    "--randomize",
     "./src/__tests__/idle-ui.cases.ts",
     "./src/__tests__/skin-renderer.cases.ts",
   ]);

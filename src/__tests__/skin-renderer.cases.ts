@@ -1,9 +1,12 @@
-import { expect, mock, test } from "bun:test";
+import { afterEach, expect, mock, test } from "bun:test";
 import { nextTick, reactive } from "vue";
 
 import {
-  asyncNoop, authKey, mount, type Mounted, noop, translationsKey,
+  asyncNoop, authKey,   cleanupHarness, mount, type Mounted, noop, overrideGlobals,
+  translationsKey,
 } from "./idle-ui-harness.ts";
+
+afterEach(cleanupHarness);
 
 test("profile draws on demand and releases viewers created before or after teardown", async () => {
   const frames = (new Map<number, FrameRequestCallback>);
@@ -11,7 +14,7 @@ test("profile draws on demand and releases viewers created before or after teard
   const observe = mock(noop);
   let resized!: (entries: Array<{ "contentRect": { "width": number; "height": number } }>) => void;
 
-  Object.assign(globalThis, {
+  overrideGlobals({
     "requestAnimationFrame": (callback: FrameRequestCallback): number => {
       frames.set(++id, callback);
 
@@ -83,6 +86,19 @@ test("profile draws on demand and releases viewers created before or after teard
   drawFrame();
   expect(gpu.render).toHaveBeenCalledTimes(1);
   expect(frames.size).toBe(0);
+
+  const texture = Promise.withResolvers<void>();
+
+  gpu.setSkin.mockImplementationOnce(() => texture.promise);
+  accounts.value[0].skin.url = "new-classic";
+  await nextTick();
+  expect(gpu.setSkin).toHaveBeenLastCalledWith("new-classic");
+  expect(frames.size).toBe(0);
+  texture.resolve();
+  await Bun.sleep(0);
+  expect(frames.size).toBe(1);
+  drawFrame();
+  expect(render).toHaveBeenCalledTimes(2);
 
   expect(observe).toHaveBeenCalledWith(canvas.parentElement);
   expect(observe).not.toHaveBeenCalledWith(canvas);
@@ -164,7 +180,7 @@ test("extension canvases preserve the native loop, callbacks and DPR sizing", as
     "resize": mock(noop), "setSlim": noop, "dispose": mock(noop),
   };
 
-  Object.assign(globalThis, { "devicePixelRatio": 2, "ResizeObserver"  : class {
+  overrideGlobals({ "devicePixelRatio": 2, "ResizeObserver"  : class {
     constructor() {
       observer();
     }

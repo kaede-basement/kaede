@@ -17,7 +17,7 @@
   -->
 
 <script setup lang="ts">
-import { computed, inject, markRaw, ref } from "vue";
+import { computed, inject, ref, shallowReactive } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -77,7 +77,7 @@ function trackDownloads(instanceId: string): LauncherStatusesType {
     "launching": 1,
     "current"  : undefined,
     "downloads": {
-      "current": markRaw(new Map<string, [number, number]>),
+      "current": shallowReactive(new Map<string, [number, number]>),
       "success": 0,
       "failed" : 0,
       "total"  : 0,

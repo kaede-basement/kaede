@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   inject,
-  markRaw,
   provide,
   reactive,
   type ShallowReactive,
@@ -135,7 +134,7 @@ async function launchInstance(instanceId?: string, options?: Partial<{
     "launching": 1,
     "current"  : undefined,
     "downloads": {
-      "current": markRaw(new Map<string, [number, number]>),
+      "current": shallowReactive(new Map<string, [number, number]>),
       "success": 0,
       "failed" : 0,
       "total"  : 0,
@@ -245,7 +244,7 @@ async function rehydrateLaunchedInstances(): Promise<void> {
         "launching": 2,
         "current"  : LaunchStatus.General.Success,
         "downloads": {
-          "current": markRaw(new Map<string, [number, number]>),
+          "current": shallowReactive(new Map<string, [number, number]>),
           "success": 0,
           "failed" : 0,
           "total"  : 0,

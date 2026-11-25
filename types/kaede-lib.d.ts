@@ -146,7 +146,8 @@ declare const AccountSchema: Type.TObject<{
 	}>;
 }>;
 export type AccountType = Static<typeof AccountSchema>;
-declare function useSkinRenderer({ render, account, }: {
+declare function useSkinRenderer({ render, account, onDemand, }: {
+	"onDemand"?: boolean;
 	"render": "3d" | "2d-head";
 	"account"?: ComputedRef<AccountType | undefined>;
 }): {
@@ -1631,10 +1632,10 @@ export type LaunchStatusType = {
 	[Key in LaunchKeyType]: LaunchStatusObjectType[Key][keyof LaunchStatusObjectType[Key]];
 }[LaunchKeyType];
 export type LauncherStatusesDownloadsType = {
-	"current": Raw<Map<string, [
+	"current": Map<string, [
 		number,
 		number
-	]>>;
+	]>;
 	"success": number;
 	"failed": number;
 	"total": number;

@@ -86,12 +86,10 @@ const progress = computed<number>((oldValue: number | undefined): number => {
 
 const currentDownloadSpeed = ref("0.00");
 const currentDownloadCount = ref(0);
-const activeDownloads = computed(() => (statuses.value?.launching === 1
-  ? statuses.value.downloads
-  : undefined));
+const hasDownloads = computed(() => (statuses.value?.downloads?.current.size ?? 0) > 0);
 
 function sampleDownloads(): void {
-  const current = activeDownloads.value?.current;
+  const current = statuses.value?.downloads?.current;
   let speed = 0;
 
   if (current) {
@@ -105,8 +103,8 @@ function sampleDownloads(): void {
 
 const { resume, pause } = useIntervalFn(sampleDownloads, 100, { "immediate": false });
 
-watch(activeDownloads, (downloads, _, onCleanup) => {
-  if (downloads) {
+watch(hasDownloads, (active, _, onCleanup) => {
+  if (active) {
     sampleDownloads();
     resume();
     onCleanup(() => {

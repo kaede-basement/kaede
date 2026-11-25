@@ -1,14 +1,15 @@
-import { beforeEach, expect, mock, spyOn, test } from "bun:test";
-import { markRaw, nextTick, reactive, type Ref } from "vue";
+import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
+import { nextTick, reactive, type Ref } from "vue";
 
-import { LaunchStatus } from "@/constants/launcher.ts";
 import type { DownloadSnapshotType } from "@/types/launcher/artifacts/download.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
 import {
-  closeKey, documentState, type Element, instances, invoke, launchKey, mount, noop,
-  startKey, state, translationsKey,
+  cleanupHarness, closeKey, documentState, type Element, instances, invoke, launchKey,
+  launchStatus, mount, noop, overrideGlobals, startKey, state, translationsKey,
 } from "./idle-ui-harness.ts";
+
+afterEach(cleanupHarness);
 
 beforeEach(() => {
   documentState.hidden = false;
@@ -63,16 +64,12 @@ test("video follows initial and changed visibility until unmount", async () => {
   expect(video.play).toHaveBeenCalledTimes(1);
 });
 
-function launchStatus(instanceId: string): LauncherStatusesType {
-  return {
-    instanceId, "launching": 1, "current"  : LaunchStatus.General.Starting,
-    "downloads": { "current": markRaw(new Map), "success": 0, "failed": 0, "total": 0 },
-  };
-}
-
-test("download polling follows active launches and reads live tuples and Maps", async () => {
+test.each([0, 1, 2] as const)("launch state %i polls nonempty Maps", async launching => {
   const { "default": progress } = await import("@/components/general/layout/LaunchProgress.vue");
-  const launches = reactive<Record<string, LauncherStatusesType>>({});
+  const launches = reactive({ "first": launchStatus("first") });
+  const status = launches.first;
+
+  status.launching = launching;
   const interval = spyOn(globalThis, "setInterval");
   const clear = spyOn(globalThis, "clearInterval");
   const view = mount<{ "currentDownloadSpeed": Ref<string>; "currentDownloadCount": Ref<number> }>(
@@ -80,48 +77,56 @@ test("download polling follows active launches and reads live tuples and Maps", 
   );
 
   expect(interval).not.toHaveBeenCalled();
-  launches.first = launchStatus("first");
-  await nextTick();
-  expect(interval).toHaveBeenCalledTimes(1);
-  const [tick, period] = interval.mock.calls[0];
 
-  expect(period).toBe(100);
-  const tuple: [number, number] = [0, 1_048_576];
+  for (const plain of [false, true]) {
+    if (plain) {
+      status.downloads.current = (new Map);
+    }
+    const current = status.downloads.current;
+    const tuple: [number, number] = [0, 1_048_576];
 
-  launches.first.downloads.current.set("hook", tuple);
-  tick();
-  expect(view.bindings.currentDownloadSpeed.value).toBe("1.00");
-  tuple[1] *= 2;
-  tick();
-  expect(view.bindings.currentDownloadSpeed.value).toBe("2.00");
-  const replacement = new Map<string, [number, number]>([["new", [0, 3_145_728]]]);
+    current.set("artifact", tuple);
+    if (!plain) {
+      expect(current.get("artifact")).toBe(tuple);
+    }
+    await nextTick();
+    const index = plain ? 1 : 0;
 
-  launches.first.downloads.current = markRaw(replacement);
-  tick();
-  expect(view.bindings.currentDownloadSpeed.value).toBe("3.00");
-  state.selected.currentInstance = "second";
-  await nextTick();
-  expect(clear).toHaveBeenCalledWith(interval.mock.results[0].value);
-  expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
-  expect(view.bindings.currentDownloadCount.value).toBe(0);
-  state.selected.currentInstance = "first";
-  await nextTick();
-  expect(view.bindings.currentDownloadSpeed.value).toBe("3.00");
-  launches.first.launching = 0;
-  await nextTick();
-  expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
-  expect(clear).toHaveBeenCalledWith(interval.mock.results[1].value);
-  launches.first.launching = 1;
-  await nextTick();
-  view.unmount();
-  expect(clear).toHaveBeenCalledWith(interval.mock.results[2].value);
-  interval.mockRestore();
-  clear.mockRestore();
+    expect(interval).toHaveBeenCalledTimes(index + 1);
+    expect(view.bindings.currentDownloadCount.value).toBe(1);
+    expect(view.bindings.currentDownloadSpeed.value).toBe("1.00");
+    const [tick, period] = interval.mock.calls[index];
+
+    expect(period).toBe(100);
+    tuple[1] *= 2;
+    tick();
+    expect(view.bindings.currentDownloadSpeed.value).toBe("2.00");
+    if (plain) {
+      current.clear();
+    } else {
+      current.delete("artifact");
+    }
+    await nextTick();
+    expect(clear).toHaveBeenCalledWith(interval.mock.results[index].value);
+    expect(view.bindings.currentDownloadCount.value).toBe(0);
+    expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
+  }
 });
 
-test("settled batches ignore late snapshots after a Map replacement", async () => {
+test("post-install artifacts poll at state 0 and clean only their own entries", async () => {
   const { concurrentlyDownload } = await import("@/lib/network/concurrently-download.ts");
-  const status = launchStatus("first");
+  const { "default": progress } = await import("@/components/general/layout/LaunchProgress.vue");
+  const launches = reactive({ "first": launchStatus("first") });
+  const status = launches.first;
+  const clear = spyOn(globalThis, "clearInterval");
+  const view = mount<{ "currentDownloadSpeed": Ref<string> }>(
+    progress, "container", [[launchKey, launches], [translationsKey, {}]],
+  );
+
+  status.launching = 0;
+
+  status.downloads.current = (new Map);
+  const original = status.downloads.current;
   let emit!: (snapshot: DownloadSnapshotType) => void;
   const report = Promise.withResolvers<object>();
 
@@ -131,18 +136,33 @@ test("settled batches ignore late snapshots after a Map replacement", async () =
     return report.promise;
   });
   const batch = concurrentlyDownload({
-    "statuses": status, "entries": [{ "url": "", "path": "a" }], "label": "", "concurrency": 1,
+    "statuses"   : status, "entries"    : ["a", "external"].map(path => ({ "url": path, path })),
+    "label"      : "", "concurrency": 2,
   });
-
-  status.downloads.current = markRaw(new Map);
-  const snapshot: DownloadSnapshotType = { "current": { "a": [1, 10] }, "success": 0, "failed": 0 };
+  const snapshot: DownloadSnapshotType = {
+    "current": { "a": [1, 1_048_576], "external": [0, 0] }, "success": 0, "failed": 0,
+  };
 
   emit(snapshot);
-  expect(status.downloads.current.size).toBe(1);
+  await nextTick();
+  expect(view.bindings.currentDownloadSpeed.value).toBe("1.00");
+  expect(original.get("a")).toEqual([1, 1_048_576]);
+  original.set("external", [7, 70]);
+  status.downloads.current = new Map([["a", [7, 3_145_728]]]);
   report.resolve({ "cancelled": true, "success": 0, "failed": 0 });
   await batch;
   emit(snapshot);
-  expect(status.downloads.current.size).toBe(0);
+  expect([...original.entries()]).toEqual([["external", [7, 70]]]);
+  expect(status.downloads.current.get("a")).toEqual([7, 3_145_728]);
+  state.selected.currentInstance = "second";
+  await nextTick();
+  expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
+  expect(clear).toHaveBeenCalledTimes(1);
+  state.selected.currentInstance = "first";
+  await nextTick();
+  expect(view.bindings.currentDownloadSpeed.value).toBe("3.00");
+  view.unmount();
+  expect(clear).toHaveBeenCalledTimes(2);
 });
 
 test("Home accrues only the selected instance's active gameplay time", async () => {
@@ -193,7 +213,7 @@ test("FPS uses a sliding second, publishes 15 bars and cancels its pending frame
   let scheduled = 0;
   const cancel = mock(noop);
 
-  Object.assign(globalThis, {
+  overrideGlobals({
     "requestAnimationFrame": (frame: FrameRequestCallback): number => {
       pending = frame;
 
