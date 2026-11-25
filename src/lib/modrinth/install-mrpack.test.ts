@@ -18,14 +18,18 @@ import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status
 import { ActiveInstall, installMrpack, repairLegacyMrpack } from "./install-mrpack.ts";
 
 const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+let restoreInstances: (() => void) | undefined;
 
 beforeEach(() => {
   Object.defineProperty(globalThis, "window", {
     "configurable": true, "value": { crypto, "__KAEDE__": { "states": {} } },
   });
+  restoreInstances = declareInstanceStates();
 });
 
 afterEach(() => {
+  restoreInstances?.();
+  restoreInstances = undefined;
   if (previousWindow) {
     Object.defineProperty(globalThis, "window", previousWindow);
   } else {
@@ -82,7 +86,6 @@ test("cancel requested before registration reaches Rust before installation star
 test("remount retains the install and its completion preserves the newer draft", async () => {
   using initialPage = spyOn(Router, "getInitialPage").mockReturnValue(Routes.AddInstance);
   declareGlobalStates();
-  declareInstanceStates();
   expect(initialPage).toHaveBeenCalled();
   const prepared = Promise.withResolvers<void>();
   const started = Promise.withResolvers<void>();
@@ -152,7 +155,6 @@ test("remount retains the install and its completion preserves the newer draft",
 test("registration awaits the instance write and preserves an active Modrinth tab", async () => {
   using initial = spyOn(Router, "getInitialPage").mockReturnValue(Routes.AddInstance);
   declareGlobalStates();
-  declareInstanceStates();
   expect(initial).toHaveBeenCalled();
   const writing = Promise.withResolvers<void>();
   const written = Promise.withResolvers<void>();
@@ -193,7 +195,6 @@ test("registration awaits the instance write and preserves an active Modrinth ta
 });
 
 test("legacy archive availability and cancellation retain the retry marker", async () => {
-  declareInstanceStates();
   instanceStates.legacy = { "modpackPath": "legacy.mrpack" } as InstanceStateType;
   const statuses = { "downloads": { "total": 0, "success": 0 } } as LauncherStatusesType;
   const commands: Array<string> = [];
