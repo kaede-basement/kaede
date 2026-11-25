@@ -535,7 +535,7 @@ pub(super) mod tests {
             view.clone().on_message(
                 InvokeRequest {
                     cmd: cmd.into(),
-                    body: tauri::ipc::InvokeBody::Json(body),
+                    body,
                     callback: CallbackFn(0),
                     error: CallbackFn(1),
                     url: if cfg!(windows) {
@@ -558,7 +558,8 @@ pub(super) mod tests {
             );
             (workers.recv_timeout(Duration::from_secs(5)).unwrap(), rx)
         };
-        let dispatch = |cmd: &str, body| dispatch_to(window.as_ref(), cmd, body);
+        let dispatch =
+            |cmd: &str, body: serde_json::Value| dispatch_to(window.as_ref(), cmd, body.into());
         let server = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
         server.set_nonblocking(true).unwrap();
         let url = format!("http://{}/asset", server.local_addr().unwrap());
@@ -657,22 +658,38 @@ pub(super) mod tests {
         let documents = tokio::net::TcpListener::bind(("127.0.0.1", 0))
             .await
             .unwrap();
-        for code in [304, 204, 404].into_iter().cycle().take(12) {
-            let (work, reply) = dispatch(
-                "fetch_http_document",
-                serde_json::json!({
-                    "request": { "url": format!("http://{}/", documents.local_addr().unwrap()), "method":"GET","headers":[] }
-                }),
-            );
-            let (worker, ()) = tokio::join!(tokio::spawn(work), async {
-                use crate::downloads::mock_http::{accept_request, respond};
-                let (socket, _) = accept_request(&documents).await;
-                respond(
-                    socket,
-                    format!("HTTP/1.1 {code} test\r\nContent-Length: 0\r\n\r\n").as_bytes(),
-                )
-                .await;
-            });
+        for code in [304, 204, 404, 302, 503].into_iter().cycle().take(15) {
+            let binary = code == 503;
+            let envelope = serde_json::json!({"request": {
+                "url": format!("http://{}/", documents.local_addr().unwrap()),
+                "method": if binary {"POST"} else {"GET"}, "headers":[], "followRedirects":false
+            }});
+            let payload = if binary {
+                let mut bytes = serde_json::to_vec(&envelope).unwrap();
+                bytes.extend_from_slice(b"\n\x00\xff");
+                bytes.into()
+            } else {
+                envelope.into()
+            };
+            let (work, reply) = dispatch_to(view, "fetch_http_document", payload);
+            let (worker, ()) = tokio::time::timeout(Duration::from_secs(5),async {
+                tokio::join!(tokio::spawn(work), async {
+                    use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+                    use crate::downloads::mock_http::respond;
+                    let (socket, _) = documents.accept().await.unwrap();
+                    let mut reader = BufReader::new(socket);
+                    let mut headers = Vec::new();
+                    while !headers.ends_with(b"\r\n\r\n") {
+                        assert_ne!(reader.read_until(b'\n', &mut headers).await.unwrap(), 0);
+                    }
+                    if binary {
+                        let mut bytes = [0;2];
+                        reader.read_exact(&mut bytes).await.unwrap();
+                        assert_eq!(bytes,[0,255]);
+                    }
+                    respond(reader.into_inner(),format!("HTTP/1.1 {code} test\r\nLocation: /outside\r\nContent-Length: 0\r\n\r\n").as_bytes()).await;
+                })
+            }).await.unwrap();
             worker.unwrap();
             tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
             assert!(matches!(
@@ -691,7 +708,7 @@ pub(super) mod tests {
         let (work, reply) = dispatch_to(
             view,
             "stream_logs",
-            serde_json::json!({"onEvent":"__CHANNEL__:2"}),
+            serde_json::json!({"onEvent":"__CHANNEL__:2"}).into(),
         );
         let stream = tokio::spawn(work);
         tasks.recv_timeout(Duration::from_secs(5)).unwrap()();

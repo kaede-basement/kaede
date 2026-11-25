@@ -82,7 +82,7 @@ type Entries = Map<string, Entry>;
 function validHeader(value: unknown): boolean {
   if (value === undefined) return true;
 
-  return typeof value === "string" && (/^[\u0020-\u007E\u00A0-\u00FF]*$/).test(value);
+  return typeof value === "string" && (/^[\u0020-\u007E\u0080-\u00FF]*$/).test(value);
 }
 
 export function validator(name: "etag" | "last-modified", value: unknown): string | undefined {

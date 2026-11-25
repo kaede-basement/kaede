@@ -34,7 +34,7 @@ pub(crate) fn transient(error: &reqwest::Error) -> bool {
     let mut cause = error.source();
     while let Some(error) = cause {
         if let Some(io) = error.downcast_ref::<std::io::Error>() {
-            return matches!(
+            if matches!(
                 io.kind(),
                 ErrorKind::Interrupted
                     | ErrorKind::TimedOut
@@ -43,7 +43,16 @@ pub(crate) fn transient(error: &reqwest::Error) -> bool {
                     | ErrorKind::ConnectionAborted
                     | ErrorKind::ConnectionReset
                     | ErrorKind::ConnectionRefused
-            );
+            ) {
+                return true;
+            }
+        }
+        if error.downcast_ref::<h2::Error>().is_some_and(|e| {
+            e.is_remote()
+                && ((e.is_go_away() && e.reason() == Some(h2::Reason::NO_ERROR))
+                    || (e.is_reset() && e.reason() == Some(h2::Reason::REFUSED_STREAM)))
+        }) {
+            return true;
         }
         if error.downcast_ref::<hyper::Error>().is_some_and(|e| {
             e.is_closed() || e.is_incomplete_message() || e.is_timeout() || e.is_canceled()
@@ -215,12 +224,21 @@ impl Attempts {
 }
 
 #[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum Body {
+    Text(String),
+    #[serde(skip_deserializing)]
+    Binary(Vec<u8>),
+}
+
+#[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Document {
     url: String,
     method: String,
     headers: Vec<(String, String)>,
-    body: Option<String>,
+    body: Option<Body>,
+    follow_redirects: bool,
 }
 
 async fn document(transport: Transport, doc: Document) -> Result<tauri::ipc::Response, String> {
@@ -231,10 +249,21 @@ async fn document(transport: Transport, doc: Document) -> Result<tauri::ipc::Res
     }
     let mut builder = transport.client.request(method, &doc.url);
     for (key, value) in doc.headers {
-        builder = builder.header(key, value);
+        let bytes: Vec<u8> = value
+            .chars()
+            .map(|ch| u8::try_from(u32::from(ch)))
+            .collect::<Result<_, _>>()
+            .map_err(|_| "Invalid HTTP header ByteString")?;
+        builder = builder.header(
+            key,
+            header::HeaderValue::from_bytes(&bytes).map_err(|e| e.to_string())?,
+        );
     }
     if let Some(body) = doc.body {
-        builder = builder.body(body);
+        builder = builder.body(match body {
+            Body::Text(text) => text.into_bytes(),
+            Body::Binary(bytes) => bytes,
+        });
     }
     let request = builder.build().map_err(|e| e.without_url().to_string())?;
     let mut retry = if read {
@@ -244,13 +273,22 @@ async fn document(transport: Transport, doc: Document) -> Result<tauri::ipc::Res
     };
     loop {
         let (mut response, permit) = transport
-            .send(&request, read, &mut retry)
+            .send(&request, read && doc.follow_redirects, &mut retry)
             .await
             .map_err(DownloadError::install_message)?;
         let headers: Vec<_> = response
             .headers()
             .iter()
-            .map(|(k, v)| (k.as_str(), String::from_utf8_lossy(v.as_bytes())))
+            .map(|(k, v)| {
+                (
+                    k.as_str(),
+                    v.as_bytes()
+                        .iter()
+                        .copied()
+                        .map(char::from)
+                        .collect::<String>(),
+                )
+            })
             .collect();
         let mut bytes = serde_json::to_vec(&serde_json::json!({
             "status": response.status().as_u16(), "statusText": response.status().canonical_reason().unwrap_or(""),
@@ -261,9 +299,10 @@ async fn document(transport: Transport, doc: Document) -> Result<tauri::ipc::Res
             match response.chunk().await {
                 Ok(Some(chunk)) => bytes.extend_from_slice(&chunk),
                 Ok(None) => return Ok(tauri::ipc::Response::new(bytes)),
-                Err(e) if response.status().is_success() && retry.available() && transient(&e) => {
-                    break
+                Err(_) if !response.status().is_success() => {
+                    return Ok(tauri::ipc::Response::new(bytes))
                 }
+                Err(e) if retry.available() && transient(&e) => break,
                 Err(e) => return Err(e.without_url().to_string()),
             }
         }
@@ -283,8 +322,28 @@ pub(crate) fn fetch_document<R: tauri::Runtime>(
     let transport = crate::argument::<tauri::State<Transport>, _>(invoke, NAME, "transport")?
         .inner()
         .clone();
-    let doc = crate::argument(invoke, NAME, "request")?;
-    let id: Option<String> = crate::argument(invoke, NAME, "cancelId")?;
+    let (doc, id) = match invoke.message.payload() {
+        tauri::ipc::InvokeBody::Raw(bytes) => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct Envelope {
+                request: Document,
+                cancel_id: Option<String>,
+            }
+            let end = bytes
+                .iter()
+                .position(|&b| b == b'\n')
+                .ok_or("Missing HTTP request metadata")?;
+            let mut envelope: Envelope =
+                serde_json::from_slice(&bytes[..end]).map_err(|e| e.to_string())?;
+            envelope.request.body = Some(Body::Binary(bytes[end + 1..].to_vec()));
+            (envelope.request, envelope.cancel_id)
+        }
+        _ => (
+            crate::argument(invoke, NAME, "request")?,
+            crate::argument::<Option<String>, _>(invoke, NAME, "cancelId")?,
+        ),
+    };
     let flags: tauri::State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
     let registration = id.map(|id| flags.register(&id));
     Ok(async move {
@@ -313,6 +372,110 @@ mod tests {
             method: method.into(),
             headers: vec![],
             body: None,
+            follow_redirects: true,
+        }
+    }
+
+    #[tokio::test]
+    async fn header_octets_round_trip_and_interrupted_error_body_keeps_status() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let transport = Transport::new().unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let server = async {
+            let (socket, _) = accept_request(&listener).await;
+            crate::downloads::mock_http::respond(socket,b"HTTP/1.1 200 OK\r\nETag: \"\xe9\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await;
+            let (socket, _) = listener.accept().await.unwrap();
+            let mut reader = BufReader::new(socket);
+            let mut headers = Vec::new();
+            while !headers.ends_with(b"\r\n\r\n") {
+                assert_ne!(reader.read_until(b'\n', &mut headers).await.unwrap(), 0);
+            }
+            headers.make_ascii_lowercase();
+            let tag = b"if-none-match: \"\xe9\"\r\n";
+            assert!(headers.windows(tag.len()).any(|h| h == tag));
+            crate::downloads::mock_http::respond(
+                reader.into_inner(),
+                b"HTTP/1.1 404 Not Found\r\nContent-Length: 100\r\n\r\npartial",
+            )
+            .await;
+        };
+        let requests = async {
+            let mut request = doc(url.clone(), "GET");
+            for status in [200, 404] {
+                let reply = document(transport.clone(), request).await.unwrap();
+                let InvokeResponseBody::Raw(bytes) = reply.body().unwrap() else {
+                    panic!("expected document")
+                };
+                let end = bytes.iter().position(|&b| b == b'\n').unwrap();
+                let meta: serde_json::Value = serde_json::from_slice(&bytes[..end]).unwrap();
+                assert_eq!(meta["status"], status);
+                request = doc(url.clone(), "GET");
+                if status == 200 {
+                    let tag = meta["headers"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|h| h[0] == "etag")
+                        .unwrap()[1]
+                        .as_str()
+                        .unwrap();
+                    assert_eq!(tag, "\"é\"");
+                    request.headers.push(("if-none-match".into(), tag.into()));
+                }
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(5), async {
+            tokio::join!(server, requests)
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn refused_stream_and_graceful_goaway_retry_only_reads() {
+        for method in ["GET", "POST"] {
+            for goaway in [false, true] {
+                let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+                let url = format!("http://{}/", listener.local_addr().unwrap());
+                let transport = Transport {
+                    client: Client::builder()
+                        .no_proxy()
+                        .http2_prior_knowledge()
+                        .retry(reqwest::retry::never())
+                        .build()
+                        .unwrap(),
+                    origins: Default::default(),
+                };
+                let server = async {
+                    let (socket, _) = listener.accept().await.unwrap();
+                    let mut conn = h2::server::handshake(socket).await.unwrap();
+                    let (_request, mut response) = conn.accept().await.unwrap().unwrap();
+                    if goaway {
+                        conn.abrupt_shutdown(h2::Reason::NO_ERROR);
+                    } else {
+                        response.send_reset(h2::Reason::REFUSED_STREAM);
+                        conn.graceful_shutdown();
+                    }
+                    drop(response);
+                    let _ = std::future::poll_fn(|cx| conn.poll_closed(cx)).await;
+                    if method == "GET" {
+                        let (socket, _) = listener.accept().await.unwrap();
+                        let mut conn = h2::server::handshake(socket).await.unwrap();
+                        let (_, mut response) = conn.accept().await.unwrap().unwrap();
+                        response
+                            .send_response(tauri::http::Response::new(()), true)
+                            .unwrap();
+                        conn.graceful_shutdown();
+                        let _ = std::future::poll_fn(|cx| conn.poll_closed(cx)).await;
+                    }
+                };
+                let (result, ()) = tokio::time::timeout(Duration::from_secs(5), async {
+                    tokio::join!(document(transport, doc(url, method)), server)
+                })
+                .await
+                .unwrap();
+                assert_eq!(result.is_ok(), method == "GET");
+            }
         }
     }
 

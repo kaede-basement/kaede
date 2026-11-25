@@ -18,9 +18,8 @@
 
 import "ses";
 
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-
 import { log } from "@/lib/logging/log.ts";
+import { fetchDocument } from "@/lib/network/fetch-document.ts";
 
 type RestrictedBlob = {
   "size"       : number;
@@ -200,9 +199,7 @@ export function handleInternetPermission({
         "tauriFetch": async (url: string): Promise<RestrictedResponse> => {
           hook({ id, url, argument, method, "label": "Tauri" });
 
-          const response: Response = await tauriFetch(url, {
-            "maxRedirections": 0, method, "redirect": "manual",
-          });
+          const response: Response = await fetchDocument(url, { method, "followRedirects": false });
 
           return buildSafeResponse(response);
         },
@@ -245,19 +242,9 @@ export function handleInternetPermission({
           validateRequestData(body, contentType);
           hook({ id, url, argument, method, "label": "Tauri" });
 
-          const response: Response = await tauriFetch(url, { "maxRedirections": 0,
-            method,
-
-            /*
-             * We are using '@ts-ignore' instead of '@ts-expect-error' since uhm there are no errors
-             */
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore 'dts-bundle-generator' throws an error even though there are no errors????
-            body,
-            "redirect": "manual",
-            "headers" : {
-              "Content-Type": contentType,
-            } });
+          const response: Response = await fetchDocument(url, {
+            method, body, "followRedirects": false, "headers": { "Content-Type": contentType },
+          });
 
           return buildSafeResponse(response);
         },

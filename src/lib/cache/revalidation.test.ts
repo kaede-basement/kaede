@@ -1,4 +1,7 @@
+import { mockIPC } from "@tauri-apps/api/mocks";
 import { expect, spyOn, test } from "bun:test";
+
+import { fetchDocument } from "@/lib/network/fetch-document.ts";
 
 import { cache, encode, Options, Raw, sha } from "./cache-fixture.ts";
 import { cachedMetadata } from "./index.ts";
@@ -174,4 +177,46 @@ test("a Date-only 304 keeps an expired absolute Expires stale", async () => {
   } }));
   await cachedMetadata(c.request);
   expect(c.index().entries[Options.relativePath].freshUntil).toBe(0);
+});
+
+test("ByteString ETags revalidate and a partial 404 preserves the expired entry", async () => {
+  const transport = fetchDocument;
+
+  using c = cache();
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+
+  Object.defineProperty(globalThis, "window", { "configurable": true, "value": { crypto } });
+  try {
+    let calls = 0;
+    const etag = "\"é\"";
+
+    mockIPC((command, payload) => {
+      expect(command).toBe("fetch_http_document");
+      const first = calls++ === 0;
+      const body = first ? Raw : "partial";
+      const headers = first ? [["etag", etag], ["cache-control", "no-cache"]]
+        : [["content-length", "100"]];
+      const meta = {
+        "status": first ? 200 : 404, "finalUrl": c.request.url,
+        headers,
+      };
+
+      if (!first) expect(payload).toMatchObject({
+        "request": { "headers": [["if-none-match", etag]] },
+      });
+
+      return encode(JSON.stringify(meta) + "\n" + body).buffer;
+    });
+    c.fetch.mockImplementation(transport);
+    await cachedMetadata(c.request);
+    expect(c.index().entries[Options.relativePath].etag).toBe(etag);
+    const before = new Map(c.files);
+
+    await expect(cachedMetadata(c.request)).rejects.toThrow("HTTP 404");
+    expect(c.files).toEqual(before);
+    expect(calls).toBe(2);
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "window", previous);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
 });

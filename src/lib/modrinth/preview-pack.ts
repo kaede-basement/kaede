@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { exists, mkdir, remove, rename, writeFile } from "@tauri-apps/plugin-fs";
 
 import { getBaseDirectory, join } from "@/lib/file-manager/path.ts";
+import { createRequestId } from "@/lib/network/create-request-id.ts";
 import { fetchDocument } from "@/lib/network/fetch-document.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 
@@ -26,7 +27,7 @@ Promise<{ "manifest": MrpackManifestType; "path": string }> {
   }
   const cache = join(getBaseDirectory(), "cache");
   const path = join(cache, file.hashes.sha512.toLowerCase() + ".mrpack");
-  const temporary = join(cache, crypto.randomUUID() + ".part");
+  const temporary = join(cache, createRequestId() + ".part");
 
   await mkdir(cache, { "recursive": true });
   try {

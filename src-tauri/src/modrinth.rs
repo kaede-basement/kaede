@@ -782,7 +782,15 @@ mod tests {
         zip.rewind().unwrap();
         let mut bytes = Vec::new();
         zip.read_to_end(&mut bytes).unwrap();
-        for fault in ["truncated", "sha1", "sha512", "size", "manifest", "cancel"] {
+        for fault in [
+            "truncated",
+            "sha1",
+            "sha512",
+            "size",
+            "manifest",
+            "redirect",
+            "cancel",
+        ] {
             let root = tempfile::tempdir().unwrap();
             let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
                 .await
@@ -822,9 +830,16 @@ mod tests {
                     .await;
                     (socket, _) = accept_request(&listener).await;
                 }
-                let mut response =
-                    format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len())
-                        .into_bytes();
+                let status = if fault == "redirect" {
+                    "302 Found"
+                } else {
+                    "200 OK"
+                };
+                let mut response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\n\r\n",
+                    body.len()
+                )
+                .into_bytes();
                 response.extend_from_slice(body);
                 respond(socket, &response).await;
             };

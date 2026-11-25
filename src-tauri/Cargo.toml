@@ -51,6 +51,7 @@ tokio = { version = "1", features = ["fs", "macros", "rt", "time", "io-util"] }
 reqwest = { version = "0.13" }
 httpdate = "1"
 hyper = "1"
+h2 = "0.4"
 fastrand = "2"
 image = { version = "0.25.10", default-features = false, features = ["png", "webp", "jpeg"] }
 

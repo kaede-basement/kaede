@@ -1030,7 +1030,10 @@ pub(crate) async fn stream_temp(
             _ = cancel.cancelled() => return Err(DownloadError::Cancelled),
             result = client.send(&request, true, &mut retry) => result?,
         };
-        let mut response = response.error_for_status().map_err(DownloadError::other)?;
+        if !response.status().is_success() {
+            return Err(DownloadError::other(format!("HTTP {}", response.status())));
+        }
+        let mut response = response;
         let parent = parent.to_owned();
         let (file, partial) =
             tokio::task::spawn_blocking(move || crate::file_system::staging_file(&parent))

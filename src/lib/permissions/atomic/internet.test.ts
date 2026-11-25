@@ -3,7 +3,7 @@ import { expect, mock, test } from "bun:test";
 
 import { handleInternetPermission } from "./internet.ts";
 
-test("extensions disable redirects and release null-body responses", async () => {
+test("scoped extensions receive completed redirect and error responses", async () => {
   const previous = ["window", "harden"]
     .map(key => Object.getOwnPropertyDescriptor(globalThis, key));
 
@@ -13,9 +13,10 @@ test("extensions disable redirects and release null-body responses", async () =>
     const url = "https://example.org/scoped";
     let status = 204;
     const ipc = mock((cmd: string) => {
-      if (cmd === "plugin:http|fetch") return 1;
-      if (cmd === "plugin:http|fetch_send") return { status, url, "headers": [], "rid": 2 };
-      if (cmd !== "plugin:http|fetch_cancel_body") throw new Error(cmd);
+      if (cmd !== "fetch_http_document") throw new Error(cmd);
+      const meta = { status, "finalUrl": url, "headers": [] };
+
+      return (new TextEncoder).encode(JSON.stringify(meta) + "\n").buffer;
     });
 
     mockIPC(ipc);
@@ -25,17 +26,38 @@ test("extensions disable redirects and release null-body responses", async () =>
       "tauriFetch": (url: string) => Promise<Response>;
     };
 
-    for (status of [204, 205, 304]) {
+    for (status of [204, 205, 304, 302, 503]) {
       ipc.mockClear();
       const response = await grant.tauriFetch(url);
 
       expect(response.status).toBe(status);
-      expect(await response.text()).toBe("");
-      expect(ipc).toHaveBeenCalledWith("plugin:http|fetch", {
-        "clientConfig": expect.objectContaining({ "maxRedirections": 0, url }),
+      expect(ipc).toHaveBeenCalledTimes(1);
+      expect(ipc).toHaveBeenCalledWith("fetch_http_document", {
+        "cancelId": null,
+        "request" : expect.objectContaining({ "followRedirects": false, url }),
       });
-      expect(ipc).toHaveBeenLastCalledWith("plugin:http|fetch_cancel_body", { "rid": 2 });
     }
+    const post = handleInternetPermission({
+      "id": "test", "scope": "http-post", "argument": url,
+    }) as {
+      "tauriFetch": (url: string, body: Uint8Array, contentType: string) => Promise<Response>;
+    };
+
+    mockIPC((cmd, payload) => {
+      expect(cmd).toBe("fetch_http_document");
+      if (!(payload instanceof Uint8Array)) throw new Error("Expected binary IPC");
+      const end = payload.indexOf(10);
+      const { request } = JSON.parse((new TextDecoder).decode(payload.subarray(0, end)));
+
+      expect(request).toMatchObject({ "method": "POST", "followRedirects": false, url });
+      expect([...payload.subarray(end + 1)]).toEqual([0, 255]);
+
+      const meta = { "status": 204, "finalUrl": url };
+
+      return (new TextEncoder).encode(JSON.stringify(meta) + "\n").buffer;
+    });
+    await post.tauriFetch(url, new Uint8Array([1, 0, 255]).subarray(1), "image/png");
+    mockIPC(ipc);
     ipc.mockClear();
     await expect(grant.tauriFetch(url + "-outside")).rejects.toThrow("scope");
     expect(ipc).not.toHaveBeenCalled();

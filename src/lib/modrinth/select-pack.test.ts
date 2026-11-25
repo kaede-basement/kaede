@@ -12,6 +12,9 @@ test("selector sends metadata, cancels superseded work and reports errors", asyn
 
   Object.defineProperty(globalThis, "window", { "configurable": true, "value": { crypto } });
   const scope = effectScope();
+  const randomUUID = Object.getOwnPropertyDescriptor(crypto, "randomUUID");
+
+  Object.defineProperty(crypto, "randomUUID", { "configurable": true, "value": undefined });
 
   try {
     const jobs = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
@@ -62,6 +65,8 @@ test("selector sends metadata, cancels superseded work and reports errors", asyn
     expect(selector.failure.value).toBe("");
   } finally {
     scope.stop();
+    if (randomUUID) Object.defineProperty(crypto, "randomUUID", randomUUID);
+    else Reflect.deleteProperty(crypto, "randomUUID");
     if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow);
     else Reflect.deleteProperty(globalThis, "window");
   }

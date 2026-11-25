@@ -26,19 +26,36 @@ import type {
   PatchIndexVersionType,
 } from "@/types/launcher/meta/patch-index.type.ts";
 
-type BMCLAPIOptiFineType = Partial<{
-  "_id"      : string;
-  "mcversion": string;
-  "patch"    : string;
-  "type"     : string;
-  "__v"      : number;
-  "filename" : string;
-  "forge"    : string;
-}>;
+type OptiFine = { "mcversion"?: string; "type": string; "patch": string };
+
+function optionalString(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
+}
+
+function hasOptiFineVersions(value: unknown): value is Array<OptiFine> {
+  return Array.isArray(value) && value.every(row => row && typeof row.type === "string"
+    && typeof row.patch === "string" && optionalString(row.mcversion));
+}
+
+function validDependencies(value: unknown): boolean {
+  return value === undefined || (Array.isArray(value) && value.every(dep => {
+    return dep && typeof dep.uid === "string" && optionalString(dep.equals)
+      && optionalString(dep.suggests);
+  }));
+}
 
 function hasVersions(value: unknown): value is { "versions": Array<PatchIndexVersionType> } {
-  return !!value && typeof value === "object" && "versions" in value
-    && Array.isArray(value.versions) && typeof value.versions[0]?.version === "string";
+  if (!value || typeof value !== "object" || !("versions" in value)) return false;
+  const rows = value.versions;
+
+  if (!Array.isArray(rows) || rows.length === 0) return false;
+
+  return rows.every(row => {
+    return row && typeof row.version === "string" && typeof row.releaseTime === "string"
+      && typeof row.sha256 === "string" && (/^[\da-f]{64}$/i).test(row.sha256)
+      && typeof row.recommended === "boolean" && optionalString(row.type)
+      && validDependencies(row.requires) && validDependencies(row.conflicts);
+  });
 }
 
 export async function fetchAllVersions(
@@ -56,12 +73,12 @@ export async function fetchAllVersions(
       "baseDirectory": getBaseDirectory(),
       "relativePath" : `bmclapi/optifine/${minecraftPatchVersion}.json`,
       "url"          : versionEndpoint,
-      "validate"     : Array.isArray,
+      "validate"     : hasOptiFineVersions,
     });
 
     // Reverse as it seems like first entries are the oldest ones
-    return (data as Array<BMCLAPIOptiFineType>).reverse().map(entry => ({
-      "version"    : `${entry?.mcversion ?? minecraftPatchVersion}_${entry?.type}_${entry?.patch}`,
+    return data.reverse().map(entry => ({
+      "version"    : `${entry.mcversion ?? minecraftPatchVersion}_${entry.type}_${entry.patch}`,
       "sha256"     : "",
       "releaseTime": "1970-01-01T00:00:00Z",
       "recommended": false,

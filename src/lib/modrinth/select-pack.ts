@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { onScopeDispose, type Ref, ref } from "vue";
 
+import { createRequestId } from "@/lib/network/create-request-id.ts";
 import { HttpBackend } from "@/lib/network/http-backend.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 
@@ -56,12 +57,13 @@ export function usePackSelection(apply: (pack: Pack) => void): {
     });
   };
   const select = async (files: Files): Promise<void> => {
-    stop();
-    failure.value = "";
-    const cancelId = crypto.randomUUID();
+    let cancelId: string | undefined;
 
-    pending.value = cancelId;
     try {
+      stop();
+      failure.value = "";
+      cancelId = createRequestId();
+      pending.value = cancelId;
       const file = selectFile(files);
       let result: Pack;
 
