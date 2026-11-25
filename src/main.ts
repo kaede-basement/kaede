@@ -94,6 +94,7 @@ async function run(): Promise<void> {
     ),
   );
 
+  const loadedConfig = Configs.getSafe({ baseDirectory, "parsedFile": parsed.config });
   const [
     config,
     translations,
@@ -105,8 +106,13 @@ async function run(): Promise<void> {
     InstanceStatesType,
     Array<AccountType>,
   ] = await Promise.all([
-    Configs.getSafe({ baseDirectory, "parsedFile": parsed.config }),
-    Configs.getTranslations({ baseDirectory, "parsedFile": parsed.translations }),
+    loadedConfig,
+    loadedConfig.then(({ locale }) => Configs.getTranslations({
+      baseDirectory,
+      "selected"       : locale,
+      "preloadedConfig": parsed.config,
+      "parsedFile"     : parsed.translations,
+    })),
     Instances.readInstances({ baseDirectory, "parsedFile": parsed.instances }),
     Configs.getAccounts({ baseDirectory, "parsedFile": parsed.accounts }),
   ]);

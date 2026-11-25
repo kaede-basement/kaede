@@ -16,113 +16,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { bench, type k_iter, type k_state, run, summary } from "mitata";
+import { bench, run, summary } from "mitata";
+
+import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 
 import { CheckConfig } from "./validators.ts";
 
-summary(async (): Promise<void> => {
-  bench("CheckConfig() for $input", function* (state: k_iter & k_state) {
-    const current = state.get("input");
+const config = await getDefaultConfig();
+const invalid = { ...config, "java": null };
 
-    yield {
-      [0](): unknown {
-        return current;
-      },
-      bench(current: unknown): void {
-        CheckConfig(current);
-      },
-    };
-  }).args("input", [
-    undefined,
-    0,
-    [],
-    {
-      "development": {
-        "loadErudaDevTools"         : false,
-        "showFPS"                   : false,
-        "showCPUUsage"              : false,
-        "showMemoryUsage"           : false,
-        "enableDebugMode"           : false,
-        "enableNativeContextMenu"   : false,
-        "enableNativeReloadKeyBinds": false,
-        "useNativeColorPicker"      : false,
-      },
-      "extensions": {
-        "list"                      : [],
-        "permissions"               : {},
-        "enabled"                   : false,
-        "allowUnrestrictedUntrusted": false,
-        "showAppAfterExtensionsLoad": false,
-      },
-      "ui": {
-        "ripple": {
-          "color"   : "#ffffff15",
-          "sparkles": "255 255 255",
-        },
-        "background": {
-          "image"  : null,
-          "blur"   : null,
-          "color"  : null,
-          "isVideo": null,
-          "key"    : null,
-        },
-        "text": {
-          "font"          : null,
-          "mainColor"     : null,
-          "secondaryColor": null,
-        },
-        "widget": {
-          "blur"          : null,
-          "textColor"     : null,
-          "secondaryColor": null,
-          "background"    : null,
-        },
-        "atAGlance": [
-          {
-            "title"   : "Welcome~",
-            "subtitle": "you can change this text",
-          },
-          {
-            "title"   : "These messages",
-            "subtitle": "were inspired by the \"At a Glance\" Android widget",
-          },
-          {
-            "title"   : "%date%",
-            "subtitle": "What a great day to play Minecraft, right?",
-          },
-        ],
-      },
-      "selected": {
-        "account"        : 0,
-        "currentInstance": null,
-        "stats"          : "playtime",
-      },
-      "locale": "placeholder",
-      "logs"  : {
-        "show"      : false,
-        "mode"      : "kaede-launcher",
-        "filtering" : "",
-        "lineHeight": 20,
-        "partsShown": { "time": true, "level": true, "target": true, "message": true },
-        "partsSize" : { "time": 12, "level": 5, "target": 32 },
-      },
-      "java"     : [],
-      "minecraft": {
-        "windowHeight": 480,
-        "windowWidth" : 854,
-        "icon"        : "placeholder",
-        "javaBinary"  : "java",
-        "add"         : {
-          "jvmArguments" : [],
-          "gameArguments": [],
-        },
-        "remove": {
-          "jvmArguments" : [],
-          "gameArguments": [],
-        },
-      },
-    },
-  ]);
+summary(() => {
+  bench("Validate default config", () => CheckConfig(config));
+  bench("Reject invalid Java settings", () => CheckConfig(invalid));
 });
-
 await run();

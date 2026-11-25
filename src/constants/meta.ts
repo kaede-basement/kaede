@@ -1,4 +1,5 @@
 import type { ActionKeyType } from "@/constants/application.ts";
+import { Patches, PatchUIDs } from "@/constants/patch-uids.ts";
 import FabricIcon from "@/resources/FabricIcon.webp";
 import ForgeIcon from "@/resources/ForgeIcon.webp";
 import LiteLoaderIcon from "@/resources/LiteLoaderIcon.webp";
@@ -8,20 +9,7 @@ import OptiFineIcon from "@/resources/OptiFineIcon.webp";
 import QuiltIcon from "@/resources/QuiltIcon.webp";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
-export const Patches = {
-  "AzulJava"          : "com.azul.java",
-  "LiteLoader"        : "com.mumfrey.liteloader",
-  "AdoptiumJava"      : "net.adoptium.java",
-  "FabricLoader"      : "net.fabricmc.fabric-loader",
-  "FabricIntermediary": "net.fabricmc.intermediary",
-  "Minecraft"         : "net.minecraft",
-  "MinecraftJava"     : "net.minecraft.java",
-  "MinecraftForge"    : "net.minecraftforge",
-  "NeoForged"         : "net.neoforged",
-  "LWJGL"             : "org.lwjgl",
-  "LWJGL3"            : "org.lwjgl3",
-  "Quilt"             : "org.quiltmc.quilt-loader",
-} as const;
+
 export const PrettyPatchLabels = {
   "com.azul.java"               : "Azul JDK",
   "com.mumfrey.liteloader"      : "Lite Loader",
@@ -38,7 +26,6 @@ export const PrettyPatchLabels = {
   "optifine.OptiFine"           : "OptiFine",
   "org.mcphackers.launchwrapper": "Vanilla Minecraft (custom launchwrapper)",
 } as const;
-export const PatchUIDs = Object.values(Patches);
 export const CustomPatches = {
   "OptiFine"               : "optifine.OptiFine",
   "MCPHackersLaunchWrapper": "org.mcphackers.launchwrapper",
@@ -68,3 +55,5 @@ export default {
   CustomPatches,
   InstallablePatches,
 } as const;
+
+export { Patches, PatchUIDs } from "@/constants/patch-uids.ts";

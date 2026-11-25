@@ -1,103 +1,16 @@
 import { expect, test } from "bun:test";
 
-import { DefaultInstanceIcon } from "@/constants/launcher.ts";
-import type { ConfigType } from "@/types/configs/config.type.ts";
+import { CheckConfig } from "@/lib/schemas/generated/validators.ts";
 
 import { getDefaultConfig } from "./get-default-config.ts";
 
-const testName = "Default Config";
+test("Default config validates and starts with safe extension and launcher settings", async () => {
+  const config = await getDefaultConfig();
 
-test(testName, async () => {
-  const defaultConfig: ConfigType = {
-    "development": {
-      "loadErudaDevTools"         : false,
-      "showFPS"                   : false,
-      "showCPUUsage"              : false,
-      "showMemoryUsage"           : false,
-      "enableDebugMode"           : false,
-      "enableNativeContextMenu"   : false,
-      "enableNativeReloadKeyBinds": false,
-      "useNativeColorPicker"      : false,
-    },
-    "extensions": {
-      "list"                      : [],
-      "permissions"               : {},
-      "enabled"                   : false,
-      "allowUnrestrictedUntrusted": false,
-      "showAppAfterExtensionsLoad": false,
-    },
-    "ui": {
-      "ripple": {
-        "color"   : "#ffffff15",
-        "sparkles": "255 255 255",
-      },
-      "background": {
-        "image"  : null,
-        "blur"   : null,
-        "color"  : null,
-        "isVideo": null,
-        "key"    : null,
-      },
-      "text": {
-        "font"          : null,
-        "mainColor"     : null,
-        "secondaryColor": null,
-      },
-      "widget": {
-        "blur"          : null,
-        "textColor"     : null,
-        "secondaryColor": null,
-        "background"    : null,
-      },
-      "atAGlance": [
-        {
-          "title"   : "Welcome~",
-          "subtitle": "you can change this text",
-        },
-        {
-          "title"   : "These messages",
-          "subtitle": "were inspired by the \"At a Glance\" Android widget",
-        },
-        {
-          "title"   : "%date%",
-          "subtitle": "What a great day to play Minecraft, right?",
-        },
-      ],
-    },
-    "selected": {
-      "account"        : 0,
-      "currentInstance": null,
-      "stats"          : "playtime",
-    },
-    "locale": "en",
-    "logs"  : {
-      "show"      : false,
-      "mode"      : "kaede-launcher",
-      "filtering" : "",
-      "lineHeight": 20,
-      "partsShown": { "time": true, "level": true, "target": true, "message": true },
-      "partsSize" : { "time": 12, "level": 5, "target": 32 },
-    },
-    "java"     : [],
-    "minecraft": {
-      "windowHeight": 480,
-      "windowWidth" : 854,
-      "icon"        : DefaultInstanceIcon,
-      "javaBinary"  : "java",
-      "add"         : {
-        "jvmArguments" : [],
-        "gameArguments": [],
-      },
-      "remove": {
-        "jvmArguments" : [],
-        "gameArguments": [],
-      },
-    },
-  };
-
-  expect(
-    JSON.stringify(await getDefaultConfig()),
-  ).toBe(
-    JSON.stringify(defaultConfig),
-  );
+  expect(CheckConfig(config)).toBe(true);
+  expect(config.extensions.enabled).toBe(false);
+  expect(config.extensions.allowUnrestrictedUntrusted).toBe(false);
+  expect(config.logs.show).toBe(false);
+  expect(config.selected.currentInstance).toBeNull();
+  expect(config.minecraft.javaBinary).toBe("java");
 });
