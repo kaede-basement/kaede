@@ -38,11 +38,11 @@ export async function handleVirtualTextCopy(
       }
 
       slicedSelectionText = logs
-        .map(mappingEntry => mappingEntry[1])
         .slice(
           relativeIndexStart,
           relativeIndexEnd + 1,
         )
+        .map(mappingEntry => mappingEntry[1])
         .join("\n");
     }
 

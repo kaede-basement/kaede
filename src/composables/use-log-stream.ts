@@ -28,6 +28,8 @@ type LogStreamEventType =
   | { "type": "lines";    "data": Array<string> }
   | { "type": "truncated" };
 
+let latestSubscriptionId = 0;
+
 export function useLogStream(): {
   "lines": ShallowRef<{ "list": Array<string> }>;
 } {
@@ -35,9 +37,15 @@ export function useLogStream(): {
   const lines = shallowRef<{ "list": Array<string> }>({ "list": [] });
 
   if (isBrowser) {
-    const currentLogs = GlobalInternals.logsInBrowser;
+    lines.value = { "list": GlobalInternals.logsInBrowser };
+    let publishedLength = lines.value.list.length;
     const intervalId = setInterval((): void => {
-      lines.value = { "list": currentLogs };
+      const currentLogs = GlobalInternals.logsInBrowser;
+
+      if (currentLogs !== lines.value.list || currentLogs.length !== publishedLength) {
+        publishedLength = currentLogs.length;
+        lines.value = { "list": currentLogs };
+      }
     }, 100);
 
     onUnmounted(() => {
@@ -47,11 +55,23 @@ export function useLogStream(): {
     return { lines };
   }
 
+  const subscriptionId = ++latestSubscriptionId;
+  let unmounted = false;
+  const stop = (): Promise<void> => Logging.stopStreamingLogs(subscriptionId);
+
   onMounted(async (): Promise<void> => {
     const channel = new Channel<LogStreamEventType>;
 
     // eslint-disable-next-line unicorn/prefer-add-event-listener
     channel.onmessage = (event): void => {
+      if (unmounted) {
+        if (event.type === "snapshot" && subscriptionId === latestSubscriptionId) {
+          void stop();
+        }
+
+        return;
+      }
+
       switch (event.type) {
         case "snapshot": {
           lines.value = { "list": event.data };
@@ -75,10 +95,20 @@ export function useLogStream(): {
       }
     };
 
-    await Logging.streamLogs<LogStreamEventType>(channel);
+    await Logging.streamLogs<LogStreamEventType>(channel, subscriptionId);
+
+    if (unmounted && subscriptionId === latestSubscriptionId) {
+      await stop();
+    }
   });
 
-  onUnmounted(Logging.stopStreamingLogs);
+  onUnmounted(() => {
+    unmounted = true;
+
+    if (subscriptionId === latestSubscriptionId) {
+      void stop();
+    }
+  });
 
   return { lines };
 }

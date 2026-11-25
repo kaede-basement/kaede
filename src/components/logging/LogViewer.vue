@@ -22,10 +22,10 @@ import {
   computed,
   inject,
   nextTick,
-  onMounted,
   onUnmounted,
   ref,
   type ShallowReactive,
+  shallowRef,
   useTemplateRef,
   watch,
 } from "vue";
@@ -52,43 +52,82 @@ const { "height": innerHeight } = useWindowSize();
 
 const scrollBarSize = 17;
 
-const position = ref<number>(0);
+const scrollRow = ref(0);
+const displayed = shallowRef<{ "list": Array<LogLineType> }>({ "list": [] });
+const filtered = computed(() => displayed.value);
+let scanned = 0;
 
-const filtered = computed((): { "list": Array<LogLineType> } => {
-  const filtering: string = globalStates.logs.filtering.trim().toLowerCase();
-  const original: Array<string> = globalStates.logs.mode === "kaede-launcher"
-    ? lines.value.list
-    : instanceLogs?.[globalStates.logs.mode]?.list ?? [];
+watch([
+  (): string => globalStates.logs.filtering.trim().toLowerCase(),
+  (): { "list": Array<string> } | undefined => (globalStates.logs.mode === "kaede-launcher"
+    ? lines.value
+    : instanceLogs?.[globalStates.logs.mode]),
+], ([filter, source], [previousFilter, previousSource]) => {
+  const original = source?.list ?? [];
+  let rows = displayed.value.list;
+  const reset = filter !== previousFilter || original !== previousSource?.list;
 
-  if (filtering === "") {
-    return {
-      "list": original.map((line: string, index: number) => ({ "raw": line, index })),
-    };
-  }
+  if (reset || scanned > original.length) {
+    rows = [];
+    scanned = 0;
+  } else if (
+    globalStates.logs.mode !== "kaede-launcher" &&
+    original.length === Math.ceil(GeneralSettings.Logs.LineLimit / 2)
+  ) {
+    /*
+     * A large batch may trim the head even if the published length did not decrease.
+     * Compare the visible prefix at the only length the sink can publish after a trim.
+     */
+    let matched = 0;
 
-  const result: Array<LogLineType> = [];
+    for (let index = 0; index < scanned; index++) {
+      const raw = original[index];
 
-  for (const [index, line] of original.entries()) {
-    if (line.toLowerCase().includes(filtering)) {
-      result.push({ "raw": line, index });
+      if (!filter || raw.toLowerCase().includes(filter)) {
+        const previous = rows[matched++];
+
+        if (previous?.index !== index || previous.raw !== raw) {
+          rows = [];
+          scanned = 0;
+          break;
+        }
+      }
+    }
+
+    if (matched !== rows.length) {
+      rows = [];
+      scanned = 0;
     }
   }
 
-  return { "list": result };
-});
+  for (; scanned < original.length; scanned++) {
+    const raw = original[scanned];
+
+    if (!filter || raw.toLowerCase().includes(filter)) {
+      rows.push({ raw, "index": scanned });
+    }
+  }
+
+  displayed.value = { "list": rows };
+}, { "immediate": true, "flush": "sync" });
 
 const { status, matchesByLine, utils } = useLogSearch(filtered);
 
 const boundary = computed((): number => {
   const region: number = innerHeight.value - GeneralSettings.Logs.OuterRegion;
 
-  return Math.ceil(region / globalStates.logs.lineHeight);
+  return Math.max(0, Math.ceil(region / globalStates.logs.lineHeight));
 });
 const elements = computed((): number[] => {
   const size: number = Math.min(boundary.value, filtered.value.list.length);
 
   return Array.from({ "length": size }, (_, index) => index);
 });
+
+const position = computed(() => Math.max(
+  0,
+  Math.min(scrollRow.value, filtered.value.list.length - elements.value.length),
+));
 
 const { segments } = useLogSegmentation({ filtered, matchesByLine, elements, status, position });
 
@@ -102,7 +141,7 @@ function updateView(event: Event): void {
     return;
   }
 
-  position.value = Math.round(target.scrollTop / globalStates.logs.lineHeight);
+  scrollRow.value = Math.round(target.scrollTop / globalStates.logs.lineHeight);
 }
 
 // Stick to the bottom of the log viewer
@@ -158,8 +197,12 @@ const searcher: {
   },
 };
 
-onMounted(() => container?.value?.addEventListener?.("scroll", updateView, { "passive": true }));
-onUnmounted(() => container?.value?.removeEventListener?.("scroll", updateView));
+onUnmounted(() => {
+  if (GlobalInternals.logs.raw === lines) {
+    delete GlobalInternals.logs.raw;
+    delete GlobalInternals.logs.filtered;
+  }
+});
 
 // Expose log arrays for plugins
 GlobalInternals.logs.raw = lines;
@@ -187,6 +230,7 @@ GlobalInternals.logs.filtered = filtered;
           id="__log-viewer__bound"
           class="relative w-full select-text overflow-scroll"
           ref="container"
+          @scroll.passive="updateView"
           :style="{
             'height': boundary * globalStates.logs.lineHeight + scrollBarSize + 'px',
           }"

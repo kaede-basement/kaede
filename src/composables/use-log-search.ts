@@ -16,8 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { watchDebounced } from "@vueuse/core";
-import { computed, type ComputedRef, shallowReactive } from "vue";
+import { computed, type ComputedRef, shallowReactive, watch } from "vue";
 
 import type { LogLineType } from "@/types/logging/log-line.type.ts";
 import type {
@@ -41,19 +40,6 @@ const regExpMatcher = (line: string, regex: RegExp): Array<[number, number]> => 
 
   return results;
 };
-const rawMatcher = (line: string, matching: string, raw: string): Array<[number, number]> => {
-  const results: Array<[number, number]> = [];
-  const indexing = line;
-  let position = indexing.indexOf(matching);
-
-  while (position !== -1) {
-    results.push([position, position + raw.length]);
-
-    position = indexing.indexOf(matching, position + 1);
-  }
-
-  return results;
-};
 
 function compileMatcher(raw: string): {
   "matcher": Matcher;
@@ -72,11 +58,10 @@ function compileMatcher(raw: string): {
       "valid"  : true,
     };
   } catch {
-    // Fall back to literal indexOf
-    const matching: string = raw;
+    const literal = new RegExp(raw.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`), "gi");
 
     return {
-      "matcher": (line: string) => rawMatcher(line, matching, raw),
+      "matcher": (line: string) => regExpMatcher(line, literal),
       "valid"  : false,
     };
   }
@@ -93,65 +78,45 @@ export function useLogSearch(
     "matches"  : [],
   });
 
-  watchDebounced(
-    () => [
-      status.searching,
-      lines.value.list.length,
-    ],
-    () => {
-      status.matches = [];
+  const byLine = shallowReactive(new Map<number, Array<LogSearchMatchType>>);
+  const matchesByLine = computed(() => byLine);
+  let scanned = 0;
+  let compiled: ReturnType<typeof compileMatcher>;
+
+  const querySource = computed(() => status.searching);
+
+  watch([querySource, lines], ([query, source], [previousQuery, previousSource]) => {
+    if (query !== previousQuery || source.list !== previousSource?.list) {
+      compiled = compileMatcher(query);
+      scanned = 0;
       status.index = 0;
-
-      const compiled = compileMatcher(status.searching);
-
-      if (!compiled) {
-        status.active = false;
-
-        return;
-      }
-
-      const { matcher, valid } = compiled;
-
-      status.valid = valid;
-      status.active = true;
-
-      const result: Array<LogSearchMatchType> = [];
-      const list = lines.value.list;
-
-      for (const [index, element] of list.entries()) {
-        const ranges: Array<[number, number]> = matcher(element.raw);
-
-        for (const [start, end] of ranges) {
-          result.push({
-            "lineIndex"  : index,
-            "charStart"  : start,
-            "charEnd"    : end,
-            "globalIndex": result.length,
-          });
-        }
-      }
-
-      status.matches = result;
-    },
-    { "debounce": 200 },
-  );
-
-  const matchesByLine = computed(() => {
-    const map = new Map<number, Array<LogSearchMatchType>>;
-
-    for (const match of status.matches) {
-      let array: Array<LogSearchMatchType> | undefined = map.get(match.lineIndex);
-
-      if (!array) {
-        array = [];
-
-        map.set(match.lineIndex, array);
-      }
-
-      array.push(match);
+      status.matches = shallowReactive([]);
+      byLine.clear();
+      status.active = Boolean(compiled);
+      status.valid = compiled?.valid ?? true;
     }
 
-    return map;
+    if (!compiled) {
+      return;
+    }
+
+    for (; scanned < source.list.length; scanned++) {
+      const ranges = compiled.matcher(source.list[scanned].raw);
+
+      if (ranges.length > 0) {
+        const matches = ranges.map(([charStart, charEnd]) => {
+          const match = {
+            "lineIndex": scanned, charStart, charEnd, "globalIndex": status.matches.length,
+          };
+
+          status.matches.push(match);
+
+          return match;
+        });
+
+        byLine.set(scanned, matches);
+      }
+    }
   });
 
   function goTo(index: number): LogSearchMatchType | undefined {
@@ -180,7 +145,6 @@ export function useLogSearch(
     status.valid = true;
     status.active = false;
     status.index = 0;
-    status.matches = [];
   }
 
   return {

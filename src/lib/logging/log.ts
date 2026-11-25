@@ -5,7 +5,7 @@ import { capitalize } from "@/lib/general/scopes/capitalize.ts";
 type LogMethodType = (...input: string[]) => void;
 
 const nonDebugModeMessage: string = "  " +
-  "log#debug method points to lod#__debug-undefined. What is happening?";
+  "log#debug method points to log#__debug-undefined. What is happening?";
 
 function invokeLog(
   level: number,
@@ -23,6 +23,8 @@ function invokeLog(
   });
 }
 
+const debugDisabled: LogMethodType = () => {};
+
 export const log = {
 
   /*
@@ -35,12 +37,12 @@ export const log = {
   /*
    * 'log#debug' will point to the '__debug-undefined' when debug mode is disabled
    */
-  "__debug-undefined": ((): void => {}) as LogMethodType,
+  "__debug-undefined": debugDisabled,
 
   /*
    * Actual logging methods
    */
-  "debug": ((): void => {}) as LogMethodType,
+  "debug": debugDisabled,
   "info" : (prefix: string, ...input: string[]): void => {
     invokeLog(3, input.join(" "), prefix);
   },

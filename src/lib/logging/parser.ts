@@ -27,7 +27,7 @@ const separatorLength = separator.length;
 export function parseLine(line: LogLineType): LogParsedLineType  {
   const parts: Array<string | undefined> = line.raw.split(separator);
   const [time, level, target] = parts;
-  const looksStructured = !Number.isNaN(Number(line.raw[0]));
+  const looksStructured = line.raw.charAt(0) >= "0" && line.raw.charAt(0) <= "9";
 
   if (!time || !level || !target || !looksStructured) {
     return {

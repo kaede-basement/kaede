@@ -97,7 +97,7 @@ function handleIndex(event: Event): void {
 
   const newValue = Number(value) - 1;
   const relativePosition = Math.min(
-    Math.max(0, status.matches.length),
+    Math.max(0, status.matches.length - 1),
     Math.max(
       0,
       newValue,
@@ -122,7 +122,7 @@ function handleIndex(event: Event): void {
       <MaterialRipple />
     </button>
   </div>
-  <div id="__log-viewer__inner-separator" class="h-2 w-full"></div>
+  <div id="__log-viewer__title-separator" class="h-2 w-full"></div>
   <div id="__log-viewer__inner-subtitle-wrapper" class="flex flex-nowrap items-center gap-2">
     <div id="__log-viewer__inner-subtitle-part-left" :style="styles.widgetSecondary">
       View
@@ -159,7 +159,7 @@ function handleIndex(event: Event): void {
     />
     <LogCopy />
   </div>
-  <div id="__log-viewer__inner-separator" class="h-2 w-full"></div>
+  <div id="__log-viewer__subtitle-separator" class="h-2 w-full"></div>
   <div
     id="__log-viewer__header-wrapper"
     class="h-8 flex flex-nowrap gap-2"
@@ -238,6 +238,6 @@ function handleIndex(event: Event): void {
       :on-escape="filterer.reset"
     />
   </div>
-  <div id="__log-viewer__inner-separator" class="h-2 w-full"></div>
+  <div id="__log-viewer__header-separator" class="h-2 w-full"></div>
   <LogSections />
 </template>

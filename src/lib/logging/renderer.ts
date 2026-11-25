@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { globalStates } from "@/states/global.ts";
+import type { globalStates } from "@/states/global.ts";
 import type { LogParsedLineType } from "@/types/logging/log-parsing.type.ts";
 import type { LogRenderSegmentType } from "@/types/logging/log-render.type.ts";
 import type { LogSearchMatchType } from "@/types/logging/log-searching.type.ts";
@@ -35,13 +35,17 @@ function fitToWidth(text: string, width: number): string {
     return text.padEnd(width);
   }
 
+  if (width < 3) {
+    return ".".repeat(Math.max(0, width));
+  }
+
   return text.slice(0, width - 3) + "...";
 }
 
-export function tokenize(parsed: LogParsedLineType): Array<RawToken> {
-  const partsShown = globalStates.logs.partsShown;
-  const partsSize = globalStates.logs.partsSize;
-
+export function tokenize(
+  parsed: LogParsedLineType,
+  { partsSize, partsShown }: Pick<typeof globalStates.logs, "partsShown" | "partsSize">,
+): Array<RawToken> {
   if (parsed.kind === "plain") {
     if (!partsShown.message) {
       return [];
