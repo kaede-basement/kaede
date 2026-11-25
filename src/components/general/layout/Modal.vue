@@ -22,11 +22,8 @@ import { computed } from "vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { modalStates, type PendingModalType } from "@/states/modal.ts";
 
-const queue = computed((): Array<PendingModalType> => {
-  return [...modalStates];
-});
 const current = computed((): PendingModalType | undefined => {
-  return queue.value[0];
+  return modalStates.values().next().value;
 });
 </script>
 

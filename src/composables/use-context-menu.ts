@@ -44,19 +44,15 @@ export function useContextMenu(): {
       event.preventDefault();
     }
 
-    const target = event.target as HTMLElement;
+    const target = event.target;
 
-    if (
-      target?.className?.includes?.("__context_menu__wrapper") ||
-      target?.parentElement?.className?.includes?.("__context_menu__entry")
-    ) {
+    if (target instanceof Element &&
+      target.closest("#__context_menu__wrapper")) {
       return;
     }
 
-    if (
-      target?.className?.includes?.("__context-menu-disable") ||
-      target?.className?.includes?.("_rippleOverlay")
-    ) {
+    if (target instanceof Element &&
+      target.closest(".__context-menu-disable, [class*=\"_rippleOverlay\"]")) {
       closeContextMenu();
 
       return;
@@ -68,12 +64,9 @@ export function useContextMenu(): {
   }
 
   useEventListener(window, "pointerdown", (event: PointerEvent) => {
-    const target = event.target as HTMLElement;
-
-    if (
-      target?.className?.includes?.("__context_menu__") ||
-      target?.parentElement?.className?.includes?.("__context_menu__")
-    ) {
+    if (event.composedPath().some(node => (
+      node instanceof Element && node.id === "__context_menu__wrapper"
+    ))) {
       return;
     }
 

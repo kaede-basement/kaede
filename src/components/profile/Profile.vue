@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { inject } from "vue";
+import { inject, useTemplateRef } from "vue";
 
 import AccountRow from "@/components/profile/AccountRow.vue";
 import Microsoft from "@/components/profile/Logins/Microsoft.vue";
 import Offline from "@/components/profile/Logins/Offline.vue";
 import LoginStatus from "@/components/profile/LoginStatus.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
-import { useSkinRenderer } from "@/composables/use-skin-renderer.ts";
+import { useProfileSkinRenderer } from "@/composables/use-skin-renderer.ts";
 import {
   AuthStatesContextKey,
   TranslationsContextKey,
@@ -19,7 +19,19 @@ const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
 const { styles } = useConfigColors();
-const { canvas, viewer, shown } = useSkinRenderer({ "render": "3d" });
+const viewport = useTemplateRef<HTMLElement>("viewport");
+const { canvas, viewer, shown } = useProfileSkinRenderer(viewport);
+
+function startWalk(): void {
+  viewer.value?.playAnimation("walk");
+  viewer.value?.startRenderLoop();
+}
+
+function stopWalk(): void {
+  viewer.value?.stopRenderLoop();
+  viewer.value?.stopAnimation();
+  viewer.value?.render();
+}
 </script>
 
 <template>
@@ -37,27 +49,21 @@ const { canvas, viewer, shown } = useSkinRenderer({ "render": "3d" });
           id="__profile-page__skin-wrapper"
           class="flex flex-1 justify-center"
         >
-          <!--
-            -- Transitioning visibility declaratively here just works sluggishly,
-            -- so we do it imperatively in 'use-skin-renderer' to avoid white screen flashing
-            --
-            -- UPD: not anymore, now we simply dispose the previous viewer on the new viewer render
-            -->
-          <canvas
-            ref="canvas"
-            id="__profile-page__skin-canvas"
-            width="150"
-            height="225"
-            @pointerover="() => viewer?.playAnimation?.('walk')"
-            @pointerleave="() => viewer?.stopAnimation?.()"
-            :class="[
-              shown ? 'opacity-100' : 'opacity-0',
-              'cursor-grab duration-300 transition-[opacity] active:cursor-grabbing',
-              // It's kind of buggy, and 150x225 becomes 187x281,
-              // but the size can grow even more, so we set real limits here
-              'shrink-0 max-h-[281px] max-w-[187px]',
-            ]"
-          />
+          <div ref="viewport" id="__profile-page__skin-viewport" class="h-[225px] w-[150px] shrink-0">
+            <canvas
+              ref="canvas"
+              id="__profile-page__skin-canvas"
+              width="150"
+              height="225"
+              @pointerover="startWalk"
+              @pointerleave="stopWalk"
+              :class="[
+                shown ? 'opacity-100' : 'opacity-0',
+                'cursor-grab duration-300 transition-[opacity] active:cursor-grabbing',
+                'w-full h-full max-w-full max-h-full',
+              ]"
+            />
+          </div>
         </div>
         <div
           id="__profile-page__accounts-wrapper"

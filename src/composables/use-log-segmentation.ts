@@ -23,6 +23,7 @@ import { LogKindColors, LogLevelColors } from "@/constants/application.ts";
 import Logging from "@/lib/logging";
 import { parseLine } from "@/lib/logging/parser.ts";
 import { overlaySearch, tokenize } from "@/lib/logging/renderer.ts";
+import { globalStates } from "@/states/global.ts";
 import type { LogLevelType } from "@/types/logging/log-level.type.ts";
 import type { LogLineType } from "@/types/logging/log-line.type.ts";
 import type { LogRenderSegmentType } from "@/types/logging/log-render.type.ts";
@@ -60,7 +61,7 @@ export function useLogSegmentation({
     const hasMatches = matches && matches.length > 0;
 
     const parsed = parseLine(entry);
-    const tokens = tokenize(parsed);
+    const tokens = tokenize(parsed, globalStates.logs);
 
     return hasMatches
       ? overlaySearch(tokens, matches, status.index)

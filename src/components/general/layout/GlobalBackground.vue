@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { useEventListener } from "@vueuse/core";
+import { computed, useTemplateRef, watch } from "vue";
 
 import Image from "@/components/general/base/Image.vue";
 import { globalStates } from "@/states/global.ts";
@@ -7,6 +8,24 @@ import type {
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type { DeepNonNullable } from "@/types/utils/deep-non-nullable.type.ts";
+
+const video = useTemplateRef<HTMLVideoElement>("video");
+
+function syncPlayback(): void {
+  if (document.hidden) {
+    video.value?.pause();
+  } else {
+    void video.value?.play().catch(() => {});
+  }
+}
+
+useEventListener(document, "visibilitychange", syncPlayback);
+watch(video, (current, previous) => {
+  previous?.pause();
+  if (current) {
+    syncPlayback();
+  }
+}, { "flush": "post" });
 
 const image = computed((): DeepNonNullable<GlobalStatesType["ui"]["background"]> => {
   const background = globalStates?.ui?.background;
@@ -41,7 +60,7 @@ const image = computed((): DeepNonNullable<GlobalStatesType["ui"]["background"]>
       <video
         id="__router__background-video"
         v-if="image.isVideo"
-        autoplay
+        ref="video"
         muted
         loop
         class="absolute left-0 h-full w-full bg-center object-cover -z-10"

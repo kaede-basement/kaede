@@ -39,7 +39,7 @@ import {
 } from "prism-code-editor/autocomplete/javascript";
 import { cursorPosition } from "prism-code-editor/cursor";
 import { indentGuides } from "prism-code-editor/guides";
-import { onMounted } from "vue";
+import { onBeforeUnmount, onMounted, useTemplateRef } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -68,9 +68,30 @@ async function handleCode(): Promise<void> {
   }
 }
 
+const editorRoot = useTemplateRef<HTMLDivElement>("editorRoot");
+let editor: ReturnType<typeof createEditor> | undefined;
+
+onBeforeUnmount(() => {
+  editor?.textarea.blur();
+  editor?.remove();
+});
 onMounted(() => {
-  const editor = createEditor(
-    "#__settings-page__plugin-playground-editor",
+  if (!editorRoot.value) {
+    return;
+  }
+
+  registerCompletions(["javascript", "js"], {
+    "context": jsContext,
+    "sources": [
+      jsCompletion(window),
+      completeKeywords,
+      jsDocCompletion,
+      completeFromList(jsSnipets),
+    ],
+  });
+
+  editor = createEditor(
+    editorRoot.value,
     {
       "language": "javascript",
       "wordWrap": true,
@@ -91,16 +112,6 @@ onMounted(() => {
       "preferAbove" : false,
     }),
   );
-
-  registerCompletions(["javascript", "js"], {
-    "context": jsContext,
-    "sources": [
-      jsCompletion(window),
-      completeKeywords,
-      jsDocCompletion,
-      completeFromList(jsSnipets),
-    ],
-  });
 });
 </script>
 
@@ -121,6 +132,7 @@ onMounted(() => {
       class="h-full w-full flex flex-wrap gap-2 text-sm sm:flex-nowrap"
     >
       <div
+        ref="editorRoot"
         id="__settings-page__plugin-playground-editor"
         class="h-full w-full overflow-hidden rounded-md outline-2 outline-neutral-300 outline-offset-2 [&>.prism-code-editor]:h-full focus-within:outline"
         @contextmenu.stop

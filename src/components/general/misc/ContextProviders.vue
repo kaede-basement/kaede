@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   inject,
-  markRaw,
   provide,
   reactive,
   type ShallowReactive,
@@ -25,6 +24,7 @@ import Hooks from "@/lib/hooks";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/log.ts";
+import { createDownloadMap } from "@/lib/network/download-map.ts";
 import { rehydrateProcesses } from "@/lib/processes/core.ts";
 import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
@@ -135,7 +135,7 @@ async function launchInstance(instanceId?: string, options?: Partial<{
     "launching": 1,
     "current"  : undefined,
     "downloads": {
-      "current": markRaw(new Map<string, [number, number]>),
+      "current": createDownloadMap(),
       "success": 0,
       "failed" : 0,
       "total"  : 0,
@@ -245,7 +245,7 @@ async function rehydrateLaunchedInstances(): Promise<void> {
         "launching": 2,
         "current"  : LaunchStatus.General.Success,
         "downloads": {
-          "current": markRaw(new Map<string, [number, number]>),
+          "current": createDownloadMap(),
           "success": 0,
           "failed" : 0,
           "total"  : 0,

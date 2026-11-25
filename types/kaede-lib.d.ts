@@ -1631,10 +1631,10 @@ export type LaunchStatusType = {
 	[Key in LaunchKeyType]: LaunchStatusObjectType[Key][keyof LaunchStatusObjectType[Key]];
 }[LaunchKeyType];
 export type LauncherStatusesDownloadsType = {
-	"current": Raw<Map<string, [
+	"current": Map<string, [
 		number,
 		number
-	]>>;
+	]>;
 	"success": number;
 	"failed": number;
 	"total": number;
