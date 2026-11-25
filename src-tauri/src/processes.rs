@@ -458,9 +458,15 @@ mod pipes {
         },
     };
 
-    pub struct Connected(NamedPipeServer);
+    pub struct Reader(NamedPipeServer);
 
-    impl tokio::io::AsyncRead for Connected {
+    pub struct Writer {
+        server: NamedPipeServer,
+        #[cfg(test)]
+        pub(super) on_pending: Option<oneshot::Sender<()>>,
+    }
+
+    impl tokio::io::AsyncRead for Reader {
         fn poll_read(
             self: std::pin::Pin<&mut Self>,
             cx: &mut std::task::Context<'_>,
@@ -469,10 +475,8 @@ mod pipes {
             std::pin::Pin::new(&mut self.get_mut().0).poll_read(cx, buf)
         }
     }
-    pub type Reader = Connected;
-    pub type Writer = Connected;
 
-    impl Drop for Connected {
+    impl Drop for Reader {
         fn drop(&mut self) {
             // Disconnect before exit notification, even if Mio still owns an in-flight operation.
             let _ = self.0.disconnect();
@@ -551,7 +555,7 @@ mod pipes {
         }
     }
 
-    fn pair(inbound: bool) -> io::Result<(Connected, File)> {
+    fn pair(inbound: bool) -> io::Result<(NamedPipeServer, File)> {
         let (name, server) = private_server(
             ServerOptions::new()
                 .access_inbound(inbound)
@@ -564,14 +568,22 @@ mod pipes {
             .write(inbound)
             .open(name)?;
         tokio::runtime::Handle::current().block_on(server.connect())?;
-        Ok((Connected(server), client))
+        Ok((server, client))
     }
 
     pub fn input() -> io::Result<(Writer, Stdio)> {
-        pair(false).map(|(server, client)| (server, client.into()))
+        let (server, client) = pair(false)?;
+        Ok((
+            Writer {
+                server,
+                #[cfg(test)]
+                on_pending: None,
+            },
+            client.into(),
+        ))
     }
     pub fn output() -> io::Result<(Reader, Stdio)> {
-        pair(true).map(|(server, client)| (server, client.into()))
+        pair(true).map(|(server, client)| (Reader(server), client.into()))
     }
 
     fn manual_event() -> io::Result<OwnedHandle> {
@@ -604,7 +616,7 @@ mod pipes {
     }
 
     fn write_blocking(
-        pipe: &Writer,
+        writer: &mut Writer,
         mut bytes: &[u8],
         exited: &OwnedHandle,
         cancel: &OwnedHandle,
@@ -615,7 +627,7 @@ mod pipes {
             exited.as_raw_handle(),
             cancel.as_raw_handle(),
         ];
-        let pipe = pipe.0.as_raw_handle();
+        let pipe = writer.server.as_raw_handle();
         while !bytes.is_empty() {
             match unsafe { WaitForMultipleObjects(2, handles[1..].as_ptr(), 0, 0) } {
                 WAIT_TIMEOUT => (),
@@ -634,6 +646,10 @@ mod pipes {
                 let err = io::Error::last_os_error();
                 if err.raw_os_error() != Some(ERROR_IO_PENDING as i32) {
                     return Err(err);
+                }
+                #[cfg(test)]
+                if let Some(pending) = writer.on_pending.take() {
+                    let _ = pending.send(());
                 }
                 // Win32 chooses the first signaled handle, so completion wins ties.
                 let wake = unsafe {
@@ -666,13 +682,13 @@ mod pipes {
     }
 
     pub async fn write_all(
-        pipe: tokio::sync::OwnedMutexGuard<Writer>,
+        mut pipe: tokio::sync::OwnedMutexGuard<Writer>,
         bytes: Vec<u8>,
         exited: Exit,
     ) -> io::Result<()> {
         let cancel = Arc::new(manual_event()?);
         let _signal_on_drop = CancelWrite(cancel.clone());
-        tokio::task::spawn_blocking(move || write_blocking(&pipe, &bytes, &exited, &cancel))
+        tokio::task::spawn_blocking(move || write_blocking(&mut pipe, &bytes, &exited, &cancel))
             .await
             .map_err(io::Error::other)?
     }
@@ -693,14 +709,14 @@ mod pipes {
             Wake::Exited,
             Wake::Abandoned,
         ] {
-            let (writer, mut reader) = tokio::task::spawn_blocking(|| pair(false))
+            let (server, mut reader) = tokio::task::spawn_blocking(|| pair(false))
                 .await
                 .unwrap()
                 .unwrap();
             let mut capacity = 0;
             checked(unsafe {
                 windows_sys::Win32::System::Pipes::GetNamedPipeInfo(
-                    writer.0.as_raw_handle(),
+                    server.as_raw_handle(),
                     null_mut(),
                     &mut capacity,
                     null_mut(),
@@ -709,7 +725,10 @@ mod pipes {
             })
             .unwrap();
             assert!(capacity > 0);
-            let writer = Arc::new(AsyncMutex::new(writer));
+            let writer = Arc::new(AsyncMutex::new(Writer {
+                server,
+                on_pending: None,
+            }));
             let (exited, signal_exit) = exit_signal().unwrap();
             write_all(
                 writer.clone().lock_owned().await,
@@ -718,6 +737,8 @@ mod pipes {
             )
             .await
             .unwrap();
+            let (submitted, pending) = oneshot::channel();
+            writer.lock().await.on_pending = Some(submitted);
             let mut write = Box::pin(
                 ProcessInput {
                     pipe: writer.clone(),
@@ -725,9 +746,10 @@ mod pipes {
                 }
                 .write(vec![1]),
             );
-            assert!(timeout(Duration::from_millis(100), &mut write)
-                .await
-                .is_err());
+            tokio::select! {
+                result = &mut write => panic!("full pipe write completed before wake: {result:?}"),
+                result = timeout(Duration::from_secs(5), pending) => result.unwrap().unwrap(),
+            }
             match wake {
                 Wake::Completed => {
                     // Confirm that the OS accepted the final byte, then signal child exit
@@ -968,25 +990,49 @@ impl ProcessOutput {
 
 const READ_BUFFER: usize = 8 * 1024;
 
+async fn send_record<R>(
+    pipe: &mut Option<R>,
+    stop: &mut watch::Receiver<()>,
+    tx: &mpsc::Sender<OutputLine>,
+    record: OutputLine,
+) -> bool {
+    let permit = if pipe.is_some() {
+        tokio::select! {
+            biased;
+            _ = stop.changed() => {
+                drop(pipe.take());
+                tx.reserve().await
+            }
+            permit = tx.reserve() => permit,
+        }
+    } else {
+        tx.reserve().await
+    };
+    let Ok(permit) = permit else { return false };
+    permit.send(record);
+    true
+}
+
 async fn read_records(
-    mut pipe: impl tokio::io::AsyncRead + Unpin,
+    pipe: impl tokio::io::AsyncRead + Unpin,
     tx: mpsc::Sender<OutputLine>,
     stream: &'static str,
     drain: Drain,
     mut stop: watch::Receiver<()>,
 ) {
     use tokio::io::AsyncReadExt;
+    let mut pipe = Some(pipe);
     let mut buf = vec![0; READ_BUFFER];
     let mut bytes = Vec::new();
     let mut trailing_cr = false;
-    loop {
+    while let Some(reader) = pipe.as_mut() {
         if stop.has_changed().unwrap_or(true) {
             break;
         }
         let read = tokio::select! {
             biased;
             _ = stop.changed() => break,
-            read = pipe.read(&mut buf) => read,
+            read = reader.read(&mut buf) => read,
         };
         let n = match read {
             Ok(0) => break,
@@ -1012,10 +1058,13 @@ async fn read_records(
                 }
             }
             if matches!(drain, Drain::Collect)
-                && tx
-                    .send((stream, Ok(std::mem::take(&mut bytes))))
-                    .await
-                    .is_err()
+                && !send_record(
+                    &mut pipe,
+                    &mut stop,
+                    &tx,
+                    (stream, Ok(std::mem::take(&mut bytes))),
+                )
+                .await
             {
                 return;
             }
@@ -1035,10 +1084,13 @@ async fn read_records(
             bytes.extend_from_slice(&chunk[..len]);
             chunk = &chunk[len..];
             if !(trailing_cr && matches!(drain, Drain::Collect))
-                && tx
-                    .send((stream, Ok(std::mem::take(&mut bytes))))
-                    .await
-                    .is_err()
+                && !send_record(
+                    &mut pipe,
+                    &mut stop,
+                    &tx,
+                    (stream, Ok(std::mem::take(&mut bytes))),
+                )
+                .await
             {
                 return;
             }
@@ -1385,7 +1437,7 @@ mod tests {
             "KAEDE_TEST_CONTROL",
             listener.local_addr().unwrap().to_string(),
         );
-        let (launch, stdin, mut output) = start_process(cmd, Drain::Managed).await.unwrap();
+        let (launch, stdin, output) = start_process(cmd, Drain::Managed).await.unwrap();
         let (_direct, mut grandchild) = timeout(Duration::from_secs(5), async {
             let (direct, _) = listener.accept().await.unwrap();
             let (grandchild, _) = listener.accept().await.unwrap();
@@ -1408,19 +1460,53 @@ mod tests {
                 child,
             },
         );
-        let write = stdin.write(bytes);
-        tokio::pin!(write);
-        assert!(timeout(Duration::from_millis(100), &mut write)
-            .await
-            .is_err());
+        let writer = Arc::downgrade(&stdin.pipe);
+        #[cfg(windows)]
+        let pending = {
+            let (submitted, pending) = oneshot::channel();
+            stdin.pipe.lock().await.on_pending = Some(submitted);
+            pending
+        };
+        #[cfg(unix)]
+        {
+            let pipe = stdin.pipe.lock().await;
+            loop {
+                match pipe.try_write(&[0; 4096]) {
+                    Ok(n) => assert!(n > 0),
+                    Err(e) if e.kind() == io::ErrorKind::WouldBlock => break,
+                    Err(e) => panic!("filling stdin: {e}"),
+                }
+            }
+        }
+        let mut write = Box::pin(stdin.write(bytes));
+        tokio::select! {
+            biased;
+            result = &mut write => panic!("full pipe write completed before kill: {result:?}"),
+            _ = async {
+                #[cfg(windows)]
+                timeout(Duration::from_secs(5), pending).await.unwrap().unwrap();
+            } => (),
+        }
         registry.kill(pid).unwrap();
         timeout(Duration::from_secs(5), async {
             assert!(write.await.is_err());
+            monitor(
+                output,
+                &registry,
+                pid,
+                "current".into(),
+                "test".into(),
+                |_| {},
+            )
+            .await;
+            assert!(
+                writer.upgrade().is_none(),
+                "stdin owner survived registry cleanup"
+            );
             grandchild.write_all(b"i").await.unwrap();
             assert_eq!(grandchild.read_u8().await.unwrap(), 42);
             grandchild.shutdown().await.unwrap();
             assert_eq!(grandchild.read(&mut [0]).await.unwrap(), 0);
-            while let Record::Line(..) = output.next().await {}
         })
         .await
         .unwrap();
@@ -1451,6 +1537,44 @@ mod tests {
         assert!(matches!(output.state, Lifecycle::Finished(_)));
         assert!(matches!(output.next().await, Record::Line("stderr", Ok(v)) if v == [2]));
         assert!(matches!(output.next().await, Record::Exit(Err(_))));
+    }
+
+    #[tokio::test]
+    async fn cutoff_closes_reader_while_output_queue_is_full() {
+        let (reader, mut peer) = tokio::io::duplex(64);
+        peer.write_all(b"first\nsecond\nthird\ntail").await.unwrap();
+        let (tx, lines) = mpsc::channel(1);
+        let (stop, stopping) = watch::channel(());
+        let mut reading = Box::pin(read_records(reader, tx, "stderr", Drain::Managed, stopping));
+        tokio::select! {
+            biased;
+            _ = &mut reading => panic!("reader exited before cutoff"),
+            _ = std::future::ready(()) => (),
+        }
+        assert_eq!(lines.len(), 1);
+        let mut readers = JoinSet::new();
+        readers.spawn(reading);
+        let mut output = ProcessOutput {
+            stop: None,
+            readers,
+            lines,
+            drain: Drain::Managed,
+            state: Lifecycle::Finished(Err("done".into())),
+        };
+        drop(stop);
+        assert_eq!(
+            timeout(Duration::from_secs(5), peer.read(&mut [0]))
+                .await
+                .unwrap()
+                .unwrap(),
+            0
+        );
+        for expected in [b"first\n".as_slice(), b"second\n", b"third\n", b"tail"] {
+            assert!(
+                matches!(output.next().await, Record::Line("stderr", Ok(bytes)) if bytes == expected)
+            );
+        }
+        assert!(matches!(output.next().await, Record::Exit(_)));
     }
 
     #[tokio::test]
