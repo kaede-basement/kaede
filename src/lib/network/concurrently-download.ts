@@ -19,7 +19,6 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
 import { log } from "@/lib/logging/log.ts";
-import { notifyDownloadProgress, ObservableDownloadMap } from "@/lib/network/download-progress.ts";
 import type {
   DownloadReportType,
   DownloadSnapshotType,
@@ -27,9 +26,6 @@ import type {
 import type {
   LauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
-
-type Progress = [number, number];
-const ownersByMap = new WeakMap<Map<string, Progress>, Map<string, Map<symbol, Progress>>>;
 
 export async function concurrentlyDownload({
   concurrency,
@@ -78,12 +74,7 @@ export async function concurrentlyDownload({
    */
   let previousSuccess: number = 0;
   let previousFailed : number = 0;
-  const previousPaths = new Set<string>;
-  const batch = Symbol();
-  const current = statuses.downloads.current;
-  const ownersByPath = ownersByMap.get(current) ?? new Map<string, Map<symbol, Progress>>;
-
-  ownersByMap.set(current, ownersByPath);
+  let previousPaths  : Set<string> = new Set;
 
   const applySnapshotData = (success: number, failed: number): void => {
     if (success < previousSuccess || failed < previousFailed) {
@@ -97,47 +88,6 @@ export async function concurrentlyDownload({
     previousFailed  = failed;
   };
 
-  function publishCurrent(snapshot: DownloadSnapshotType["current"]): void {
-    let changed = false;
-
-    for (const path of previousPaths) {
-      if (!Object.prototype.hasOwnProperty.call(snapshot, path)) {
-        const pathOwners = ownersByPath.get(path)!;
-
-        pathOwners.delete(batch);
-        const remaining = pathOwners.values().next();
-
-        if (remaining.done) {
-          ownersByPath.delete(path);
-          current.delete(path);
-        } else {
-          current.set(path, remaining.value);
-        }
-        changed = true;
-        previousPaths.delete(path);
-      }
-    }
-    for (const [path, progress] of Object.entries(snapshot)) {
-      let pathOwners = ownersByPath.get(path);
-
-      if (!pathOwners) {
-        pathOwners = new Map;
-        ownersByPath.set(path, pathOwners);
-      }
-      pathOwners.set(batch, progress);
-      const old = current.get(path);
-
-      if (!old || old[0] !== progress[0] || old[1] !== progress[1]) {
-        current.set(path, progress);
-        changed = true;
-      }
-      previousPaths.add(path);
-    }
-    if (changed && !(current instanceof ObservableDownloadMap)) {
-      notifyDownloadProgress(current);
-    }
-  }
-
   let finished = false;
 
   // eslint-disable-next-line unicorn/prefer-add-event-listener
@@ -145,7 +95,26 @@ export async function concurrentlyDownload({
     if (finished) {
       return;
     }
-    publishCurrent(snapshot.current);
+    const current = statuses.downloads.current;
+
+    for (const path of previousPaths) {
+      // If the path is missing, then the download task for this path was finished
+      if (!(path in snapshot.current)) {
+        current.delete(path);
+      }
+    }
+
+    previousPaths = new Set;
+
+    for (const [path, fileProgress] of Object.entries(snapshot.current)) {
+      /*
+       * 'fileProgress' is '[progress, speed]',
+       * where 'progress' is accumulated while 'speed' is not
+       */
+      current.set(path, fileProgress);
+      previousPaths.add(path);
+    }
+
     applySnapshotData(snapshot.success, snapshot.failed);
   };
 
@@ -158,7 +127,10 @@ export async function concurrentlyDownload({
     debug,
   }).finally(() => {
     finished = true;
-    publishCurrent({});
+    for (const path of previousPaths) {
+      statuses.downloads.current.delete(path);
+    }
+    previousPaths.clear();
   });
 
   applySnapshotData(report.success, report.failed);

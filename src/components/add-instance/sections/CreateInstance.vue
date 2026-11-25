@@ -27,7 +27,6 @@ import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
-import { ObservableDownloadMap } from "@/lib/network/download-progress.ts";
 import { globalStates } from "@/states/global.ts";
 import type {
   GlobalStatesType,
@@ -78,7 +77,7 @@ function trackDownloads(instanceId: string): LauncherStatusesType {
     "launching": 1,
     "current"  : undefined,
     "downloads": {
-      "current": markRaw(new ObservableDownloadMap),
+      "current": markRaw(new Map<string, [number, number]>),
       "success": 0,
       "failed" : 0,
       "total"  : 0,

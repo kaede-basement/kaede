@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useDraggable, useElementSize, useWindowSize } from "@vueuse/core";
-import { computed, inject, useTemplateRef, watch } from "vue";
+import { useDraggable, useElementSize, useIntervalFn, useWindowSize } from "@vueuse/core";
+import { computed, inject, ref, useTemplateRef, watch } from "vue";
 
 import { useConfigColors } from "@/composables/use-config-colors.ts";
 import {
@@ -9,7 +9,6 @@ import {
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances";
-import { trackDownloadProgress } from "@/lib/network/download-progress.ts";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type {
@@ -85,18 +84,38 @@ const progress = computed<number>((oldValue: number | undefined): number => {
   }
 });
 
-const currentDownloads = computed(() => {
-  const map = statuses.value?.downloads?.current;
-  let totalSpeed = 0;
+const currentDownloadSpeed = ref("0.00");
+const currentDownloadCount = ref(0);
+const activeDownloads = computed(() => (statuses.value?.launching === 1
+  ? statuses.value.downloads
+  : undefined));
 
-  if (map) {
-    for (const [, speed] of trackDownloadProgress(map).values()) {
-      totalSpeed += speed;
+function sampleDownloads(): void {
+  const current = activeDownloads.value?.current;
+  let speed = 0;
+
+  if (current) {
+    for (const [, bytesPerSecond] of current.values()) {
+      speed += bytesPerSecond;
     }
   }
+  currentDownloadCount.value = current?.size ?? 0;
+  currentDownloadSpeed.value = (speed / (1024 * 1024)).toFixed(2);
+}
 
-  return { "speed": (totalSpeed / (1024 * 1024)).toFixed(2), "count": map?.size ?? 0 };
-});
+const { resume, pause } = useIntervalFn(sampleDownloads, 100, { "immediate": false });
+
+watch(activeDownloads, (downloads, _, onCleanup) => {
+  if (downloads) {
+    sampleDownloads();
+    resume();
+    onCleanup(() => {
+      pause();
+      currentDownloadCount.value = 0;
+      currentDownloadSpeed.value = "0.00";
+    });
+  }
+}, { "immediate": true });
 
 watch(
   () => [
@@ -139,18 +158,18 @@ watch(
       {{ instanceStates[statuses.instanceId].name }} (status)
     </div>
     <div
-      v-if="currentDownloads.speed !== '0.00'"
+      v-if="currentDownloadSpeed !== '0.00'"
       id="__layout__launch-progress-current-speed"
       class="text-sm"
     >
-      {{ currentDownloads.speed }} MB/s
+      {{ currentDownloadSpeed }} MB/s
     </div>
     <div
-      v-if="currentDownloads.count > 0"
+      v-if="currentDownloadCount > 0"
       id="__layout__launch-progress-current-downloads"
       class="text-sm"
     >
-      Downloading {{ currentDownloads.count }} objects
+      Downloading {{ currentDownloadCount }} objects
     </div>
     <div
       v-if="statuses.downloads.total > 0"

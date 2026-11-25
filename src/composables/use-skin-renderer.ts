@@ -68,7 +68,25 @@ function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement)
     }
   });
 
-  observer.observe(canvas);
+  // The layout box is independent of the DPR-scaled drawing buffer.
+  if (canvas.parentElement) {
+    observer.observe(canvas.parentElement);
+  }
+
+  const { setRotation, setZoom, resetCamera } = viewer;
+
+  viewer.setRotation = (theta, phi): void => {
+    setRotation(theta, phi);
+    scheduleRender();
+  };
+  viewer.setZoom = (zoom): void => {
+    setZoom(zoom);
+    scheduleRender();
+  };
+  viewer.resetCamera = (): void => {
+    resetCamera();
+    scheduleRender();
+  };
 
   // Extensions can also control the viewer's loop and lifetime directly.
   const { startRenderLoop, stopRenderLoop, dispose } = viewer;

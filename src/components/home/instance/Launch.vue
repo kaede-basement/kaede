@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useIntervalFn } from "@vueuse/core";
-import { computed, type ComputedRef, inject, provide, ref, watchEffect } from "vue";
+import { computed, type ComputedRef, inject, provide, ref, watch, watchEffect } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import {
@@ -177,31 +177,39 @@ watchEffect((): void => {
     : "";
 });
 
-const previousIntervalTime = ref<number>(Date.now());
+const playingId = computed(() => (
+  statuses.value?.launching === 2 ? currentInstance.value?.id : undefined
+));
+let previousIntervalTime = 0;
 
-useIntervalFn((): void => {
-  if (statuses.value?.launching === 2) {
-    const currentId: string | undefined = currentInstance.value?.id;
-    const currentInstanceContent: InstanceStateType | undefined = currentInstance.value?.instance;
-    const currentPlayTime: number | undefined = currentInstanceContent?.playTime;
+function accruePlaytime(id: string): void {
+  const now = Date.now();
+  const instance = instanceStates[id];
 
-    // 'currentTime' might be zero
-    if (!currentId || !currentInstanceContent || currentPlayTime === undefined) {
-      return;
-    }
+  if (instance?.playTime !== undefined) {
+    const elapsed = now - previousIntervalTime;
 
-    const currentAbsoluteTime: number = Date.now();
-    const previousAbsoluteTime: number = previousIntervalTime.value;
-    const timeToAdd: number = currentAbsoluteTime - previousAbsoluteTime;
-
-    instanceStates[currentId] = {
-      ...instanceStates[currentId],
-      "playTime": currentPlayTime + timeToAdd,
-    };
-
-    previousIntervalTime.value = currentAbsoluteTime;
+    instanceStates[id] = { ...instance, "playTime": instance.playTime + elapsed };
   }
-}, 1000);
+  previousIntervalTime = now;
+}
+
+const { resume, pause } = useIntervalFn(() => {
+  if (playingId.value) {
+    accruePlaytime(playingId.value);
+  }
+}, 1000, { "immediate": false });
+
+watch(playingId, (id, _, onCleanup) => {
+  if (id) {
+    previousIntervalTime = Date.now();
+    resume();
+    onCleanup(() => {
+      pause();
+      accruePlaytime(id);
+    });
+  }
+}, { "immediate": true });
 
 provide<{
   "launchable" : ComputedRef<boolean>;

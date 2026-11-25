@@ -48,25 +48,21 @@ function stopWalk(): void {
           id="__profile-page__skin-wrapper"
           class="flex flex-1 justify-center"
         >
-          <!--
-            -- Transitioning visibility declaratively here just works sluggishly,
-            -- so we do it imperatively in 'use-skin-renderer' to avoid white screen flashing
-            --
-            -- UPD: not anymore, now we simply dispose the previous viewer on the new viewer render
-            -->
-          <canvas
-            ref="canvas"
-            id="__profile-page__skin-canvas"
-            width="150"
-            height="225"
-            @pointerover="startWalk"
-            @pointerleave="stopWalk"
-            :class="[
-              shown ? 'opacity-100' : 'opacity-0',
-              'cursor-grab duration-300 transition-[opacity] active:cursor-grabbing',
-              'shrink-0 w-[150px] h-[225px]',
-            ]"
-          />
+          <div id="__profile-page__skin-viewport" class="h-[225px] w-[150px] shrink-0">
+            <canvas
+              ref="canvas"
+              id="__profile-page__skin-canvas"
+              width="150"
+              height="225"
+              @pointerover="startWalk"
+              @pointerleave="stopWalk"
+              :class="[
+                shown ? 'opacity-100' : 'opacity-0',
+                'cursor-grab duration-300 transition-[opacity] active:cursor-grabbing',
+                'w-full h-full max-w-full max-h-full',
+              ]"
+            />
+          </div>
         </div>
         <div
           id="__profile-page__accounts-wrapper"

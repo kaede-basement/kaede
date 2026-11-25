@@ -1,4 +1,4 @@
-import { expect, mock, spyOn, test } from "bun:test";
+import { beforeEach, expect, mock, spyOn, test } from "bun:test";
 import { markRaw, nextTick, reactive, type Ref } from "vue";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
@@ -6,14 +6,24 @@ import type { DownloadSnapshotType } from "@/types/launcher/artifacts/download.t
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
 import {
-  documentState, type Element, invoke, launchKey, mount, noop, state, translationsKey,
+  closeKey, documentState, type Element, instances, invoke, launchKey, mount, noop,
+  startKey, state, translationsKey,
 } from "./idle-ui-harness.ts";
 
-test("window shares color styles and applies positive blur only", async () => {
+beforeEach(() => {
+  documentState.hidden = false;
+  state.selected.currentInstance = "first";
+});
+
+test("color styles are isolated and apply positive blur only", async () => {
   const { useConfigColors } = await import("@/composables/use-config-colors.ts");
   const { styles } = useConfigColors();
 
-  expect(useConfigColors().styles).toBe(styles);
+  const other = useConfigColors().styles;
+  const original = other.value.widget.background;
+
+  styles.value.widget.background = "red";
+  expect(other.value.widget.background).toBe(original);
   for (const blur of [null, 0, 8]) {
     state.ui.background.blur = state.ui.widget.blur = blur;
     expect(styles.value.overlay.backdropFilter).toBe(blur ? "blur(8px)" : undefined);
@@ -22,6 +32,7 @@ test("window shares color styles and applies positive blur only", async () => {
 });
 
 test("video follows initial and changed visibility until unmount", async () => {
+  documentState.hidden = true;
   mock.module("@/components/general/base/Image.vue", () => ({ "default": {} }));
   const { "default": background } = await import(
     "@/components/general/layout/GlobalBackground.vue",
@@ -52,96 +63,126 @@ test("video follows initial and changed visibility until unmount", async () => {
   expect(video.play).toHaveBeenCalledTimes(1);
 });
 
-test.each(["observable", "plain"])("launch progress tracks %s Maps without polling", async kind => {
-  const { ObservableDownloadMap } = await import("@/lib/network/download-progress.ts");
-  const { "default": progress } = await import("@/components/general/layout/LaunchProgress.vue");
-  const { concurrentlyDownload } = await import("@/lib/network/concurrently-download.ts");
-  const { isClient } = await import("@vueuse/core");
+function launchStatus(instanceId: string): LauncherStatusesType {
+  return {
+    instanceId, "launching": 1, "current"  : LaunchStatus.General.Starting,
+    "downloads": { "current": markRaw(new Map), "success": 0, "failed": 0, "total": 0 },
+  };
+}
 
-  expect(isClient).toBe(true);
+test("download polling follows active launches and reads live tuples and Maps", async () => {
+  const { "default": progress } = await import("@/components/general/layout/LaunchProgress.vue");
   const launches = reactive<Record<string, LauncherStatusesType>>({});
   const interval = spyOn(globalThis, "setInterval");
-  const view = mount<{
-    "currentDownloads": Ref<{ "speed": string; "count": number }>;
-    "progress"        : Ref<number>;
-  }>(
+  const clear = spyOn(globalThis, "clearInterval");
+  const view = mount<{ "currentDownloadSpeed": Ref<string>; "currentDownloadCount": Ref<number> }>(
     progress, "container", [[launchKey, launches], [translationsKey, {}]],
   );
 
-  expect(view.bindings.progress.value).toBe(0);
   expect(interval).not.toHaveBeenCalled();
-  const current = kind === "observable"
-    ? new ObservableDownloadMap
-    : new Map<string, [number, number]>;
+  launches.first = launchStatus("first");
+  await nextTick();
+  expect(interval).toHaveBeenCalledTimes(1);
+  const [tick, period] = interval.mock.calls[0];
 
-  launches.first = {
-    "instanceId": "first", "launching" : 1, "current"   : LaunchStatus.General.Starting,
-    "downloads" : { "current": markRaw(current), "success": 0, "failed": 0, "total": 0 },
-  };
-  expect(view.bindings.progress.value).toBe(10);
-  expect(view.bindings.currentDownloads.value.speed).toBe("0.00");
-  const map = launches.first.downloads.current;
+  expect(period).toBe(100);
+  const tuple: [number, number] = [0, 1_048_576];
 
-  if (kind === "observable") {
-    map.set("hook", [1, 1_048_576]);
-    expect(view.bindings.currentDownloads.value).toEqual({ "speed": "1.00", "count": 1 });
-    map.delete("hook");
-    expect(view.bindings.currentDownloads.value.count).toBe(0);
-    map.set("hook", [2, 2_097_152]);
-    expect(view.bindings.currentDownloads.value.speed).toBe("2.00");
-    map.clear();
-    expect(view.bindings.currentDownloads.value.count).toBe(0);
-  }
+  launches.first.downloads.current.set("hook", tuple);
+  tick();
+  expect(view.bindings.currentDownloadSpeed.value).toBe("1.00");
+  tuple[1] *= 2;
+  tick();
+  expect(view.bindings.currentDownloadSpeed.value).toBe("2.00");
+  const replacement = new Map<string, [number, number]>([["new", [0, 3_145_728]]]);
 
-  type Channel = { "onmessage": (snapshot: DownloadSnapshotType) => void };
-  const channels: Array<Channel> = [];
-  const reports = [Promise.withResolvers<object>(), Promise.withResolvers<object>()];
-
-  invoke.mockImplementation(async (_, arguments_) => {
-    const batch = channels.length;
-
-    channels.push((arguments_ as { "onProgress": Channel }).onProgress);
-
-    return reports[batch].promise;
-  });
-  const batches = [["a", "b"], ["b"]].map(paths => concurrentlyDownload({
-    "statuses"   : launches.first, "concurrency": 2,
-    "entries"    : paths.map(path => ({ "url": path, path })), "label"      : paths.join(","),
-  }));
-  const first: DownloadSnapshotType = {
-    "current": { "a": [1, 1_048_576] }, "success": 0, "failed": 0,
-  };
-
-  channels[0].onmessage(first);
-  channels[1].onmessage({ ...first, "current": { "b": [2, 2_097_152] } });
-  const overlap: DownloadSnapshotType = {
-    ...first, "current": { ...first.current, "b": [3, 4_194_304] },
-  };
-
-  channels[0].onmessage(overlap);
-  channels[0].onmessage(first);
-  expect(view.bindings.currentDownloads.value).toEqual({ "speed": "3.00", "count": 2 });
-  channels[0].onmessage(overlap);
-  expect(map).toBe(launches.first.downloads.current);
-  expect(view.bindings.currentDownloads.value).toEqual({ "speed": "5.00", "count": 2 });
+  launches.first.downloads.current = markRaw(replacement);
+  tick();
+  expect(view.bindings.currentDownloadSpeed.value).toBe("3.00");
   state.selected.currentInstance = "second";
-  expect(view.bindings.currentDownloads.value.speed).toBe("0.00");
+  await nextTick();
+  expect(clear).toHaveBeenCalledWith(interval.mock.results[0].value);
+  expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
+  expect(view.bindings.currentDownloadCount.value).toBe(0);
   state.selected.currentInstance = "first";
-  reports[0].resolve({ "cancelled": true, "success": 0, "failed": 0 });
-  await batches[0];
-  channels[0].onmessage({ ...first, "success": 1 });
-  expect(launches.first.downloads.success).toBe(0);
-  expect([...map.keys()]).toEqual(["b"]);
-  expect(view.bindings.currentDownloads.value).toEqual({ "speed": "2.00", "count": 1 });
-  reports[1].resolve({ "cancelled": false, "success": 1, "failed": 0 });
-  await batches[1];
-  expect(map.size).toBe(0);
-  expect(view.bindings.currentDownloads.value.speed).toBe("0.00");
-  launches.first.current = LaunchStatus.General.Success;
-  expect(view.bindings.progress.value).toBe(100);
-  expect(interval).not.toHaveBeenCalled();
-  interval.mockRestore();
+  await nextTick();
+  expect(view.bindings.currentDownloadSpeed.value).toBe("3.00");
+  launches.first.launching = 0;
+  await nextTick();
+  expect(view.bindings.currentDownloadSpeed.value).toBe("0.00");
+  expect(clear).toHaveBeenCalledWith(interval.mock.results[1].value);
+  launches.first.launching = 1;
+  await nextTick();
   view.unmount();
+  expect(clear).toHaveBeenCalledWith(interval.mock.results[2].value);
+  interval.mockRestore();
+  clear.mockRestore();
+});
+
+test("settled batches ignore late snapshots after a Map replacement", async () => {
+  const { concurrentlyDownload } = await import("@/lib/network/concurrently-download.ts");
+  const status = launchStatus("first");
+  let emit!: (snapshot: DownloadSnapshotType) => void;
+  const report = Promise.withResolvers<object>();
+
+  invoke.mockImplementationOnce(async (_, arguments_) => {
+    emit = (arguments_ as { "onProgress": { "onmessage": typeof emit } }).onProgress.onmessage;
+
+    return report.promise;
+  });
+  const batch = concurrentlyDownload({
+    "statuses": status, "entries": [{ "url": "", "path": "a" }], "label": "", "concurrency": 1,
+  });
+
+  status.downloads.current = markRaw(new Map);
+  const snapshot: DownloadSnapshotType = { "current": { "a": [1, 10] }, "success": 0, "failed": 0 };
+
+  emit(snapshot);
+  expect(status.downloads.current.size).toBe(1);
+  report.resolve({ "cancelled": true, "success": 0, "failed": 0 });
+  await batch;
+  emit(snapshot);
+  expect(status.downloads.current.size).toBe(0);
+});
+
+test("Home accrues only the selected instance's active gameplay time", async () => {
+  mock.module("@/components/general/base/MaterialRipple.vue", () => ({ "default": {} }));
+  mock.module("@/lib/launcher/scopes/fetching", () => ({ "default": {} }));
+  mock.module("@/extendable/global-internals.ts", () => ({ "GlobalInternals": { "logs": {} } }));
+  const { "default": launch } = await import("@/components/home/instance/Launch.vue");
+  const launches = reactive<Record<string, LauncherStatusesType>>({});
+  const interval = spyOn(globalThis, "setInterval");
+  const clear = spyOn(globalThis, "clearInterval");
+  const now = spyOn(Date, "now").mockReturnValue(0);
+
+  instances.first = { "playTime": 100 };
+  instances.second = { "playTime": 10 };
+  const view = mount(launch, "", [[launchKey, launches], [startKey, noop], [closeKey, noop]]);
+
+  expect(interval).not.toHaveBeenCalled();
+  launches.first = launchStatus("first");
+  launches.second = launchStatus("second");
+  now.mockReturnValue(5000);
+  launches.first.launching = launches.second.launching = 2;
+  await nextTick();
+  expect(interval.mock.calls[0][1]).toBe(1000);
+  now.mockReturnValue(6000);
+  interval.mock.calls[0][0]();
+  expect(instances.first.playTime).toBe(1100);
+  now.mockReturnValue(6500);
+  state.selected.currentInstance = "second";
+  await nextTick();
+  expect(instances.first.playTime).toBe(1600);
+  expect(clear).toHaveBeenCalledWith(interval.mock.results[0].value);
+  now.mockReturnValue(7500);
+  launches.second.launching = 0;
+  await nextTick();
+  expect(instances.second.playTime).toBe(1010);
+  expect(clear).toHaveBeenCalledWith(interval.mock.results[1].value);
+  view.unmount();
+  now.mockRestore();
+  interval.mockRestore();
+  clear.mockRestore();
 });
 
 test("FPS uses a sliding second, publishes 15 bars and cancels its pending frame", async () => {
@@ -162,7 +203,7 @@ test("FPS uses a sliding second, publishes 15 bars and cancels its pending frame
   });
   type Readings = {
     "frames": Ref<Array<number>>;
-    "limits": Ref<{ "current": number; "peak": string }>;
+    "limits": Ref<{ "current": number; "peak": string; "latency": string }>;
   };
   const interval = spyOn(globalThis, "setInterval");
   const view = mount<Readings>(counter, "");
@@ -187,12 +228,10 @@ test("FPS uses a sliding second, publishes 15 bars and cancels its pending frame
   pending!(2255);
   expect(view.bindings.frames.value).toBe(published);
   pending!(2272);
-  pending!(12_272);
+  pending!(3772);
   expect(view.bindings.frames.value).toEqual([1]);
-  for (let now = 12_282; now < 12_500; now += 10) {
-    pending!(now);
-  }
-  expect(view.bindings.limits.value.peak).toBe("17.0");
+  expect(view.bindings.limits.value.peak).toBe("1500.0");
+  expect(view.bindings.limits.value.latency).toBe("1500.0");
   view.unmount();
   expect(cancel).toHaveBeenCalledWith(scheduled);
   expect(interval).not.toHaveBeenCalled();
@@ -200,7 +239,7 @@ test("FPS uses a sliding second, publishes 15 bars and cancels its pending frame
 });
 
 test("the development overlay restores its dragged position on remount", async () => {
-  for (const name of ["CpuUsage", "FramesPerSecondCounter", "MemoryUsage"]) {
+  for (const name of ["CpuUsage", "MemoryUsage"]) {
     mock.module(`@/components/general/development-mode/${name}.vue`, () => ({ "default": {} }));
   }
   const vueuse = await import("@vueuse/core");

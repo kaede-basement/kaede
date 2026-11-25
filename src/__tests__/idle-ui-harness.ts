@@ -19,10 +19,14 @@ const asyncNoop = async (): Promise<void> => {};
 const authKey = Symbol();
 const launchKey = Symbol();
 const translationsKey = Symbol();
+const startKey = Symbol();
+const closeKey = Symbol();
 
 mock.module("@/constants/application.ts", () => ({
-  "AuthStatesContextKey"  : authKey, "LaunchStatesContextKey": launchKey,
-  "TranslationsContextKey": translationsKey, "CustomFontFamily"      : "test",
+  "LaunchInstanceContextKey"        : startKey, "CloseInstanceContextKey"         : closeKey,
+  "LaunchInstanceStatusesContextKey": Symbol(),
+  "AuthStatesContextKey"            : authKey, "LaunchStatesContextKey"          : launchKey,
+  "TranslationsContextKey"          : translationsKey, "CustomFontFamily"                : "test",
 }));
 const state = reactive({
   "selected": { "currentInstance": "first", "account": 0 },
@@ -36,17 +40,21 @@ mock.module("@/states/global.ts", () => ({ "globalStates": state }));
 mock.module("@/lib/instances", () => ({
   "default": { "findCurrent": (id: string): { "id": string } => ({ id }) },
 }));
+const instances = reactive<Record<string, { "playTime": number }>>({});
+
 mock.module("@/states/instance.ts", () => ({
-  "instanceStates": {},
+  "instanceStates": instances,
 }));
 mock.module("@/lib/errors", () => ({ "default": { "prettify": String } }));
 
 class Element extends EventTarget {
+  parentElement?: Element;
   play = mock(asyncNoop);
   pause = mock(noop);
 }
 const documentState = Object.assign((new EventTarget), {
-  "hidden": true, "getElementById": (): null => null,
+  "body"          : { "style": { "cursor": "" } },
+  "hidden"        : false, "getElementById": (): null => null,
 });
 
 Object.assign(globalThis, {
@@ -61,8 +69,10 @@ Object.assign(globalThis, {
 
 // Mount real setup functions with just their template ref, without a browser or WebGL device.
 const renderer = createRenderer<Element, Element>({
-  "createElement" : () => (new Element), "createText"    : () => (new Element),
-  "createComment" : () => (new Element), "insert"        : () => {}, "remove"        : () => {},
+  "createElement": () => (new Element), "createText"   : () => (new Element),
+  "createComment": () => (new Element), "insert"       : (child, parent) => {
+    child.parentElement = parent;
+  }, "remove"        : () => {},
   "patchProp"     : () => {}, "setText"       : () => {}, "setElementText": () => {},
   "parentNode"    : () => null, "nextSibling"   : () => null,
 });
@@ -97,7 +107,7 @@ const invoke = mock(async (command: string, arguments_?: unknown): Promise<unkno
 mock.module("@tauri-apps/api/core", () => ({ invoke, "Channel": class {} }));
 
 export {
-  authKey, translationsKey, launchKey, mount, state, documentState, invoke,
-  noop, asyncNoop,
+  authKey, translationsKey, launchKey, startKey, closeKey, instances, mount, state,
+  documentState, invoke, noop, asyncNoop,
 };
 export type { Element, Mounted };

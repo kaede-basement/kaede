@@ -8,6 +8,7 @@ import {
 test("profile draws on demand and releases viewers created before or after teardown", async () => {
   const frames = (new Map<number, FrameRequestCallback>);
   let id = 0;
+  const observe = mock(noop);
   let resized!: (entries: Array<{ "contentRect": { "width": number; "height": number } }>) => void;
 
   Object.assign(globalThis, {
@@ -22,7 +23,7 @@ test("profile draws on demand and releases viewers created before or after teard
         resized = callback;
       }
 
-      observe(): void {}
+      observe = observe;
       disconnect(): void {}
     },
   });
@@ -39,6 +40,7 @@ test("profile draws on demand and releases viewers created before or after teard
   const stopLoop = mock(noop);
   const dispose = mock(noop);
   const gpu = {
+    "setRotation"     : mock(noop), "resetCamera"     : mock(noop), "setZoom"         : mock(noop),
     render, "resize"          : mock(noop),
     "startRenderLoop" : startLoop, "stopRenderLoop"  : stopLoop,
     "setSkin"         : mock(asyncNoop), "setSlim"         : mock(noop),
@@ -46,7 +48,12 @@ test("profile draws on demand and releases viewers created before or after teard
     "playAnimation"   : mock(noop), "stopAnimation"   : mock(noop),
     "onZoomChange"    : noop, "onRotationChange": noop,
   };
-  const create = mock(async () => gpu);
+  let canvas!: HTMLCanvasElement;
+  const create = mock(async (options: { "canvas": HTMLCanvasElement }) => {
+    canvas = options.canvas;
+
+    return gpu;
+  });
 
   mock.module("@daidr/minecraft-skin-renderer/webgl", () => ({ "WebGLRendererPlugin": {} }));
   mock.module("@daidr/minecraft-skin-renderer", () => ({
@@ -76,8 +83,18 @@ test("profile draws on demand and releases viewers created before or after teard
   drawFrame();
   expect(gpu.render).toHaveBeenCalledTimes(1);
   expect(frames.size).toBe(0);
+
+  expect(observe).toHaveBeenCalledWith(canvas.parentElement);
+  expect(observe).not.toHaveBeenCalledWith(canvas);
   expect(startLoop).not.toHaveBeenCalled();
   gpu.render.mockClear();
+  for (const update of [gpu.setRotation, gpu.setZoom, gpu.resetCamera]) {
+    update();
+    expect(frames.size).toBe(1);
+    drawFrame();
+  }
+  expect(render).toHaveBeenCalledTimes(3);
+  render.mockClear();
   gpu.onRotationChange();
   gpu.onZoomChange();
   expect(frames.size).toBe(1);

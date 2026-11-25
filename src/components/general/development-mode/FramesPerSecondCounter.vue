@@ -28,9 +28,6 @@ onMounted(() => {
       head = (head + 1) % times.length;
       count--;
     }
-    if (count === 0) {
-      previous = undefined;
-    }
     if (count === times.length) {
       const larger = new Float64Array(count * 2);
 
