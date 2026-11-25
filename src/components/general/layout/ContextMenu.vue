@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
+import { useElementSize, useWindowSize } from "@vueuse/core";
+import { computed, useTemplateRef } from "vue";
 
 import ContextMenuChildren from "@/components/general/layout/ContextMenuChildren.vue";
 import { globalStates } from "@/states/global.ts";
@@ -12,40 +13,30 @@ const { opened, x, y } = defineProps<{
 
 const offset: number = 2;
 
-/*
- * We cannot measure the context menu size in the 'computed' state
- * since the element itself is still hidden in the DOM because of the <Transition />.
- *
- * That is why we use cache for the context menu size
- */
-const cachedSize = ref<{
-  "height": number;
-  "width" : number;
-}>({
-  "height": 0,
-  "width" : 0,
-});
-
 const contextMenu = useTemplateRef<HTMLDivElement>("contextMenu");
+const menuSize = useElementSize(contextMenu, undefined, { "box": "border-box" });
+const viewport = useWindowSize();
 
 const hasNativeContextMenu = computed((): boolean => (
   globalStates?.development?.enableNativeContextMenu ?? false
 ));
-const styles = computed((): {
+
+type MenuPosition = {
   "left"  ?: string;
   "top"   ?: string;
   "right" ?: string;
   "bottom"?: string;
-} => {
-  const position: {
-    "left"  ?: string;
-    "top"   ?: string;
-    "right" ?: string;
-    "bottom"?: string;
-  } = {};
+};
+
+const styles = computed<MenuPosition>(previous => {
+  if (!opened) {
+    return previous ?? {};
+  }
+
+  const position: MenuPosition = {};
   const boundaries = {
-    "height": window.innerHeight,
-    "width" : window.innerWidth,
+    "height": viewport.height.value,
+    "width" : viewport.width.value,
   };
 
   /*
@@ -54,8 +45,8 @@ const styles = computed((): {
    */
   const toShowNativeMenu: boolean = hasNativeContextMenu.value;
   // By default, the context menu goes to the right and bottom sides
-  const isHorizontallyOutOfBounds: boolean = cachedSize.value.width + x + offset > boundaries.width;
-  const isVerticallyOutOfBounds: boolean = cachedSize.value.height + y + offset > boundaries.height;
+  const isHorizontallyOutOfBounds: boolean = menuSize.width.value + x + offset > boundaries.width;
+  const isVerticallyOutOfBounds: boolean = menuSize.height.value + y + offset > boundaries.height;
 
   if (toShowNativeMenu || isHorizontallyOutOfBounds) {
     position.right = `${boundaries.width - x + offset}px`;
@@ -72,25 +63,6 @@ const styles = computed((): {
   return position;
 });
 
-watch(
-  (): number => x + y,
-  async (): Promise<void> => {
-    const target: HTMLDivElement | null = contextMenu.value;
-
-    if (!target) {
-      return;
-    }
-
-    /*
-     * The context menu becomes visible (the 'display' property),
-     * therefore getting the actual element size, only on the next Vue tick
-     */
-    await nextTick();
-
-    cachedSize.value.height = target.clientHeight;
-    cachedSize.value.width = target.clientWidth;
-  },
-);
 </script>
 
 <template>

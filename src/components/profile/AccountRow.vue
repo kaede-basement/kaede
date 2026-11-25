@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { message as notify } from "@tauri-apps/plugin-dialog";
-import { computed, inject, ref } from "vue";
+import { computed, inject, onBeforeUnmount, ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -43,6 +43,17 @@ const { idRoot, account, index } = defineProps<{
   "account": AccountType;
   "index"  : number;
 }>();
+
+const invocations = new Map<string, number>;
+const timers = new Map<string, ReturnType<typeof setTimeout>>;
+
+onBeforeUnmount(() => {
+  invocations.clear();
+
+  for (const timer of timers.values()) {
+    clearTimeout(timer);
+  }
+});
 
 const statuses = ref<Record<string, "pending" | "success" | undefined>>({});
 
@@ -84,21 +95,42 @@ function handleSelection(): void {
 }
 
 async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<void> {
+  const invocation = (invocations.get(entry.label) ?? 0) + 1;
+  const isCurrent = (): boolean => invocations.get(entry.label) === invocation;
+
+  invocations.set(entry.label, invocation);
+  clearTimeout(timers.get(entry.label));
+  timers.delete(entry.label);
+  statuses.value[entry.label] = undefined;
+
   const handlers: AccountActionHandlersType = {
     "reset": () => {
-      statuses.value[entry.label] = undefined;
+      if (isCurrent()) {
+        statuses.value[entry.label] = undefined;
+      }
     },
     "pending": () => {
-      statuses.value[entry.label] = "pending";
+      if (isCurrent()) {
+        statuses.value[entry.label] = "pending";
+      }
     },
     "success": () => {
-      statuses.value[entry.label] = "success";
+      if (!isCurrent()) {
+        return;
+      }
 
-      setTimeout(() => {
-        handlers.reset();
-      }, 1000);
+      statuses.value[entry.label] = "success";
+      clearTimeout(timers.get(entry.label));
+
+      timers.set(entry.label, setTimeout(() => {
+        if (isCurrent()) {
+          timers.delete(entry.label);
+          handlers.reset();
+        }
+      }, 1000));
     },
     "error": (message, error) => {
+      handlers.reset();
       void notify(
         `An error (${message}) occurred:\n${Errors.prettify(error)}`,
         { "title": "Accounts", "kind": "error" },
