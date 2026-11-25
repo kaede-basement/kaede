@@ -23,10 +23,10 @@ import { dispatchProcessExit, ProcessHandlers } from "@/lib/processes/core.ts";
 
 type StopWatching = () => Promise<void>;
 let watchingPromise: Promise<StopWatching> | undefined;
-let detached = Promise.resolve();
+let retryCleanup: StopWatching | undefined;
 
 export function watchProcesses(): Promise<StopWatching> {
-  watchingPromise ??= detached.then(attachListeners).catch(error => {
+  watchingPromise ??= attachListeners().catch(error => {
     watchingPromise = undefined;
     throw error;
   });
@@ -35,6 +35,14 @@ export function watchProcesses(): Promise<StopWatching> {
 }
 
 async function attachListeners(): Promise<StopWatching> {
+  const previous = retryCleanup;
+
+  if (previous) {
+    await previous();
+    if (retryCleanup === previous) {
+      throw new Error("Previous process listeners are still attached");
+    }
+  }
   const listeners = await Promise.allSettled([
     listen<
       { "token": string; "pid": number; "stream": "stdout" | "stderr"; "lines": Array<string> }
@@ -62,35 +70,48 @@ async function attachListeners(): Promise<StopWatching> {
     ),
   ]);
 
-  async function cleanup(): Promise<void> {
-    const results = await Promise.allSettled(listeners.splice(0).map(async listener => {
-      if (listener.status === "fulfilled") {
-        await listener.value();
+  const owned = new Set(listeners.flatMap(listener => (
+    listener.status === "fulfilled" ? [listener.value] : []
+  )));
+  let stopping: Promise<void> | undefined;
+
+  async function release(): Promise<void> {
+    await Promise.all([...owned].map(async unlisten => {
+      try {
+        await unlisten();
+        owned.delete(unlisten);
+      } catch (error) {
+        log.error(__PRE_BUNDLED_FILENAME__, "Failed to detach process listener:", String(error));
       }
     }));
-
-    for (const result of results) {
-      if (result.status === "rejected") {
-        log.error(__PRE_BUNDLED_FILENAME__, "Failed to detach process listener:", result.reason);
-      }
+    if (owned.size === 0 && retryCleanup === stop) {
+      retryCleanup = undefined;
     }
+  }
+  function stop(): Promise<void> {
+    if (owned.size === 0) {
+      return Promise.resolve();
+    }
+    if (retryCleanup !== stop) {
+      retryCleanup = stop;
+      watchingPromise = undefined;
+    }
+    stopping ??= release().finally(() => {
+      stopping = undefined;
+    });
+
+    return stopping;
   }
   const failed = listeners.find(listener => listener.status === "rejected");
 
   if (failed) {
-    await cleanup();
+    retryCleanup = stop;
+    await stop();
+    if (owned.size === 0) {
+      retryCleanup = undefined;
+    }
     throw failed.reason;
   }
 
-  let stopping: Promise<void> | undefined;
-
-  return () => {
-    if (!stopping) {
-      watchingPromise = undefined;
-      stopping = cleanup();
-      detached = stopping;
-    }
-
-    return stopping;
-  };
+  return stop;
 }
