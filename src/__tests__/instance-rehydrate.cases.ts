@@ -81,7 +81,18 @@ test.each(["helper first", "selected first", "selected missing"])("restore %s", 
     await next.launchInstance(instanceId);
     const relaunched = activeRun(instanceId)!;
 
+    const notifications: Array<number> = [];
+    const logs = next.logs[instanceId];
+
+    getHooks().onMinecraftKill.after.push(async pid => {
+      notifications.push(pid);
+    });
     exit(helper.token);
+    exit(helper.token);
+    await Bun.sleep(0);
+    expect(notifications).toEqual([helper.pid]);
+    expect(next.logs[instanceId]).toBe(logs);
+    expect(instanceStates[instanceId].playTime).toBe(credited);
     expect(activeRun(instanceId)).toBe(relaunched);
     exit(relaunched.process.token);
     listProcesses.mockReturnValueOnce([]);

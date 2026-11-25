@@ -30,10 +30,43 @@ import type {
   ProgramSpecType,
 } from "@/types/application/server-process.type.ts";
 
-type ExitHandler = NonNullable<ProcessHandlersType["onExit"]>;
-export const SpawnObservers = new WeakMap<
-  ExitHandler, (handle: ProcessHandleType, startedAt: number) => void
->;
+type SpawnObserver = (handle: ProcessHandleType, startedAt: number) => void;
+const origin = Symbol("Minecraft spawn");
+
+type SpawnHandlers = ProcessHandlersType & { [origin]?: symbol };
+type PendingSpawn = {
+  "instanceId": string;
+  "request"   : object;
+  "handlers"  : SpawnHandlers;
+  "observe"   : SpawnObserver;
+};
+const pendingSpawns = new Set<PendingSpawn>;
+
+export function observeMinecraftSpawn(spawn: PendingSpawn): () => void {
+  // Handler decorators commonly spread the bag and replace its callbacks.
+  spawn.handlers[origin] = Symbol();
+  pendingSpawns.add(spawn);
+
+  return () => pendingSpawns.delete(spawn);
+}
+
+function takeSpawnObserver(
+  instanceId: string, request: object, handlers: SpawnHandlers,
+): SpawnObserver | undefined {
+  for (const spawn of pendingSpawns) {
+    if (spawn.instanceId !== instanceId) continue;
+    // A helper may have an identical command and instanceId.
+    const forwarded = request === spawn.request || handlers[origin] === spawn.handlers[origin] ||
+      (handlers.onExit && handlers.onExit === spawn.handlers.onExit) ||
+      (handlers.onError && handlers.onError === spawn.handlers.onError);
+
+    if (forwarded) {
+      pendingSpawns.delete(spawn);
+
+      return spawn.observe;
+    }
+  }
+}
 
 // 'crypto.randomUUID()' is unavailable outside secure contexts on webkitgtk...
 function createToken(): string {
@@ -55,6 +88,7 @@ export async function spawnProcess<Meta>(
   const token = createToken();
 
   const instanceId = minecraftInstanceId(options);
+  const observe = instanceId && takeSpawnObserver(instanceId, options, processHandlers);
   const ownerAtRequest = instanceId && activeRun(instanceId);
   const requestedAt = performance.now();
   let confirmed: ProcessHandleType<Meta> | undefined;
@@ -68,9 +102,7 @@ export async function spawnProcess<Meta>(
 
         if (owner && owner.process.token !== dto.token) owner.excludeSibling?.(dto.token);
       }
-      if (processHandlers.onExit) {
-        SpawnObservers.get(processHandlers.onExit)?.(confirmed, startedAt);
-      }
+      if (observe) observe(confirmed, startedAt);
     }
 
     return confirmed;

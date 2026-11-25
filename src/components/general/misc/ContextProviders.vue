@@ -246,7 +246,12 @@ async function rehydrateLaunchedInstances(): Promise<void> {
     const selected = preferred.get(instanceId) ?? activeRun(instanceId)?.process.token;
 
     if (selected !== process.token && (selected !== undefined || helpers.has(process.token))) {
-      if (endedAt === undefined) helpers.exclude(process.token);
+      if (endedAt === undefined) {
+        helpers.exclude(process.token);
+        addProcessExitListener(process.token, () => notifyMinecraftExit(process));
+      } else {
+        void notifyMinecraftExit(process);
+      }
 
       return;
     }

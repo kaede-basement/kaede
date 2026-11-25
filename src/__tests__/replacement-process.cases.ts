@@ -93,14 +93,19 @@ test("published forwarding signatures preserve an exit before the wrapper return
   const afterLaunch = mock(async () => {});
   const killed = mock(async () => {});
 
+  const notification = Promise.withResolvers<void>();
+
   getHooks().onMinecraftLaunch.after.push(afterLaunch);
-  getHooks().onMinecraftKill.after.push(killed);
+  getHooks().onMinecraftKill.after.push(killed, async () => notification.resolve());
   using wrapper = spyOn(Processes, "spawnProcess").mockImplementation(async (request, handlers) => {
-    const child = await spawnProcess(request, { ...handlers });
+    const child = await spawnProcess(structuredClone(request), {
+      ...handlers, "onExit": payload => handlers?.onExit?.(payload),
+    });
 
     handlers?.onOutput?.(["wrapper log"], "stdout");
     clock.mockReturnValue(250);
     exit(child.token);
+    await notification.promise;
     clock.mockReturnValue(900);
 
     return child;
@@ -114,25 +119,79 @@ test("published forwarding signatures preserve an exit before the wrapper return
   expect(GlobalInternals.instanceContext!.logs[id].list).toEqual(["wrapper log"]);
 });
 
+test("a nested exit notifies before a decorated spawn wrapper returns", async () => {
+  const { launchInstance } = GlobalInternals.instanceContext!;
+  const { before } = getHooks().onMinecraftLaunch;
+  const notification = Promise.withResolvers<void>();
+  const killed = mock(async () => notification.resolve());
+  const closed = mock(noop);
+
+  getHooks().onMinecraftKill.after.push(killed);
+  before.push(async options => {
+    before.pop();
+    const response = await spawnMinecraft({ ...options, "onClose": closed, "onInput": noop });
+
+    return { "status": "stop", response };
+  });
+  using wrapper = spyOn(Processes, "spawnProcess").mockImplementation(async (request, handlers) => {
+    const child = await spawnProcess(structuredClone(request), {
+      ...handlers, "onExit": payload => handlers?.onExit?.(payload),
+    });
+
+    exit(child.token);
+    await notification.promise;
+
+    return child;
+  });
+  await launchInstance(id);
+  expect(wrapper).toHaveBeenCalledTimes(1);
+  expect(closed).toHaveBeenCalledTimes(1);
+  expect(killed).toHaveBeenCalledTimes(1);
+  expect(activeRun(id)).toBeUndefined();
+});
+
 test("a confirmed Stop during native spawn closes the child as soon as it is known", async () => {
   const { launchInstance, launches } = GlobalInternals.instanceContext!;
   const afterLaunch = mock(async () => {});
 
   getHooks().onMinecraftLaunch.after.push(afterLaunch);
+  const ready = Promise.withResolvers<number>();
+  const release = Promise.withResolvers<void>();
+
   using wrapper = spyOn(Processes, "spawnProcess").mockImplementation(async (request, handlers) => {
+    const helper = await spawnProcess(structuredClone(request), { "onExit": noop });
+
     cancelLaunch(launches[id]);
+    const child = await spawnProcess(structuredClone(request), {
+      ...handlers,
+      "onExit" : payload => handlers?.onExit?.(payload),
+      "onError": payload => handlers?.onError?.(payload),
+    });
 
-    return spawnProcess(request, handlers);
+    ready.resolve(child.pid);
+    await release.promise;
+    exit(helper.token);
+
+    return child;
   });
-  await launchInstance(id);
-  await Bun.sleep(0);
-  const child = activeRun(id)!;
+  const launch = launchInstance(id);
 
-  expect(wrapper).toHaveBeenCalledTimes(1);
-  expect(child.kind).toBe("stopping");
-  expect(nativeKill).toHaveBeenLastCalledWith(child.process.pid);
-  expect(afterLaunch).not.toHaveBeenCalled();
-  exit(child.process.token);
+  const expectedPid = await ready.promise;
+
+  try {
+    await Bun.sleep(0);
+    const child = activeRun(id)!;
+
+    expect(wrapper).toHaveBeenCalledTimes(1);
+    expect(child.process.pid).toBe(expectedPid);
+    expect(child.kind).toBe("stopping");
+    expect(nativeKill).toHaveBeenLastCalledWith(child.process.pid);
+    expect(afterLaunch).not.toHaveBeenCalled();
+    exit(child.process.token);
+  } finally {
+    release.resolve();
+    await launch;
+  }
   expect(activeRun(id)).toBeUndefined();
 });
 

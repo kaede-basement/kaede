@@ -4,6 +4,7 @@ import { expect, mock, spyOn, test } from "bun:test";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Hooks from "@/lib/hooks";
 import Processes from "@/lib/processes";
+import { toProcessHandle } from "@/lib/processes/core.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -51,9 +52,16 @@ test("Minecraft exiting before spawn returns never publishes a running handle", 
   expect(mkdir).toHaveBeenCalledWith("game", { "recursive": true });
 });
 
-test.each([false, true])("preserve success %p without a process", async success => {
-  const response = success ? { success, "process": undefined } : { success };
+const child = toProcessHandle({
+  "pid": 7, "token": "replacement", "kind": "minecraft", "meta": { "instanceId": "veto" },
+});
 
+test.each([
+  { "success": true, "process": undefined },
+  { "success": false, "process": child },
+  { "success": false },
+  undefined,
+])("preserve the launch hook result %p", async response => {
   using hooks = spyOn(Hooks, "catchAsyncResponseHooks").mockResolvedValue(response);
   using mkdir = spyOn(fs, "mkdir").mockResolvedValue();
   const result = await spawnMinecraft({
@@ -64,6 +72,9 @@ test.each([false, true])("preserve success %p without a process", async success 
 
   expect(hooks).toHaveBeenCalledTimes(1);
   expect(mkdir).toHaveBeenCalledTimes(1);
-  expect(result).toStrictEqual({ success, "process": undefined });
+  expect(result).toStrictEqual({
+    "success": response?.success ?? false, "process": response?.process,
+  });
+  expect(result.process).toBe(response?.process);
   expect(Object.keys(result)).toContain("process");
 });

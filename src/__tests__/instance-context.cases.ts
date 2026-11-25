@@ -1,5 +1,6 @@
 import { expect, mock, spyOn, test } from "bun:test";
 
+import { LaunchStatus } from "@/constants/launcher.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { getHooks } from "@/extendable/hooks-registry.ts";
 import { toProcessHandle } from "@/lib/processes/core.ts";
@@ -198,4 +199,25 @@ test.each(["exit", "kill"])("%s retains ownership until the after hook settles",
   expect(operation(id).kind).toBe("idle");
   expect(launches[id].launching).toBe(0);
   expect(instanceStates[id].playTime).toBe(initial + 700);
+});
+
+test("a post-spawn wrapper error stays visible while its child is stoppable", async () => {
+  const { launchInstance, closeInstance, launches } = GlobalInternals.instanceContext!;
+  const forward = prepareAndSpawn.getMockImplementation()!;
+
+  prepareAndSpawn.mockImplementationOnce(async options => {
+    await forward(options);
+    throw new Error("wrapper failed after spawn");
+  });
+  await launchInstance(id);
+  expect(launches[id].current).toBe(LaunchStatus.Errors.UnhandledError);
+  expect(launches[id].launching).toBe(2);
+  const child = activeRun(id)!.process;
+  const closing = closeInstance(id);
+
+  await Bun.sleep(0);
+  expect(nativeKill).toHaveBeenLastCalledWith(child.pid);
+  exit(child.token);
+  await closing;
+  expect(activeRun(id)).toBeUndefined();
 });

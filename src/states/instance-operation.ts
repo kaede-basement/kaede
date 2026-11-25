@@ -98,7 +98,9 @@ export function finishLaunch(id: string, statuses: LauncherStatusesType): void {
   } else {
     op.launchPending = false;
     statuses.launching = 2;
-    statuses.current = LaunchStatus.General.Success;
+    if (statuses.current !== LaunchStatus.Errors.UnhandledError) {
+      statuses.current = LaunchStatus.General.Success;
+    }
   }
 }
 

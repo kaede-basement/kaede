@@ -23,7 +23,7 @@ import Hooks from "@/lib/hooks";
 import { log } from "@/lib/logging/log.ts";
 import Processes from "@/lib/processes";
 import { addProcessExitListener, processLifetime } from "@/lib/processes/core.ts";
-import { SpawnObservers } from "@/lib/processes/spawn-process.ts";
+import { observeMinecraftSpawn } from "@/lib/processes/spawn-process.ts";
 import { launchCancelled, takeLaunchObserver } from "@/states/instance-operation.ts";
 import type { ProcessHandlersType } from "@/types/application/server-process.type.ts";
 import type {
@@ -57,10 +57,10 @@ export async function spawnMinecraft({
       "timing": "before",
     });
 
-  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
-    if (beforeHooksResult.success) return beforeHooksResult;
-
-    return { "success": false, "process": undefined };
+  if (beforeHooksResult !== "continue") {
+    return {
+      "success": beforeHooksResult?.success ?? false, "process": beforeHooksResult?.process,
+    };
   }
 
   const { directories, statuses, logPrefix } = necessaries;
@@ -98,26 +98,30 @@ export async function spawnMinecraft({
     } else if (lifetime) addProcessExitListener(handle.token, onExit);
   }
 
-  SpawnObservers.set(onExit, (handle, at) => confirm(handle as MinecraftProcessType, at));
+  const request = {
+    "program": { "type": "path", "value": command.java },
+    "args"   : command.arguments,
+    "cwd"    : directories.instance, "kind"   : "minecraft", "meta"   : { instanceId },
+  } as const;
+  const handlers: ProcessHandlersType = {
+    "onOutput": onInput,
+    onExit,
+    "onError" : payload => {
+      statuses.current = LaunchStatus.Errors.UnhandledError;
+      log.error(logPrefix, log.templates.json.contents(
+        "Something went wrong. Payload",
+        payload,
+        true,
+      ));
+    },
+  };
+  const unsubscribe = observeMinecraftSpawn({
+    instanceId, request, handlers,
+    "observe": (handle, at) => confirm(handle as MinecraftProcessType, at),
+  });
+
   try {
-    process = await Processes.spawnProcess<MinecraftMetaType>({
-      "program": { "type": "path", "value": command.java },
-      "args"   : command.arguments,
-      "cwd"    : directories.instance,
-      "kind"   : "minecraft",
-      "meta"   : { instanceId },
-    }, {
-      "onOutput": onInput,
-      onExit,
-      "onError" : payload => {
-        statuses.current = LaunchStatus.Errors.UnhandledError;
-        log.error(logPrefix, log.templates.json.contents(
-          "Something went wrong. Payload",
-          payload,
-          true,
-        ));
-      },
-    });
+    process = await Processes.spawnProcess<MinecraftMetaType>(request, handlers);
     confirm(process);
   } catch (error: unknown) {
     statuses.current = LaunchStatus.Errors.UnhandledError;
@@ -129,7 +133,7 @@ export async function spawnMinecraft({
 
     return { "success": false, "process": undefined };
   } finally {
-    SpawnObservers.delete(onExit);
+    unsubscribe();
   }
 
   if (!exited && !launchCancelled(statuses)) {
