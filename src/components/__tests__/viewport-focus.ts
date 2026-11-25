@@ -3,6 +3,14 @@ import { nextTick } from "vue";
 
 import type { mountComponent } from "./mount-component.ts";
 
+export async function scrollViewport(
+  view: Awaited<ReturnType<typeof mountComponent>>, viewport: HTMLElement, offset: number,
+): Promise<void> {
+  viewport.scrollTop = offset;
+  viewport.dispatchEvent(new view.browser.Event("scroll") as unknown as Event);
+  await nextTick();
+}
+
 export async function checkViewportFocus(
   view: Awaited<ReturnType<typeof mountComponent>>, viewport: HTMLElement,
 ): Promise<void> {
@@ -11,19 +19,22 @@ export async function checkViewportFocus(
   const outside = document.createElement("button");
 
   document.body.append(outside);
-  const scroll = async (offset: number): Promise<void> => {
-    viewport.scrollTop = offset;
-    viewport.dispatchEvent(new view.browser.Event("scroll") as unknown as Event);
-    await nextTick();
-  };
 
   first.focus();
   expect(document.activeElement === first).toBe(true);
-  await scroll(1600);
+  await scrollViewport(view, viewport, 1600);
   expect(first.isConnected).toBe(false);
   expect(viewport.contains(document.activeElement)).toBe(true);
+  if (viewport.querySelector("[data-index]")) {
+    viewport.dispatchEvent(new view.browser.KeyboardEvent("keydown", {
+      "key": "ArrowDown", "bubbles": true,
+    }) as unknown as Event);
+    await nextTick();
+    expect(Number(document.activeElement?.getAttribute("data-index"))).toBeGreaterThan(0);
+    expect(viewport.scrollTop).toBe(1600);
+  }
   outside.focus();
-  await scroll(0);
+  await scrollViewport(view, viewport, 0);
   expect(document.activeElement === outside).toBe(true);
   outside.remove();
 }

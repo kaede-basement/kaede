@@ -1,7 +1,7 @@
 import * as core from "@tauri-apps/api/core";
 import { mock, spyOn } from "bun:test";
 
-type SaveRequest = { "baseDirectory": string; "contents": string; "createNew": boolean };
+type SaveRequest = { "baseDirectory": string; "contents": string; "createNew": boolean; "expectedPrevious"?: string };
 
 export function mockSaveAccounts() {
   const save = mock(async (_request: SaveRequest): Promise<void> => {});

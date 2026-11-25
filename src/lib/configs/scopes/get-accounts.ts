@@ -1,70 +1,50 @@
-import { exists, readTextFile } from "@tauri-apps/plugin-fs";
-
-import FileStructure from "@/constants/file-structure.ts";
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
-import Schemas from "@/lib/schemas";
-import type { ParsedFile } from "@/types/application/parsed-file.type.ts";
+import { CheckAccount } from "@/lib/schemas/generated/validators.ts";
+import type { ParsedAccountFile } from "@/types/application/parsed-file.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
+import { AccountConflict, accountStoreError, readAccountText } from "./account-store.ts";
 import { parseStoredAccounts, persistAccounts } from "./write-accounts.ts";
 
 export async function getAccounts(properties?: Partial<{
   "baseDirectory": string;
-  "parsedFile"   : ParsedFile;
+  "parsedFile"   : ParsedAccountFile;
 }>): Promise<Array<AccountType>> {
   const baseDirectory: string = properties?.baseDirectory ?? FileManager.getBaseDirectory();
-  const parsedFile: ParsedFile | undefined = properties?.parsedFile;
-
-  const path = FileManager.join(baseDirectory, FileStructure.Files.Accounts);
-  let parsedAccounts: unknown;
+  const parsedFile: ParsedAccountFile | undefined = properties?.parsedFile;
 
   try {
-    if (parsedFile?.status === "corrupt") {
-      log.error(__PRE_BUNDLED_FILENAME__, "Invalid JSON in accounts.json");
+    let parsed: unknown;
 
-      return [];
+    if (parsedFile?.status === "unreadable" || parsedFile?.status === "corrupt") {
+      throw new Error("Could not read accounts.json");
     }
     if (parsedFile?.status === "loaded") {
-      parsedAccounts = parsedFile.data;
+      parsed = parsedFile.data;
     } else {
-      const missing = parsedFile?.status === "missing" || !await exists(path);
+      let raw = await readAccountText(baseDirectory);
 
-      if (missing && await persistAccounts({ baseDirectory, "accounts": [] }, true)) {
-        return [];
+      if (raw === undefined) {
+        try {
+          await persistAccounts({ baseDirectory, "accounts": [] }, true);
+        } catch (error) {
+          if (error !== AccountConflict) throw error;
+          raw = await readAccountText(baseDirectory);
+        }
       }
-      parsedAccounts = parseStoredAccounts(await readTextFile(path));
+      parsed = parseStoredAccounts(raw);
     }
+    if (!Array.isArray(parsed)) throw new Error("Invalid account list");
+    const accounts = parsed.filter(entry => CheckAccount(entry));
+
+    accountStoreError.value = accounts.length !== parsed.length;
+
+    return accounts;
   } catch {
+    accountStoreError.value = true;
     log.error(__PRE_BUNDLED_FILENAME__, "Could not read accounts.json");
 
     return [];
   }
-
-  log.debug(__PRE_BUNDLED_FILENAME__, "Validating the parsed accounts file");
-
-  if (!Array.isArray(parsedAccounts)) {
-    log.error(__PRE_BUNDLED_FILENAME__, "The provided accounts data is not array-like");
-
-    return [];
-  }
-
-  const validAccounts: Array<AccountType> = [];
-
-  for (const [index, entry] of parsedAccounts.entries()) {
-    const account: AccountType | false = Schemas.validate.account({
-      "value": entry,
-      "label": "account data",
-      "info" : {
-        "id"   : entry?.profile?.name,
-        "index": index,
-      },
-    });
-
-    if (account !== false) {
-      validAccounts.push(entry);
-    }
-  }
-
-  return validAccounts;
 }

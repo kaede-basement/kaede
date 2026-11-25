@@ -19,6 +19,7 @@
 import { log } from "@/lib/logging/log.ts";
 import { hydrate } from "@/lib/processes/hydrate.ts";
 import { spawnProcess } from "@/lib/processes/spawn-process.ts";
+import { watchProcesses } from "@/lib/watchers/watch-processes.ts";
 import { serverProcesses } from "@/states/servers.ts";
 import type {
   ProgramSpecType,
@@ -32,6 +33,7 @@ export async function spawnServer({ name, program, args, port }: {
   "args"   : Array<string>;
   "port"   : number;
 }): Promise<ServerProcessType> {
+  await watchProcesses();
   let exited = false;
   const handle = await spawnProcess<ServerMetaType>({
     program, args,

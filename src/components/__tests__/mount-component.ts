@@ -81,3 +81,15 @@ export async function mountComponent(
     },
   };
 }
+
+export function pressEnter(view: Awaited<ReturnType<typeof mountComponent>>): void {
+  const target = view.root.ownerDocument.activeElement as HTMLButtonElement;
+  const event = new view.browser.KeyboardEvent("keydown", {
+    "key": "Enter", "bubbles": true, "cancelable": true,
+  });
+
+  // Happy DOM leaves the native button default action to the caller.
+  if (target.tagName === "BUTTON" && target.dispatchEvent(event as unknown as Event)) {
+    target.click();
+  }
+}

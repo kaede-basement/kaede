@@ -9,7 +9,7 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 import Fetching from "./fetching";
-import { launchAttempts } from "./fetching/download-outcome.ts";
+import { beginLaunchAttempt } from "./fetching/download-outcome.ts";
 import { cancelLaunchDownloads } from "./handle-launch.ts";
 import { spawnMinecraft } from "./spawn-minecraft.ts";
 
@@ -77,7 +77,7 @@ for (const phase of ["spawn", "after-hook"]) {
       "statuses": { "instanceId": "game" }, "directories": { "instance": "game" },
     } as PreLaunchInformationType;
 
-    launchAttempts.set(necessaries.statuses, {});
+    beginLaunchAttempt(necessaries.statuses);
     const result = spawnMinecraft({
       "command"   : { "java": "java", "arguments": [] }, "instanceId": "game",
       necessaries, "onClose"   : mock(), "onInput"   : mock(),
@@ -85,6 +85,7 @@ for (const phase of ["spawn", "after-hook"]) {
 
     await entered.promise;
     await cancelLaunchDownloads(necessaries.statuses);
+    expect(kill).toHaveBeenCalledTimes(phase === "spawn" ? 0 : 1);
     resume.resolve();
     expect(await result).toEqual({ "success": false, "process": undefined, "reason": "cancelled" });
     expect(necessaries.statuses.current).not.toBe(LaunchStatus.General.Success);

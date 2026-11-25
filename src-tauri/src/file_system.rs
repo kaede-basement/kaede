@@ -66,21 +66,62 @@ fn publish_accounts(
     Ok(())
 }
 
+#[derive(Serialize)]
+#[serde(tag = "status", rename_all = "camelCase")]
+pub enum AccountsFile {
+    Missing,
+    Empty { raw: String },
+    Content { raw: String },
+    InvalidUtf8,
+}
+
+#[tauri::command]
+pub async fn read_accounts_file(base_directory: PathBuf) -> Result<AccountsFile, String> {
+    match tokio::fs::read_to_string(base_directory.join("accounts.json")).await {
+        Ok(raw) if raw.trim().is_empty() => Ok(AccountsFile::Empty { raw }),
+        Ok(raw) => Ok(AccountsFile::Content { raw }),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(AccountsFile::Missing),
+        Err(e) if e.kind() == io::ErrorKind::InvalidData => Ok(AccountsFile::InvalidUtf8),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+const ACCOUNT_CONFLICT: &str = "accounts-conflict";
+static ACCOUNT_WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[tauri::command]
 pub async fn save_accounts(
     base_directory: PathBuf,
     contents: String,
     create_new: bool,
+    expected_previous: Option<String>,
 ) -> Result<bool, String> {
     tokio::task::spawn_blocking(move || {
+        let _guard = ACCOUNT_WRITE.lock().map_err(|e| e.to_string())?;
+        if let Some(previous) = expected_previous {
+            match std::fs::read(base_directory.join("accounts.json")) {
+                Ok(bytes) if bytes == previous.as_bytes() => {}
+                Ok(_) => return Err(ACCOUNT_CONFLICT.to_owned()),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                    return Err(ACCOUNT_CONFLICT.to_owned())
+                }
+                Err(e) => return Err(e.to_string()),
+            }
+        }
         publish_accounts(&base_directory, create_new, |file| {
             file.write_all(contents.as_bytes())
         })
+        .map_err(|e| {
+            if create_new && e.kind() == io::ErrorKind::AlreadyExists {
+                ACCOUNT_CONFLICT.to_owned()
+            } else {
+                e.to_string()
+            }
+        })?;
+        Ok(true)
     })
     .await
     .map_err(|e| e.to_string())?
-    .map(|()| true)
-    .map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
@@ -91,6 +132,7 @@ pub enum ParsedFile {
     // The file is empty or does not exist.
     // It will be rewritten with default contents
     Missing,
+    Unreadable,
     // The file exists and is not empty, but has invalid JSON.
     // It will be backed up and a new file with default contents will be created
     Corrupt { raw: String, error: String },
@@ -125,7 +167,7 @@ pub async fn load_config_files(base_directory: PathBuf) -> Result<InitialStatePa
     );
 
     let config = config.map_err(|error| error.to_string())?;
-    let accounts = accounts.map_err(|error| error.to_string())?;
+    let accounts = accounts.unwrap_or(ParsedFile::Unreadable);
     let instances = instances.map_err(|error| error.to_string())?;
 
     let locale = extract_locale(&config);
@@ -247,6 +289,45 @@ mod tests {
                 0o600
             );
         }
+    }
+
+    #[tokio::test]
+    async fn strict_account_reads_and_compare_exchange_preserve_intervening_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().to_owned();
+        let path = base.join("accounts.json");
+        let initial = " \t";
+        std::fs::write(&path, initial).unwrap();
+        let AccountsFile::Empty { raw } = read_accounts_file(base.clone()).await.unwrap() else {
+            panic!("expected empty store");
+        };
+        save_accounts(base.clone(), "[]".into(), false, Some(raw.clone()))
+            .await
+            .unwrap();
+        assert_eq!(
+            save_accounts(base.clone(), "[1]".into(), false, Some(raw))
+                .await
+                .unwrap_err(),
+            ACCOUNT_CONFLICT
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), b"[]");
+        let invalid = b"[\"\xff\"]";
+        std::fs::write(&path, invalid).unwrap();
+        assert!(matches!(
+            read_accounts_file(base.clone()).await.unwrap(),
+            AccountsFile::InvalidUtf8
+        ));
+        assert!(matches!(
+            load_config_files(base.clone()).await.unwrap().accounts,
+            ParsedFile::Unreadable
+        ));
+        assert_eq!(
+            save_accounts(base, "[]".into(), false, Some("[]".into()))
+                .await
+                .unwrap_err(),
+            ACCOUNT_CONFLICT
+        );
+        assert_eq!(std::fs::read(path).unwrap(), invalid);
     }
 
     #[tokio::test]

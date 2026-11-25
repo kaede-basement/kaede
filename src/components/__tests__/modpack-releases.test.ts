@@ -1,19 +1,35 @@
 import "@/extendable/global-object.ts";
 
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import { mockIPC } from "@tauri-apps/api/mocks";
 import * as fs from "@tauri-apps/plugin-fs";
 import * as http from "@tauri-apps/plugin-http";
-import { expect, mock, spyOn, test } from "bun:test";
+import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import { nextTick } from "vue";
 
+import Instances from "@/lib/instances";
 import Modrinth from "@/lib/modrinth";
+import { installMrpack } from "@/lib/modrinth/install-mrpack.ts";
 import { globalStates } from "@/states/global.ts";
+import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
-import { mountComponent } from "./mount-component.ts";
+import { mountComponent, pressEnter } from "./mount-component.ts";
 import { useUiState } from "./ui-state.ts";
-import { checkViewportFocus } from "./viewport-focus.ts";
+import { checkViewportFocus, scrollViewport } from "./viewport-focus.ts";
 
 useUiState();
+let files: DisposableStack;
+
+beforeEach(() => {
+  files = new DisposableStack;
+  files.use(spyOn(fs, "writeTextFile").mockResolvedValue());
+  files.use(spyOn(fs, "remove").mockResolvedValue());
+});
+afterEach(() => {
+  Instances.resetPageStates();
+  files.dispose();
+});
+
 const releases = Array.from({ "length": 350 }, (_, n) => ({
   "id"            : "id-" + n,
   "name"          : "Release " + n,
@@ -48,9 +64,7 @@ test("project releases window and select the last release", async () => {
 
   Object.defineProperty(viewport, "clientHeight", { "value": 320 });
   await checkViewportFocus(view, viewport);
-  viewport.scrollTop = (350 * 40) - 320;
-  viewport.dispatchEvent(new view.browser.Event("scroll") as unknown as Event);
-  await nextTick();
+  await scrollViewport(view, viewport, (350 * 40) - 320);
   expect(viewport.querySelectorAll("button").length).toBeLessThan(16);
   viewport.querySelector<HTMLButtonElement>("#release-id-349")!.click();
   await Bun.sleep(0);
@@ -86,7 +100,13 @@ test("superseded release cannot publish after a newer identically numbered relea
 });
 
 const failures = [
-  "no URL", "503", "body unreadable", "disk full", "No Modrinth manifest", "unreadable manifest",
+  "no URL",
+  "503",
+  "body unreadable",
+  "existing file",
+  "disk full",
+  "No Modrinth manifest",
+  "unreadable manifest",
 ];
 
 for (const failure of failures) {
@@ -95,8 +115,12 @@ for (const failure of failures) {
 
     using versions = spyOn(Modrinth, "fetchVersion").mockResolvedValue([entry]);
     using fetch = spyOn(http, "fetch");
+    const reserve = files.use(spyOn(fs, "writeTextFile"));
+    const remove = files.use(spyOn(fs, "remove"));
+
     using write = spyOn(fs, "writeFile").mockResolvedValue();
     using peek = spyOn(Modrinth, "peekMrpack").mockResolvedValue(manifest);
+    if (failure === "existing file") reserve.mockRejectedValueOnce(new Error(failure));
     if (failure === "no URL") entry.files = [];
     if (failure === "503") fetch.mockResolvedValueOnce(new Response(null, { "status": 503 }));
     if (failure === "body unreadable") {
@@ -122,6 +146,9 @@ for (const failure of failures) {
     expect(view.root.querySelector("[role=alert]")?.textContent)
       .toContain(failure === "no URL" ? "no archive URL" : failure);
     expect(button.disabled).toBe(false);
+    const written = write.mock.calls[0]?.[0];
+
+    expect(remove.mock.calls).toEqual(written ? [[written]] : []);
     entry.files = releases[0].files;
     button.click();
     await Bun.sleep(0);
@@ -141,6 +168,9 @@ test("repeat imports preserve previous bytes and distinguish release ID case", a
     .mockResolvedValueOnce(new Response("other"));
   const archives = (new Map<string, string>);
 
+  files.use(spyOn(fs, "remove").mockImplementation(async path => {
+    archives.delete(String(path));
+  }));
   using write = spyOn(fs, "writeFile").mockImplementation(async (path, bytes) => {
     archives.set(String(path), (new TextDecoder).decode(bytes as Uint8Array));
   });
@@ -159,10 +189,11 @@ test("repeat imports preserve previous bytes and distinguish release ID case", a
 
   await pick("A");
   expect(globalStates.pages["add-instance"].importedModpack!.path).toBe(original);
-  expect(archives.get(original)).toBe("valid");
+  expect([...archives.values()]).toEqual(["valid"]);
   await pick("a");
   const names = write.mock.calls.map(([path]) => String(path).toLowerCase());
 
+  expect([...archives.values()]).toEqual(["other"]);
   expect(new Set(names).size).toBe(3);
   expect(names[0]).toMatch(/41-[a-f0-9]+\.mrpack$/);
   expect(names[2]).toMatch(/61-[a-f0-9]+\.mrpack$/);
@@ -170,3 +201,84 @@ test("repeat imports preserve previous bytes and distinguish release ID case", a
   expect(peek).toHaveBeenCalledTimes(3);
   expect(versions).toHaveBeenCalledTimes(1);
 });
+
+test("an archive superseded during validation is removed; reset waits for its active install",
+  async () => {
+    files.use(spyOn(Modrinth, "fetchVersion").mockResolvedValue(releases.slice(0, 2)));
+    files.use(spyOn(http, "fetch").mockImplementation(async () => new Response("download")));
+    using write = spyOn(fs, "writeFile").mockResolvedValue();
+    const slow = Promise.withResolvers<typeof manifest>();
+
+    using peek = spyOn(Modrinth, "peekMrpack").mockReturnValueOnce(slow.promise)
+      .mockResolvedValueOnce(manifest);
+    const remove = files.use(spyOn(fs, "remove"));
+
+    using first = await mount();
+    using second = await mount();
+    await Bun.sleep(0);
+    first.root.querySelector<HTMLButtonElement>("#release-id-0")!.click();
+    await Bun.sleep(0);
+    expect(peek).toHaveBeenCalledTimes(1);
+    second.root.querySelector<HTMLButtonElement>("#release-id-1")!.click();
+    await Bun.sleep(0);
+    const [oldPath, newPath] = write.mock.calls.map(([path]) => String(path));
+
+    slow.resolve(manifest);
+    await Bun.sleep(0);
+    expect(remove.mock.calls).toEqual([[oldPath]]);
+    expect(globalStates.pages["add-instance"].importedModpack?.path).toBe(newPath);
+    const installed = Promise.withResolvers<void>();
+
+    mockIPC(async command => {
+      if (command === "install_mrpack") await installed.promise;
+    });
+    const installing = installMrpack({
+      "archivePath": newPath, "instanceId": "test", "statuses": {} as LauncherStatusesType,
+    });
+
+    Instances.resetPageStates();
+    expect(remove.mock.calls).toEqual([[oldPath]]);
+    installed.resolve();
+    await installing;
+    expect(remove.mock.calls).toEqual([[oldPath], [newPath]]);
+  });
+
+for (const moveOutside of [true, false]) {
+  test("release import keyboard retry keeps intended focus, moved outside=" + moveOutside,
+    async () => {
+      const request = Promise.withResolvers<Response>();
+
+      files.use(spyOn(Modrinth, "fetchVersion").mockResolvedValue(releases));
+      using fetch = spyOn(http, "fetch").mockReturnValueOnce(request.promise)
+        .mockResolvedValueOnce(new Response("retry"));
+      using write = spyOn(fs, "writeFile").mockResolvedValue();
+      using peek = spyOn(Modrinth, "peekMrpack").mockResolvedValue(manifest);
+      using view = await mount();
+      await Bun.sleep(0);
+      const document = view.root.ownerDocument;
+      const button = view.root.querySelector("button")!;
+      const outside = document.createElement("button");
+
+      outside.id = "outside";
+
+      document.body.append(outside);
+      button.focus();
+      pressEnter(view);
+      await nextTick();
+      expect(button.disabled).toBe(true);
+      const viewport = view.root.querySelector<HTMLElement>("#release-viewport")!;
+
+      await scrollViewport(view, viewport, 1600);
+      expect(button.isConnected).toBe(false);
+      (document.activeElement as HTMLElement).blur();
+      if (moveOutside) outside.focus();
+      request.resolve(new Response(null, { "status": 503 }));
+      await Bun.sleep(0);
+      expect(document.activeElement?.id).toBe(moveOutside ? outside.id : button.id);
+      pressEnter(view);
+      await Bun.sleep(0);
+      expect(fetch).toHaveBeenCalledTimes(moveOutside ? 1 : 2);
+      expect(peek).toHaveBeenCalledTimes(moveOutside ? 0 : 1);
+      expect(write).toHaveBeenCalledTimes(moveOutside ? 0 : 1);
+    });
+}

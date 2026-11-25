@@ -33,6 +33,8 @@ import type {
 
 import { launchAttempts } from "./fetching/download-outcome.ts";
 
+type SpawnResult = LaunchResponseType & { "reason"?: "cancelled" };
+
 export async function spawnMinecraft({
   command,
   instanceId,
@@ -48,7 +50,7 @@ export async function spawnMinecraft({
   "necessaries": PreLaunchInformationType;
   "onClose"    : (instanceId: string) => void;
   "onInput"    : (lines: Array<string>) => void;
-}): Promise<LaunchResponseType & { "reason"?: "cancelled" }> {
+}): Promise<SpawnResult> {
   await mkdir(necessaries.directories.instance, { "recursive": true });
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await Hooks.catchAsyncResponseHooks<LaunchResponseType>({
@@ -71,7 +73,9 @@ export async function spawnMinecraft({
   let exited = false;
   let process: MinecraftProcessType;
 
-  if (launchAttempts.get(statuses)?.stop) {
+  const signal = launchAttempts.get(statuses)?.signal;
+
+  if (signal?.aborted) {
     return { "success": false, "process": undefined, "reason": "cancelled" };
   }
   try {
@@ -121,20 +125,41 @@ export async function spawnMinecraft({
     return { "success": false, "process": undefined };
   }
 
-  if (!exited && !launchAttempts.get(statuses)?.stop) {
-    await Hooks.catchAsyncVoidHooks({
-      "scope" : "onMinecraftLaunch",
-      "toPass": { process, command, instanceId, necessaries },
-      "timing": "after",
-    });
-  }
+  async function terminate(): Promise<SpawnResult> {
+    try {
+      if (!exited) await process.kill();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
 
-  if (launchAttempts.get(statuses)?.stop) {
-    if (!exited) {
-      await process.kill();
+      if (!exited && detail !== `no managed process with pid ${process.pid}`) {
+        log.error(logPrefix, "Could not stop Minecraft:", String(error));
+        statuses.current = LaunchStatus.Errors.Stop;
+
+        return { "success": false, process };
+      }
     }
 
     return { "success": false, "process": undefined, "reason": "cancelled" };
+  }
+  let stop!: () => void;
+  const stopped = new Promise<SpawnResult>(resolve => {
+    stop = (): void => resolve(terminate());
+  });
+
+  signal?.addEventListener("abort", stop, { "once": true });
+  try {
+    if (signal?.aborted) {
+      stop();
+    } else if (!exited) {
+      await Promise.race([stopped, Hooks.catchAsyncVoidHooks({
+        "scope" : "onMinecraftLaunch",
+        "toPass": { process, command, instanceId, necessaries },
+        "timing": "after",
+      })]);
+    }
+    if (signal?.aborted) return await stopped;
+  } finally {
+    signal?.removeEventListener("abort", stop);
   }
   if (exited) {
     statuses.current = LaunchStatus.Errors.UnhandledError;

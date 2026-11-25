@@ -12,6 +12,8 @@ import {
   TranslationsContextKey,
 } from "@/constants/application.ts";
 import { C } from "@/extendable/component-registry.ts";
+import { accountStoreError } from "@/lib/configs/scopes/account-store.ts";
+import { translate } from "@/lib/general/translate.ts";
 import type { WrappedAccountsType } from "@/types/configs/account.type.ts";
 import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
@@ -72,8 +74,9 @@ const { canvas, viewer, shown } = useSkinRenderer({ "render": "3d" });
             </span>
             <LoginStatus />
           </div>
+          <p v-if="accountStoreError" id="__profile-page__account-store-error" role="alert">{{ translate("profile.accounts.storage-error") }}</p>
           <div
-            v-if="(accounts?.length ?? 0) === 0"
+            v-else-if="(accounts?.length ?? 0) === 0"
             id="__profile-page__accounts-empty"
             class="pl-1 text-sm"
             :style="styles.widgetSecondary"

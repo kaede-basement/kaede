@@ -24,6 +24,7 @@ import { Routes } from "@/constants/routes.ts";
 import { sanitizeFileOrFolderName } from "@/lib/file-manager/path.ts";
 import { sync } from "@/lib/instances/sync.ts";
 import { log } from "@/lib/logging/log.ts";
+import { persistImportArchive, setImportedModpack } from "@/lib/modrinth/import-archive.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
@@ -127,6 +128,9 @@ export function create(
       ...instance,
       ...(modpackPath && !beforeRegister ? { modpackPath } : {}),
     };
+    if (modpackPath && !beforeRegister) {
+      persistImportArchive(modpackPath);
+    }
     log.info(__PRE_BUNDLED_FILENAME__, "Created an instance with the entry patch:", uid);
   }
 
@@ -139,7 +143,7 @@ export function create(
         return id;
       }
       globalStates.selected.currentInstance = id;
-      page.importedModpack = undefined;
+      setImportedModpack();
       page.lastCreated = undefined;
     }
     page.instance = undefined;

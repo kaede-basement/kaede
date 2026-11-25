@@ -35,7 +35,7 @@ import ASCIIArt from "@/constants/ascii-art.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
-import { useBridgeAccountStorage } from "@/lib/configs/scopes/write-accounts.ts";
+import { useBridgeAccountStorage } from "@/lib/configs/scopes/account-store.ts";
 import Errors from "@/lib/errors";
 import Globals from "@/lib/globals";
 import Initialization from "@/lib/initialization";

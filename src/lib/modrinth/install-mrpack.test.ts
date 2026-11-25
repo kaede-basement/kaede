@@ -15,6 +15,7 @@ import { declareInstanceStates, instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
+import { releaseArchive, reserveImportArchive, setImportedModpack } from "./import-archive.ts";
 import { ActiveInstall, installMrpack, repairLegacyMrpack } from "./install-mrpack.ts";
 
 const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -218,4 +219,27 @@ test("legacy archive availability and cancellation retain the retry marker", asy
     expect(statuses.downloads.total).toBe(0);
   }
   expect(commands).toEqual(["repair_legacy_mrpack", "repair_legacy_mrpack"]);
+});
+
+test("a legacy instance keeps its archived pack when the import draft is cleared", async () => {
+  using initial = spyOn(Router, "getInitialPage").mockReturnValue(Routes.AddInstance);
+  declareGlobalStates();
+  declareInstanceStates();
+  const commands: Array<string> = [];
+
+  mockIPC(command => commands.push(command));
+  const path = "legacy-import.mrpack";
+
+  await reserveImportArchive(path);
+  setImportedModpack({ path, "name": "Pack", "loader": Patches.Minecraft });
+  releaseArchive(path);
+  const instance = {
+    "name": "Pack", "patchVersions": { "net.minecraft": "1" },
+  } as InstanceStateType;
+  const id = create(instance, Patches.Minecraft, path)!;
+
+  setImportedModpack();
+  expect(instanceStates[id].modpackPath).toBe(path);
+  expect(commands).toEqual(["plugin:fs|write_text_file"]);
+  expect(initial).toHaveBeenCalled();
 });

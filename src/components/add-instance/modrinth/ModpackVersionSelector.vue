@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { fetch } from "@tauri-apps/plugin-http";
 import { onClickOutside } from "@vueuse/core";
-import { computed, markRaw, ref, useTemplateRef } from "vue";
+import { computed, markRaw, nextTick, ref, useTemplateRef } from "vue";
 
 import { useModpackImport } from "@/composables/use-modpack-import.ts";
 import { useVersionViewport } from "@/composables/use-version-viewport.ts";
@@ -32,6 +32,7 @@ import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
 import { translate } from "@/lib/general/translate.ts";
 import Modrinth from "@/lib/modrinth";
+import { releaseArchive, reserveImportArchive } from "@/lib/modrinth/import-archive.ts";
 import { globalStates } from "@/states/global.ts";
 
 
@@ -64,9 +65,15 @@ const { data, status, error } = useQuery({
 
 const releases = computed(() => data.value ?? []);
 const rowHeight = 40;
-const { list, containerProps, wrapperProps } = useVersionViewport(releases, rowHeight);
+const { list, containerProps, wrapperProps, scrollTo } = useVersionViewport(releases, rowHeight);
 
-async function handleClick(entry: (typeof releases.value)[number]): Promise<void> {
+async function handleClick(
+  entry: (typeof releases.value)[number], event: MouseEvent,
+): Promise<void> {
+  const button = event.currentTarget as HTMLButtonElement;
+  const document = button.ownerDocument;
+  const wasFocused = document.activeElement === button;
+  let written: string | undefined;
   const current = beginImport();
 
   active.value = current;
@@ -96,7 +103,15 @@ async function handleClick(entry: (typeof releases.value)[number]): Promise<void
     const directory = FileManager.getBaseDirectory();
     const path = FileManager.join(directory, FileStructure.Folders.Cache.Path, archive);
 
-    await writeFile(path, bytes, { "createNew": true });
+    await reserveImportArchive(path);
+    written = path;
+    if (!current()) {
+      return;
+    }
+    await writeFile(path, bytes, { "create": false });
+    if (!current()) {
+      return;
+    }
     const manifest = await Modrinth.peekMrpack(path);
 
     if (!current()) {
@@ -120,8 +135,23 @@ async function handleClick(entry: (typeof releases.value)[number]): Promise<void
       importError.value = translate("import.read-error") + ": " + detail;
     }
   } finally {
+    releaseArchive(written);
     if (current()) {
       active.value = undefined;
+      if (importError.value && wasFocused) {
+        await nextTick();
+        if (current() && document.activeElement === document.body && !button.isConnected) {
+          const index = releases.value.findIndex(release => release.id === entry.id);
+
+          if (index !== -1) {
+            scrollTo(index);
+            await nextTick();
+          }
+        }
+        if (current() && document.activeElement === document.body) {
+          document.getElementById(button.id)?.focus({ "preventScroll": true });
+        }
+      }
     }
   }
 }
@@ -146,7 +176,7 @@ onClickOutside(container, close);
           :disabled="pending"
           :style="{ height: rowHeight + 'px' }"
           class="w-full flex items-center gap-2 border-b border-neutral-600 p-2 text-left hover:bg-white/5 disabled:opacity-70"
-          @click="handleClick(entry)"
+          @click="handleClick(entry, $event)"
         >
           <span :id="`${idRoot}-${entry.id}-star`" class="w-6 shrink-0">{{ entry.featured ? "⭐" : "" }}</span>
           <span :id="`${idRoot}-${entry.id}-name`" class="flex-1 truncate">{{ entry.name }}</span>

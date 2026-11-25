@@ -95,6 +95,7 @@ export const LaunchStatus = {
     "Success"      : "client-success",
   },
   "Errors": {
+    "Stop"                : "stop-error",
     "Native"              : "native-error",
     "Artifact"            : "artifact-error",
     "Repair"              : "repair-error",

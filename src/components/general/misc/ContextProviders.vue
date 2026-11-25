@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { message } from "@tauri-apps/plugin-dialog";
 import {
-  inject,
-  markRaw,
-  provide,
-  reactive,
-  type ShallowReactive,
-  shallowReactive,
-  shallowRef,
+  inject, markRaw, provide, reactive, type ShallowReactive, shallowReactive, shallowRef,
 } from "vue";
 
 import {
@@ -21,11 +15,13 @@ import {
 import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Auth from "@/lib/auth";
+import { accountStoreError } from "@/lib/configs/scopes/account-store.ts";
 import Errors from "@/lib/errors";
 import { translate } from "@/lib/general/translate.ts";
 import Hooks from "@/lib/hooks";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
+import { beginLaunchAttempt } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { trackRunningInstances } from "@/lib/launcher/scopes/track-running-instances.ts";
 import { log } from "@/lib/logging/log.ts";
 import Watchers from "@/lib/watchers";
@@ -159,14 +155,20 @@ async function startInstance(
 
   const statuses: LauncherStatusesType = launches[instanceId];
 
+  const attempt = beginLaunchAttempt(statuses);
+
   statuses.current = LaunchStatus.General.Starting;
   const started = performance.now();
 
   try {
     const onInput = createLogSink(instanceId);
 
-    if (!accounts.value[globalStates.selected.account]) {
-      await message(translate("general.launch-status.missing-account"), { "kind": "error" });
+    if (accountStoreError.value || !accounts.value[globalStates.selected.account]) {
+      const key = accountStoreError.value
+        ? "profile.accounts.storage-error"
+        : "general.launch-status.missing-account";
+
+      await message(translate(key), { "kind": "error" });
       statuses.launching = 0;
       statuses.current = LaunchStatus.General.Aborted;
 
@@ -177,7 +179,7 @@ async function startInstance(
       getJavaMajor(options?.javaPath), resolveLaunchAccount(),
     ]);
 
-    if (!account) {
+    if (!account || attempt.signal.aborted) {
       statuses.launching = 0;
       statuses.current = LaunchStatus.General.Aborted;
 
@@ -196,9 +198,12 @@ async function startInstance(
       statuses,
       "onClose": id => onClose(id, statuses),
       onInput,
-    });
+    }, attempt);
 
-    statuses.launching = success ? 2 : 0;
+    if (process) {
+      childProcesses[instanceId] = process;
+    }
+    statuses.launching = success || process ? 2 : 0;
 
     if (success && instanceStates[instanceId]) {
       instanceStates[instanceId] = { ...instanceStates[instanceId], "lastLaunch": Date.now() };
@@ -213,10 +218,6 @@ async function startInstance(
       const key = `general.launch-status.${statuses.current}` as const;
 
       await message(translate(key), { "kind": "error" });
-    }
-
-    if (process !== undefined) {
-      childProcesses[instanceId] = process;
     }
   } catch (error: unknown) {
     statuses.launching = 0;

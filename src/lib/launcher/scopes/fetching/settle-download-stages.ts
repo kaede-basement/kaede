@@ -5,8 +5,8 @@ import { CancelledDownload } from "./download-outcome.ts";
 export async function settleDownloadStages(
   cancel: () => Promise<boolean>,
   stages: Array<(signal: AbortSignal) => Promise<boolean>>,
+  controller = new AbortController,
 ): Promise<boolean> {
-  const controller = new AbortController;
   let cancellation: Promise<unknown> | undefined;
   const results = await Promise.allSettled(stages.map(async stage => {
     let success = false;

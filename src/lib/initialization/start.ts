@@ -19,7 +19,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import { log } from "@/lib/logging/log.ts";
-import type { ParsedFile } from "@/types/application/parsed-file.type.ts";
+import type { ParsedAccountFile, ParsedFile } from "@/types/application/parsed-file.type.ts";
 
 type InitialStateType = {
   "basic": {
@@ -31,7 +31,7 @@ type InitialStateType = {
   };
   "parsed": {
     "config"      : ParsedFile;
-    "accounts"    : ParsedFile;
+    "accounts"    : ParsedAccountFile;
     "instances"   : ParsedFile;
     "translations": ParsedFile;
   };

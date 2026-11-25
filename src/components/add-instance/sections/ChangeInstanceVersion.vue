@@ -118,7 +118,9 @@ function temporaryDropdown(type?: ExtendedPatchUIDType): void {
 
 const queueSearch = useDebounceFn(handleVersionSearch, 300);
 
-watch([currentPatch, temporaryPatch], queueSearch.cancel, { "flush": "sync" });
+const displayedPatch = computed(() => temporaryPatch.value ?? currentPatch.value);
+
+watch(displayedPatch, queueSearch.cancel, { "flush": "sync" });
 onScopeDispose(queueSearch.cancel);
 
 onClickOutside(target, event => handleDropdown(false, event));
@@ -181,7 +183,7 @@ onClickOutside(target, event => handleDropdown(false, event));
         v-if="selector"
         :handle-dropdown="handleDropdown"
         :current-filter="currentFilter"
-        :current-patch="temporaryPatch ?? currentPatch"
+        :current-patch="displayedPatch"
       />
     </Transition>
   </div>

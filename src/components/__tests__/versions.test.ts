@@ -5,7 +5,7 @@ import { nextTick, reactive } from "vue";
 import Launcher from "@/lib/launcher";
 import { globalStates } from "@/states/global.ts";
 
-import { mountComponent } from "./mount-component.ts";
+import { mountComponent, pressEnter } from "./mount-component.ts";
 import { useUiState } from "./ui-state.ts";
 import { checkViewportFocus } from "./viewport-focus.ts";
 
@@ -116,22 +116,8 @@ for (const dropdown of [true, false]) {
       expect(view.root.textContent).toContain("Could not load versions");
       const retry = view.root.querySelector<HTMLButtonElement>("[id$=-retry]")!;
 
-      const pressEnter = (): void => {
-        const target = view.root.ownerDocument.activeElement as HTMLButtonElement;
-
-        expect(target.tagName).toBe("BUTTON");
-        const event = new view.browser.KeyboardEvent("keydown", {
-          "key": "Enter", "bubbles": true, "cancelable": true,
-        });
-
-        // Happy DOM leaves the native button default action to the caller.
-        if (target.dispatchEvent(event as unknown as Event)) {
-          target.click();
-        }
-      };
-
       retry.focus();
-      pressEnter();
+      pressEnter(view);
       await Bun.sleep(0);
       const focused = view.root.ownerDocument.activeElement as HTMLElement;
 
@@ -139,7 +125,7 @@ for (const dropdown of [true, false]) {
         expect(focused.matches("p[tabindex]")).toBe(true);
       } else {
         expect(focused.getAttribute("aria-label")).toContain("version-0");
-        pressEnter();
+        pressEnter(view);
         if (dropdown) {
           expect(globalStates.pages["add-instance"].instance?.patchVersions["net.minecraft"])
             .toBe("version-0");
@@ -190,6 +176,12 @@ for (const open of [false, true]) {
     if (!open) {
       page.instanceVersionSearch.patch = "net.minecraft";
       await nextTick();
+      input.value = "version-2";
+      input.dispatchEvent(new view.browser.Event("input") as unknown as Event);
+      view.root.querySelector<HTMLButtonElement>("[id$=version-selected-badge]")!.click();
+      await Bun.sleep(320);
+      expect(page.instanceVersionSearch.input).toBe("version-2");
+      expect(view.root.querySelectorAll("[data-index]")).toHaveLength(1);
       input.value = "stale vanilla";
       input.dispatchEvent(new view.browser.Event("input") as unknown as Event);
       page.instanceVersionSearch = { "patch": "net.fabricmc.fabric-loader", "input": "" };

@@ -1,7 +1,15 @@
 import type { DownloadReportType } from "@/types/launcher/artifacts/download.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
-export const launchAttempts = new WeakMap<LauncherStatusesType, { "stop"?: Promise<boolean> }>;
+export const launchAttempts = new WeakMap<LauncherStatusesType, AbortController>;
+
+export function beginLaunchAttempt(statuses: LauncherStatusesType): AbortController {
+  const attempt = new AbortController;
+
+  launchAttempts.set(statuses, attempt);
+
+  return attempt;
+}
 export class ArtifactDownloadFailure extends Error {}
 export class CancelledDownload extends Error {}
 

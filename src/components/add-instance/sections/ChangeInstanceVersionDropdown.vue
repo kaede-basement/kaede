@@ -136,7 +136,7 @@ function selectVersion(extractedVersion: string): void {
     class="absolute left-0 top-14 z-50 max-h-73 w-full overflow-y-auto break-all rounded-md text-start text-sm"
     :style="styles.widget"
     tabindex="-1"
-    @keydown.down.self.prevent="focusRow(0)"
+    @keydown.down.self.prevent="focusRow(list[0]?.index ?? 0)"
     @keydown.esc="handleDropdown(false)"
   >
     <p v-if="status === 'error'" id="__version-dropdown-error">

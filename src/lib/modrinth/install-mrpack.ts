@@ -22,6 +22,9 @@ import { shallowRef } from "vue";
 import { MrpackDependencies } from "@/constants/modrinth.ts";
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
+import { retryCancellationOnProgress } from "@/lib/launcher/scopes/fetching/cancel-all.ts";
+import { launchAttempts } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
+import { releaseArchive, retainArchive } from "@/lib/modrinth/import-archive.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -95,6 +98,7 @@ export async function installMrpack({
     }
   };
 
+  retainArchive(archivePath);
   ActiveInstall.value = { instanceId, cancel };
   try {
     await invoke("prepare_mrpack_install", { cancelId });
@@ -108,6 +112,7 @@ export async function installMrpack({
     });
   } finally {
     ActiveInstall.value = undefined;
+    releaseArchive(archivePath);
   }
 }
 
@@ -123,10 +128,15 @@ export async function repairLegacyMrpack(
     const onProgress = new Channel<[number, number]>;
     const { total, success } = statuses.downloads;
     let active = true;
+    const cancelId = `${instanceId}-download`;
+    const retryCancellation = retryCancellationOnProgress(
+      launchAttempts.get(statuses)?.signal, cancelId,
+    );
 
     // eslint-disable-next-line unicorn/prefer-add-event-listener
     onProgress.onmessage = ([done, count]): void => {
       if (active) {
+        retryCancellation();
         statuses.downloads.total = total + count;
         statuses.downloads.success = success + done;
       }
@@ -136,7 +146,7 @@ export async function repairLegacyMrpack(
         archivePath,
         onProgress,
         "targetDirPath": minecraftDirectory,
-        "cancelId"     : `${instanceId}-download`,
+        cancelId,
       });
 
       if (result !== "repaired") {

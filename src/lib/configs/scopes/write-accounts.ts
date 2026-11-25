@@ -16,23 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { invoke } from "@tauri-apps/api/core";
-import { exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
-
-import FileStructure from "@/constants/file-structure.ts";
-import Browser from "@/lib/browser";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
-import Schemas from "@/lib/schemas";
 import { CheckAccount } from "@/lib/schemas/generated/validators.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
-let bridgeStorage = false;
-
-export function useBridgeAccountStorage(): void {
-  bridgeStorage = true;
-}
+import {
+  AccountConflict, accountStoreError, readAccountText, saveAccountText,
+} from "./account-store.ts";
 
 let accountWriteChain: Promise<void> = Promise.resolve();
 
@@ -50,111 +42,77 @@ type AccountWrite = {
 };
 
 export function writeAccounts(input: AccountWrite): Promise<boolean> {
-  return serializeWrite(() => persistAccounts(input));
+  return serializeWrite(async () => {
+    try {
+      const directory = input.baseDirectory ?? FileManager.getBaseDirectory();
+      const { raw } = await readSnapshot(directory);
+
+      await persistAccounts({ ...input, "baseDirectory": directory }, raw === undefined, raw);
+
+      return true;
+    } catch (error) {
+      log.error(__PRE_BUNDLED_FILENAME__, "Failed to write accounts.json:", Errors.prettify(error));
+
+      return false;
+    }
+  });
 }
 
 export async function persistAccounts(
-  { accounts, baseDirectory }: AccountWrite, createNew = false,
-): Promise<boolean> {
-  for (const [index, entry] of accounts.entries()) {
-    const account: AccountType | false = Schemas.validate.account({
-      "value": entry,
-      "label": "account data (before writing)",
-      "info" : {
-        "id"   : entry?.profile?.name,
-        "index": index,
-      },
-    });
-
-    if (account === false) {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Refusing to write the accounts file since an entry is not valid",
-      );
-
-      return false;
-    }
+  { accounts, baseDirectory }: AccountWrite, createNew = false, expectedPrevious?: string,
+): Promise<void> {
+  if (!accounts.every(entry => CheckAccount(entry))) {
+    throw new Error("Invalid account data");
   }
+  const directory = baseDirectory ?? FileManager.getBaseDirectory();
 
-  try {
-    const directory = baseDirectory ?? FileManager.getBaseDirectory();
-    const contents = JSON.stringify(accounts, null, 2);
-
-    if (bridgeStorage || Browser.detectIsBrowser()) {
-      const path = FileManager.join(directory, FileStructure.Files.Accounts);
-
-      if (createNew && await exists(path)) {
-        return false;
-      }
-      await writeTextFile(path, contents, { createNew });
-    } else if (await invoke<boolean>("save_accounts", {
-      "baseDirectory": directory, contents, createNew,
-    }) !== true) {
-      return false;
-    }
-  } catch (error: unknown) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to write the accounts file:",
-      Errors.prettify(error),
-    );
-
-    return false;
-  }
-
-  log.debug(__PRE_BUNDLED_FILENAME__, "Successfully wrote the accounts file");
-
-  return true;
+  await saveAccountText(directory, JSON.stringify(accounts, null, 2), createNew, expectedPrevious);
 }
 
-export function parseStoredAccounts(raw: string): unknown {
-  return raw.trim() === "" ? [] : JSON.parse(raw);
+export function parseStoredAccounts(raw: string | undefined): unknown {
+  return raw?.trim() ? JSON.parse(raw) : [];
 }
 
-async function readAccountsForUpdate(): Promise<Array<AccountType> | undefined> {
-  const path = FileManager.join(FileManager.getBaseDirectory(), FileStructure.Files.Accounts);
-  let raw: string;
-
+async function readSnapshot(directory: string): Promise<{
+  "raw": string | undefined; "current": Array<AccountType>;
+}> {
   try {
-    raw = await readTextFile(path);
+    const raw = await readAccountText(directory);
+    const current = parseStoredAccounts(raw);
+
+    if (!Array.isArray(current) || !current.every(entry => CheckAccount(entry))) {
+      throw new Error("Invalid account data in accounts.json");
+    }
+
+    accountStoreError.value = false;
+
+    return { raw, current };
   } catch (error) {
-    if (!await exists(path)) {
-      return;
-    }
-
+    accountStoreError.value = true;
     throw error;
   }
-
-  let parsed: unknown;
-
-  try {
-    parsed = parseStoredAccounts(raw);
-  } catch {
-    throw new Error("Invalid JSON in accounts.json");
-  }
-
-  if (!Array.isArray(parsed) || !parsed.every(entry => CheckAccount(entry))) {
-    throw new Error("Invalid account data in accounts.json");
-  }
-
-  return parsed;
 }
 
 export function updateAccounts(
   mutate: (current: ReadonlyArray<AccountType>) => Array<AccountType> | undefined,
 ): Promise<Array<AccountType>> {
   return serializeWrite(async () => {
-    const current = await readAccountsForUpdate();
-    const next = mutate(current ?? []);
+    const baseDirectory = FileManager.getBaseDirectory();
 
-    if (!next) {
-      return current ?? [];
+    for (let attempt = 0; ; attempt++) {
+      const { raw, current } = await readSnapshot(baseDirectory);
+      const next = mutate(current);
+
+      if (!next) return current;
+      try {
+        await persistAccounts({ baseDirectory, "accounts": next }, raw === undefined, raw);
+
+        return next;
+      } catch (error) {
+        if (error !== AccountConflict || attempt > 0) {
+          throw new Error("Failed to save the updated accounts");
+        }
+      }
     }
-
-    if (!await persistAccounts({ "accounts": next }, current === undefined)) {
-      throw new Error("Failed to save the updated accounts");
-    }
-
-    return next;
   });
 }

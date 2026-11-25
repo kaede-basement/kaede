@@ -40,7 +40,7 @@ import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
 import {
-  ArtifactDownloadFailure, CancelledDownload, launchAttempts,
+  ArtifactDownloadFailure, beginLaunchAttempt, CancelledDownload, launchAttempts,
 } from "./fetching/download-outcome.ts";
 import { settleDownloadStages } from "./fetching/settle-download-stages.ts";
 
@@ -59,9 +59,9 @@ export function cancelLaunchDownloads(statuses: LauncherStatusesType): Promise<b
   }
   const id = `${statuses.instanceId}-download`;
 
-  attempt.stop ??= Promise.resolve().then(() => Fetching.cancelAll(id));
+  attempt.abort(new CancelledDownload);
 
-  return attempt.stop;
+  return Fetching.cancelAll(id);
 }
 
 export async function handleLaunch({
@@ -78,10 +78,7 @@ export async function handleLaunch({
   "userPreferences": PreLaunchInformationType["user"];
   "onClose"        : (instanceId: string) => void;
   "onInput"        : (lines: Array<string>) => void;
-}): Promise<LaunchResult> {
-  const attempt: { "stop"?: Promise<boolean> } = {};
-
-  launchAttempts.set(statuses, attempt);
+}, attempt = beginLaunchAttempt(statuses)): Promise<LaunchResult> {
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
   const { instanceDirectory } = Instances.getMinecraftDirectory({
     "baseDirectory": FileManager.getBaseDirectory(),
@@ -125,6 +122,8 @@ export async function handleLaunch({
     return { ...failed, "reason": LaunchStatus.Errors.MissingAccount };
   }
 
+  if (attempt.signal.aborted) return { ...failed, "reason": "cancelled" };
+
   if (instance.modpackPath) {
     try {
       await repairLegacyMrpack(instance, instanceId, instanceDirectory, statuses);
@@ -139,7 +138,7 @@ export async function handleLaunch({
     }
   }
 
-  if (attempt.stop) {
+  if (attempt.signal.aborted) {
     return { ...failed, "reason": "cancelled" };
   }
   let allPatches: Array<SpecificPatchMetaType>;
@@ -158,12 +157,12 @@ export async function handleLaunch({
     if (error instanceof ArtifactDownloadFailure) {
       return { ...failed, "reason": LaunchStatus.Errors.Artifact };
     }
-    if (error instanceof CancelledDownload && attempt.stop) {
+    if (error instanceof CancelledDownload && attempt.signal.reason instanceof CancelledDownload) {
       return { ...failed, "reason": "cancelled" };
     }
     throw error;
   }
-  if (attempt.stop) {
+  if (attempt.signal.aborted) {
     return { ...failed, "reason": "cancelled" };
   }
   const finalizedPatch: FinalizedPatchType = Parsers.finalizePatches({
@@ -205,8 +204,8 @@ export async function handleLaunch({
 
       return true;
     },
-  ]).catch(error => {
-    if (error instanceof CancelledDownload && attempt.stop) {
+  ], attempt).catch(error => {
+    if (error instanceof CancelledDownload && attempt.signal.reason instanceof CancelledDownload) {
       failureReason = "cancelled";
     }
     log.error(necessaries.logPrefix, "Artifact preparation failed:", String(error));
@@ -220,7 +219,7 @@ export async function handleLaunch({
     return { ...failed, "reason": failureReason };
   }
 
-  if (attempt.stop) {
+  if (attempt.signal.aborted) {
     return { ...failed, "reason": "cancelled" };
   }
   const command: {
@@ -228,7 +227,7 @@ export async function handleLaunch({
     "arguments": Array<string>;
   } = await Launcher.createCommand({ necessaries, finalizedPatch });
 
-  if (attempt.stop) {
+  if (attempt.signal.aborted) {
     return { ...failed, "reason": "cancelled" };
   }
 

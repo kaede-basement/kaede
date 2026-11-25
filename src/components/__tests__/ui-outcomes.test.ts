@@ -14,6 +14,7 @@ import English from "@/constants/english.json";
 import { DefaultInstanceIcon, DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { ActionRegistry } from "@/extendable/action-registry.ts";
 import Auth from "@/lib/auth";
+import * as store from "@/lib/configs/scopes/account-store.ts";
 import { declareActionRegistry } from "@/lib/globals/declare-action-registry.ts";
 import Hashing from "@/lib/hashing";
 import { detectJavaInstallations } from "@/lib/launcher/fetching/detect-java-installations.ts";
@@ -40,7 +41,7 @@ test("account actions report write failure and keep committed accounts", async (
     "status" : "refreshed",
     "account": { ...account, "profile": { ...account.profile, "name": "updated" } },
   });
-  using read = spyOn(fs, "readTextFile").mockResolvedValue(JSON.stringify([account]));
+  using read = spyOn(store, "readAccountText").mockResolvedValue(JSON.stringify([account]));
   using write = mockSaveAccounts().mockRejectedValue(new Error("Disk full"));
   using confirm = spyOn(dialog, "confirm").mockResolvedValue(true);
 
@@ -59,7 +60,7 @@ test("account actions report write failure and keep committed accounts", async (
 test("failed offline account write keeps nickname and retries in place", async () => {
   const accounts = shallowRef([account]);
 
-  using read = spyOn(fs, "readTextFile").mockResolvedValue(JSON.stringify([account]));
+  using read = spyOn(store, "readAccountText").mockResolvedValue(JSON.stringify([account]));
   using hash = spyOn(Hashing, "hashOfflineNickname").mockResolvedValue("new-id");
   using write = mockSaveAccounts().mockRejectedValueOnce(new Error("Disk full"))
     .mockResolvedValue();
@@ -195,7 +196,7 @@ for (const present of [true, false]) {
 
   test("CSS loader handles " + scenario, async () => {
     using read = spyOn(fs, "readDir").mockResolvedValue(["a.css", "b.css", "c.css"].map(name => ({
-      name, "isDirectory": false, "isFile": true, "isSymlink": false,
+      name, "isDirectory": false, "isFile": name !== "b.css", "isSymlink": false,
     })));
     if (!present) {
       read.mockRejectedValue("failed to read directory: No such file or directory (os error 2)");

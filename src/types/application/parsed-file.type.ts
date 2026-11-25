@@ -13,3 +13,5 @@ export type ParsedFile =
    * It will be backed up and a new file with default contents will be created
    */
   | { "status": "corrupt"; "raw": string; "error": string };
+
+export type ParsedAccountFile = ParsedFile | { "status": "unreadable" };

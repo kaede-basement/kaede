@@ -18,6 +18,7 @@ import { ActionRegistry } from "@/extendable/action-registry.ts";
 import Auth from "@/lib/auth";
 import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
+import * as store from "@/lib/configs/scopes/account-store.ts";
 import { declareActionRegistry } from "@/lib/globals/declare-action-registry.ts";
 import Hashing from "@/lib/hashing";
 import type { AccountType } from "@/types/configs/account.type.ts";
@@ -47,7 +48,7 @@ test("all account mutations preserve corrupt disk bytes and both loaded profiles
     "parsedFile": { "status": "loaded", "data": await file.json() },
   }));
 
-  using read = spyOn(fs, "readTextFile")
+  using read = spyOn(store, "readAccountText")
     .mockImplementation(async () => readFileSync(filename, "utf8"));
   using write = mockSaveAccounts().mockImplementation(async ({ contents, createNew }) => {
     await writeFile(filename, contents, { "flag": createNew ? "wx" : "w" });
@@ -90,11 +91,10 @@ test("all account mutations preserve corrupt disk bytes and both loaded profiles
     await expect(Configs.updateAccounts(() => [])).rejects.toThrow();
     expect(await file.text()).toBe(bytes);
   }
-  using exists = spyOn(fs, "exists").mockResolvedValue(true);
   read.mockRejectedValue(new Error("Denied"));
   await expect(Configs.updateAccounts(() => [])).rejects.toThrow("Denied");
   expect(write).not.toHaveBeenCalled();
-  exists.mockResolvedValue(false);
+  read.mockImplementation(async (): Promise<undefined> => {});
   await expect(Configs.updateAccounts(() => [account])).rejects.toThrow("Failed to save");
   expect(await file.text()).toBe(JSON.stringify([account, null]));
   await rm(filename);
@@ -154,8 +154,8 @@ test("startup preserves corrupt accounts and reads a concurrently initialized fi
   using write = mockSaveAccounts().mockImplementation(async ({ contents, createNew }) => {
     await writeFile(file, contents, { "flag": createNew ? "wx" : "w" });
   });
-  using read = spyOn(fs, "readTextFile").mockImplementation(async () => readFileSync(file, "utf8"));
-  using exists = spyOn(fs, "exists").mockImplementation(() => Bun.file(file).exists());
+  using read = spyOn(store, "readAccountText")
+    .mockImplementation(async () => readFileSync(file, "utf8"));
   const parsedFile = { "status": "corrupt" as const, raw, "error": "invalid" };
 
   expect(await Configs.getAccounts({ parsedFile })).toEqual([]);
@@ -176,18 +176,54 @@ test("startup preserves corrupt accounts and reads a concurrently initialized fi
   await Bun.write(file, concurrent);
   expect(await Configs.getAccounts({ "parsedFile": { "status": "missing" } })).toEqual([account]);
   expect(readFileSync(file, "utf8")).toBe(concurrent);
-  expect(write.mock.calls[0][0].createNew).toBe(true);
+  expect(write).toHaveBeenCalledTimes(2);
   expect(read).toHaveBeenCalledTimes(7);
-  expect(exists).toHaveBeenCalledTimes(2);
 });
 
 test("native storage needs acknowledgment and browser writes bypass the command", async () => {
-  using invoke = spyOn(core, "invoke").mockImplementation(async () => undefined as never);
+  using invoke = spyOn(core, "invoke").mockImplementation(async cmd => (
+    cmd === "read_accounts_file" ? { "status": "missing" } : undefined
+  ) as never);
   expect(await Configs.writeAccounts({ "accounts": [account] })).toBe(false);
   using browser = spyOn(Browser, "detectIsBrowser").mockReturnValue(true);
+  using exists = spyOn(fs, "exists").mockResolvedValue(false);
   using write = spyOn(fs, "writeTextFile").mockResolvedValue();
   expect(await Configs.writeAccounts({ "accounts": [account] })).toBe(true);
-  expect(invoke).toHaveBeenCalledTimes(1);
+  expect(invoke.mock.calls.map(([cmd]) => cmd)).toEqual(["read_accounts_file", "save_accounts"]);
+  expect(exists).toHaveBeenCalled();
   expect(browser).toHaveBeenCalled();
   expect(JSON.parse(write.mock.calls[0][1])).toEqual([account]);
+});
+
+test("invalid UTF-8 never reaches an account write", async () => {
+  using invoke = spyOn(core, "invoke").mockResolvedValue({ "status": "invalidUtf8" });
+  await expect(Configs.updateAccounts(() => [account]))
+    .rejects.toThrow("Cannot decode accounts.json");
+  expect(invoke.mock.calls.map(([command]) => command)).toEqual(["read_accounts_file"]);
+  expect(store.accountStoreError.value).toBe(true);
+  await Configs.getAccounts({ "parsedFile": { "status": "loaded", "data": [] } });
+});
+
+test("whitespace recovery replays a conflicting mutation against committed accounts", async () => {
+  const pending = Promise.withResolvers<void>();
+  const resume = Promise.withResolvers<void>();
+  const second = { ...account, "profile": { ...account.profile, "uuid": "other" } };
+  let raw = " \n";
+
+  using read = spyOn(store, "readAccountText").mockImplementation(async () => raw);
+  using write = mockSaveAccounts().mockImplementation(async ({ contents, expectedPrevious }) => {
+    pending.resolve();
+    await resume.promise;
+    if (raw !== expectedPrevious) throw store.AccountConflict;
+    raw = contents;
+  });
+  const update = Configs.updateAccounts(current => [...current, account]);
+
+  await pending.promise;
+  raw = JSON.stringify([second]);
+  resume.resolve();
+  expect(await update).toEqual([second, account]);
+  expect(JSON.parse(raw)).toEqual([second, account]);
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(write).toHaveBeenCalledTimes(2);
 });

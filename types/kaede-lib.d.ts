@@ -785,6 +785,11 @@ declare const LaunchStatus: {
 		readonly Success: "client-success";
 	};
 	readonly Errors: {
+		readonly Stop: "stop-error";
+		readonly Native: "native-error";
+		readonly Artifact: "artifact-error";
+		readonly Repair: "repair-error";
+		readonly MissingAccount: "missing-account";
 		readonly UnhandledError: "errors-unhandled-error";
 		readonly IncompatiblePlatform: "errors-incompatible-platform";
 		readonly IncompatibleArch: "errors-incompatible-arch";
@@ -882,6 +887,11 @@ declare const _default$9: {
 			readonly Success: "client-success";
 		};
 		readonly Errors: {
+			readonly Stop: "stop-error";
+			readonly Native: "native-error";
+			readonly Artifact: "artifact-error";
+			readonly Repair: "repair-error";
+			readonly MissingAccount: "missing-account";
 			readonly UnhandledError: "errors-unhandled-error";
 			readonly IncompatiblePlatform: "errors-incompatible-platform";
 			readonly IncompatibleArch: "errors-incompatible-arch";
@@ -1110,6 +1120,7 @@ declare const _default$13: {
 	readonly readStoragePath: (path: string) => Promise<string>;
 	readonly writeToStoragePath: (path: string, value: string) => Promise<void>;
 };
+export type ParsedAccountFile = ParsedFile | { "status": "unreadable" };
 export type ParsedFile = {
 	"status": "loaded";
 	"data": unknown;
@@ -1268,7 +1279,7 @@ declare function getMain(properties?: Partial<{
 }>): Promise<ConfigType>;
 declare function getAccounts(properties?: Partial<{
 	"baseDirectory": string;
-	"parsedFile": ParsedFile;
+	"parsedFile": ParsedAccountFile;
 }>): Promise<Array<AccountType>>;
 declare function getDefaultConfig(): Promise<ConfigType>;
 declare function getSafeConfigFile(properties?: Partial<{
@@ -1593,7 +1604,7 @@ export type InitialStateType = {
 	};
 	"parsed": {
 		"config": ParsedFile;
-		"accounts": ParsedFile;
+		"accounts": ParsedAccountFile;
 		"instances": ParsedFile;
 		"translations": ParsedFile;
 	};

@@ -18,6 +18,8 @@
 
 import { Channel, invoke } from "@tauri-apps/api/core";
 
+import { retryCancellationOnProgress } from "@/lib/launcher/scopes/fetching/cancel-all.ts";
+import { launchAttempts } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { log } from "@/lib/logging/log.ts";
 import type {
   DownloadEntryType,
@@ -43,6 +45,11 @@ export async function concurrentlyDownload({
   "cancelId"  ?: string;
   "debug"     ?: boolean;
 }): Promise<DownloadReportType> {
+  const signal = launchAttempts.get(statuses)?.signal;
+
+  if (signal?.aborted) {
+    return { "cancelled": true, "success": 0, "failed": 0, "failures": [] };
+  }
   const logPrefix: string = `${label}:${__PRE_BUNDLED_FILENAME__}`;
 
   log.debug(logPrefix, `Removing duplicates for ${entries.length} objects`);
@@ -95,8 +102,13 @@ export async function concurrentlyDownload({
     previousFailed  = failed;
   };
 
+  const retryCancellation = retryCancellationOnProgress(signal, cancelId);
+  let active = true;
+
   // eslint-disable-next-line unicorn/prefer-add-event-listener
   onProgress.onmessage = (snapshot: DownloadSnapshotType): void => {
+    if (!active) return;
+    retryCancellation();
     const current = statuses.downloads.current;
 
     for (const path of previousPaths) {
@@ -127,6 +139,8 @@ export async function concurrentlyDownload({
     onProgress,
     cancelId,
     debug,
+  }).finally(() => {
+    active = false;
   });
 
   applySnapshotData(report.success, report.failed);

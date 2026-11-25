@@ -19,6 +19,7 @@
 import { Patches } from "@/constants/meta.ts";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
+import { setImportedModpack } from "@/lib/modrinth/import-archive.ts";
 import Modrinth from "@/lib/modrinth/index.ts";
 import { globalStates } from "@/states/global.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
@@ -39,12 +40,12 @@ export function applyManifest({
     return;
   }
 
-  globalStates.pages["add-instance"].importedModpack = {
+  setImportedModpack({
     "path"  : path,
     "name"  : manifest.name,
     // We will fill in this field properly later (possibly)
     "loader": "net.minecraft" satisfies ExtendedPatchUIDType,
-  };
+  });
 
   const patchVersions = Modrinth.resolvePatchVersions(manifest.dependencies);
   const currentInstance = Instances.extractSavedFromPages(
