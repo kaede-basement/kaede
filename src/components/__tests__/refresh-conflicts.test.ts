@@ -110,6 +110,51 @@ for (const status of ["failed", "refreshed"] as const) {
   });
 }
 
+test("launch preserves a skin edited during token refresh", async () => {
+  declareInstanceStates();
+  instanceStates.game = { "patchVersions": {} } as InstanceStateType;
+  const context = GlobalInternals.instanceContext;
+
+  using cleanup = new DisposableStack;
+  cleanup.defer(() => GlobalInternals.instanceContext = context);
+  mockIPC(() => []);
+  using watch = spyOn(Watchers, "watchProcesses").mockResolvedValue(() => {});
+  using view = await mountComponent("general/misc/ContextProviders", {}, app => {
+    app.provide(AuthOneTimeFetchContextKey, [original]);
+  });
+  const started = Promise.withResolvers<void>();
+  const reply = Promise.withResolvers<Awaited<ReturnType<typeof refresh.ensureFreshAccount>>>();
+  let stored = JSON.stringify([original]);
+
+  using fresh = spyOn(refresh, "ensureFreshAccount").mockImplementation(() => {
+    started.resolve();
+
+    return reply.promise;
+  });
+  using read = spyOn(store, "readAccountText").mockImplementation(async () => stored);
+  using write = mockSaveAccounts().mockImplementation(async ({ contents }) => {
+    stored = contents;
+  });
+  using handle = spyOn(Launcher, "handleLaunch").mockResolvedValue({
+    "success": false, "process": undefined, "reason": "cancelled",
+  });
+
+  const launch = GlobalInternals.instanceContext!.launchInstance("game");
+
+  await started.promise;
+  stored = JSON.stringify([skinEdit]);
+  reply.resolve({ "status": "refreshed", "account": winner });
+  await launch;
+
+  expect(JSON.parse(stored)).toEqual([{ ...skinEdit, "msa": winner.msa }]);
+  expect(handle.mock.calls[0][0].userPreferences.account?.token).toBe(winner.msa.token);
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(read).toHaveBeenCalledTimes(1);
+  expect(fresh).toHaveBeenCalledTimes(1);
+  expect(watch).toHaveBeenCalledTimes(1);
+  expect(view.root.textContent).toBe("");
+});
+
 for (const delay of ["Java detection", "auth confirmation"]) {
   test("launch takes credentials from the live record after " + delay, async () => {
     declareInstanceStates();

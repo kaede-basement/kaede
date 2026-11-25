@@ -37,13 +37,7 @@ import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.typ
 
 type Page = GlobalStatesType["pages"]["add-instance"];
 type Import = { "path": string; "install": (id: string) => Promise<void> };
-type PendingRegistration = {
-  "directory": string;
-  "path"     : string;
-  "identity" : string;
-  "id"       : string;
-};
-const awaitingMetadata = new WeakMap<Page, PendingRegistration>;
+const awaitingMetadata = new Map<string, string>;
 
 export class InstanceDraftError extends Error {}
 
@@ -107,10 +101,10 @@ async function saveDraft(instance: InstanceStateType, pack?: Import): Promise<st
   ]);
   const initialValues = draftValues();
   const directory = FileManager.getBaseDirectory();
-  const pending = awaitingMetadata.get(page);
-  let identity: string | undefined;
+  let registrationKey: string | undefined;
 
   if (pack) {
+    let identity: string | undefined;
     const expected = archive?.path === pack.path ? archive.sha256 : undefined;
 
     if (expected === undefined) {
@@ -125,11 +119,9 @@ async function saveDraft(instance: InstanceStateType, pack?: Import): Promise<st
         throw new InstanceDraftError(translate("import.reselect-archive"));
       }
     }
+    registrationKey = JSON.stringify([directory, identity]);
   }
-  const retryId = pending && pending.directory === directory && pending.path === pack?.path &&
-    pending.identity === identity
-    ? pending.id
-    : undefined;
+  const retryId = registrationKey && awaitingMetadata.get(registrationKey);
   const id = retryId ?? sanitizeFileOrFolderName(
     crypto.getRandomValues(new Uint8Array(16)).join("-") + " " + instance.name,
   );
@@ -138,16 +130,16 @@ async function saveDraft(instance: InstanceStateType, pack?: Import): Promise<st
     await pack.install(id);
   }
   if (!await registerInstance(id, instance)) {
-    if (pack && identity) {
-      awaitingMetadata.set(page, { directory, "path": pack.path, identity, id });
+    if (registrationKey) {
+      awaitingMetadata.set(registrationKey, id);
     }
     const key = pack ? "import.metadata-save-error" : "instance.metadata-save-error";
 
     throw new Error(translate(key));
   }
 
-  if (pending === awaitingMetadata.get(page)) {
-    awaitingMetadata.delete(page);
+  if (registrationKey && awaitingMetadata.get(registrationKey) === id) {
+    awaitingMetadata.delete(registrationKey);
   }
 
   if (globalStates.pages["add-instance"] === page && page.instance === draft &&

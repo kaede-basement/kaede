@@ -55,7 +55,7 @@ const displayedName = computed(() => (
 ));
 
 function clearSelection(): void {
-  beginImport();
+  beginImport().finish();
   status.value = { "kind": "idle" };
   if (imported.value) {
     Instances.resetPageStates();
@@ -64,7 +64,7 @@ function clearSelection(): void {
 }
 
 async function handleImport(): Promise<void> {
-  const current = beginImport();
+  const { current, finish } = beginImport();
 
   const loading = { "kind": "loading" } as const;
 
@@ -109,6 +109,7 @@ async function handleImport(): Promise<void> {
       status.value.message,
     );
   } finally {
+    finish();
     if (status.value === loading) {
       status.value = { "kind": "idle" };
     }

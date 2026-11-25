@@ -89,6 +89,7 @@ test("a fresh Microsoft account launches read-only from a damaged store", async 
     accountStoreError.value = originalError;
   });
   mockIPC(() => []);
+  cleanup.use(spyOn(Watchers, "watchProcesses").mockResolvedValue(() => {}));
   using save = mockSaveAccounts();
   const accounts = await Configs.getAccounts({
     "parsedFile": { "status": "loaded", "data": [valid, null] },

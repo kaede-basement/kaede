@@ -1,6 +1,5 @@
 import "@/extendable/global-object.ts";
 
-import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import * as fs from "@tauri-apps/plugin-fs";
 import * as http from "@tauri-apps/plugin-http";
@@ -13,8 +12,8 @@ import { installMrpack } from "@/lib/modrinth/install-mrpack.ts";
 import { globalStates } from "@/states/global.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
-import { manifest, releases } from "./modpack-fixtures.ts";
-import { mountComponent, pressEnter } from "./mount-component.ts";
+import { manifest, mountReleasePicker as mount, releases } from "./modpack-fixtures.ts";
+import { pressEnter } from "./mount-component.ts";
 import { useUiState } from "./ui-state.ts";
 import { checkViewportFocus, scrollViewport } from "./viewport-focus.ts";
 
@@ -31,10 +30,6 @@ afterEach(() => {
   files.dispose();
 });
 
-const mount = (): ReturnType<typeof mountComponent> => mountComponent(
-  "add-instance/modrinth/ModpackVersionSelector", {
-    "idRoot": "release", "projectId": "project", "projectIcon": null, "close": mock(),
-  }, app => app.use(VueQueryPlugin, { "queryClient": (new QueryClient) }));
 
 test("project releases window and select the last release", async () => {
   using versions = spyOn(Modrinth, "fetchVersion").mockResolvedValue(releases);
@@ -51,7 +46,7 @@ test("project releases window and select the last release", async () => {
   expect(viewport.querySelectorAll("button").length).toBeLessThan(16);
   viewport.querySelector<HTMLButtonElement>("#release-id-349")!.click();
   await Bun.sleep(0);
-  expect(fetch).toHaveBeenCalledWith(releases[349].files[0].url);
+  expect(fetch.mock.calls[0][0]).toBe(releases[349].files[0].url);
   expect(globalStates.pages["add-instance"].importedModpack?.path)
     .toMatch(/69642d333439-[0-9a-f]{32}\.mrpack$/);
   expect(write).toHaveBeenCalledTimes(1);

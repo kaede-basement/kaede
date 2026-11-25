@@ -8,10 +8,13 @@ import paths from "node:path";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import * as dialog from "@tauri-apps/plugin-dialog";
 import * as fs from "@tauri-apps/plugin-fs";
-import { expect, spyOn, test } from "bun:test";
+import { expect, mock, spyOn, test } from "bun:test";
 
 import { LaunchStatesContextKey } from "@/constants/application.ts";
+import { Patches } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
+import FileManager from "@/lib/file-manager";
+import { createFromDraft } from "@/lib/instances/create.ts";
 import Modrinth from "@/lib/modrinth";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
@@ -31,6 +34,8 @@ for (const contents of ["unchanged", "replaced", "restored after mismatch"]) {
     await using cleanup = new AsyncDisposableStack;
     cleanup.defer(() => rm(directory, { "recursive": true }));
     const path = paths.join(directory, "local.mrpack");
+
+    using base = spyOn(FileManager, "getBaseDirectory").mockReturnValue(directory);
 
     await writeFile(path, "first");
     mockIPC((cmd, arguments_) => {
@@ -112,5 +117,48 @@ for (const contents of ["unchanged", "replaced", "restored after mismatch"]) {
     expect(save).toHaveBeenCalledTimes(2);
     expect(open).toHaveBeenCalledTimes(contents === "restored after mismatch" ? 3 : 2);
     expect(peek).toHaveBeenCalledTimes(open.mock.calls.length);
+    expect(base).toHaveBeenCalled();
+  });
+}
+
+for (const different of ["archive contents", "base directory"]) {
+  test("A → B → A retains both pending installs with different " + different, async () => {
+    declareInstanceStates();
+    const page = globalStates.pages["add-instance"];
+    let digest: string;
+
+    mockIPC(command => (command === "hash_path" ? digest : undefined));
+    using base = spyOn(FileManager, "getBaseDirectory");
+    using save = spyOn(fs, "writeTextFile").mockRejectedValueOnce(new Error("disk full"))
+      .mockRejectedValueOnce(new Error("disk full"))
+      .mockResolvedValue();
+    const install = mock<(id: string) => Promise<void>>().mockResolvedValue();
+
+    function submit(name: "A" | "B", path = "selected.mrpack"): Promise<string> {
+      base.mockReturnValue(different === "base directory" ? "/test/" + name : "/test/shared");
+      const contents = different === "archive contents" ? name : "same pack";
+
+      digest = Bun.CryptoHasher.hash("sha256", contents, "hex");
+      page.instance = {
+        name, "patchVersions": { "net.minecraft": "1.21" },
+      } as NonNullable<typeof page.instance>;
+      page.importedModpack = { name, path, "sha256": digest, "loader": Patches.Minecraft };
+
+      return createFromDraft(page.instance, Patches.Minecraft, { path, install });
+    }
+
+    await expect(submit("A")).rejects.toThrow("save instance metadata");
+    await expect(submit("B")).rejects.toThrow("save instance metadata");
+    expect(install).toHaveBeenCalledTimes(2);
+    const [[idA], [idB]] = install.mock.calls;
+
+    expect(idA).not.toBe(idB);
+    expect(await submit("A", "renamed.mrpack")).toBe(idA);
+    expect(await submit("B")).toBe(idB);
+    expect(install).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenCalledTimes(4);
+    expect(Object.keys(instanceStates)).toEqual([idA, idB]);
+    expect(await submit("A")).not.toBe(idA);
+    expect(install).toHaveBeenCalledTimes(3);
   });
 }

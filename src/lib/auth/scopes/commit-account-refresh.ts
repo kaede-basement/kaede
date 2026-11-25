@@ -33,11 +33,17 @@ export async function commitAccountRefresh(
   const accounts = await updateAccounts(current => {
     if (!refreshed || signal?.aborted) return;
     const index = current.findIndex(entry => entry.profile.uuid === uuid);
+    const stored = current[index];
 
-    if (index === -1 || hashKey([current[index]]) !== key) return;
+    if (!stored || credentialsKey(stored) !== snapshot.credentials) return;
     const next = [...current];
 
-    next[index] = refreshed;
+    next[index] = hashKey([stored]) === key
+      ? { ...stored, ...refreshed }
+      : {
+        ...stored, "msa"    : refreshed.msa,
+        "profile": { ...stored.profile, "type": refreshed.profile.type },
+      };
 
     return next;
   });

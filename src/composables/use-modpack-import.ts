@@ -1,17 +1,37 @@
-import { onScopeDispose, ref } from "vue";
+import { onScopeDispose, shallowRef } from "vue";
 
-const generation = ref(0);
+const active = shallowRef<AbortController>();
 
-export function useModpackImport(): () => () => boolean {
-  let mounted = true;
+export function useModpackImport(): () => {
+  "current": () => boolean;
+  "signal" : AbortSignal;
+  "finish" : () => void;
+} {
+  let owned: AbortController | undefined;
+
+  function finish(request: AbortController): void {
+    if (owned === request) owned = undefined;
+    if (active.value === request) active.value = undefined;
+  }
 
   onScopeDispose(() => {
-    mounted = false;
+    if (owned) {
+      owned.abort();
+      finish(owned);
+    }
   });
 
   return () => {
-    const request = ++generation.value;
+    active.value?.abort();
+    const request = new AbortController;
 
-    return () => mounted && request === generation.value;
+    owned = request;
+    active.value = request;
+
+    return {
+      "current": () => active.value === request,
+      "signal" : request.signal,
+      "finish" : () => finish(request),
+    };
   };
 }

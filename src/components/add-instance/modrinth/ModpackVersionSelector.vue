@@ -77,7 +77,7 @@ async function handleClick(
   const document = button.ownerDocument;
   const wasFocused = document.activeElement === button;
   let written: string | undefined;
-  const current = beginImport();
+  const { current, signal, finish } = beginImport();
 
   active.value = current;
   importError.value = "";
@@ -87,7 +87,7 @@ async function handleClick(
     if (!url) {
       throw new Error(translate("import.no-url"));
     }
-    const response = await fetch(url);
+    const response = await fetch(url, { signal });
 
     if (!current() || !response.ok) {
       await discardResponseBody(response);
@@ -141,15 +141,14 @@ async function handleClick(
     }
   } finally {
     releaseArchive(written);
-    if (current()) {
-      active.value = undefined;
-      if (importError.value && wasFocused) {
-        await nextTick();
-        if (current() && document.activeElement === document.body) {
-          focusFirstVisible();
-        }
+    if (active.value === current) active.value = undefined;
+    if (current() && importError.value && wasFocused) {
+      await nextTick();
+      if (current() && document.activeElement === document.body) {
+        focusFirstVisible();
       }
     }
+    finish();
   }
 }
 

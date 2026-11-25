@@ -1,3 +1,8 @@
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
+import { mock } from "bun:test";
+
+import { mountComponent } from "./mount-component.ts";
+
 export const releases = Array.from({ "length": 350 }, (_, n) => ({
   "id"            : "id-" + n,
   "name"          : "Release " + n,
@@ -16,3 +21,8 @@ export const manifest = {
   "summary"      : null,
   "dependencies" : { "minecraft": "1.20" },
 };
+
+export const mountReleasePicker = (): ReturnType<typeof mountComponent> => mountComponent(
+  "add-instance/modrinth/ModpackVersionSelector", {
+    "idRoot": "release", "projectId": "project", "projectIcon": null, "close": mock(),
+  }, app => app.use(VueQueryPlugin, { "queryClient": (new QueryClient) }));
