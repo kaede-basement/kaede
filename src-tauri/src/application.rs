@@ -101,13 +101,11 @@ pub async fn get_initial_state(
         preloaded_state.portable,
     );
 
-    let initial_state = InitialState {
+    Ok(InitialState {
         basic: basic_state,
         parsed: parsed_configs,
         executable_hash,
-    };
-    app.state::<crate::mod_store::ModStore>().recover_once();
-    Ok(initial_state)
+    })
 }
 
 // If the 'latest.log' file exists and is not empty,

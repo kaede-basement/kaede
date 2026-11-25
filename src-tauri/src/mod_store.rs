@@ -81,6 +81,10 @@ impl ModStore {
 
     pub async fn lease(&self) -> Result<Arc<ObjectTree>, String> {
         self.recover_once();
+        self.active_tree().await
+    }
+
+    async fn active_tree(&self) -> Result<Arc<ObjectTree>, String> {
         let mut active = self.active.clone().lock_owned().await;
         if let Some(tree) = &*active {
             return Ok(tree.clone());
@@ -98,12 +102,18 @@ impl ModStore {
         .map_err(|e| e.to_string())
     }
 
-    pub(crate) fn recover_once(&self) -> Option<tokio::task::JoinHandle<()>> {
+    fn recover_once(&self) -> Option<tokio::task::JoinHandle<()>> {
+        if self.recovery.is_completed() {
+            return None;
+        }
+        // A clear already holding this lock owns retirement. Never queue recovery behind it.
+        let serial = self.clears.clone().try_lock_owned().ok()?;
         let mut task = None;
         self.recovery.call_once(|| {
-            let store = self.clone();
-            task = Some(tokio::spawn(async move {
-                if let Err(error) = store.recover().await {
+            let cache = self.cache.clone();
+            task = Some(tokio::task::spawn_blocking(move || {
+                let _serial = serial;
+                if let Err(error) = Self::recover(&cache) {
                     log::error!("Cannot retire interrupted mod cache tree: {error}");
                 }
             }));
@@ -111,30 +121,20 @@ impl ModStore {
         task
     }
 
-    async fn recover(&self) -> Result<(), String> {
-        let serial = self.clears.clone().lock_owned().await;
-        let cache = self.cache.clone();
-        tokio::task::spawn_blocking(move || -> io::Result<()> {
-            let _serial = serial;
-            match fs::symlink_metadata(&cache) {
-                Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
-                Err(e) => return Err(e),
-                Ok(meta) if !ordinary_directory(&meta) => {
-                    return Err(io::Error::other("Invalid cache directory"))
-                }
-                Ok(_) => (),
+    fn recover(cache: &Path) -> io::Result<()> {
+        match fs::symlink_metadata(cache) {
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(e),
+            Ok(meta) if !ordinary_directory(&meta) => {
+                return Err(io::Error::other("Invalid cache directory"))
             }
-            let active = selected_tree(&cache)?.unwrap_or(INITIAL);
-            remove_tree(&cache.join(other(active)))?;
-            Ok(())
-        })
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())
+            Ok(_) => (),
+        }
+        let active = selected_tree(cache)?.unwrap_or(INITIAL);
+        remove_tree(&cache.join(other(active)))
     }
 
     pub(crate) async fn clear(&self) -> Result<(), String> {
-        self.recover_once();
         // Once the selector changes, retirement must run even if the caller goes away.
         let store = self.clone();
         tokio::spawn(async move { store.retire_tree().await })
@@ -144,7 +144,7 @@ impl ModStore {
 
     async fn retire_tree(&self) -> Result<(), String> {
         let _serial = self.clears.lock().await;
-        let old = self.lease().await?;
+        let old = self.active_tree().await?;
         let name = other(old.root.file_name().unwrap().to_str().unwrap());
         let cache = self.cache.clone();
         let (next, durable) = tokio::task::spawn_blocking(move || -> io::Result<_> {
@@ -170,6 +170,9 @@ impl ModStore {
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())?;
+        // The selector was replaced. Even if the directory sync failed, only this
+        // clear may decide whether the old tree is safe to delete.
+        self.recovery.call_once(|| {});
         *self.active.lock().await = Some(next);
         let retired = old.retired.clone();
         let path = old.root.clone();
@@ -420,6 +423,24 @@ mod tests {
             assert!(!stale.join("obsolete").exists());
         }
     }
+    #[tokio::test]
+    async fn clear_owns_lazy_recovery_after_selector_replacement() {
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let serial = store.clears.lock().await;
+        let old = store.lease().await.unwrap();
+        assert!(!store.recovery.is_completed());
+        drop(serial);
+        drop(old);
+
+        let stale = store.cache.join(ALTERNATE);
+        fs::create_dir(&stale).unwrap();
+        fs::write(stale.join("obsolete"), b"stale").unwrap();
+        store.clear().await.unwrap();
+        assert!(!stale.exists());
+        assert!(store.recover_once().is_none());
+    }
+
     #[tokio::test]
     async fn reopening_store_finishes_interrupted_retirement() {
         let root = tempfile::tempdir().unwrap();

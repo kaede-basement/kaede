@@ -120,19 +120,11 @@ pub(crate) fn install_mrpack<R: tauri::Runtime>(
         .inner()
         .clone();
     let flags: State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
-    let (mut cancel, decision) =
-        flags.bind_install(&id, reservation, &webview.resources_table())?;
+    let (cancel, decision) = flags.bind_install(&id, reservation, &webview.resources_table())?;
     Ok(async move {
-        install(
-            archive,
-            target,
-            &store,
-            decision,
-            &mut cancel,
-            |ok, total| {
-                let _ = progress.send((ok, total));
-            },
-        )
+        install(archive, target, &store, decision, cancel, |ok, total| {
+            let _ = progress.send((ok, total));
+        })
         .await
     })
 }
@@ -147,23 +139,60 @@ fn peek(archive_path: &Path) -> Result<Option<MrpackManifest>, String> {
     read_manifest(&mut open_archive(archive_path)?)
 }
 
-async fn install(
+#[derive(Debug)]
+enum InstallError {
+    Operation(String),
+    Transfer(DownloadError),
+}
+
+impl From<String> for InstallError {
+    fn from(message: String) -> Self {
+        Self::Operation(message)
+    }
+}
+
+impl InstallError {
+    fn message(self, cancelled: bool) -> String {
+        match self {
+            // Mirror workers already selected their highest-priority diagnostic.
+            Self::Transfer(error) => error.install_message(),
+            Self::Operation(_) if cancelled => DownloadError::Cancelled.install_message(),
+            Self::Operation(message) => message,
+        }
+    }
+}
+
+pub(super) async fn install(
     archive_path: PathBuf,
     target: PathBuf,
     store: &ModStore,
     decision: InstallDecision,
-    cancel: &mut CancelSignal,
+    mut cancel: Registration,
     progress: impl Fn(usize, usize),
 ) -> Result<MrpackManifest, String> {
-    check_cancel(cancel)?;
-    let (archive, manifest) = tokio::task::spawn_blocking(move || {
-        let mut archive = open_archive(&archive_path)?;
-        let manifest = read_manifest(&mut archive)?.ok_or("Missing modrinth.index.json")?;
-        Ok::<_, String>((archive, manifest))
-    })
-    .await
-    .map_err(|e| e.to_string())??;
-    install_manifest(archive, manifest, target, store, decision, cancel, progress).await
+    let result = async {
+        check_cancel(&cancel)?;
+        let (archive, manifest) = tokio::task::spawn_blocking(move || {
+            let mut archive = open_archive(&archive_path)?;
+            let manifest = read_manifest(&mut archive)?.ok_or("Missing modrinth.index.json")?;
+            Ok::<_, String>((archive, manifest))
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+        install_manifest(
+            archive,
+            manifest,
+            target,
+            store,
+            decision,
+            &mut cancel,
+            progress,
+        )
+        .await
+    }
+    .await;
+    let cancelled = cancel.finish();
+    result.map_err(|error| error.message(cancelled))
 }
 
 async fn install_manifest(
@@ -174,7 +203,7 @@ async fn install_manifest(
     decision: InstallDecision,
     cancel: &mut CancelSignal,
     progress: impl Fn(usize, usize),
-) -> Result<MrpackManifest, String> {
+) -> Result<MrpackManifest, InstallError> {
     let mut blobs = Vec::with_capacity(manifest.files.len());
     progress(0, manifest.files.len());
     let lease = if manifest.files.is_empty() {
@@ -231,12 +260,12 @@ async fn install_manifest(
             }
         }
         if let Some(reason) = error {
-            return Err(reason.install_message());
+            return Err(InstallError::Transfer(reason));
         }
         Some(store)
     };
     let cancel = cancel.clone();
-    tokio::task::spawn_blocking(move || {
+    let published = tokio::task::spawn_blocking(move || {
         let _lease = lease;
         let parent = target.parent().ok_or("Missing instance parent")?;
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -265,7 +294,8 @@ async fn install_manifest(
         Ok(manifest)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())??;
+    Ok(published)
 }
 
 #[derive(Serialize, Debug, PartialEq)]
@@ -779,7 +809,10 @@ mod tests {
             },
         )
         .await;
-        assert!(matches!(result,Err(reason) if reason.contains("cancelled")));
+        assert_eq!(
+            result.err().unwrap().message(false),
+            "Installation cancelled"
+        );
         assert!(!failed.exists());
         let hash = file("one", "one").sha512;
         let blob = root
@@ -876,14 +909,14 @@ mod tests {
             }
             zip.finish().unwrap();
             let store = ModStore::new(root.path());
-            let (_send, mut cancel) = CancelSignal::channel();
+            let flags = CancelFlags::default();
             let target = root.path().join("instances/id");
             assert!(install(
                 pack,
                 target.clone(),
                 &store,
                 InstallDecision::default(),
-                &mut cancel,
+                flags.register("install"),
                 |_, _| {}
             )
             .await
@@ -966,7 +999,12 @@ mod tests {
             respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nxxxx").await;
             ready.0.notified().await;
             stop.send_replace(true);
-            assert!(install.await.err().unwrap().contains("Hash mismatch"));
+            assert!(install
+                .await
+                .err()
+                .unwrap()
+                .message(true)
+                .contains("Hash mismatch"));
         })
         .await
         .unwrap();
@@ -1112,7 +1150,7 @@ mod tests {
             })
             .await
             .unwrap();
-            assert!(result.err().unwrap().contains(diagnostic));
+            assert!(result.err().unwrap().message(true).contains(diagnostic));
             assert!(!target.exists());
             assert!(!blob.exists());
         }
@@ -1181,7 +1219,11 @@ mod tests {
         })
         .await
         .unwrap();
-        assert!(result.err().unwrap().contains("Hash mismatch"));
+        assert!(result
+            .err()
+            .unwrap()
+            .message(true)
+            .contains("Hash mismatch"));
         assert!(!target.exists());
     }
 
@@ -1247,7 +1289,11 @@ mod tests {
         })
         .await
         .unwrap();
-        assert!(result.err().unwrap().contains("Hash mismatch"));
+        assert!(result
+            .err()
+            .unwrap()
+            .message(true)
+            .contains("Hash mismatch"));
         assert!(!*cancel.borrow());
         assert!(!target.exists());
     }
@@ -1374,10 +1420,14 @@ mod tests {
                     let (socket, _) = accept_request(&listener).await;
                     respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nevil").await;
                 });
-                assert!(matches!(result,Err(e) if e.contains("Hash mismatch")));
+                assert!(
+                    matches!(result,Err(InstallError::Transfer(DownloadError::Integrity(e))) if e.contains("Hash mismatch"))
+                );
                 assert!(!path.exists());
             } else {
-                assert!(matches!(attempt.await,Err(e) if e.contains("Contradictory")));
+                assert!(
+                    matches!(attempt.await,Err(InstallError::Transfer(DownloadError::Integrity(e))) if e.contains("Contradictory"))
+                );
                 assert_eq!(std::fs::read(path).unwrap(), b"good");
             }
             assert!(!target.exists());

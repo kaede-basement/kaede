@@ -1458,6 +1458,55 @@ mod tests {
         assert_eq!(root.path().read_dir().unwrap().count(), 2);
     }
 
+    #[test]
+    fn cancellation_wins_when_pending_archive_open_fails() {
+        let root = tempfile::tempdir().unwrap();
+        let target = root.path().join("instance");
+        let archive = root.path().join("pack.zip");
+        let store = crate::mod_store::ModStore::new(root.path());
+        let flags = CancelFlags::default();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .max_blocking_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let (release, paused) = std::sync::mpsc::channel();
+        let blocker = runtime.spawn_blocking(move || {
+            paused
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+        });
+        flags
+            .reserve_install("install".into(), 1, scope(1), scope(10))
+            .unwrap();
+        let (registration, decision) = flags.start_install("install", Some(1), None).unwrap();
+        let mut work = Box::pin(crate::modrinth::install(
+            archive,
+            target.clone(),
+            &store,
+            decision,
+            registration,
+            |_, _| panic!("unexpected progress"),
+        ));
+        runtime.block_on(async {
+            assert!(futures_util::poll!(&mut work).is_pending());
+        });
+        // The archive open is queued on the occupied pool. Acknowledge cancellation
+        // on a separate runtime before allowing the open to return NotFound.
+        let cancel_runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        assert!(cancel_runtime.block_on(flags.cancel("install")).unwrap());
+        release.send(()).unwrap();
+        runtime.block_on(blocker).unwrap();
+        assert_eq!(
+            runtime.block_on(work).err().unwrap(),
+            "Installation cancelled"
+        );
+        assert!(!runtime.block_on(flags.cancel("install")).unwrap());
+        assert!(!target.exists());
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn cancellation_and_publication_have_one_winner() {
         let runtime = tokio::runtime::Handle::current();
