@@ -10,14 +10,14 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
-use std::sync::{Mutex, OnceLock, RwLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock, Weak};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use tauri::http::header::{CONTENT_TYPE, ORIGIN};
 use tauri::http::{HeaderMap, HeaderName, HeaderValue};
 use tauri::ipc::{CallbackFn, InvokeBody, InvokeResponse, InvokeResponseBody};
 use tauri::webview::InvokeRequest;
-use tauri::{AppHandle, Manager, Webview};
+use tauri::{AppHandle, Listener, Manager, Webview};
 
 /// Tauri's own limit for delivering a JSON response with eval rather than a fetch (ipc/channel.rs).
 const MAX_EVAL_JSON_BYTES: usize = 8192;
@@ -29,11 +29,12 @@ const MAX_EVAL_RAW_BYTES: usize = 1024;
 /// value, kind]` as JSON, delivered together by one eval that parses them with JSON.parse, which
 /// keeps a `__proto__` key an own property as `response.json()` does on the default transport.
 /// `kind`: 0 JSON, 1 bytes as numbers, 2 the number of a response in `LARGE`.
-static PENDING: Mutex<BTreeMap<String, Pending>> = Mutex::new(BTreeMap::new());
+static PENDING: Mutex<BTreeMap<tauri::EventId, Pending>> = Mutex::new(BTreeMap::new());
 
 #[derive(Default)]
 struct Pending {
     items: Vec<String>,
+    large: Vec<(u64, InvokeResponseBody)>,
     /// The webviews the responders were handed, kept for `deliver` to evaluate in and drop on the
     /// main thread: on Linux a `Webview` holds tao's non-atomic `Rc`, so cloning or dropping one
     /// on another thread races with the main thread.
@@ -56,15 +57,6 @@ impl Transport {
             return Ok(transport);
         }
         let invoke_key_header = HeaderValue::from_str(app.invoke_key()).map_err(|e| e.to_string())?;
-        // No page can leave a large response behind before the first batch.
-        let cleanup = tauri::plugin::Builder::<tauri::Wry>::new("ipc-batch-cleanup")
-            .on_page_load(|webview, load| {
-                if load.event() == tauri::webview::PageLoadEvent::Started {
-                    LARGE.write().unwrap().page_left(webview.label());
-                }
-            })
-            .build();
-        app.plugin(cleanup).map_err(|e| e.to_string())?;
         Ok(TRANSPORT.get_or_init(|| Self { app: app.clone(), invoke_key_header }))
     }
 }
@@ -72,71 +64,73 @@ impl Transport {
 /// Responses too large for eval, kept until the page asking for them takes them with
 /// `ipc_batch_take` over the custom protocol, so they reach it as a fetch response, as on the
 /// default transport.
-static LARGE: RwLock<LargeStore> = RwLock::new(LargeStore { responses: BTreeMap::new(), pages: BTreeMap::new() });
+static LARGE: RwLock<LargeStore> = RwLock::new(LargeStore { pages: BTreeMap::new() });
 static NEXT_LARGE: AtomicU64 = AtomicU64::new(0);
 
-struct LargeStore {
-    /// By number.
-    responses: BTreeMap<u64, Large>,
-    /// The page each live webview last sent a batch from: a response for any other page, or for a
-    /// webview whose window was destroyed, has no one left to take it.
-    pages: BTreeMap<String, Option<String>>,
+type Responses = Mutex<BTreeMap<u64, InvokeResponseBody>>;
+
+struct Page {
+    id: String,
+    listener: tauri::EventId,
+    responses: Weak<Responses>,
 }
 
-struct Large {
-    page: String,
-    label: String,
-    body: InvokeResponseBody,
+struct LargeStore {
+    pages: BTreeMap<String, Arc<Page>>,
 }
 
 impl LargeStore {
-    /// Records that the webview now holds `page`, dropping what its earlier pages left.
-    /// Returns true when this label needs a window destruction listener.
-    fn page_loaded(&mut self, label: &str, page: &str) -> bool {
-        if let Some(current) = self.pages.get_mut(label) {
-            if current.as_deref() == Some(page) {
-                return false;
-            }
-            if current.replace(page.to_owned()).is_some() {
-                self.responses.retain(|_, large| large.label != label);
-            }
-            false
-        } else {
-            self.pages.insert(label.to_owned(), Some(page.to_owned()));
-            true
-        }
+    fn current(&self, label: &str, page: &str) -> Option<&Arc<Page>> {
+        self.pages.get(label).filter(|entry| entry.id == page && entry.responses.strong_count() != 0)
     }
 
-    fn page_left(&mut self, label: &str) {
-        if let Some(current) = self.pages.get_mut(label) {
-            if current.take().is_some() {
-                self.responses.retain(|_, large| large.label != label);
-            }
-        }
+    fn prune_closed(&mut self) {
+        self.pages.retain(|_, page| page.responses.strong_count() != 0);
     }
 
-    fn take(&mut self, label: &str, page: &str, id: u64) -> Result<InvokeResponseBody, String> {
-        match self.responses.entry(id) {
-            std::collections::btree_map::Entry::Occupied(entry)
-                if entry.get().page == page && entry.get().label == label => Ok(entry.remove().body),
-            _ => Err(format!("ipc_batch_take: no response {id} for this page")),
-        }
+    fn take(&self, label: &str, page: &str, id: u64) -> Result<InvokeResponseBody, String> {
+        self.current(label, page)
+            .and_then(|entry| entry.responses.upgrade())
+            .and_then(|responses| responses.lock().unwrap().remove(&id))
+            .ok_or_else(|| format!("ipc_batch_take: no response {id} for this page"))
     }
+}
 
-    fn is_current(&self, label: &str, page: &str) -> bool {
-        self.pages.get(label).and_then(Option::as_deref) == Some(page)
+pub fn page_left(webview: &Webview) {
+    let old = LARGE.write().unwrap().pages.remove(webview.label());
+    if let Some(old) = old {
+        webview.unlisten(old.listener);
     }
+}
 
-    /// Keeps a response if its page is still the one its webview holds.
-    fn insert(&mut self, label: &str, page: &str, body: InvokeResponseBody) -> Option<u64> {
-        if !self.is_current(label, page) {
-            return None;
-        }
-        let id = NEXT_LARGE.fetch_add(1, Ordering::Relaxed);
-        let large = Large { page: page.to_owned(), label: label.to_owned(), body };
-        self.responses.insert(id, large);
-        Some(id)
+pub fn window_destroyed() {
+    LARGE.write().unwrap().prune_closed();
+}
+
+// Window::webviews reads the manager registry and clones handles, so call it on the main thread.
+fn is_registered(webview: &Webview) -> bool {
+    webview.window().webviews().iter().any(|live| live.label() == webview.label())
+}
+
+fn page_loaded(webview: &Webview, page: String) -> Result<Arc<Page>, String> {
+    if let Some(current) = LARGE.read().unwrap().current(webview.label(), &page) {
+        return Ok(current.clone());
     }
+    page_left(webview);
+    let responses = Arc::new(Responses::default());
+    let weak = Arc::downgrade(&responses);
+    // Tauri removes webview-scoped Rust listeners on both independent webview close
+    // and parent window destruction. The listener owns the bodies until then or navigation.
+    let listener = webview.listen("tauri://destroyed", move |_| { let _ = &responses; });
+    if !is_registered(webview) {
+        webview.unlisten(listener);
+        return Err("ipc_batch: webview closed before admission".into());
+    }
+    let mut store = LARGE.write().unwrap();
+    store.prune_closed();
+    let current = Arc::new(Page { id: page, listener, responses: weak });
+    store.pages.insert(webview.label().to_owned(), current.clone());
+    Ok(current)
 }
 
 thread_local! {
@@ -145,7 +139,7 @@ thread_local! {
     static DISPATCHING: Cell<bool> = const { Cell::new(false) };
     /// The pages, of any webview, that got their first pending response during that loop: it
     /// delivers to each of them when it ends.
-    static DEFERRED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    static DEFERRED: RefCell<Vec<Arc<Page>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Marks this thread as dispatching until dropped, on a panic too.
@@ -178,7 +172,7 @@ pub struct Call {
 }
 
 #[tauri::command]
-pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool, admission_error: u32) -> Result<u32, String> {
+pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool) -> Result<(), String> {
     let page_url = webview.url().map_err(|e| e.to_string())?;
     // The transport a call replaces decides the URL its ACL check sees: the custom protocol's is
     // the Origin header, Tauri's postMessage fallback's is the page's whole URL.
@@ -189,18 +183,7 @@ pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool
     };
     let app = webview.app_handle();
     let transport = Transport::initialize(app)?;
-    let label = webview.label();
-    let same_page = LARGE.read().unwrap().is_current(label, &page);
-    if !same_page && LARGE.write().unwrap().page_loaded(label, &page) {
-        let label = webview.label().to_owned();
-        webview.window().on_window_event(move |event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                let mut store = LARGE.write().unwrap();
-                store.pages.remove(&label);
-                store.responses.retain(|_, large| large.label != label);
-            }
-        });
-    }
+    let page = page_loaded(&webview, page)?;
     let dispatching = Dispatching::start();
     for call in calls {
         let error = call.error;
@@ -214,14 +197,14 @@ pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool
                     }),
                 );
             }
-            Err(e) => queue(webview.clone(), &page, error_item(error, &e)),
+            Err(e) => queue(webview.clone(), &page, error_item(error, &e), None),
         }
     }
     drop(dispatching);
     for page in DEFERRED.take() {
         deliver(&page);
     }
-    Ok(admission_error)
+    Ok(())
 }
 
 /// The Origin header the page's fetch would send, and the URL Tauri's custom protocol parses
@@ -290,7 +273,7 @@ fn request(
 /// Hands a large response to the page that `ipc_batch` delivered its number to.
 #[tauri::command]
 pub fn ipc_batch_take(webview: Webview, page: String, id: u64) -> Result<InvokeResponseBody, String> {
-    LARGE.write().unwrap().take(webview.label(), &page, id)
+    LARGE.read().unwrap().take(webview.label(), &page, id)
 }
 
 fn error_item(error: CallbackFn, message: &str) -> String {
@@ -299,7 +282,7 @@ fn error_item(error: CallbackFn, message: &str) -> String {
 
 /// `blocked`: the page's custom protocol failed, so it cannot take a large response with a fetch;
 /// every response then goes through eval.
-fn respond(webview: Webview, page: &str, response: InvokeResponse, callback: CallbackFn, error: CallbackFn, blocked: bool) {
+fn respond(webview: Webview, page: &Arc<Page>, response: InvokeResponse, callback: CallbackFn, error: CallbackFn, blocked: bool) {
     let item = match response {
         InvokeResponse::Ok(InvokeResponseBody::Json(json)) if blocked || json.len() < MAX_EVAL_JSON_BYTES => {
             format!("[{},{json},0]", callback.0)
@@ -308,37 +291,33 @@ fn respond(webview: Webview, page: &str, response: InvokeResponse, callback: Cal
             let numbers = serde_json::to_string(&bytes).expect("bytes serialize");
             format!("[{},{numbers},1]", callback.0)
         }
-        InvokeResponse::Ok(body) => match LARGE.write().unwrap().insert(webview.label(), page, body) {
-            // The page takes it with this call's own callbacks.
-            Some(id) => format!("[[{},{}],{id},2]", callback.0, error.0),
-            // The page that asked is gone, and so is the callback this would go to. A task the
-            // closed event loop rejects is dropped on this thread: it then leaks the webview.
-            None => {
-                let webview = std::mem::ManuallyDrop::new(webview);
-                on_main_thread(move || drop(std::mem::ManuallyDrop::into_inner(webview)));
-                return;
-            }
-        },
+        InvokeResponse::Ok(body) => {
+            let id = NEXT_LARGE.fetch_add(1, Ordering::Relaxed);
+            let item = format!("[[{},{}],{id},2]", callback.0, error.0);
+            queue(webview, page, item, Some((id, body)));
+            return;
+        }
         InvokeResponse::Err(e) => format!("[{},{},0]", error.0, e.0),
     };
-    queue(webview, page, item);
+    queue(webview, page, item, None);
 }
 
 /// Called on any thread, with the webview the responder was handed.
-fn queue(webview: Webview, page: &str, item: String) {
+fn queue(webview: Webview, page: &Arc<Page>, item: String, large: Option<(u64, InvokeResponseBody)>) {
     let first = {
         let mut pending = PENDING.lock().unwrap();
-        let entry = pending.entry(page.to_owned()).or_default();
+        let entry = pending.entry(page.listener).or_default();
         entry.items.push(item);
+        entry.large.extend(large);
         entry.webviews.push(webview);
         entry.items.len() == 1
     };
     if first && DISPATCHING.get() {
-        DEFERRED.with_borrow_mut(|deferred| deferred.push(page.to_owned()));
+        DEFERRED.with_borrow_mut(|deferred| deferred.push(page.clone()));
     } else if first {
         // Queued behind the work already on the main thread, so responses that complete
         // meanwhile share one eval.
-        let owned = page.to_owned();
+        let owned = page.clone();
         if !on_main_thread(move || deliver(&owned)) {
             discard(page);
         }
@@ -347,8 +326,8 @@ fn queue(webview: Webview, page: &str, item: String) {
 
 /// The event loop is gone, so nothing will deliver the page's responses: their text is freed, and
 /// the webviews leak rather than drop off the main thread.
-fn discard(page: &str) {
-    if let Some(Pending { webviews, .. }) = PENDING.lock().unwrap().remove(page) {
+fn discard(page: &Page) {
+    if let Some(Pending { webviews, .. }) = PENDING.lock().unwrap().remove(&page.listener) {
         std::mem::forget(webviews);
     }
 }
@@ -366,11 +345,23 @@ fn on_main_thread(task: impl FnOnce() + Send + 'static) -> bool {
 }
 
 /// Runs on the main thread.
-fn deliver(page: &str) {
-    let Some(Pending { items, webviews }) = PENDING.lock().unwrap().remove(page) else {
+fn deliver(page: &Page) {
+    let Some(Pending { items, large, webviews }) = PENDING.lock().unwrap().remove(&page.listener) else {
         return;
     };
-    let script = delivery_script(page, &items);
+    if !large.is_empty() {
+        let webview = &webviews[0];
+        let Some(responses) = page.responses.upgrade() else {
+            LARGE.write().unwrap().prune_closed();
+            return;
+        };
+        if !is_registered(webview) {
+            page_left(webview);
+            return;
+        }
+        responses.lock().unwrap().extend(large);
+    }
+    let script = delivery_script(&page.id, &items);
     if let Err(e) = webviews[0].eval(script) {
         log::error!("ipc_batch: cannot deliver {} responses: {e}", items.len());
     }
@@ -428,25 +419,32 @@ mod tests {
 
     #[test]
     fn large_tokens_are_scoped_to_the_live_page_and_consumed_once() {
-        let mut store = LargeStore { responses: BTreeMap::new(), pages: BTreeMap::new() };
-        let body = || InvokeResponseBody::Raw(vec![0, 255]);
-        assert!(store.page_loaded("main", "old"));
-        assert!(store.page_loaded("settings", "other"));
-        let old = store.insert("main", "old", body()).unwrap();
-        let other = store.insert("settings", "other", body()).unwrap();
-        assert!(!store.page_loaded("main", "old"));
-        assert!(store.responses.contains_key(&old));
-        assert!(!store.page_loaded("main", "new"));
-        assert!(!store.responses.contains_key(&old));
-        assert!(store.insert("main", "old", body()).is_none());
-        let new = store.insert("main", "new", body()).unwrap();
-        store.page_left("main");
-        assert!(!store.responses.contains_key(&new));
-        assert!(store.insert("main", "new", body()).is_none());
-        assert!(store.take("main", "other", other).is_err());
-        assert!(store.take("settings", "new", other).is_err());
-        assert!(matches!(store.take("settings", "other", other), Ok(InvokeResponseBody::Raw(b)) if b == [0, 255]));
-        assert!(store.take("settings", "other", other).is_err());
+        let mut store = LargeStore { pages: BTreeMap::new() };
+        let owner = Arc::new(Responses::default());
+        let page = |id: &str, responses: &Arc<Responses>| Arc::new(Page {
+            id: id.to_owned(), listener: 1, responses: Arc::downgrade(responses),
+        });
+        store.pages.insert("main".into(), page("old", &owner));
+        let responses = store.current("main", "old").unwrap().responses.upgrade().unwrap();
+        responses.lock().unwrap().insert(1, InvokeResponseBody::Raw(vec![0, 255]));
+        assert!(store.take("other", "old", 1).is_err());
+        assert!(store.take("main", "new", 1).is_err());
+        assert!(matches!(store.take("main", "old", 1), Ok(InvokeResponseBody::Raw(b)) if b == [0, 255]));
+        assert!(store.take("main", "old", 1).is_err());
+        responses.lock().unwrap().insert(3, InvokeResponseBody::Raw(vec![3]));
+        drop(responses);
+        let next = Arc::new(Responses::default());
+        store.pages.insert("main".into(), page("new", &next));
+        assert!(store.take("main", "old", 3).is_err());
+        assert!(store.take("main", "new", 3).is_err());
+        assert!(Arc::ptr_eq(&store.current("main", "new").unwrap().responses.upgrade().unwrap(), &next));
+        next.lock().unwrap().insert(2, InvokeResponseBody::Raw(vec![1]));
+        let late_responder = store.current("main", "new").unwrap().clone();
+        drop(next);
+        assert!(late_responder.responses.upgrade().is_none());
+        assert!(store.current("main", "new").is_none());
+        store.prune_closed();
+        assert!(store.pages.is_empty());
     }
 
     #[test]

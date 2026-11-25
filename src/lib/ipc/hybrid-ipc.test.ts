@@ -9,9 +9,8 @@ interface Batch {
   "callback": number;
   "error"   : number;
   "payload": {
-    "blocked"       : boolean;
-    "admissionError": number;
-    "calls"         : { "cmd": string; "payload": string; "bin": boolean }[];
+    "blocked": boolean;
+    "calls"  : { "cmd": string; "payload": string; "bin": boolean }[];
   };
 }
 
@@ -36,7 +35,10 @@ interface Transport {
   send(cmd: string, payload: unknown, callback: number): void;
 }
 
-function transport(fetcher?: (url: string, options: RequestInit) => Promise<Response>): Transport {
+function transport(
+  fetcher?: (url: string, options: RequestInit) => Promise<Response>,
+  onPost?: (batch: Batch) => void,
+): Transport {
   const posts: Batch[] = [];
   const results = (new Map<number, unknown>);
   const callbacks = (new Map<number, (value: unknown) => void>);
@@ -64,7 +66,12 @@ function transport(fetcher?: (url: string, options: RequestInit) => Promise<Resp
   const window = {
     "__TAURI_INTERNALS__": internals,
     "ipc"                : {
-      "postMessage": (text: string): number => posts.push(JSON.parse(text)),
+      postMessage(text: string): void {
+        const batch: Batch = JSON.parse(text);
+
+        onPost?.(batch);
+        posts.push(batch);
+      },
     },
     get "top"(): object {
       return this;
@@ -97,14 +104,14 @@ test("same-tick calls share admission and retain own __proto__ and Channel paylo
   expect(batch.payload.calls.map(call => call.cmd)).toEqual(["first", "second"]);
   expect(batch.payload.calls[0].payload).toBe(JSON.stringify(object));
   expect(JSON.parse(batch.payload.calls[1].payload)).toEqual({ "channel": "__CHANNEL__:9" });
-  ipc.installed.runCallback(batch.callback, batch.payload.admissionError);
+  ipc.installed.runCallback(batch.callback, null);
   expect(ipc.callbacks.has(batch.error)).toBe(false);
   ipc.installed.ipcBatchDeliver([[1, object, 0], [3, [0, 255], 1]]);
   expect(Object.keys(ipc.results.get(1) as object).includes("__proto__")).toBe(true);
   expect(new Uint8Array(ipc.results.get(3) as ArrayBuffer)).toEqual(new Uint8Array([0, 255]));
   ipc.send("third", {}, 5);
   await Promise.resolve();
-  expect(ipc.posts[1].callback).toBe(batch.callback);
+  expect(ipc.callbacks.has(batch.callback)).toBe(false);
   expect(ipc.posts[1].payload.calls[0]).not.toHaveProperty("payload");
 });
 
@@ -116,30 +123,53 @@ test("an outer admission error rejects every member of that batch", async () => 
   await Promise.resolve();
   ipc.installed.runCallback(ipc.posts[0].error, "denied");
   expect([...ipc.results]).toEqual([[2, "denied"], [4, "denied"]]);
-  expect(ipc.callbacks.has(ipc.posts[0].error)).toBe(false);
+  expect(ipc.callbacks.size).toBe(0);
+});
+
+test("a synchronous post failure rejects every member and releases all callbacks", async () => {
+  const failure = new Error("post failed");
+  const ipc = transport(undefined, () => {
+    throw failure;
+  });
+  const rejected: unknown[] = [];
+
+  for (const id of [1, 3]) {
+    ipc.callbacks.set(id, () => {
+      throw new Error("unexpected success");
+    });
+    ipc.callbacks.set(id + 1, error => {
+      rejected.push(error);
+      ipc.callbacks.delete(id);
+      ipc.callbacks.delete(id + 1);
+    });
+    ipc.send("call", {}, id);
+  }
+  await Promise.resolve();
+  expect(rejected).toEqual([failure, failure]);
+  expect(ipc.callbacks.size).toBe(0);
 });
 
 test("binary fetch flushes the queue and fences later calls", async () => {
-  const requests: string[] = [];
+  const events: string[] = [];
   const finish: ((r: Response) => void)[] = [];
   const ipc = transport(url => {
-    requests.push(url);
+    events.push("fetch " + new URL(url).pathname);
 
     return new Promise(resolve => finish.push(resolve));
-  });
+  }, batch => events.push("post " + batch.payload.calls.map(call => call.cmd).join(",")));
 
   ipc.send("first", {}, 1);
   ipc.send("binary", new Uint8Array([1]), 3);
   expect(ipc.posts[0].payload.calls.map(call => call.cmd)).toEqual(["first"]);
   ipc.send("fenced", {}, 5);
-  expect(requests.map(url => new URL(url).pathname)).toEqual(["/binary", "/fenced"]);
+  expect(events).toEqual(["post first", "fetch /binary", "fetch /fenced"]);
   const headers = { "Tauri-Response": "ok", "Content-Type": "text/plain" };
 
   finish[0](new Response("ok", { headers }));
   await Bun.sleep(0);
   ipc.send("still-fenced", {}, 7);
-  expect(requests.map(url => new URL(url).pathname))
-    .toEqual(["/binary", "/fenced", "/still-fenced"]);
+  expect(events)
+    .toEqual(["post first", "fetch /binary", "fetch /fenced", "fetch /still-fenced"]);
   finish[1](new Response("ok", { headers }));
   finish[2](new Response("ok", { headers }));
   await Bun.sleep(0);

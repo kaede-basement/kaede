@@ -164,27 +164,25 @@
     }
   }
 
-  let admitted
-
   function postBatch(items) {
     // Tauri parses the entire envelope before dispatch. Keep each payload opaque there:
     // an invalid surrogate or deeply nested value must only reject its own call.
     const calls = items.map(({ message: { cmd, callback, error }, headers, bin, payload }) => (
       { cmd, callback, error, headers, bin, payload: payload === '{}' ? undefined : payload }
     ))
-    // Rust echoes the batch's one-shot error callback id on admission. Every successful
-    // batch can therefore share this page's acknowledgement callback.
-    admitted ??= internals.transformCallback(internals.unregisterCallback)
+    const ok = internals.transformCallback(() => internals.unregisterCallback(failed), true)
     const failed = internals.transformCallback((e) => {
+      internals.unregisterCallback(ok)
       for (const { message } of items) internals.runCallback(message.error, e)
     }, true)
     try {
       window.ipc.postMessage(JSON.stringify({
-        cmd: BATCH_COMMAND, callback: admitted, error: failed, __TAURI_INVOKE_KEY__: invokeKey,
+        cmd: BATCH_COMMAND, callback: ok, error: failed, __TAURI_INVOKE_KEY__: invokeKey,
         options: { headers: {}, customProtocolIpcBlocked: customProtocolFailed },
-        payload: { page, blocked: customProtocolFailed, calls, admissionError: failed }
+        payload: { page, blocked: customProtocolFailed, calls }
       }))
     } catch (e) {
+      internals.unregisterCallback(ok)
       internals.unregisterCallback(failed)
       throw e
     }
