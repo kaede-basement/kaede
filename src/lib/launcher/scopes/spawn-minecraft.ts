@@ -66,6 +66,7 @@ export async function spawnMinecraft({
     `Spawning a Minecraft process with the '${directories.instance}' working directory`,
   );
 
+  let exited = false;
   let process: MinecraftProcessType;
 
   try {
@@ -78,12 +79,12 @@ export async function spawnMinecraft({
     }, {
       "onOutput": onInput,
       "onExit"  : payload => {
+        exited = true;
         onClose(instanceId);
-        log.warn(logPrefix, log.templates.json.contents(
-          "Successfully closed. Payload",
-          payload,
-          true,
-        ));
+        log.warn(
+          logPrefix,
+          `Minecraft exited (PID ${payload.pid}, code ${payload.code}, signal ${payload.signal})`,
+        );
         void Hooks.catchAsyncVoidHooks({
           "scope" : "onMinecraftKill",
           "toPass": payload.pid,
@@ -115,11 +116,19 @@ export async function spawnMinecraft({
     return { "success": false, "process": undefined };
   }
 
-  await Hooks.catchAsyncVoidHooks({
-    "scope" : "onMinecraftLaunch",
-    "toPass": { process, command, instanceId, necessaries },
-    "timing": "after",
-  });
+  if (!exited) {
+    await Hooks.catchAsyncVoidHooks({
+      "scope" : "onMinecraftLaunch",
+      "toPass": { process, command, instanceId, necessaries },
+      "timing": "after",
+    });
+  }
+
+  if (exited) {
+    statuses.current = LaunchStatus.Errors.UnhandledError;
+
+    return { "success": false, "process": undefined };
+  }
 
   log.info(logPrefix, `Successfully launched with the ${process.pid} PID`);
   statuses.current = LaunchStatus.General.Success;

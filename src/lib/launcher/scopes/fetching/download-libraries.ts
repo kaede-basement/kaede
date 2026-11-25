@@ -11,15 +11,21 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
-import { downloadMissing } from "./download-missing.ts";
+import { downloadEntries, findMissingEntries } from "./download-missing.ts";
 
 export async function downloadLibraries({
   necessaries,
   finalizedPatch,
+  signal,
 }: {
+  "signal"?       : AbortSignal;
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
+  if (signal?.aborted) {
+    return false;
+  }
+
   const beforeHooksResult: "continue" | boolean | undefined =
     await Hooks.catchAsyncResponseHooks<boolean>({
       "scope" : "onMinecraftLibrariesGet",
@@ -36,55 +42,57 @@ export async function downloadLibraries({
     .artifacts
     .filter(({ status }) => status !== "empty");
 
-  const report = await downloadMissing({
+  const missing = await findMissingEntries(artifacts, instance.checksum, signal);
+  const report = await downloadEntries({
     statuses,
     cancelId,
-    "entries"    : artifacts.filter(({ url }) => url !== ""),
-    "checksum"   : instance.checksum,
+    "entries"    : missing.filter(({ url }) => url !== ""),
     "concurrency": GeneralSettings.ConcurrentDownloads.Libraries,
     "label"      : "libraries",
-  });
+  }, signal);
 
-  if (report.failed > 0 || report.cancelled) {
+  if (report.failed > 0 || report.cancelled || signal?.aborted) {
     return false;
   }
 
-  const local = artifacts.filter(({ url }) => url === "");
+  const local = missing.filter(({ url }) => url === "");
 
   if (local.length > 0) {
     const algorithm = instance.checksum ? Algorithms.SHA1 : undefined;
-    const missing = new Set(await FileManager.verifyPaths({ "paths": local, algorithm }));
+    const source = artifacts.find(({ id }) => id === "optifine:OptiFine");
+    const bundled = source && await inspectOptiFineJar({
+      "jarPath": source.path,
+      "label"  : logPrefix,
+    });
+    const wrapper = local.find(({ id, file }) => {
+      return bundled && id === "net.minecraft:launchwrapper" && file === bundled.entryPath;
+    });
 
-    if (missing.size > 0) {
-      const source = artifacts.find(({ id }) => id === "optifine:OptiFine");
-      const bundled = source && await inspectOptiFineJar({
-        "jarPath": source.path,
-        "label"  : logPrefix,
-      });
-      const wrapper = local.find(({ id, file }) => {
-        return bundled && id === "net.minecraft:launchwrapper" && file === bundled.entryPath;
-      });
+    if (!source || !bundled || !wrapper || local.length !== 1) {
+      const paths = local.map(({ path }) => path).join(", ");
 
-      if (!source || !bundled || !wrapper || missing.size !== 1 || !missing.has(wrapper.path)) {
-        throw new Error("Unable to restore missing local libraries: " + [...missing].join(", "));
-      }
+      throw new Error(`Unable to restore missing local libraries: ${paths}`);
+    }
 
-      const restored = await extractLaunchWrapper({
-        "jarPath"           : source.path,
-        "librariesDirectory": necessaries.directories.libraries,
-        bundled,
-        "label"             : logPrefix,
-      });
+    if (signal?.aborted) {
+      return false;
+    }
 
-      if (restored !== wrapper.path) {
-        return false;
-      }
+    const restored = await extractLaunchWrapper({
+      "jarPath"           : source.path,
+      "librariesDirectory": necessaries.directories.libraries,
+      bundled,
+      "label"             : logPrefix,
+    });
 
-      const invalid = await FileManager.verifyPaths({ "paths": [wrapper], algorithm });
+    if (restored !== wrapper.path) {
+      return false;
+    }
 
-      if (invalid.length > 0) {
-        return false;
-      }
+    const invalid = await FileManager.verifyPaths({ "paths": [wrapper], algorithm });
+
+    if (invalid.length > 0) {
+      return false;
     }
   }
 

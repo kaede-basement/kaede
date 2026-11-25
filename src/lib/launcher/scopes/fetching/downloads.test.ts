@@ -14,6 +14,7 @@ import { downloadAssets } from "./download-assets.ts";
 import { downloadClient } from "./download-client.ts";
 import { downloadLibraries } from "./download-libraries.ts";
 import { downloadLogging } from "./download-logging.ts";
+import { settleDownloadStages } from "./settle-download-stages.ts";
 
 // Other tests may have already replaced a public library with a partial implementation.
 function override<T extends object, K extends keyof T>(target: T, key: K, value: T[K]): Disposable {
@@ -62,9 +63,14 @@ test("download stages fail on incomplete reports and skip warm downloads", async
       expect(await download({ necessaries, finalizedPatch })).toBe(false);
     }
     if (download === downloadAssets) {
-      expect(verify.mock.lastCall?.[0].paths[0]).toMatchObject({
-        "path": "assets/sh/sha1", "hash": "sha1",
-      });
+      const expected = {
+        "path"         : "assets/sh/sha1", "hash"         : "sha1", "shortHashPath": "assets/sh",
+        "url"          : "https://resources.download.minecraft.net/sh/sha1",
+      };
+
+      expect(verify.mock.lastCall?.[0].paths[0]).toEqual(expected);
+    } else {
+      expect(verify.mock.lastCall?.[0].paths[0]).toBe(artifact);
     }
     verify.mockResolvedValue([]);
     concurrentlyDownload.mockClear();
@@ -79,7 +85,9 @@ test("download stages fail on incomplete reports and skip warm downloads", async
 });
 
 test("cached OptiFine metadata restores the wrapper from the verified jar", async () => {
-  const source = { "id": "optifine:OptiFine", "url": "remote", "path": "optifine.jar" };
+  const source = {
+    "id": "optifine:OptiFine", "url": "remote", "path": "optifine.jar", "hash": "source-sha1",
+  };
   const wrapper = {
     "id"  : "net.minecraft:launchwrapper", "url" : "", "file": "launchwrapper-of-1.jar",
     "path": "libraries/net/minecraft/launchwrapper/of-1/launchwrapper-of-1.jar", "hash": "sha1",
@@ -89,7 +97,6 @@ test("cached OptiFine metadata restores the wrapper from the verified jar", asyn
   } as PreLaunchInformationType;
   const finalizedPatch = { "artifacts": [source, wrapper] } as unknown as FinalizedPatchType;
   const verify = mock<typeof FileManager.verifyPaths>()
-    .mockResolvedValueOnce([])
     .mockResolvedValueOnce([wrapper.path])
     .mockResolvedValueOnce([]);
 
@@ -103,8 +110,49 @@ test("cached OptiFine metadata restores the wrapper from the verified jar", asyn
   using extract = spyOn(extraction, "extractLaunchWrapper").mockResolvedValue(wrapper.path);
 
   expect(await downloadLibraries({ necessaries, finalizedPatch })).toBe(true);
+  expect(verify.mock.calls[0][0].paths).toEqual([source, wrapper]);
+  expect(verify.mock.calls[0][0].paths[1]).toBe(wrapper);
   expect(inspect.mock.calls[0][0].jarPath).toBe(source.path);
   expect(extract.mock.calls[0][0].bundled.entryPath).toBe(wrapper.file);
   expect(verify).toHaveBeenLastCalledWith({ "paths": [wrapper], "algorithm": "sha1" });
   expect(download).not.toHaveBeenCalled();
+});
+
+test("a failed sibling cancels a client still verifying its jar", async () => {
+  const artifact = { "path": "game.jar", "url": "remote", "hash": "sha1" };
+  const finalizedPatch = { "client": artifact } as FinalizedPatchType;
+  const necessaries = {
+    "statuses": {}, "instance": { "checksum": true },
+  } as PreLaunchInformationType;
+  let started!: () => void;
+  const verifying = new Promise<void>(resolve => {
+    started = resolve;
+  });
+  let publish!: (paths: Array<string>) => void;
+  const pending = new Promise<Array<string>>(resolve => {
+    publish = resolve;
+  });
+
+  using overrides = new DisposableStack;
+  overrides.use(override(FileManager, "verifyPaths", () => {
+    started();
+
+    return pending;
+  }));
+  using network = spyOn(Network, "concurrentlyDownload");
+  const cancel = async (): Promise<boolean> => {
+    publish([artifact.path]);
+
+    return true;
+  };
+
+  expect(await settleDownloadStages(cancel, [
+    (signal): Promise<boolean> => downloadClient({ signal, finalizedPatch, necessaries }),
+    async (): Promise<boolean> => {
+      await verifying;
+
+      return false;
+    },
+  ])).toBe(false);
+  expect(network).not.toHaveBeenCalled();
 });

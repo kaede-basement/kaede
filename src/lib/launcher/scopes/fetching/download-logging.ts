@@ -11,10 +11,16 @@ import { downloadMissing } from "./download-missing.ts";
 export async function downloadLogging({
   necessaries,
   finalizedPatch,
+  signal,
 }: {
+  "signal"?       : AbortSignal;
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
+  if (signal?.aborted) {
+    return false;
+  }
+
   const logPrefix = necessaries.logPrefix;
   const logging = finalizedPatch.logging;
 
@@ -43,6 +49,7 @@ export async function downloadLogging({
 
   statuses.current = LaunchStatus.Logging.Checking;
   const report = await downloadMissing({
+    signal,
     statuses,
     cancelId,
     "entries"    : [logging],

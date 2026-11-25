@@ -19,11 +19,13 @@
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
+import { log } from "@/lib/logging/log.ts";
 
 // Each new WebView starts a fresh JS realm, including a fresh counter.
 const labelPrefix = crypto.getRandomValues(new Uint32Array(4)).join("-");
 let sequence = 0;
 let pending = false;
+let survivingReplacement: WebviewWindow | undefined;
 
 export async function recreateWebView(): Promise<void> {
   if (pending) {
@@ -33,6 +35,11 @@ export async function recreateWebView(): Promise<void> {
   pending = true;
 
   try {
+    if (survivingReplacement) {
+      await survivingReplacement.destroy();
+      survivingReplacement = undefined;
+    }
+
     const current = getCurrentWebviewWindow();
     const id = `main-${labelPrefix}-${++sequence}`;
     const webview = new WebviewWindow(id, GlobalInternals.webViewRecreation);
@@ -44,7 +51,13 @@ export async function recreateWebView(): Promise<void> {
     try {
       await current.destroy();
     } catch (error) {
-      await webview.destroy();
+      survivingReplacement = webview;
+      try {
+        await webview.destroy();
+        survivingReplacement = undefined;
+      } catch (cleanupError) {
+        log.warn(__PRE_BUNDLED_FILENAME__, "Replacement cleanup failed:", String(cleanupError));
+      }
       throw error;
     }
   } finally {

@@ -11,10 +11,16 @@ import { downloadMissing } from "./download-missing.ts";
 export async function downloadClient({
   necessaries,
   finalizedPatch,
+  signal,
 }: {
+  "signal"?       : AbortSignal;
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
+  if (signal?.aborted) {
+    return false;
+  }
+
   const beforeHooksResult: "continue" | boolean | undefined =
     await Hooks.catchAsyncResponseHooks<boolean>({
       "scope" : "onMinecraftClientGet",
@@ -40,6 +46,7 @@ export async function downloadClient({
   );
   statuses.current = LaunchStatus.Client.Checking;
   const report = await downloadMissing({
+    signal,
     statuses,
     cancelId,
     "entries"    : [client],

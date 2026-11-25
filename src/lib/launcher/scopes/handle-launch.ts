@@ -187,11 +187,15 @@ export async function handleLaunch({
 
   const cancel = (): Promise<boolean> => Fetching.cancelAll(necessaries.cancelId);
   const downloaded = await settleDownloadStages(cancel, [
-    (): Promise<boolean> => Fetching.downloadAssets({ necessaries, finalizedPatch }),
-    (): Promise<boolean> => Fetching.downloadClient({ necessaries, finalizedPatch }),
-    (): Promise<boolean> => Fetching.downloadLogging({ necessaries, finalizedPatch }),
-    async (): Promise<boolean> => {
-      if (!await Fetching.downloadLibraries({ necessaries, finalizedPatch })) {
+    (signal): Promise<boolean> => Fetching.downloadAssets({ necessaries, finalizedPatch, signal }),
+    (signal): Promise<boolean> => Fetching.downloadClient({ necessaries, finalizedPatch, signal }),
+    (signal): Promise<boolean> => Fetching.downloadLogging({ necessaries, finalizedPatch, signal }),
+    async (signal): Promise<boolean> => {
+      if (!await Fetching.downloadLibraries({ necessaries, finalizedPatch, signal })) {
+        return false;
+      }
+
+      if (signal.aborted) {
         return false;
       }
 

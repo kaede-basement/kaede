@@ -66,7 +66,7 @@ export async function handleJsonFile({
     }
   } catch (error) {
     if (!(error instanceof SyntaxError) && await exists(filePath)) {
-      throw error;
+      return JSON.parse(await readTextFile(filePath));
     }
     log.debug(__PRE_BUNDLED_FILENAME__, `Could not read '${label}':`, Errors.prettify(error));
   }

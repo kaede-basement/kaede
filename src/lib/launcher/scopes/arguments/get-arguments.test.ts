@@ -27,12 +27,21 @@ test("removals apply after defaults, metadata and additions", async () => {
   using hooks = spyOn(Hooks, "catchAsyncResponseHooks").mockImplementation(async options => {
     if (options.scope === "onJVMArgumentsGet" && options.timing === "before") {
       captured = (options.toPass as { "jvmArguments": Array<string> }).jvmArguments;
+    } else if (options.scope === "onJVMArgumentsGet" && options.timing === "after") {
+      const { jvmArguments } = options.toPass as { "jvmArguments": Array<string> };
+
+      expect(jvmArguments).toBe(captured!);
+      expect(jvmArguments.length).toBeGreaterThan(0);
+      expect(jvmArguments).not.toContain("patch");
+      expect(jvmArguments).not.toContain("added");
+      jvmArguments.push("-Dafter=true");
     }
 
     return "continue";
   });
   const jvm = await getJvmArguments({ necessaries, finalizedPatch });
 
+  expect(jvm).toContain("-Dafter=true");
   expect(jvm).toBe(captured!);
   expect(hooks).toHaveBeenCalled();
   expect(jvm).not.toContain("patch");

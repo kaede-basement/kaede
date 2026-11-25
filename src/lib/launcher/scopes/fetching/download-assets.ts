@@ -38,10 +38,16 @@ import { downloadMissing } from "./download-missing.ts";
 export async function downloadAssets({
   necessaries,
   finalizedPatch,
+  signal,
 }: {
+  "signal"?       : AbortSignal;
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
+  if (signal?.aborted) {
+    return false;
+  }
+
   const { directories, statuses, instance, logPrefix, cancelId } = necessaries;
 
   log.debug(logPrefix, "Getting the assetIndex metadata");
@@ -133,9 +139,11 @@ export async function downloadAssets({
     .map(({ hash }) => {
       const shortHash = hash.slice(0, 2);
       const url = APIEndpoints.Resources.Base + shortHash + "/" + hash;
-      const filePath = FileManager.join(directories.assetObjects, shortHash, hash);
+      const shortHashPath = FileManager.join(directories.assetObjects, shortHash);
+      const filePath = FileManager.join(shortHashPath, hash);
 
       return {
+        shortHashPath,
         hash,
         url,
         "path": filePath,
@@ -143,6 +151,7 @@ export async function downloadAssets({
     });
 
   const report = await downloadMissing({
+    signal,
     statuses,
     cancelId,
     "entries"    : mappedAssetObjects,
