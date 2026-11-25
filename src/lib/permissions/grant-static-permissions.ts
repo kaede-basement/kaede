@@ -18,37 +18,37 @@
 
 import "ses";
 
-import { getGrantKey } from "@/lib/permissions/get-grant-key.ts";
 import { handlePermission } from "@/lib/permissions/handle-permission.ts";
+import { parsePermission } from "@/lib/permissions/parse-permission.ts";
+import { artifactGrantKey } from "@/lib/permissions/request-permissions.ts";
 import { globalStates } from "@/states/global.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 export function grantStaticPermissions({
   id,
   artifactSha256,
-  permissions,
+  permissions = [],
 }: {
   "id"            : string;
-  // Grants are stored per artifact, so a changed archive with the same ID does not inherit them
   "artifactSha256": string;
   "permissions"?  : Array<PermissionType>;
 }): Record<string, unknown> {
   const currentPermissions = globalStates.extensions.permissions;
   const scopedThis: Record<string, unknown> = {};
 
-  if (!permissions) {
-    return scopedThis;
-  }
-
-  const key: string = getGrantKey(artifactSha256);
-
-  if (currentPermissions?.[key] === undefined) {
-    currentPermissions[key] = {};
-  }
+  const key = artifactGrantKey(artifactSha256);
 
   for (const permission of permissions) {
+    if (!parsePermission(permission)) {
+      throw new TypeError("Invalid static permission");
+    }
     scopedThis[permission] = handlePermission(permission, id);
-    currentPermissions[key][permission] = true;
+  }
+  for (const permission of Object.keys(scopedThis)) {
+    currentPermissions[key] ??= {};
+    if (currentPermissions[key][permission] !== true) {
+      currentPermissions[key][permission] = true;
+    }
   }
 
   return harden(scopedThis);

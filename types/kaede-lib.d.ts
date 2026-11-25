@@ -919,7 +919,7 @@ declare const _default$9: {
 			readonly Libraries: 8;
 		};
 		readonly Logs: {
-			readonly OuterRegion: 280;
+			readonly OuterRegion: 208;
 			readonly LineLimit: 65536;
 		};
 	};
@@ -943,11 +943,6 @@ declare const _default$9: {
 		readonly ExpirationMargin: 300000;
 	};
 };
-export type PermissionsObjectType = typeof Permissions$1;
-export type PermissionsKeyType = keyof PermissionsObjectType;
-export type PermissionType = {
-	[Key in PermissionsKeyType]: PermissionsObjectType[Key][keyof PermissionsObjectType[Key]];
-}[PermissionsKeyType];
 declare const Permissions$1: {
 	readonly Time: {
 		readonly Performance: "time::performance";
@@ -957,10 +952,6 @@ declare const Permissions$1: {
 		readonly Basic: "ui::basic";
 		readonly Interactivity: "ui::interactivity";
 	};
-	readonly Events: {
-		readonly Page: "events::page";
-		readonly InstanceSelection: "events::instance-selection";
-	};
 	readonly Internet: {
 		readonly HTTPGet: "internet::http-get";
 		readonly HTTPPost: "internet::http-post";
@@ -968,15 +959,6 @@ declare const Permissions$1: {
 	readonly Log: {
 		readonly Write: "log::write";
 		readonly Read: "log::read";
-		readonly Stream: "log::stream";
-	};
-	readonly InternalStorage: {
-		readonly Read: "internal-storage::read";
-		readonly Write: "internal-storage::write";
-	};
-	readonly ExternalStorage: {
-		readonly Read: "external-storage::read";
-		readonly Write: "external-storage::write";
 	};
 };
 declare const _default$10: {
@@ -989,10 +971,6 @@ declare const _default$10: {
 			readonly Basic: "ui::basic";
 			readonly Interactivity: "ui::interactivity";
 		};
-		readonly Events: {
-			readonly Page: "events::page";
-			readonly InstanceSelection: "events::instance-selection";
-		};
 		readonly Internet: {
 			readonly HTTPGet: "internet::http-get";
 			readonly HTTPPost: "internet::http-post";
@@ -1000,19 +978,11 @@ declare const _default$10: {
 		readonly Log: {
 			readonly Write: "log::write";
 			readonly Read: "log::read";
-			readonly Stream: "log::stream";
-		};
-		readonly InternalStorage: {
-			readonly Read: "internal-storage::read";
-			readonly Write: "internal-storage::write";
-		};
-		readonly ExternalStorage: {
-			readonly Read: "external-storage::read";
-			readonly Write: "external-storage::write";
 		};
 	};
-	readonly PermissionsList: PermissionType[];
+	readonly PermissionsList: ("time::performance" | "time::date" | "ui::basic" | "ui::interactivity" | "internet::http-get" | "internet::http-post" | "log::write" | "log::read")[];
 	readonly getPermissionDisplayData: (id: string | undefined) => {
+		"permission": string;
 		"label": string;
 		"icon": string;
 		"description": string;
@@ -1325,9 +1295,17 @@ declare class ExtensionAPI {
 	constructor(id: string);
 	enable(): Promise<void>;
 	disable(): Promise<void>;
+	afterDisable(): Promise<void>;
 	subscribe(event: unknown, callback: (data: unknown) => Promise<unknown>): ExtensionAPI;
 	unsubscribe(event: unknown, callback: (data: unknown) => Promise<unknown>): ExtensionAPI;
 }
+export type PermissionsObjectType = typeof Permissions$1;
+export type PermissionsKeyType = keyof PermissionsObjectType;
+type PermissionName$1 = {
+	[Key in PermissionsKeyType]: PermissionsObjectType[Key][keyof PermissionsObjectType[Key]];
+}[PermissionsKeyType];
+export type InternetPermission = typeof Permissions$1.Internet[keyof typeof Permissions$1.Internet];
+export type PermissionType = Exclude<PermissionName$1, InternetPermission> | `${InternetPermission}::${"http" | "https"}://${string}`;
 export type MetadataType = {
 	"logo": string;
 	"name": string;
@@ -1345,47 +1323,43 @@ export type MetadataType = {
 export type ExtensionType = {
 	"id": string;
 	"code": string;
-	"sha256": string;
+	"artifactSha256": string;
+	"codeSha256": string;
 	"metadata": MetadataType;
 };
-export type SandboxedAPI = {
-	"enable": () => void | Promise<void>;
-	"disable": () => void | Promise<void>;
+export type Setting = {
+	"enabled": boolean;
 };
-declare const extensionStates: ShallowReactive<{
-	"valid": Array<ExtensionType>;
-	"invalid": Array<DeepPartial<ExtensionType>>;
-	"executed": Array<{
-		"extension": ExtensionType;
-		"api": ExtensionAPI | SandboxedAPI;
-	}>;
-}>;
-export type ExecutedListType = (typeof extensionStates)["executed"];
-declare function dirtyLifecycle(executedList: ExecutedListType, { id, sha256, metadata }: ExtensionType, enable: boolean): Promise<boolean>;
+export type ActivationResult = "policy-skipped" | void;
+declare function startExtensionSession(): () => void;
+declare function setExtensionEnabled(extension: ExtensionType, enabled: boolean | "restore", setting?: Setting): Promise<ActivationResult>;
 declare function readExtensions(): Promise<{
 	"valid": Array<ExtensionType>;
 	"invalid": Array<DeepPartial<ExtensionType>>;
 }>;
-declare function runInUnrestricted(id: string, code: string, metadata: ExtensionType["metadata"], sha256: string): Promise<ExtensionAPI | void>;
+declare function runInUnrestricted(id: string, code: string, metadata: ExtensionType["metadata"], artifactSha256: string): Promise<ExtensionAPI | void>;
 declare function onGlobalStateChange<Key extends keyof GlobalStatesType>(key: Key, value: unknown): void;
 declare function onInstanceStateChange<Key extends keyof InstanceStatesType>(key: Key, value: InstanceStatesType[Key]): void;
 declare function grantEventListeners({ id, }: {
 	"id": string;
 }): void;
 declare function lockdownEnvironment(): void;
-declare function runInSandbox({ id, code, permissions, }: {
+declare function runInSandbox({ id, artifactSha256, code, permissions, }: {
 	"id": string;
+	"artifactSha256": string;
 	"code": string;
 	"permissions"?: Array<PermissionType>;
 }): void | {
 	"enable": () => void | Promise<void>;
 	"disable": () => void | Promise<void>;
+	"afterDisable": () => void | Promise<void>;
 };
 declare function showWebviewWindow(): Promise<void>;
 declare function updateTrustedHashes(): Promise<void>;
 declare const _default$16: {
-	readonly requestPermissions: (permissions: Array<PermissionType | string> | unknown, extension: string) => Promise<Array<unknown>>;
-	readonly dirtyLifecycle: typeof dirtyLifecycle;
+	readonly requestPermissions: (input: unknown, id: string, artifactSha256: string) => Promise<Array<unknown>>;
+	readonly setExtensionEnabled: typeof setExtensionEnabled;
+	readonly startExtensionSession: typeof startExtensionSession;
 	readonly readExtensions: typeof readExtensions;
 	readonly runInUnrestricted: typeof runInUnrestricted;
 	readonly onGlobalStateChange: typeof onGlobalStateChange;
@@ -1396,7 +1370,6 @@ declare const _default$16: {
 	readonly showWebviewWindow: typeof showWebviewWindow;
 	readonly updateTrustedHashes: typeof updateTrustedHashes;
 };
-declare function getBaseDirectory(): string;
 declare function handleJsonFile({ baseDirectory, path, label, getDefaultValue, invalidation, }: {
 	"baseDirectory": string;
 	"path": Array<string>;
@@ -1407,7 +1380,35 @@ declare function handleJsonFile({ baseDirectory, path, label, getDefaultValue, i
 		"getNewValue": () => Promise<unknown>;
 	};
 }): Promise<unknown>;
+declare const Algorithms: {
+	readonly SHA256: "sha256";
+	readonly SHA1: "sha1";
+	readonly MD5: "md5";
+};
+export type HashAlgorithmType = (typeof Algorithms)[keyof typeof Algorithms];
+declare function hashPath(path: string, algorithm: HashAlgorithmType): Promise<string>;
+declare function hashPayload(payload: Uint8Array | string, algorithm: HashAlgorithmType): Promise<string>;
+declare function hashOfflineNickname(input: string): Promise<string>;
+declare const _default$17: {
+	readonly Algorithms: {
+		readonly SHA256: "sha256";
+		readonly SHA1: "sha1";
+		readonly MD5: "md5";
+	};
+	readonly hashPath: typeof hashPath;
+	readonly hashPayload: typeof hashPayload;
+	readonly hashOfflineNickname: typeof hashOfflineNickname;
+};
+declare function getBaseDirectory(): string;
 declare function join(...paths: Array<string>): string;
+declare function sanitizeFileOrFolderName(input: string): string;
+declare function verifyPaths({ paths, algorithm, }: {
+	"paths": Array<{
+		"path": string;
+		"hash": string;
+	}>;
+	"algorithm"?: HashAlgorithmType;
+}): Promise<Array<string>>;
 declare function unzip({ from, to, }: {
 	"from": Array<{
 		"path": string;
@@ -1415,19 +1416,13 @@ declare function unzip({ from, to, }: {
 	}>;
 	"to": string;
 }): Promise<boolean>;
-declare function verifyPaths({ paths, sha1, }: {
-	"paths": Array<{
-		"path": string;
-		"hash": string;
-	}>;
-	"sha1"?: boolean;
-}): Promise<Array<string>>;
-declare const _default$17: {
+declare const _default$18: {
 	readonly getBaseDirectory: typeof getBaseDirectory;
 	readonly handleJsonFile: typeof handleJsonFile;
 	readonly join: typeof join;
-	readonly unzip: typeof unzip;
+	readonly sanitizeFileOrFolderName: typeof sanitizeFileOrFolderName;
 	readonly verifyPaths: typeof verifyPaths;
+	readonly unzip: typeof unzip;
 };
 declare function capitalize(input: string): string;
 declare function checkDaysDifference(from: Date, to: Date): number;
@@ -1441,7 +1436,7 @@ declare function getRelativeDate({ days, hours, minutes, seconds, milliseconds, 
 	"milliseconds"?: number;
 	"from"?: Date;
 }): Date;
-declare const _default$18: {
+declare const _default$19: {
 	readonly capitalize: typeof capitalize;
 	readonly checkDaysDifference: typeof checkDaysDifference;
 	readonly isFontSourceUrl: typeof isFontSourceUrl;
@@ -1454,7 +1449,7 @@ declare function declareActionRegistry(): void;
 declare function declareGlobals(): void;
 export type ActionType<T> = (properties: T) => (void | false) | Promise<void | false>;
 export type GenericAction = ActionType<any>;
-declare const _default$19: {
+declare const _default$20: {
 	readonly declareActionRegistry: typeof declareActionRegistry;
 	readonly declareGlobals: typeof declareGlobals;
 	readonly Actions: import("vue").ShallowReactive<Record<string, GenericAction>>;
@@ -1494,16 +1489,6 @@ declare const _default$19: {
 	readonly registerComponent: typeof __registerComponent;
 	readonly restoreComponent: typeof __restoreComponent;
 	readonly getComponent: (id: string) => Component | undefined;
-};
-declare function hashFileContents(image: Uint8Array): Promise<string>;
-declare function hashOfflineNickname(input: string): Promise<string>;
-declare function hashString(input: string): number;
-declare function hashStringCrypto(input: string): Promise<string>;
-declare const _default$20: {
-	readonly hashFileContents: typeof hashFileContents;
-	readonly hashOfflineNickname: typeof hashOfflineNickname;
-	readonly hashString: typeof hashString;
-	readonly hashStringCrypto: typeof hashStringCrypto;
 };
 declare function catchAsyncResponseHooks<T>({ scope, toPass, timing, }: {
 	"scope": keyof KaedeNamespaceType["hooks"];
@@ -1554,15 +1539,13 @@ declare const _default$21: {
 	readonly catchSyncVoidHooks: typeof catchSyncVoidHooks;
 	readonly handleHookResponse: typeof handleHookResponse;
 };
-declare function finish({ config, baseDirectory, }: {
-	"config": ConfigType;
+declare function finish({ baseDirectory, }: {
 	"baseDirectory": string;
 }): Promise<void>;
 declare function recreateWebView(): Promise<void>;
 export type InitialStateType = {
 	"basic": {
 		"launcherVersion": string;
-		"executableHash": string;
 		"baseDirectory": string;
 		"launchCount": number;
 		"separator": string;
@@ -1574,6 +1557,7 @@ export type InitialStateType = {
 		"instances": ParsedFile;
 		"translations": ParsedFile;
 	};
+	"executableHash": string;
 };
 declare function start(): Promise<InitialStateType>;
 declare const _default$22: {
@@ -2212,11 +2196,12 @@ declare function concurrentlyDownload({ concurrency, entries, statuses, label, c
 declare const _default$26: {
 	readonly concurrentlyDownload: typeof concurrentlyDownload;
 };
-declare function grantStaticPermissions({ id, permissions, }: {
+declare function grantStaticPermissions({ id, artifactSha256, permissions, }: {
 	"id": string;
+	"artifactSha256": string;
 	"permissions"?: Array<PermissionType>;
 }): Record<string, unknown>;
-declare function handlePermission<Key extends PermissionType>(permission: Key, id: string): unknown;
+declare function handlePermission(raw: string, id: string): unknown;
 declare const _default$27: {
 	readonly grantStaticPermissions: typeof grantStaticPermissions;
 	readonly handlePermission: typeof handlePermission;
@@ -2453,7 +2438,6 @@ declare class Txiki {
 }
 declare function watchConfigSync(): () => void;
 declare function watchCustomFont(): () => void;
-declare function watchErrors(): () => void;
 declare function watchInstancesSync(): () => void;
 declare function watchProcesses(): Promise<() => void>;
 export type CleanupType<T extends GlobalStatesType[keyof GlobalStatesType]> = Partial<Record<keyof T, () => void>>;
@@ -2465,7 +2449,6 @@ declare function watchLogModeStates(logs: ShallowReactive<Record<string, {
 declare const _default$31: {
 	readonly watchConfigSync: typeof watchConfigSync;
 	readonly watchCustomFont: typeof watchCustomFont;
-	readonly watchErrors: typeof watchErrors;
 	readonly watchInstancesSync: typeof watchInstancesSync;
 	readonly watchProcesses: typeof watchProcesses;
 	readonly watchDevelopmentStates: typeof watchDevelopmentStates;
@@ -2502,6 +2485,7 @@ declare const _default$32: {
 			"api": ExtensionAPI | {
 				enable: () => void | Promise<void>;
 				disable: () => void | Promise<void>;
+				afterDisable: () => void | Promise<void>;
 			};
 		}>;
 	}>;
@@ -2853,7 +2837,6 @@ declare global {
 					"visible": boolean;
 					"resizable": boolean;
 				};
-				"requestPermissions": (permissions: Array<PermissionType | string> | unknown, extension: string) => Promise<Array<unknown>>;
 				"joinDelimiter": string;
 				"launcherVersion": string;
 				"executableHash": string;
@@ -3010,19 +2993,19 @@ declare global {
 				/**
 				 * Launcher file management related collection of utilities
 				 */
-				"FileManager": typeof _default$17;
+				"FileManager": typeof _default$18;
 				/**
 				 * Launcher general-purpose collection of utilities
 				 */
-				"General": typeof _default$18;
+				"General": typeof _default$19;
 				/**
 				 * Launcher 'window' object related collection of utilities
 				 */
-				"Globals": typeof _default$19;
+				"Globals": typeof _default$20;
 				/**
 				 * Hashing functions
 				 */
-				"Hashing": typeof _default$20;
+				"Hashing": typeof _default$17;
 				/**
 				 * Launcher hook system related collection of utilities
 				 */

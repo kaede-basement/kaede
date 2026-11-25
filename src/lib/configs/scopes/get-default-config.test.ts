@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
 
+import { DefaultInstanceIcon } from "@/constants/launcher.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
-import { DefaultInstanceIcon } from "../../../constants/launcher.ts";
 import { getDefaultConfig } from "./get-default-config.ts";
 
-const testName = "Default Config: No arguments";
+const testName = "Default Config";
 
 test(testName, async () => {
   const defaultConfig: ConfigType = {

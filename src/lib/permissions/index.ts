@@ -18,6 +18,23 @@
 
 import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
 import { handlePermission } from "@/lib/permissions/handle-permission.ts";
+import { hardenIfAvailable, permissionSession } from "@/lib/permissions/request-permissions.ts";
+
+export function bindPermissionRequest(id: string, artifactSha256: string) {
+  const service = permissionSession.value;
+
+  if (!service) {
+    throw new Error("Permission session closed");
+  }
+
+  return async (input: unknown): Promise<Array<unknown>> => {
+    const grants = await service.request(input, id, artifactSha256);
+
+    const results = grants.map(permission => permission && handlePermission(permission, id));
+
+    return hardenIfAvailable(results);
+  };
+}
 
 export default {
   grantStaticPermissions,

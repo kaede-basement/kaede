@@ -21,6 +21,10 @@ import "ses";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 
 import { log } from "@/lib/logging/log.ts";
+import {
+  fetchWithinScope, type Transport, validateContentType,
+} from "@/lib/permissions/internet-scope.ts";
+import { hardenIfAvailable } from "@/lib/permissions/request-permissions.ts";
 
 type RestrictedBlob = {
   "size"       : number;
@@ -42,28 +46,7 @@ type RestrictedResponse = {
   "url"        : string;
 };
 
-function guard(input: string | unknown, allowed: string): void {
-  if (typeof input !== "string") {
-    throw new TypeError("The input URL for the fetch should be a string");
-  }
-
-  const requestUrl = new URL(input);
-  const scopeUrl = new URL(allowed);
-
-  // Let the scope 'https://github.com/safeProfile' not allow 'https://github.com/safeProfileOhNotSoSafe'
-  const scopePath: string = scopeUrl.pathname.endsWith("/")
-    ? scopeUrl.pathname
-    : scopeUrl.pathname + "/";
-  const allowedOrigin: boolean = requestUrl.origin === scopeUrl.origin;
-  const allowedPath: boolean =
-    requestUrl.pathname === scopeUrl.pathname ||
-    requestUrl.pathname.startsWith(scopePath);
-
-  if (!allowedOrigin || !allowedPath) {
-    throw new Error(`This request (${requestUrl.href}) goes out of your allowed scope`);
-  }
-}
-function validateRequestData(body: unknown, contentType: unknown): void {
+function validateRequestBody(body: unknown): void {
   const isValidBody: boolean = (
     body === undefined ||
     typeof body === "string" ||
@@ -74,43 +57,16 @@ function validateRequestData(body: unknown, contentType: unknown): void {
   if (!isValidBody) {
     throw new TypeError("The request body must be a string");
   }
-
-  if (typeof contentType !== "string") {
-    throw new TypeError("The request 'Content-Type' header must be a string");
-  }
-
-  switch (contentType.toLowerCase()) {
-    // 'https://www.iana.org/assignments/media-types/media-types.xhtml'
-    case "text/plain":
-    case "image/gif":
-    case "image/jpeg":
-    case "image/png":
-    case "video/mpeg":
-    case "video/mp4":
-    case "video/webm":
-    case "application/json; charset=utf-8":
-    case "application/json;charset=utf-8":
-    case "application/json":
-    case "application/zip":
-    case "application/x-www-form-urlencoded":
-    case "application/ogg":
-    case "audio/mpeg": {
-      break;
-    }
-    default: {
-      throw new Error("The provided content type is not allowed");
-    }
-  }
 }
 
 function buildSafeBlob(blob: Blob): RestrictedBlob {
-  return harden({
+  return hardenIfAvailable({
     "size"       : blob.size,
     "type"       : blob.type,
     "arrayBuffer": async () => {
       const buffer: ArrayBuffer = await blob.arrayBuffer();
 
-      return harden(buffer.slice(0));
+      return hardenIfAvailable(buffer);
     },
     "text": async () => {
       const text: string = await blob.text();
@@ -123,11 +79,11 @@ function buildSafeBlob(blob: Blob): RestrictedBlob {
   });
 }
 function buildSafeResponse(response: Response): RestrictedResponse {
-  return harden({
+  return hardenIfAvailable({
     "json": async () => {
       const json = await response.json();
 
-      return harden(json);
+      return hardenIfAvailable(json);
     },
     "text": async () => {
       const text: string = await response.text();
@@ -137,7 +93,7 @@ function buildSafeResponse(response: Response): RestrictedResponse {
     "arrayBuffer": async () => {
       const buffer: ArrayBuffer = await response.arrayBuffer();
 
-      return harden(buffer.slice(0));
+      return hardenIfAvailable(buffer);
     },
     "blob": async (): Promise<RestrictedBlob> => {
       const blob: Blob = await response.blob();
@@ -153,118 +109,32 @@ function buildSafeResponse(response: Response): RestrictedResponse {
   });
 }
 
-function hook({ id, url, argument, method, label, body }: {
+export function handleInternetPermission({ id, scope, argument }: {
   "id"      : string;
-  "url"     : string | unknown;
-  "argument": string;
-  "method"  : "GET" | "POST";
-  "label"   : "Web" | "Tauri";
-  "body"   ?: Uint8Array | ArrayBuffer | string;
-}): void {
-  guard(url, argument);
-  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-    `The '${id}' plugin made a ${label} fetch call with the next params`,
-    { url, argument, method, body },
-  ));
-}
-
-/**
- * The main idea here is to allow only known things and reject unknown,
- * even if something that was unknown is safe.
- *
- * @param id - a string that represents the plugin ID
- * @param scope - literals that represent the scope of the permission ('base::scope::argument')
- * @param argument - a string that represents the allowed URL
- */
-export function handleInternetPermission({
-  id,
-  scope,
-  argument,
-}: {
-  "id"       : string;
-  "scope"    : "http-get" | "http-post";
-  "argument"?: string;
+  "scope"   : "http-get" | "http-post";
+  "argument": URL;
 }): unknown {
-  if (!argument) {
-    throw new Error("Internet permissions must include a URL scope");
-  }
+  const method = scope === "http-get" ? "GET" : "POST";
 
-  switch (scope) {
-    case "http-get": {
-      const method = "GET" as const;
+  const scopedFetch = (transport: Transport) => async (
+    url: string, body?: string | ArrayBuffer | Uint8Array<ArrayBuffer>, contentType = "text/plain",
+  ): Promise<RestrictedResponse> => {
+    const options: RequestInit = { method, "redirect": "manual" };
 
-      return harden({
-        "webFetch": async (url: string): Promise<RestrictedResponse> => {
-          hook({ id, url, argument, method, "label": "Web" });
-
-          const response: Response = await fetch(url, { method, "redirect": "manual" });
-
-          return buildSafeResponse(response);
-        },
-        "tauriFetch": async (url: string): Promise<RestrictedResponse> => {
-          hook({ id, url, argument, method, "label": "Tauri" });
-
-          const response: Response = await tauriFetch(url, { method, "redirect": "manual" });
-
-          return buildSafeResponse(response);
-        },
-      });
+    if (method === "POST") {
+      validateRequestBody(body);
+      options.body = body;
+      options.headers = { "Content-Type": validateContentType(contentType) };
     }
-    case "http-post": {
-      const method = "POST" as const;
+    log.debug(__PRE_BUNDLED_FILENAME__, `The '${id}' plugin made a ${method} request`);
 
-      return harden({
-        "webFetch": async (
-          url: string,
-          body: Uint8Array | ArrayBuffer | string | undefined,
-          contentType: string = "text/plain",
-        ): Promise<RestrictedResponse> => {
-          validateRequestData(body, contentType);
-          hook({ id, url, argument, method, "label": "Web", body });
+    return buildSafeResponse(await fetchWithinScope(transport, url, argument, options));
+  };
 
-          const response: Response = await fetch(url, {
-            method,
-
-            /*
-             * We are using '@ts-ignore' instead of '@ts-expect-error' since uhm there are no errors
-             */
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore 'dts-bundle-generator' throws an error even though there are no errors????
-            body,
-            "redirect": "manual",
-            "headers" : {
-              "Content-Type": contentType,
-            },
-          });
-
-          return buildSafeResponse(response);
-        },
-        "tauriFetch": async (
-          url: string,
-          body: Uint8Array | ArrayBuffer | string | undefined,
-          contentType: string = "text/plain",
-        ): Promise<RestrictedResponse> => {
-          validateRequestData(body, contentType);
-          hook({ id, url, argument, method, "label": "Tauri", body });
-
-          const response: Response = await tauriFetch(url, {
-            method,
-
-            /*
-             * We are using '@ts-ignore' instead of '@ts-expect-error' since uhm there are no errors
-             */
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore 'dts-bundle-generator' throws an error even though there are no errors????
-            body,
-            "redirect": "manual",
-            "headers" : {
-              "Content-Type": contentType,
-            },
-          });
-
-          return buildSafeResponse(response);
-        },
-      });
-    }
-  }
+  return hardenIfAvailable({
+    "webFetch"  : scopedFetch(fetch),
+    "tauriFetch": scopedFetch((url, options) => tauriFetch(url, {
+      ...options, "maxRedirections": 0,
+    })),
+  });
 }

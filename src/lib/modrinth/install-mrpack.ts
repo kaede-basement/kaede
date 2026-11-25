@@ -21,6 +21,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { GeneralSettings } from "@/constants/launcher.ts";
 import { MrpackDependencies } from "@/constants/modrinth.ts";
 import FileManager from "@/lib/file-manager";
+import { Algorithms } from "@/lib/hashing.ts";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import Network from "@/lib/network";
@@ -99,8 +100,8 @@ export async function installMrpack({
   const startTime: number = performance.now();
   const hashesToReDownload: Set<string> = new Set(
     await FileManager.verifyPaths({
-      "paths": entries,
-      "sha1" : sha1,
+      "paths"    : entries,
+      "algorithm": sha1 ? Algorithms.SHA1 : undefined,
     }),
   );
   const endTime: number = performance.now();

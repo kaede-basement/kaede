@@ -97,8 +97,12 @@
 
           const fallback = document.createElement("div");
 
+          // For when the CSS styles have failed to load too.
+          // If they didn't fail, then the text is additionally going to be centered
+          fallback.style.color = "white";
+          fallback.style.userSelect = "text";
           fallback.className =
-            "h-vh w-full flex select-text items-center justify-center whitespace-pre-wrap text-center text-white";
+            "h-vh w-full flex items-center justify-center whitespace-pre-wrap text-center";
           fallback.textContent = "A fatal error occurred that was caught at 'index.html:" +
             lineCount +
             "':" +
@@ -123,31 +127,31 @@
               .getCurrentWebviewWindow()
               .show()
               .then(() => {
-                log.info("index.html:126", "Successfully displayed the window on an error");
-                renderError(initialError, "127");
+                log.info("index.html:130", "Successfully displayed the window on an error");
+                renderError(initialError, "131");
               })
               .catch(error => {
                 initialized = false;
                 log.error(
-                  "index.html:132",
+                  "index.html:136",
                   "Failed to show the window: " +
                   log.stringify(error),
                 );
                 // Unsure in which case this text would be actually displayed,
                 // but let us render 'initialError' anyway
-                renderError(initialError, "138");
+                renderError(initialError, "142");
               });
             // Therefore, the only errors that this try-catch might catch must be related to the function accessing
           } catch (error) {
             initialized = false;
             log.error(
-              "index.html:137",
+              "index.html:148",
               "Failed to access the 'getCurrentWebviewWindow#show' function: " +
               log.stringify(error),
             );
             // Since the caught 'error' probably means we are in a non-Tauri environment,
             // we might render 'initialError' as well
-            renderError(initialError, "150");
+            renderError(initialError, "154");
           }
         };
       }
@@ -155,7 +159,7 @@
       const log = getLogger();
       const show = getWindowDisplay();
 
-      log.info("index.html:158", "WebView for Kaede has loaded >.<");
+      log.info("index.html:162", "WebView for Kaede has loaded >.<");
 
       // When using macOS 10.15 in VMWare while having Safari 15.6.1,
       // accessing 'WebGL2RenderingContext' throws a module evaluation error:
@@ -191,16 +195,16 @@
           toPass = "Most likely a fetch error to: " + event.target.src;
         }
 
-        log.error("index.html:194", "Uncaught error: " + log.stringify(toPass));
+        log.error("index.html:198", "Uncaught error: " + log.stringify(toPass));
         // Show the WebView Window if it wasn't shown before
         show(toPass);
       }, true);
       // 'PromiseRejectionEvent'
       window.addEventListener("unhandledrejection", (event) => {
-        log.error("index.html:200", "Unhandled rejection: " + log.stringify(event.reason));
+        log.error("index.html:204", "Unhandled rejection: " + log.stringify(event.reason));
       }, true);
 
-      log.info("index.html:203", "Starting 'main.ts' module evaluation");
+      log.info("index.html:207", "Starting 'main.ts' module evaluation");
     </script>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
