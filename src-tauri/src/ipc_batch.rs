@@ -41,6 +41,16 @@ struct Pending {
     webviews: Vec<Webview>,
 }
 
+impl Pending {
+    fn push_item(&mut self, page: &Page, item: String, large: Option<(u64, InvokeResponseBody)>) {
+        if large.is_some() && !page.is_open() {
+            return;
+        }
+        self.items.push(item);
+        self.large.extend(large);
+    }
+}
+
 /// Schedules deliveries from any thread without touching a `Webview` there; set on the main
 /// thread by the first `ipc_batch`.
 static TRANSPORT: OnceLock<Transport> = OnceLock::new();
@@ -72,10 +82,26 @@ type Responses = Mutex<Option<BTreeMap<u64, InvokeResponseBody>>>;
 struct Page {
     id: String,
     listener: tauri::EventId,
+    window_label: String,
     responses: Weak<Responses>,
 }
 
 impl Page {
+    fn is_open(&self) -> bool {
+        self.responses.upgrade().is_some_and(|responses| responses.lock().unwrap().is_some())
+    }
+
+    fn close(&self) {
+        if let Some(responses) = self.responses.upgrade() {
+            *responses.lock().unwrap() = None;
+        }
+        if let Some(pending) = PENDING.lock().unwrap().get_mut(&self.listener) {
+            pending.large.clear();
+            pending.items.clear();
+            // The scheduled delivery still owns the main-thread webview drops.
+        }
+    }
+
     fn publish(&self, large: Vec<(u64, InvokeResponseBody)>) -> bool {
         let Some(responses) = self.responses.upgrade() else { return false };
         let mut bucket = responses.lock().unwrap();
@@ -100,12 +126,18 @@ impl LargeStore {
 
     fn invalidate(&mut self, label: &str) -> Option<tauri::EventId> {
         let page = self.pages.remove(label)?;
-        // Unlisten may be deferred during event dispatch. Close the bucket under the
-        // publication lock so pending deliveries cannot repopulate it.
-        if let Some(responses) = page.responses.upgrade() {
-            *responses.lock().unwrap() = None;
-        }
+        page.close();
         Some(page.listener)
+    }
+
+    fn close_window(&mut self, window_label: &str) {
+        self.pages.retain(|_, page| {
+            if page.window_label == window_label {
+                page.close();
+                return false;
+            }
+            page.responses.strong_count() != 0
+        });
     }
 
     fn take(&self, label: &str, page: &str, id: u64) -> Result<InvokeResponseBody, String> {
@@ -123,8 +155,8 @@ pub fn page_left(webview: &Webview) {
     }
 }
 
-pub fn window_destroyed() {
-    LARGE.write().unwrap().prune_closed();
+pub fn window_destroyed(window_label: &str) {
+    LARGE.write().unwrap().close_window(window_label);
 }
 
 // Window::webviews reads the manager registry and clones handles, so call it on the main thread.
@@ -148,7 +180,12 @@ fn page_loaded(webview: &Webview, page: String) -> Result<Arc<Page>, String> {
     }
     let mut store = LARGE.write().unwrap();
     store.prune_closed();
-    let current = Arc::new(Page { id: page, listener, responses: weak });
+    let current = Arc::new(Page {
+        id: page,
+        listener,
+        window_label: webview.window_ref().label().to_owned(),
+        responses: weak,
+    });
     store.pages.insert(webview.label().to_owned(), current.clone());
     Ok(current)
 }
@@ -327,10 +364,9 @@ fn queue(webview: Webview, page: &Arc<Page>, item: String, large: Option<(u64, I
     let first = {
         let mut pending = PENDING.lock().unwrap();
         let entry = pending.entry(page.listener).or_default();
-        entry.items.push(item);
-        entry.large.extend(large);
+        entry.push_item(page, item, large);
         entry.webviews.push(webview);
-        entry.items.len() == 1
+        entry.webviews.len() == 1
     };
     if first && DISPATCHING.get() {
         DEFERRED.with_borrow_mut(|deferred| deferred.push(page.clone()));
@@ -369,6 +405,9 @@ fn deliver(page: &Page) {
     let Some(Pending { items, large, webviews }) = PENDING.lock().unwrap().remove(&page.listener) else {
         return;
     };
+    if items.is_empty() {
+        return;
+    }
     if !large.is_empty() {
         let webview = &webviews[0];
         if !is_registered(webview) {
@@ -445,7 +484,7 @@ mod tests {
         let mut store = LargeStore { pages: BTreeMap::new() };
         let owner = Arc::new(Responses::new(Some(BTreeMap::new())));
         let page = |id: &str, responses: &Arc<Responses>| Arc::new(Page {
-            id: id.to_owned(), listener: 1, responses: Arc::downgrade(responses),
+            id: id.to_owned(), listener: 1, window_label: "parent".into(), responses: Arc::downgrade(responses),
         });
         store.pages.insert("main".into(), page("old", &owner));
         let old = store.current("main", "old").unwrap().clone();
@@ -467,6 +506,25 @@ mod tests {
         assert!(store.take("main", "new", 3).is_err());
         let late_responder = store.current("main", "new").unwrap().clone();
         assert!(late_responder.publish(vec![(2, body())]));
+        let other = Arc::new(Responses::new(Some(BTreeMap::new())));
+        store.pages.insert("other".into(), Arc::new(Page {
+            window_label: "other-window".into(), id: "other-page".into(),
+            listener: 2, responses: Arc::downgrade(&other),
+        }));
+        let mut pending = Pending::default();
+        pending.push_item(&late_responder, "ready".into(), Some((5, body())));
+        assert_eq!(pending.large.len(), 1);
+        PENDING.lock().unwrap().insert(late_responder.listener, pending);
+        store.close_window("parent");
+        let cleared = PENDING.lock().unwrap().remove(&late_responder.listener).unwrap();
+        assert!(cleared.items.is_empty() && cleared.large.is_empty());
+        let mut late = Pending::default();
+        late.push_item(&late_responder, "late".into(), Some((6, body())));
+        assert!(late.items.is_empty() && late.large.is_empty());
+        assert!(!late_responder.is_open());
+        assert!(next.lock().unwrap().is_none());
+        assert!(store.current("other", "other-page").unwrap().is_open());
+        drop(other);
         drop(next);
         assert!(late_responder.responses.upgrade().is_none());
         assert!(store.current("main", "new").is_none());

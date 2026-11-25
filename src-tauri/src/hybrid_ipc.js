@@ -90,7 +90,7 @@
     window.ipc.postMessage(withPayload({ cmd, callback, error, options, __TAURI_INVOKE_KEY__: invokeKey }, payload))
   }
 
-  // Commands sent over fetch that have not settled. While there is one, later calls take fetch too,
+  // Commands sent over fetch that have not received headers. While there is one, later calls take fetch too,
   // so they reach Rust in the order they were made, as on Tauri's own transport: a batch sent
   // through postMessage would overtake them.
   // Map iteration follows submission order. An unresolved fetch has a null slot;
@@ -120,40 +120,42 @@
       headers: transportHeaders(message, raw)
     })
     if (ordered) orderedCalls.set(message, null)
-    request
-      .then((response) => {
-        const id = response.headers.get('Tauri-Response') === 'ok' ? callback : error
+    request.then(async (response) => {
+      if (ordered) {
+        orderedCalls.delete(message)
+        if (customProtocolFailed) flushFallback()
+      }
+      const id = response.headers.get('Tauri-Response') === 'ok' ? callback : error
+      let data
+      try {
         switch ((response.headers.get('content-type') || '').split(',')[0]) {
           case 'application/json':
-            return response.json().then((r) => [id, r])
+            data = await response.json()
+            break
           case 'text/plain':
-            return response.text().then((r) => [id, r])
+            data = await response.text()
+            break
           default:
-            return response.arrayBuffer().then((r) => [id, r])
+            data = await response.arrayBuffer()
         }
-      })
-      .then(
-        ([id, data]) => {
-          if (ordered) {
-            orderedCalls.delete(message)
-            if (customProtocolFailed) flushFallback()
-          }
-          internals.runCallback(id, data)
-        },
-        (e) => {
-          console.warn('IPC custom protocol failed, Tauri will now use the postMessage interface instead', e)
-          customProtocolFailed = true
-          try {
-            const item = prepare(message)
-            if (ordered) orderedCalls.set(message, item)
-            else sendOverPostMessage(item)
-          } catch (e2) {
-            orderedCalls.delete(message)
-            internals.runCallback(error, e2)
-          }
-          if (ordered) flushFallback()
-        }
-      )
+      } catch (e) {
+        internals.runCallback(error, e)
+        return
+      }
+      internals.runCallback(id, data)
+    }, (e) => {
+      console.warn('IPC custom protocol failed, Tauri will now use the postMessage interface instead', e)
+      customProtocolFailed = true
+      try {
+        const item = prepare(message)
+        if (ordered) orderedCalls.set(message, item)
+        else sendOverPostMessage(item)
+      } catch (e2) {
+        orderedCalls.delete(message)
+        internals.runCallback(error, e2)
+      }
+      if (ordered) flushFallback()
+    })
   }
 
   let queue = []

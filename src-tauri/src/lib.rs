@@ -48,9 +48,9 @@ pub fn run() {
                 ipc_batch::page_left(webview);
             }
         })
-        .on_window_event(|_, event| {
+        .on_window_event(|window, event| {
             if matches!(event, tauri::WindowEvent::Destroyed) {
-                ipc_batch::window_destroyed();
+                ipc_batch::window_destroyed(window.label());
             }
         });
 

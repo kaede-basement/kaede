@@ -221,3 +221,43 @@ test.each(["resolve", "reject"])("fallback waits for the earlier fetch to %s", a
     .toEqual(outcome === "resolve" ? ["second", "third"] : ["first", "second", "third"]);
   expect(requests).toHaveLength(2);
 });
+
+test("fallback can send cancellation while an admitted response body is pending", async () => {
+  const requests: { "resolve": (value: Response) => void; "reject": (error: Error) => void }[] = [];
+  const ipc = transport(() => new Promise((resolve, reject) => requests.push({ resolve, reject })));
+  const stream = (new TransformStream<Uint8Array, Uint8Array>);
+  const headers = { "Tauri-Response": "ok" };
+
+  ipc.send("download", new Uint8Array([1]), 1);
+  ipc.send("other", {}, 3);
+  requests[1].reject(new Error("blocked"));
+  await Bun.sleep(0);
+  ipc.send("cancel", {}, 5);
+  requests[0].resolve(new Response(stream.readable, { headers }));
+  await Bun.sleep(0);
+  expect(ipc.posts.flatMap(batch => batch.payload.calls.map(call => call.cmd)))
+    .toEqual(["other", "cancel"]);
+  expect(ipc.results.has(1)).toBe(false);
+  await stream.writable.close();
+  await Bun.sleep(0);
+  expect(ipc.results.has(1)).toBe(true);
+});
+
+test("a response body decoding failure rejects once and keeps the protocol available", async () => {
+  let fetches = 0;
+  const ipc = transport(async () => {
+    fetches++;
+    const headers = { "Tauri-Response": "ok", "Content-Type": "application/json" };
+
+    return new Response(fetches === 1 ? "{" : "42", { headers });
+  });
+
+  ipc.send("write", new Uint8Array([1]), 1);
+  await Bun.sleep(0);
+  expect(ipc.results.get(2)).toBeInstanceOf(SyntaxError);
+  ipc.send("read", new Uint8Array([2]), 3);
+  await Bun.sleep(0);
+  expect(ipc.results.get(3)).toBe(42);
+  expect(fetches).toBe(2);
+  expect(ipc.posts).toHaveLength(0);
+});
