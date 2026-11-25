@@ -30,3 +30,29 @@ test("abort rejects cached SES capability delivery while another prompt stays op
     permissionSession.value = previous;
   }
 });
+
+test("disposing the originating service rejects a cached delivery without a signal", async () => {
+  const hash = "b".repeat(64);
+  const previous = permissionSession.value;
+  const service = new PermissionService({ [`artifact/${hash}`]: { "time::date": true } });
+  const prompt = Promise.allSettled([service.request(["log::read"], "first", "a".repeat(64))]);
+
+  try {
+    await Bun.sleep(0);
+    expect(service.prompt.value?.extension).toBe("first");
+    permissionSession.value = service;
+    const request = bindPermissionRequest("second", hash);
+    const delivery = request(["time::date"]);
+
+    permissionSession.value = new PermissionService({});
+    queueMicrotask(() => service.dispose());
+    await expect(delivery).rejects.toThrow("Permission session closed");
+    const [unrelated] = await prompt;
+
+    expect(unrelated.status).toBe("rejected");
+  } finally {
+    service.dispose();
+    await prompt;
+    permissionSession.value = previous;
+  }
+});

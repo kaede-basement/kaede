@@ -4,7 +4,9 @@ import { createSafeDocument } from "ark-of-atrahasis";
 
 import { abandonedFetchContract, fetchContract } from "./fetch-contract.ts";
 import { formEventContract } from "./form-events.ts";
-import { artifact, type Hooks, launcherContract, runSandbox, sandbox } from "./launcher.ts";
+import {
+  artifact, type Hooks, launcherContract, runSandbox, sandbox, workerPermissionDelivery,
+} from "./launcher.ts";
 import { lifecycleContract } from "./lifecycle-contract.ts";
 import { rootContract } from "./root-contract.ts";
 
@@ -277,6 +279,7 @@ async function contract(): Promise<boolean> {
 }
 
 Object.assign(window, {
+  workerPermissionDelivery,
   abandonedFetchContract,
   fetchContract, rootContract, formEventContract, measure, contract, launcherContract,
   lifecycleContract,

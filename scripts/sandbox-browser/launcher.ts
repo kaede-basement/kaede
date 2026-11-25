@@ -68,6 +68,34 @@ export async function runSandbox(mode: string, extension: ExtensionType): Promis
   return { ...hooks, "dispose": () => lifetime.abort() };
 }
 
+export async function workerPermissionDelivery(): Promise<void> {
+  const extension = await artifact("({ enable: () => requestPermissions(['time::date']) })", []);
+  const origin = new PermissionService({
+    [`artifact/${extension.artifactSha256}`]: {
+      get "time::date"(): boolean {
+        // Close after the handler receives its cached decision, before the Worker reply.
+        queueMicrotask(() => queueMicrotask(() => origin.dispose()));
+
+        return true;
+      },
+    },
+  });
+
+  permissionSession.value = origin;
+  const lifetime = new AbortController;
+
+  try {
+    const hooks = await runInWorker(extension, lifetime);
+
+    permissionSession.value = service;
+    await hooks.enable();
+  } finally {
+    lifetime.abort();
+    origin.dispose();
+    permissionSession.value = service;
+  }
+}
+
 function visible(): boolean {
   const frame = document.querySelector("iframe");
 

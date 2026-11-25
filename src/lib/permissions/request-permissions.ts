@@ -44,6 +44,11 @@ export class PermissionService {
 
   constructor(private store: GrantStore, private now: () => number = () => performance.now()) {}
 
+  assertOpen(signal?: AbortSignal): void {
+    throwIfAborted(signal);
+    if (this.disposed) throw new Error("Permission session closed");
+  }
+
   async request(
     input: unknown, extension: string, artifactSha256: string, signal?: AbortSignal,
   ): Promise<Array<string | false>> {
@@ -68,10 +73,7 @@ export class PermissionService {
     }
     // Sandbox teardown can abort or revoke a request in the turn that submitted it.
     await Promise.resolve();
-    throwIfAborted(signal);
-    if (this.disposed) {
-      throw new Error("Permission session closed");
-    }
+    this.assertOpen(signal);
     const cached: Array<string | false> = [];
 
     for (const permission of batch) {
@@ -94,10 +96,7 @@ export class PermissionService {
 
     signal?.addEventListener("abort", abort, { "once": true });
     const result = this.queue.then(async () => {
-      throwIfAborted(signal);
-      if (this.disposed) {
-        throw new Error("Permission session closed");
-      }
+      this.assertOpen(signal);
       const granted: Array<string | false> = [];
 
       for (const permission of batch) {
@@ -119,10 +118,7 @@ export class PermissionService {
             };
           });
           abortPrompt = undefined;
-          throwIfAborted(signal);
-          if (this.disposed) {
-            throw new Error("Permission session closed");
-          }
+          this.assertOpen(signal);
           this.store[key] ??= {};
           this.store[key][permission] = allowed;
         }

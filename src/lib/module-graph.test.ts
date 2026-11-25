@@ -2,8 +2,9 @@ import { mkdirSync, mkdtempDisposableSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import vue from "@vitejs/plugin-vue";
 import { expect, test } from "bun:test";
-import { build, normalizePath } from "vite";
+import { build, type InlineConfig, mergeConfig, normalizePath } from "vite";
 
 function cycles(graph: Map<string, Array<string>>): Array<Array<string>> {
   const indices = (new Map<string, number>);
@@ -46,51 +47,76 @@ function cycles(graph: Map<string, Array<string>>): Array<Array<string>> {
   return found;
 }
 
-async function buildGraph(root: string): Promise<Map<string, Array<string>>> {
+async function buildGraph(
+  root: string, config: InlineConfig = {},
+): Promise<Map<string, Array<string>>> {
   const source = path.join(root, "src");
-  const files = (new Map<string, string>);
+  const entries: Array<string> = [];
 
-  for (const file of new Bun.Glob("**/*.{ts,tsx,js,jsx,vue}").scanSync(source)) {
+  for (const file of new Bun.Glob("**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,vue}").scanSync(source)) {
     const relative = normalizePath(file);
 
-    if ((/\.(?:test|bench|d)\.[jt]sx?$/u).test(relative) || relative.startsWith("__mocks__/")) {
+    const excluded = (/\.(?:test|bench|d)\.[cm]?[jt]sx?$/u).test(relative);
+
+    if (excluded || relative.startsWith("__mocks__/")) {
       continue;
     }
-    files.set(normalizePath(path.resolve(source, file)), relative);
+    entries.push(relative);
   }
   const graph = (new Map<string, Array<string>>);
 
-  await build({
+  await build(mergeConfig(config, {
     root,
     "logLevel": "error",
     "build"   : {
       "write"               : false,
       "minify"              : false,
       "reportCompressedSize": false,
-      "rolldownOptions"     : { "input": [...files.keys()] },
+      "rolldownOptions"     : { "input": entries.map(file => path.resolve(source, file)) },
     },
     "plugins": [{
       "name": "collect-source-imports",
       buildEnd(error): void {
         if (error) return;
+        const owners = (new Map<string, string>);
+        const prefix = normalizePath(path.resolve(root)) + "/";
+
         for (const id of this.getModuleIds()) {
-          const file = files.get(normalizePath(id));
+          const normalized = normalizePath(id);
 
-          if (file === undefined) continue;
-          const { importedIds } = this.getModuleInfo(id)!;
+          if (!normalized.startsWith(prefix) || normalized.includes("/node_modules/")) continue;
+          const relative = path.posix.relative(normalizePath(source), normalized);
+          const query = relative.indexOf("?");
+          const owner = query !== -1 && relative.slice(0, query).endsWith(".vue") &&
+            new URLSearchParams(relative.slice(query + 1)).has("vue")
+            ? relative.slice(0, query)
+            : relative;
 
-          graph.set(file, importedIds.flatMap(target => files.get(normalizePath(target)) ?? []));
+          owners.set(id, owner);
+          if (!graph.has(owner)) graph.set(owner, []);
+        }
+        for (const [id, owner] of owners) {
+          const edges = graph.get(owner)!;
+
+          for (const target of this.getModuleInfo(id)!.importedIds) {
+            const dependency = owners.get(target);
+
+            if (dependency === undefined) continue;
+            // Vue imports its own compiled blocks. An import back to the bare SFC is a real edge.
+            if (dependency === owner && target !== id && target.includes("?")) continue;
+            edges.push(dependency);
+          }
         }
       },
     }],
-  });
+  } satisfies InlineConfig));
 
-  expect(graph.size).toBe(files.size);
+  expect(entries.filter(file => !graph.has(file))).toEqual([]);
 
   return graph;
 }
 
-test("Vite resolves eager globs, TSX, JSX and inline type imports", async () => {
+test("Vite finds Vue script, module and eager glob cycles", async () => {
   using directory = mkdtempDisposableSync(path.join(tmpdir(), "kaede-module-graph-"));
   const sourceDirectory = path.join(directory.path, "src");
 
@@ -106,16 +132,33 @@ test("Vite resolves eager globs, TSX, JSX and inline type imports", async () => 
       import { type T } from "./b.ts";
       export const render = (h: T) => <main/>;
     `,
-    "b.ts": "import \"/src/a.tsx\"; export type T = (tag: string) => unknown;",
+    "Page.vue": `<script setup lang="ts">
+      import { title } from "./title";
+    </script>
+    <template><p>{{ title }}</p></template>`,
+    "Self.vue"  : "<script setup lang=\"ts\">import \"./Self.vue\";</script>",
+    "title.ts"  : "import \"./Page.vue\"; export const title = \"Title\";",
+    "entry.ts"  : "import \"./module.mts\";",
+    "module.mts": "import \"./entry.ts\";",
+    "b.ts"      : "import \"/src/a.tsx\"; export type T = (tag: string) => unknown;",
   };
 
   for (const [file, source] of Object.entries(sources)) {
     writeFileSync(path.join(sourceDirectory, file), source);
   }
-  const graph = await buildGraph(directory.path);
+  const graph = await buildGraph(directory.path, {
+    "plugins": [vue()],
+    "build"  : { "rolldownOptions": { "external": ["vue"] } },
+  });
 
   expect(graph.get("lazy.tsx")).toEqual([]);
-  expect(cycles(graph).sort()).toEqual([["a.tsx", "b.ts"], ["eager.tsx", "match.jsx"]]);
+  expect(cycles(graph).sort()).toEqual([
+    ["Page.vue", "title.ts"],
+    ["Self.vue"],
+    ["a.tsx", "b.ts"],
+    ["eager.tsx", "match.jsx"],
+    ["entry.ts", "module.mts"],
+  ]);
 });
 
 test("production value imports have no eager cycles, including self-barrels", async () => {
@@ -126,7 +169,7 @@ test("production value imports have no eager cycles, including self-barrels", as
     for (const target of edges) {
       const directory = path.posix.dirname(target);
 
-      if ((/(?:^|\/)index\.[jt]sx?$/u).test(target) &&
+      if ((/(?:^|\/)index\.[cm]?[jt]sx?$/u).test(target) &&
         (directory === "." || file.startsWith(directory + "/"))) {
         selfBarrels.push(`${file} -> ${target}`);
       }

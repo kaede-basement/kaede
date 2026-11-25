@@ -8,6 +8,8 @@ test("built Worker matches Ark factories and disposes listeners", async () => {
   const harness = await browserHarness();
 
   try {
+    expect(await harness.view.evaluate("workerPermissionDelivery().catch(error => String(error))"))
+      .toContain("Permission session closed");
     expect(await harness.view.evaluate("launcherContract()")).toBe(true);
     expect(await harness.view.evaluate("contract()")).toBe(true);
     expect(await harness.view.evaluate("rootContract()")).toBe(true);

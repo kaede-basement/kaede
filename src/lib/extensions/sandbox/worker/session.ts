@@ -16,7 +16,7 @@ export class WorkerSession {
 
   constructor(
     private worker: Worker,
-    private handle: (request: Request, signal: AbortSignal) => Promise<Reply>,
+    private handle: (request: Request, signal: AbortSignal) => Promise<Reply | (() => Reply)>,
     private write: (message: Extract<FromWorker, { "kind": "log" | "event-error" }>) => void,
     private commit: (ops: import("./ui-protocol.ts").UIOp[], seq: number) => void,
   ) {
@@ -122,10 +122,11 @@ export class WorkerSession {
       this.remaining = Math.max(0, this.deadline - performance.now());
     }
     try {
-      const value = await this.handle(request, signal);
+      const reply = await this.handle(request, signal);
 
       if (!signal.aborted && message.kind === "request") {
         const { ticket } = message;
+        const value = typeof reply === "function" ? reply() : reply;
         const transfer = value instanceof ArrayBuffer ? [value] : [];
 
         this.worker.postMessage({ "kind": "reply", ticket, value } satisfies ToWorker, transfer);

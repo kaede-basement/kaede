@@ -42,13 +42,15 @@ export async function runInWorker(
       case "permissions": {
         const approved = await service.request(request.input, id, artifactSha256, signal);
 
-        for (const raw of approved) {
-          if (raw) {
-            grants.add(raw);
+        // Commit the grants in the same turn that WorkerSession posts the reply.
+        return (): Array<string | false> => {
+          service.assertOpen(signal);
+          for (const raw of approved) {
+            if (raw) grants.add(raw);
           }
-        }
 
-        return approved;
+          return approved;
+        };
       }
       case "read-log": {
         requireGrant("log::read");
