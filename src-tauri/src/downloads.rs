@@ -352,7 +352,7 @@ impl Default for CancelEntry {
 }
 
 pub(crate) struct Registration {
-    flags: CancelFlags,
+    flags: Option<CancelFlags>,
     id: String,
     signal: CancelSignal,
     install: Option<InstallDecision>,
@@ -369,14 +369,21 @@ impl std::ops::DerefMut for Registration {
         &mut self.signal
     }
 }
-impl Drop for Registration {
-    fn drop(&mut self) {
-        let mut entries = self.flags.0.lock().unwrap();
+impl Registration {
+    pub(crate) fn finish(mut self) -> bool {
+        self.release()
+    }
+
+    fn release(&mut self) -> bool {
+        let Some(flags) = self.flags.take() else {
+            return false;
+        };
+        let mut entries = flags.0.lock().unwrap();
         let Some(entry) = entries.get_mut(&self.id) else {
-            return;
+            return *self.signal.borrow();
         };
         if !Arc::ptr_eq(&entry.signal.publish_gate, &self.signal.publish_gate) {
-            return;
+            return *self.signal.borrow();
         }
         if let Some(own) = &self.install {
             if matches!(&entry.install, InstallPhase::Running(d) if Arc::ptr_eq(&own.0, &d.0)) {
@@ -387,9 +394,17 @@ impl Drop for Registration {
         } else {
             entry.batches -= 1;
         }
+        let was_cancelled = entry.cancel_requested;
         if entry.batches == 0 && matches!(entry.install, InstallPhase::Absent) {
             entries.remove(&self.id);
         }
+        was_cancelled
+    }
+}
+
+impl Drop for Registration {
+    fn drop(&mut self) {
+        self.release();
     }
 }
 
@@ -563,7 +578,7 @@ impl CancelFlags {
         }
         entry.install = InstallPhase::Running(decision.clone());
         let registration = Registration {
-            flags: self.clone(),
+            flags: Some(self.clone()),
             id: id.into(),
             signal: entry.signal.clone(),
             install: Some(decision.clone()),
@@ -609,7 +624,7 @@ impl CancelFlags {
         let entry = entries.entry(id.into()).or_default();
         entry.batches += 1;
         Registration {
-            flags: self.clone(),
+            flags: Some(self.clone()),
             id: id.into(),
             signal: entry.signal.clone(),
             install: None,
@@ -652,7 +667,7 @@ pub(crate) fn concurrently_download<R: tauri::Runtime>(
         invoke,
         NAME,
         "onProgress",
-        crate::ipc_dispatch::Delivery::Queued,
+        crate::ipc_dispatch::Delivery::Latest,
     )?;
     let entries = crate::argument(invoke, NAME, "entries")?;
     let concurrency = crate::argument(invoke, NAME, "concurrency")?;
@@ -804,10 +819,11 @@ async fn download_batch(
 
     ticker.shutdown().await;
 
+    let cancelled = cancel.finish();
     let report = DownloadReport {
         success: success.load(Ordering::Relaxed),
         failed: failed.load(Ordering::Relaxed),
-        cancelled: *cancel.borrow(),
+        cancelled,
         failures,
     };
 
@@ -1332,6 +1348,33 @@ mod tests {
         assert!(report.cancelled);
         assert_eq!((report.success, report.failed), (0, 0));
         assert!(!target.exists());
+    }
+
+    #[tokio::test]
+    async fn batch_completion_commits_before_final_progress() {
+        let flags = CancelFlags::default();
+        let (sent, ack) = tokio::sync::oneshot::channel();
+        let sent = Mutex::new(Some(sent));
+        let group = flags.clone();
+        let progress = Channel::new(move |_| {
+            if let Some(sent) = sent.lock().unwrap().take() {
+                sent.send(group.cancel("batch"))
+                    .unwrap_or_else(|_| panic!("receiver gone"));
+            }
+            Ok(())
+        });
+        let report = download_batch(
+            flags.register("batch"),
+            vec![],
+            1,
+            "test".into(),
+            progress,
+            false,
+        )
+        .await
+        .unwrap();
+        assert!(!report.cancelled);
+        assert!(!ack.await.unwrap().await.unwrap());
     }
 
     #[tokio::test]

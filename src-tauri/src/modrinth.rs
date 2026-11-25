@@ -1,6 +1,6 @@
 use crate::zip::{open_archive, read_limited, relative_name, Extraction};
 use crate::{
-    downloads::{CancelFlags, CancelSignal, DownloadError, InstallDecision},
+    downloads::{CancelFlags, CancelSignal, DownloadError, InstallDecision, Registration},
     hashing::HashAlgorithm,
     mod_store::{materialize_blob, stage_blob, ModStore},
 };
@@ -113,7 +113,7 @@ pub(crate) fn install_mrpack<R: tauri::Runtime>(
         invoke,
         NAME,
         "onProgress",
-        crate::ipc_dispatch::Delivery::Queued,
+        crate::ipc_dispatch::Delivery::Latest,
     )?;
     let webview = invoke.message.webview_ref();
     let store = crate::argument::<State<ModStore>, _>(invoke, NAME, "store")?
@@ -286,27 +286,25 @@ pub(crate) fn repair_legacy_mrpack<R: tauri::Runtime>(
         invoke,
         NAME,
         "onProgress",
-        crate::ipc_dispatch::Delivery::Queued,
+        crate::ipc_dispatch::Delivery::Latest,
     )?;
     let archive_path = crate::argument(invoke, NAME, "archivePath")?;
     let target_dir_path = crate::argument(invoke, NAME, "targetDirPath")?;
     let store = crate::argument::<State<ModStore>, _>(invoke, NAME, "store")?
         .inner()
         .clone();
-    let mut cancel = flags.register(&id);
+    let cancel = flags.register(&id);
     Ok(async move {
-        let result = repair(
+        repair(
             archive_path,
             target_dir_path,
             &store,
-            &mut cancel,
+            cancel,
             move |done, total| {
                 let _ = on_progress.send((done, total));
             },
         )
-        .await?;
-        check_cancel(&cancel)?;
-        Ok(result)
+        .await
     })
 }
 
@@ -418,9 +416,35 @@ async fn repair(
     archive_path: PathBuf,
     root: PathBuf,
     store: &ModStore,
-    cancel: &mut CancelSignal,
+    cancel: Registration,
     progress: impl Fn(usize, usize) + Send + Clone + 'static,
 ) -> Result<RepairOutcome, String> {
+    let updates = progress.clone();
+    let total = repair_files(archive_path, root, store, &cancel, move |done, total| {
+        if done < total {
+            updates(done, total);
+        }
+    })
+    .await?;
+    if cancel.finish() {
+        return Err("Installation cancelled".into());
+    }
+    match total {
+        Some(total) => {
+            progress(total, total);
+            Ok(RepairOutcome::Repaired)
+        }
+        None => Ok(RepairOutcome::ArchiveUnavailable),
+    }
+}
+
+async fn repair_files(
+    archive_path: PathBuf,
+    root: PathBuf,
+    store: &ModStore,
+    cancel: &CancelSignal,
+    progress: impl Fn(usize, usize) + Send + Clone + 'static,
+) -> Result<Option<usize>, String> {
     progress(0, 1);
     let stop = cancel.clone();
     let report = progress.clone();
@@ -467,7 +491,7 @@ async fn repair(
     .await
     .map_err(|e| e.to_string())??;
     let Some((manifest, mut extraction, overrides, total)) = prepared else {
-        return Ok(RepairOutcome::ArchiveUnavailable);
+        return Ok(None);
     };
     let mut objects = None;
     for (index, file) in manifest.files.iter().enumerate() {
@@ -506,8 +530,7 @@ async fn repair(
         }
         progress(overrides + index + 1, total);
     }
-    check_cancel(cancel)?;
-    Ok(RepairOutcome::Repaired)
+    Ok(Some(total))
 }
 
 fn check_cancel(cancel: &watch::Receiver<bool>) -> Result<(), String> {
@@ -1384,14 +1407,14 @@ mod tests {
     async fn missing_legacy_archive_permits_launch_and_keeps_migration_pending() {
         let root = tempfile::tempdir().unwrap();
         let store = ModStore::new(root.path());
-        let (_tx, mut rx) = CancelSignal::channel();
+        let flags = CancelFlags::default();
         for path in [root.path().join("moved.mrpack"), root.path().to_owned()] {
             assert_eq!(
                 repair(
                     path,
                     root.path().join("minecraft"),
                     &store,
-                    &mut rx,
+                    flags.register("repair"),
                     |_, _| {}
                 )
                 .await
@@ -1429,35 +1452,45 @@ mod tests {
         std::fs::create_dir_all(minecraft.join("Mods")).unwrap();
         std::fs::write(minecraft.join("Mods/disabled.jar.disabled"), "edited").unwrap();
         std::fs::write(minecraft.join("options.txt"), "edited").unwrap();
-        let (stop, mut cancel) = CancelSignal::channel();
-        let abort = stop.clone();
+        let flags = CancelFlags::default();
+        let abort = flags.clone();
         let interrupted = repair(
             pack.clone(),
             minecraft.clone(),
             &store,
-            &mut cancel,
+            flags.register("repair"),
             move |done, total| {
                 if total > 1 && done == 1 {
-                    abort.send_replace(true);
+                    assert!(tokio::runtime::Handle::current()
+                        .block_on(abort.cancel("repair"))
+                        .unwrap());
                 }
             },
         )
         .await;
         assert!(matches!(interrupted, Err(reason) if reason=="Installation cancelled"));
         assert!(!minecraft.join("mods/item.jar").exists());
-        stop.send_replace(false);
+
+        let finishing = flags.clone();
+        let (ack, mut completed) = tokio::sync::mpsc::unbounded_channel();
         assert_eq!(
             repair(
                 pack.clone(),
                 minecraft.clone(),
                 &store,
-                &mut cancel,
-                |_, _| {}
+                flags.register("repair"),
+                move |done, total| {
+                    if done == total {
+                        ack.send(finishing.cancel("repair"))
+                            .unwrap_or_else(|_| panic!("receiver gone"));
+                    }
+                }
             )
             .await
             .unwrap(),
             RepairOutcome::Repaired
         );
+        assert!(!completed.try_recv().unwrap().await.unwrap());
         assert_eq!(
             std::fs::read(minecraft.join("mods/item.jar")).unwrap(),
             b"good"
@@ -1481,7 +1514,7 @@ mod tests {
                 pack.clone(),
                 minecraft.clone(),
                 &unusable,
-                &mut cancel,
+                flags.register("repair"),
                 |_, _| {}
             )
             .await
@@ -1491,9 +1524,15 @@ mod tests {
         std::fs::remove_file(minecraft.join("mods/item.jar")).unwrap();
         let cache_error = unusable.lease().await.err().unwrap();
         assert_eq!(
-            repair(pack, minecraft, &unusable, &mut cancel, |_, _| {})
-                .await
-                .unwrap_err(),
+            repair(
+                pack,
+                minecraft,
+                &unusable,
+                flags.register("repair"),
+                |_, _| {}
+            )
+            .await
+            .unwrap_err(),
             cache_error
         );
     }

@@ -53,19 +53,23 @@ pub(super) struct Queue {
 
 impl Queue {
     fn push(self: &Arc<Self>, task: Task) -> tauri::Result<()> {
-        {
-            let mut pending = self.pending.lock().unwrap();
-            if pending.closed {
-                return Err(tauri::Error::FailedToReceiveMessage);
-            }
-            pending.actions.push_back(task);
-            if pending.scheduled || pending.draining {
-                return Ok(());
-            }
+        if self.enqueue(task)? {
+            self.schedule();
+        }
+        Ok(())
+    }
+
+    fn enqueue(&self, task: Task) -> tauri::Result<bool> {
+        let mut pending = self.pending.lock().unwrap();
+        if pending.closed {
+            return Err(tauri::Error::FailedToReceiveMessage);
+        }
+        pending.actions.push_back(task);
+        let wake = !pending.scheduled && !pending.draining;
+        if wake {
             pending.scheduled = true;
         }
-        self.schedule();
-        Ok(())
+        Ok(wake)
     }
 
     fn schedule(self: &Arc<Self>) {
@@ -272,7 +276,7 @@ impl Drop for ChannelHandle {
 
 #[derive(Clone, Copy)]
 pub(super) enum Delivery {
-    Queued,
+    Latest,
     Wait,
 }
 
@@ -290,27 +294,47 @@ fn worker_channel<T>(native: Channel, queue: Arc<Queue>, delivery: Delivery) -> 
     let id = next_id();
     CHANNELS.with_borrow_mut(|channels| channels.insert(id, native));
     let handle = ChannelHandle { id, queue };
-    Channel::new(move |body| {
-        // Log stop waits for an admitted send. Its blocking polling worker needs
-        // the delivery result; download progress callers only enqueue updates.
-        let ack = matches!(delivery, Delivery::Wait).then(std::sync::mpsc::channel);
-        let (tx, rx) = ack.unzip();
-        let id = handle.id;
-        handle.queue.push(Box::new(move || {
-            let native = CHANNELS.with_borrow(|channels| channels.get(&id).cloned());
-            let result = native
-                .ok_or(tauri::Error::FailedToReceiveMessage)
-                .and_then(|native| native.send(body));
-            if let Some(tx) = tx {
-                let _ = tx.send(result);
-            }
-        }))?;
-        if let Some(rx) = rx {
+    match delivery {
+        Delivery::Wait => Channel::new(move |body| {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let id = handle.id;
+            handle.queue.push(Box::new(move || {
+                let _ = tx.send(deliver(id, body));
+            }))?;
             rx.recv()
-                .map_err(|_| tauri::Error::FailedToReceiveMessage)??;
+                .map_err(|_| tauri::Error::FailedToReceiveMessage)?
+        }),
+        Delivery::Latest => {
+            let slot = Arc::new(Mutex::new(None));
+            Channel::new(move |body| {
+                let mut pending = slot.lock().unwrap();
+                if pending.is_some() {
+                    *pending = Some(body);
+                    return Ok(());
+                }
+                let latest = slot.clone();
+                let id = handle.id;
+                let wake = handle.queue.enqueue(Box::new(move || {
+                    let body = latest.lock().unwrap().take().expect("queued snapshot");
+                    let _ = deliver(id, body);
+                }))?;
+                *pending = Some(body);
+                drop(pending);
+                // On the event thread a wakeup can deliver inline.
+                if wake {
+                    handle.queue.schedule();
+                }
+                Ok(())
+            })
         }
-        Ok(())
-    })
+    }
+}
+
+fn deliver(id: u64, body: InvokeResponseBody) -> tauri::Result<()> {
+    let native = CHANNELS.with_borrow(|channels| channels.get(&id).cloned());
+    native
+        .ok_or(tauri::Error::FailedToReceiveMessage)?
+        .send(body)
 }
 
 #[cfg(test)]
@@ -392,6 +416,72 @@ pub(super) mod tests {
         assert_eq!(dropped.try_recv().unwrap(), owner);
     }
 
+    #[test]
+    fn latest_update_during_delivery_precedes_reply() {
+        let (wake, tasks) = event_queue();
+        let queue = Arc::new(Queue {
+            wake,
+            pending: Mutex::default(),
+        });
+        let rendezvous = Arc::new(Barrier::new(2));
+        let sending = rendezvous.clone();
+        let (sent, events) = mpsc::channel();
+        let report = sent.clone();
+        let channel = worker_channel(
+            Channel::new(move |body| {
+                let event = body.deserialize::<String>()?;
+                if event == "first" {
+                    sending.wait();
+                    sending.wait();
+                }
+                sent.send(event).unwrap();
+                Ok(())
+            }),
+            queue.clone(),
+            Delivery::Latest,
+        );
+        channel.send("first").unwrap();
+        let worker = thread::spawn(move || {
+            rendezvous.wait();
+            channel.send("final").unwrap();
+            drop(channel);
+            queue
+                .push(Box::new(move || report.send("reply".into()).unwrap()))
+                .unwrap();
+            rendezvous.wait();
+        });
+        tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+        worker.join().unwrap();
+        assert_eq!(
+            events.try_iter().collect::<Vec<_>>(),
+            ["first", "final", "reply"]
+        );
+    }
+
+    #[tokio::test]
+    async fn reliable_actions_remain_ordered_across_drain_turns() {
+        let (wake, tasks) = event_queue();
+        let queue = Arc::new(Queue {
+            wake,
+            pending: Mutex::default(),
+        });
+        let (sent, received) = mpsc::channel();
+        let count = MAX_DRAIN_BATCH * 2 + 1;
+        for index in 0..count {
+            let sent = sent.clone();
+            queue
+                .push(Box::new(move || sent.send(index).unwrap()))
+                .unwrap();
+        }
+        for start in (0..count).step_by(MAX_DRAIN_BATCH) {
+            tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+            assert_eq!(
+                received.try_iter().collect::<Vec<_>>(),
+                (start..(start + MAX_DRAIN_BATCH).min(count)).collect::<Vec<_>>()
+            );
+        }
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn dispatch_binds_in_order_and_replies_and_releases_channels_on_event_thread() {
         let (post, tasks) = event_queue();
@@ -410,9 +500,14 @@ pub(super) mod tests {
         let owner = thread::current().id();
         let quiet_file = tempfile::NamedTempFile::new().unwrap();
         let (events, progress) = mpsc::channel();
+        let order = Arc::new(Mutex::new(Vec::new()));
+        let send_order = order.clone();
         let app = mock_builder()
             .channel_interceptor(move |_, callback, _, body| {
                 assert_eq!(thread::current().id(), owner);
+                if callback.0 == 1 {
+                    send_order.lock().unwrap().push("progress");
+                }
                 events
                     .send((
                         callback.0,
@@ -434,6 +529,8 @@ pub(super) mod tests {
             .unwrap();
         let dispatch_to = |view: &tauri::Webview<tauri::test::MockRuntime>, cmd: &str, body| {
             let (tx, rx) = mpsc::channel();
+            let order = order.clone();
+            let batch = cmd == "concurrently_download";
             view.clone().on_message(
                 InvokeRequest {
                     cmd: cmd.into(),
@@ -452,6 +549,9 @@ pub(super) mod tests {
                 },
                 Box::new(move |_, _, response, _, _| {
                     assert_eq!(thread::current().id(), owner);
+                    if batch {
+                        order.lock().unwrap().push("report");
+                    }
                     tx.send(response).unwrap();
                 }),
             );
@@ -474,7 +574,7 @@ pub(super) mod tests {
         };
         let (start, report) = batch();
         let (record, received) = mpsc::channel();
-        let backlog = MAX_DRAIN_BATCH * 2 + 1;
+        let backlog = 8192;
         let queued = worker_channel(
             Channel::new(move |body| {
                 assert_eq!(thread::current().id(), owner);
@@ -482,11 +582,12 @@ pub(super) mod tests {
                 Ok(())
             }),
             dispatcher.queue.clone(),
-            Delivery::Queued,
+            Delivery::Latest,
         );
         for index in 0..backlog {
             queued.send(index).unwrap();
         }
+        assert_eq!(dispatcher.queue.pending.lock().unwrap().actions.len(), 1);
         drop(queued);
         let (cancel, cancelled) =
             dispatch("cancel_downloads", serde_json::json!({"cancelId":"id"}));
@@ -501,13 +602,9 @@ pub(super) mod tests {
         );
         assert!(!path.exists());
         tokio::spawn(cancel).await.unwrap();
-        for start in (0..backlog).step_by(MAX_DRAIN_BATCH) {
-            tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
-            assert_eq!(
-                received.try_iter().collect::<Vec<_>>(),
-                (start..(start + MAX_DRAIN_BATCH).min(backlog)).collect::<Vec<_>>()
-            );
-        }
+        tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+        assert_eq!(received.try_iter().collect::<Vec<_>>(), [backlog - 1]);
+        assert_eq!(*order.lock().unwrap(), ["progress", "report"]);
         assert_eq!(
             progress.try_iter().last().unwrap(),
             (
