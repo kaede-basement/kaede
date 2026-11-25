@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -108,9 +108,21 @@ pub(crate) fn relative_name(name: &str) -> Result<&Path, String> {
     Ok(Path::new(name))
 }
 
+fn is_plain_directory(metadata: &fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+        if metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return false;
+        }
+    }
+    metadata.is_dir()
+}
+
 pub(crate) struct Extraction {
     root: PathBuf,
-    directories: HashSet<PathBuf>,
+    directories: HashMap<PathBuf, PathBuf>,
 }
 
 impl Extraction {
@@ -118,39 +130,48 @@ impl Extraction {
         fs::create_dir_all(root).map_err(|e| e.to_string())?;
         Ok(Self {
             root: root.canonicalize().map_err(|e| e.to_string())?,
-            directories: HashSet::new(),
+            directories: HashMap::new(),
         })
     }
 
-    fn directory(&mut self, parent: &Path) -> Result<(), String> {
-        let mut path = self.root.clone();
+    fn directory(&mut self, parent: &Path) -> Result<PathBuf, String> {
+        let mut current = self.root.clone();
         for component in parent.iter() {
-            path.push(component);
-            if self.directories.contains(&path) {
+            let candidate = current.join(component);
+            if let Some(resolved) = self.directories.get(&candidate) {
+                current.clone_from(resolved);
                 continue;
             }
-            match fs::create_dir(&path) {
-                Ok(()) => {}
+            current = match fs::create_dir(&candidate) {
+                Ok(()) => candidate.clone(),
                 Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
-                    if !fs::symlink_metadata(&path)
-                        .map_err(|e| e.to_string())?
-                        .is_dir()
-                        || path.canonicalize().map_err(|e| e.to_string())? != path
-                    {
-                        return Err(format!("Linked extraction directory: {}", path.display()));
+                    let metadata = fs::symlink_metadata(&candidate).map_err(|e| e.to_string())?;
+                    if !is_plain_directory(&metadata) {
+                        return Err(format!(
+                            "Not an ordinary extraction directory: {}",
+                            candidate.display()
+                        ));
                     }
+                    let resolved = candidate.canonicalize().map_err(|e| e.to_string())?;
+                    if resolved.parent() != Some(current.as_path()) {
+                        return Err(format!(
+                            "Extraction directory outside its parent: {}",
+                            candidate.display()
+                        ));
+                    }
+                    resolved
                 }
                 Err(e) => return Err(e.to_string()),
-            }
-            self.directories.insert(path.clone());
+            };
+            self.directories.insert(candidate, current.clone());
         }
-        Ok(())
+        Ok(current)
     }
 
     pub fn prepare_file(&mut self, name: &str) -> Result<PathBuf, String> {
         let relative = relative_name(name)?;
-        self.directory(relative.parent().unwrap())?;
-        Ok(self.root.join(relative))
+        let parent = self.directory(relative.parent().unwrap())?;
+        Ok(parent.join(relative.file_name().unwrap()))
     }
 
     pub fn extract(
@@ -266,6 +287,47 @@ mod tests {
             .is_err());
         assert_eq!(fs::read(path).unwrap(), b"old");
         assert_eq!(root.path().read_dir().unwrap().count(), 1);
+    }
+
+    #[test]
+    fn existing_directory_follows_filesystem_case_rules() {
+        let root = tempfile::tempdir().unwrap();
+        let original = root.path().join("Config");
+        fs::create_dir_all(original.join("Nested")).unwrap();
+        let alias = root.path().join("config");
+        let shares_directory = alias.is_dir();
+        let mut extraction = Extraction::new(root.path()).unwrap();
+        for name in ["one", "two"] {
+            extraction
+                .extract(&format!("config/Nested/{name}"), false, None, &b"ok"[..])
+                .unwrap();
+            assert_eq!(fs::read(alias.join("Nested").join(name)).unwrap(), b"ok");
+            assert_eq!(
+                original.join("Nested").join(name).exists(),
+                shares_directory
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn junction_parent_is_rejected_before_writing() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("target");
+        let other = temp.path().join("outside");
+        fs::create_dir(&root).unwrap();
+        fs::create_dir(&other).unwrap();
+        let status = std::process::Command::new("cmd")
+            .args(["/D", "/C", "mklink", "/J", "linked", r"..\outside"])
+            .current_dir(&root)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let mut extraction = Extraction::new(&root).unwrap();
+        assert!(extraction
+            .extract("linked/sub/file", false, None, &b"abc"[..])
+            .is_err());
+        assert!(!other.join("sub").exists());
     }
 
     #[cfg(unix)]
