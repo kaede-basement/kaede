@@ -18,7 +18,7 @@ use std::{
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_shellx::{process::Command, ShellExt};
 use tokio::{
-    sync::{mpsc, oneshot, Mutex as AsyncMutex},
+    sync::{mpsc, oneshot, watch, Mutex as AsyncMutex},
     task::JoinSet,
     time::Instant,
 };
@@ -334,7 +334,12 @@ pub async fn run_process(app: AppHandle, spec: RunSpec) -> Result<RunResult, Str
 }
 
 async fn collect_output(command: StdCommand) -> Result<RunResult, String> {
-    let (launch, _stdin, mut output) = start_process(command, Drain::Collect).await?;
+    collect_child(start_process(command, Drain::Collect).await?).await
+}
+
+async fn collect_child(
+    (launch, _stdin, mut output): (LaunchGuard, ProcessInput, ProcessOutput),
+) -> Result<RunResult, String> {
     let (mut stdout, mut stderr) = (Vec::new(), Vec::new());
     let status = loop {
         match output.next().await {
@@ -453,7 +458,17 @@ mod pipes {
         },
     };
 
-    pub struct Connected(pub(super) NamedPipeServer);
+    pub struct Connected(NamedPipeServer);
+
+    impl tokio::io::AsyncRead for Connected {
+        fn poll_read(
+            self: std::pin::Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+            buf: &mut tokio::io::ReadBuf<'_>,
+        ) -> std::task::Poll<io::Result<()>> {
+            std::pin::Pin::new(&mut self.get_mut().0).poll_read(cx, buf)
+        }
+    }
     pub type Reader = Connected;
     pub type Writer = Connected;
 
@@ -666,7 +681,18 @@ mod pipes {
     #[tokio::test]
     async fn pending_write_reports_os_result_after_exit_or_disconnect() {
         use tokio::time::timeout;
-        for consume in [false, true] {
+        enum Wake {
+            Completed,
+            Disconnected,
+            Exited,
+            Abandoned,
+        }
+        for wake in [
+            Wake::Completed,
+            Wake::Disconnected,
+            Wake::Exited,
+            Wake::Abandoned,
+        ] {
             let (writer, mut reader) = tokio::task::spawn_blocking(|| pair(false))
                 .await
                 .unwrap()
@@ -692,41 +718,66 @@ mod pipes {
             )
             .await
             .unwrap();
-            let write = ProcessInput {
-                pipe: writer,
-                exited,
-            }
-            .write(vec![1]);
-            tokio::pin!(write);
+            let mut write = Box::pin(
+                ProcessInput {
+                    pipe: writer.clone(),
+                    exited,
+                }
+                .write(vec![1]),
+            );
             assert!(timeout(Duration::from_millis(100), &mut write)
                 .await
                 .is_err());
-            if consume {
-                // Confirm that the OS accepted the final byte, then signal child exit
-                // before the caller polls the pending write again.
-                timeout(
-                    Duration::from_secs(5),
-                    tokio::task::spawn_blocking(move || {
-                        use std::io::Read;
-                        let mut data = vec![0; capacity as usize + 1];
-                        reader.read_exact(&mut data).unwrap();
-                        assert_eq!(data.last(), Some(&1));
-                    }),
-                )
-                .await
-                .unwrap()
-                .unwrap();
-                signal_exit();
-            } else {
-                drop(reader);
-            }
-            assert_eq!(
-                timeout(Duration::from_secs(5), write)
+            match wake {
+                Wake::Completed => {
+                    // Confirm that the OS accepted the final byte, then signal child exit
+                    // before the caller polls the pending write again.
+                    timeout(
+                        Duration::from_secs(5),
+                        tokio::task::spawn_blocking(move || {
+                            use std::io::Read;
+                            let mut data = vec![0; capacity as usize + 1];
+                            reader.read_exact(&mut data).unwrap();
+                            assert_eq!(data.last(), Some(&1));
+                        }),
+                    )
                     .await
                     .unwrap()
-                    .is_ok(),
-                consume
-            );
+                    .unwrap();
+                    signal_exit();
+                    timeout(Duration::from_secs(5), write)
+                        .await
+                        .unwrap()
+                        .unwrap();
+                }
+                Wake::Disconnected => {
+                    drop(reader);
+                    assert!(timeout(Duration::from_secs(5), write)
+                        .await
+                        .unwrap()
+                        .is_err());
+                }
+                Wake::Exited => {
+                    signal_exit();
+                    let err = timeout(Duration::from_secs(5), write)
+                        .await
+                        .unwrap()
+                        .unwrap_err();
+                    assert_eq!(err.kind(), io::ErrorKind::BrokenPipe);
+                    drop(reader);
+                }
+                Wake::Abandoned => {
+                    drop(write);
+                    // The blocking writer holds this lock until the OS completes cancellation.
+                    // The full pipe still has a live reader, so the last byte cannot succeed.
+                    drop(
+                        timeout(Duration::from_secs(5), writer.lock())
+                            .await
+                            .unwrap(),
+                    );
+                    drop(reader);
+                }
+            }
         }
     }
 }
@@ -771,10 +822,19 @@ enum Lifecycle {
 }
 
 struct ProcessOutput {
+    stop: Option<watch::Sender<()>>,
     readers: JoinSet<()>,
     lines: mpsc::Receiver<OutputLine>,
     state: Lifecycle,
     drain: Drain,
+}
+
+// Darwin lacks atomic pipe2(O_CLOEXEC). Kaede-owned spawns synchronize with pipe creation;
+// external tauri-plugin-shellx commands are outside this crate.
+#[cfg(all(unix, not(target_os = "linux")))]
+pub(crate) fn lock_unix_spawn() -> std::sync::MutexGuard<'static, ()> {
+    static SPAWN: Mutex<()> = Mutex::new(());
+    SPAWN.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 async fn start_process(
@@ -783,11 +843,7 @@ async fn start_process(
 ) -> Result<(LaunchGuard, ProcessInput, ProcessOutput), String> {
     tokio::task::spawn_blocking(move || -> io::Result<_> {
         #[cfg(all(unix, not(target_os = "linux")))]
-        let launch_lock = {
-            // On systems without pipe2, Mio applies FD_CLOEXEC after creating both fds.
-            static SPAWN: Mutex<()> = Mutex::new(());
-            SPAWN.lock().unwrap()
-        };
+        let launch_lock = lock_unix_spawn();
         let (stdin, input) = pipes::input()?;
         let (stdout, out) = pipes::output()?;
         let (stderr, err) = pipes::output()?;
@@ -813,9 +869,16 @@ async fn start_process(
         }
 
         let (tx, lines) = mpsc::channel(32);
+        let (stop, stopping) = watch::channel(());
         let mut readers = JoinSet::new();
-        readers.spawn(read_pipe(stdout, tx.clone(), "stdout", drain));
-        readers.spawn(read_pipe(stderr, tx, "stderr", drain));
+        readers.spawn(read_records(
+            stdout,
+            tx.clone(),
+            "stdout",
+            drain,
+            stopping.clone(),
+        ));
+        readers.spawn(read_records(stderr, tx, "stderr", drain, stopping));
         Ok((
             LaunchGuard(Some(child)),
             ProcessInput {
@@ -823,6 +886,7 @@ async fn start_process(
                 exited,
             },
             ProcessOutput {
+                stop: Some(stop),
                 readers,
                 lines,
                 state: Lifecycle::Running(exit),
@@ -887,15 +951,13 @@ impl ProcessOutput {
                     if let Some((stream, line)) = line {
                         return Record::Line(stream, line);
                     }
-                    self.lines.close();
-                    self.readers.abort_all();
+                    drop(self.stop.take());
                     self.state = Lifecycle::Finished(status.clone());
                 }
                 Lifecycle::Finished(status) => {
-                    if let Ok((stream, line)) = self.lines.try_recv() {
+                    if let Some((stream, line)) = self.lines.recv().await {
                         return Record::Line(stream, line);
                     }
-                    // Task cancellation (and hence pipe closure) completes before exit delivery.
                     while self.readers.join_next().await.is_some() {}
                     return Record::Exit(status.clone());
                 }
@@ -906,34 +968,35 @@ impl ProcessOutput {
 
 const READ_BUFFER: usize = 8 * 1024;
 
-async fn read_pipe(
-    mut pipe: pipes::Reader,
-    tx: mpsc::Sender<OutputLine>,
-    stream: &'static str,
-    drain: Drain,
-) {
-    #[cfg(windows)]
-    let pipe = &mut pipe.0;
-    #[cfg(unix)]
-    let pipe = &mut pipe;
-    read_records(pipe, tx, stream, drain).await;
-}
-
 async fn read_records(
     mut pipe: impl tokio::io::AsyncRead + Unpin,
     tx: mpsc::Sender<OutputLine>,
     stream: &'static str,
     drain: Drain,
+    mut stop: watch::Receiver<()>,
 ) {
     use tokio::io::AsyncReadExt;
     let mut buf = vec![0; READ_BUFFER];
     let mut bytes = Vec::new();
     let mut trailing_cr = false;
     loop {
-        let n = match pipe.read(&mut buf).await {
+        if stop.has_changed().unwrap_or(true) {
+            break;
+        }
+        let read = tokio::select! {
+            biased;
+            _ = stop.changed() => break,
+            read = pipe.read(&mut buf) => read,
+        };
+        let n = match read {
+            Ok(0) => break,
             Ok(n) => n,
             Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
             Err(e) => {
+                drop(pipe);
+                if trailing_cr && matches!(drain, Drain::Collect) {
+                    let _ = tx.send((stream, Ok(bytes))).await;
+                }
                 let _ = tx.send((stream, Err(e.to_string()))).await;
                 return;
             }
@@ -958,12 +1021,6 @@ async fn read_records(
             }
             trailing_cr = false;
         }
-        if n == 0 {
-            if !bytes.is_empty() {
-                let _ = tx.send((stream, Ok(bytes))).await;
-            }
-            return;
-        }
         while !chunk.is_empty() {
             let Some(end) = chunk.iter().position(|b| matches!(b, b'\r' | b'\n')) else {
                 bytes.extend_from_slice(chunk);
@@ -986,6 +1043,10 @@ async fn read_records(
                 return;
             }
         }
+    }
+    drop(pipe);
+    if !bytes.is_empty() {
+        let _ = tx.send((stream, Ok(bytes))).await;
     }
 }
 
@@ -1051,6 +1112,7 @@ mod tests {
                 let _grandchild = fixture("grandchild").spawn().unwrap();
                 control.read_exact(&mut [0]).unwrap();
                 eprintln!("final stderr");
+                eprint!("fatal error");
                 std::process::exit(7);
             }
             "grandchild" => {
@@ -1061,6 +1123,12 @@ mod tests {
                     .unwrap();
                 let mut request = [0];
                 if control.read_exact(&mut request).is_ok() {
+                    if request[0] == b'i' {
+                        io::stdin().read_exact(&mut request).unwrap();
+                        control.write_all(&request).unwrap();
+                        let _ = control.read(&mut request);
+                        std::process::exit(0);
+                    }
                     let out = io::stdout().write_all(b"probe\n");
                     let err = io::stderr().write_all(b"probe\n");
                     control
@@ -1087,7 +1155,6 @@ mod tests {
                 payload.extend_from_slice(b"\r\n");
                 io::stderr().write_all(&payload).unwrap();
             }
-            "idle" => std::thread::sleep(Duration::from_secs(15)),
             "records" => io::stderr().write_all(b"a\rb\r\nc\xff\nend\rtail").unwrap(),
             mode => panic!("unexpected fixture {mode}"),
         }
@@ -1123,7 +1190,7 @@ mod tests {
             let (mut direct, _) = listener.accept().await.unwrap();
             let (mut control, _) = listener.accept().await.unwrap();
             direct.write_all(&[1]).await.unwrap();
-            let mut final_line = false;
+            let mut diagnostics = Vec::new();
             let mut exited = false;
             monitor(
                 output,
@@ -1135,12 +1202,12 @@ mod tests {
                     assert!(!exited);
                     match event {
                         ManagedEvent::Output(batch) if batch.stream == "stderr" => {
-                            final_line |= batch.lines.iter().any(|line| line == "final stderr")
+                            diagnostics.extend(batch.lines)
                         }
                         ManagedEvent::Output(_) => (),
                         ManagedEvent::Error(e) => panic!("{}", e.message),
                         ManagedEvent::Exit(exit) => {
-                            assert!(final_line);
+                            assert_eq!(diagnostics, ["final stderr", "fatal error"]);
                             assert_eq!(exit.code, Some(7));
                             assert!(registry.0.lock().unwrap().is_empty());
                             exited = true;
@@ -1175,7 +1242,8 @@ mod tests {
             for drain in [Drain::Managed, Drain::Collect] {
                 let reader = AsyncReadExt::chain(&input[..split], &input[split..]);
                 let (tx, mut records) = mpsc::channel(8);
-                read_records(reader, tx, "stdout", drain).await;
+                let (_stop, stopping) = watch::channel(());
+                read_records(reader, tx, "stdout", drain, stopping).await;
                 let mut lines = Vec::new();
                 let mut collected = Vec::new();
                 while let Some((_, record)) = records.recv().await {
@@ -1234,7 +1302,15 @@ mod tests {
     #[tokio::test]
     async fn aborting_collection_terminates_and_reaps_child() {
         let (cmd, listener) = abandoned_fixture().await;
-        let collect = tokio::spawn(collect_output(cmd));
+        let started = start_process(cmd, Drain::Collect).await.unwrap();
+        let mut collecting = Box::pin(collect_child(started));
+        // Poll the real collector through ownership transfer and into its read loop.
+        tokio::select! {
+            biased;
+            _ = &mut collecting => panic!("fixture exited before cancellation"),
+            _ = std::future::ready(()) => (),
+        }
+        let collect = tokio::spawn(collecting);
         assert_child_reaped(listener, || collect.abort()).await;
         assert!(matches!(collect.await, Err(e) if e.is_cancelled()));
     }
@@ -1295,7 +1371,7 @@ mod tests {
             let result = collect.await.unwrap().unwrap();
             assert_eq!(result.code, Some(7));
             assert!(result.stdout.ends_with("probe\n\n"));
-            assert_eq!(result.stderr, "final stderr\n\nprobe\n\n");
+            assert_eq!(result.stderr, "final stderr\n\nfatal errorprobe\n\n");
         })
         .await
         .unwrap();
@@ -1303,9 +1379,21 @@ mod tests {
 
     #[tokio::test]
     async fn kill_interrupts_backpressured_stdin() {
-        let (launch, stdin, mut output) = start_process(fixture("idle"), Drain::Managed)
-            .await
-            .unwrap();
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let mut cmd = fixture("child");
+        cmd.env(
+            "KAEDE_TEST_CONTROL",
+            listener.local_addr().unwrap().to_string(),
+        );
+        let (launch, stdin, mut output) = start_process(cmd, Drain::Managed).await.unwrap();
+        let (_direct, mut grandchild) = timeout(Duration::from_secs(5), async {
+            let (direct, _) = listener.accept().await.unwrap();
+            let (grandchild, _) = listener.accept().await.unwrap();
+            (direct, grandchild)
+        })
+        .await
+        .unwrap();
+        stdin.clone().write(vec![42]).await.unwrap();
         let bytes = vec![0; 8 << 20];
         let child = launch.transfer();
         let pid = child.id();
@@ -1328,6 +1416,10 @@ mod tests {
         registry.kill(pid).unwrap();
         timeout(Duration::from_secs(5), async {
             assert!(write.await.is_err());
+            grandchild.write_all(b"i").await.unwrap();
+            assert_eq!(grandchild.read_u8().await.unwrap(), 42);
+            grandchild.shutdown().await.unwrap();
+            assert_eq!(grandchild.read(&mut [0]).await.unwrap(), 0);
             while let Record::Line(..) = output.next().await {}
         })
         .await
@@ -1335,12 +1427,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn expired_drain_delivers_queued_lines() {
+    async fn expired_drain_delivers_queued_and_reserved_records() {
         let (tx, lines) = mpsc::channel(2);
         tx.try_send(("stdout", Ok(vec![1]))).unwrap();
-        tx.try_send(("stderr", Ok(vec![2]))).unwrap();
+        let permit = tx.reserve_owned().await.unwrap();
+        let (stop, mut stopping) = watch::channel(());
+        let mut readers = JoinSet::new();
+        readers.spawn(async move {
+            stopping.changed().await.unwrap_err();
+            permit.send(("stderr", Ok(vec![2])));
+        });
         let mut output = ProcessOutput {
-            readers: JoinSet::new(),
+            stop: Some(stop),
+            readers,
             lines,
             drain: Drain::Managed,
             state: Lifecycle::Draining {
@@ -1348,9 +1447,39 @@ mod tests {
                 deadline: Some(Instant::now() - PIPE_DRAIN),
             },
         };
-        assert!(matches!(output.next().await, Record::Line("stdout", Ok(_))));
-        assert!(tx.is_closed());
-        assert!(matches!(output.next().await, Record::Line("stderr", Ok(_))));
+        assert!(matches!(output.next().await, Record::Line("stdout", Ok(v)) if v == [1]));
+        assert!(matches!(output.state, Lifecycle::Finished(_)));
+        assert!(matches!(output.next().await, Record::Line("stderr", Ok(v)) if v == [2]));
         assert!(matches!(output.next().await, Record::Exit(Err(_))));
+    }
+
+    #[tokio::test]
+    async fn completed_cr_record_precedes_read_error() {
+        struct Failed;
+        impl tokio::io::AsyncRead for Failed {
+            fn poll_read(
+                self: std::pin::Pin<&mut Self>,
+                _: &mut std::task::Context<'_>,
+                _: &mut tokio::io::ReadBuf<'_>,
+            ) -> std::task::Poll<io::Result<()>> {
+                std::task::Poll::Ready(Err(io::Error::other("read failed")))
+            }
+        }
+        let (tx, mut lines) = mpsc::channel(2);
+        let (_stop, stopping) = watch::channel(());
+        read_records(
+            AsyncReadExt::chain(&b"a\r"[..], Failed),
+            tx,
+            "stdout",
+            Drain::Collect,
+            stopping,
+        )
+        .await;
+        assert_eq!(lines.recv().await, Some(("stdout", Ok(b"a\r".to_vec()))));
+        assert_eq!(
+            lines.recv().await,
+            Some(("stdout", Err("read failed".into())))
+        );
+        assert!(lines.recv().await.is_none());
     }
 }

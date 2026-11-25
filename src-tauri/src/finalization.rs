@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use rayon::prelude::*;
 use serde::Serialize;
@@ -147,7 +147,17 @@ fn banner_from_spawn(java_exe: &Path) -> Option<String> {
         command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     }
 
-    let output = command.output().ok()?;
+    let child = {
+        #[cfg(all(unix, not(target_os = "linux")))]
+        let _guard = crate::processes::lock_unix_spawn();
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .ok()?
+    };
+    let output = child.wait_with_output().ok()?;
 
     // Goes to stderr, but we should probably check for stdout as well
     let stderr = String::from_utf8_lossy(&output.stderr);
