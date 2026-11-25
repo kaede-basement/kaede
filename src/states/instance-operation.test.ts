@@ -4,11 +4,11 @@ import { isManagedDownloadMap } from "@/lib/network/download-map.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 
 import {
-  beginInstall, beginLaunch, beginStop, finishInstall, finishLaunch, finishRun, Launches,
-  operation, recordRun, undoStop,
+  beginInstall, beginLaunch, finishInstall, finishLaunch, finishRun, Launches,
+  operation, recordRun, stopRun,
 } from "./instance-operation.ts";
 
-test("one operation owns each instance through installation, launch, stop and exit", () => {
+test("one operation owns each instance through installation, launch, stop and exit", async () => {
   const id = "owner-test";
   const process = { "pid": 1, "token": "token" } as MinecraftProcessType;
   const install = beginInstall(id);
@@ -38,17 +38,20 @@ test("one operation owns each instance through installation, launch, stop and ex
   finishLaunch(id, progress);
   expect(Launches[id]).toBe(progress);
   expect(Launches[id].launching).toBe(2);
-  const stopping = beginStop(id)!;
+  const veto = Promise.withResolvers<void>();
+  const stopping = stopRun(id, () => veto.promise);
 
-  expect(beginStop(id)).toBeUndefined();
+  expect(stopRun(id, async () => {})).toBe(stopping);
   expect(beginLaunch(id)).toBeUndefined();
-  undoStop(id, stopping);
+  veto.resolve();
+  await stopping;
   expect(operation(id).kind).toBe("running");
-  beginStop(id);
+  const closed = stopRun(id, async () => {});
+
   finishRun(id, "older token");
   expect(operation(id).kind).toBe("stopping");
   finishRun(id, process.token);
-  undoStop(id, stopping);
+  await closed;
   expect(operation(id).kind).toBe("idle");
   expect(Launches[id].launching).toBe(0);
   expect(progress.downloads.current).toBe(map);

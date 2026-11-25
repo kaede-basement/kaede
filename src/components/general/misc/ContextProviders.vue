@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   inject,
-  onUnmounted,
   provide,
   shallowReactive,
   shallowRef,
@@ -23,15 +22,15 @@ import Hooks from "@/lib/hooks";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/log.ts";
-import { rehydrateProcesses } from "@/lib/processes/core.ts";
-import { SpawnObservers } from "@/lib/processes/spawn-process.ts";
+import { ProcessHandlers, rehydrateProcesses } from "@/lib/processes/core.ts";
+import { spawnLifetime } from "@/lib/processes/spawn-process.ts";
 import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
 import {
   commitPlaytime, missingRunHandlers, startPlaytime,
 } from "@/states/instance.ts";
 import {
-  activeRun, beginLaunch, beginStop, finishLaunch, Launches as launches, operation, undoStop,
+  activeRun, beginLaunch, finishLaunch, Launches as launches, operation, stopRun,
 } from "@/states/instance-operation.ts";
 import type {
   ProcessHandlersType,
@@ -47,20 +46,6 @@ import type {
 
 const accounts = shallowRef(inject<Array<AccountType>>(AuthOneTimeFetchContextKey) ?? []);
 const logs = shallowReactive<Record<string, { "list": Array<string>; "dropped": number }>>({});
-
-function recordSpawn(handle: ProcessHandleType, startedAt: number): void {
-  if (handle.kind !== "minecraft") {
-    return;
-  }
-  const process = handle as MinecraftProcessType;
-  const { instanceId } = process.meta;
-
-  if (operation(instanceId).kind === "launching") {
-    startPlaytime(instanceId, process, false, startedAt);
-  }
-}
-SpawnObservers.add(recordSpawn);
-onUnmounted(() => SpawnObservers.delete(recordSpawn));
 
 function syncExitedPlaytime(): Promise<void> {
   return Instances.sync().catch(error => log.error(__PRE_BUNDLED_FILENAME__, "Exit sync:", error));
@@ -155,6 +140,9 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
       },
       instanceId,
       statuses,
+      "onSpawn": (process, startedAt) => {
+        startPlaytime(instanceId, process, false, startedAt, true);
+      },
       "onClose": () => {
         if (activeRun(instanceId)?.statuses === statuses) {
           onClose(instanceId);
@@ -166,7 +154,21 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
     const op = operation(instanceId);
 
     if (success && process && op.kind === "launching" && op.statuses === statuses) {
-      startPlaytime(instanceId, process);
+      const lifetime = spawnLifetime(process);
+      const handlers = ProcessHandlers.get(process.token);
+
+      if (startPlaytime(instanceId, process, false, lifetime?.startedAt, !!handlers)) {
+        if (lifetime?.endedAt !== undefined) {
+          onClose(instanceId, lifetime.endedAt);
+        } else if (handlers) {
+          const { onExit } = handlers;
+
+          handlers.onExit = (payload): void => {
+            if (activeRun(instanceId)?.statuses === statuses) onClose(instanceId);
+            onExit?.(payload);
+          };
+        }
+      }
     }
   } catch (error: unknown) {
     statuses.current = LaunchStatus.Errors.UnhandledError;
@@ -182,26 +184,19 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
 };
 
 async function closeInstance(instanceId: string): Promise<void> {
-  const run = beginStop(instanceId);
-
-  if (!run) return;
-  try {
+  await stopRun(instanceId, async run => {
+    if (activeRun(instanceId) !== run) return;
     const result = await Hooks.catchAsyncResponseHooks<void>({
       "scope": "onMinecraftKill", "toPass": run.process, "timing": "before",
     });
 
-    if (result !== "continue") {
-      undoStop(instanceId, run);
-
-      return;
-    }
-    if (activeRun(instanceId) !== run) return;
+    if (result !== "continue" || activeRun(instanceId) !== run) return;
     await run.process.kill();
-    if (activeRun(instanceId) === run) onClose(instanceId);
-  } catch (error: unknown) {
-    undoStop(instanceId, run);
+    if (run.exit) await run.exit.promise;
+    else if (activeRun(instanceId) === run) onClose(instanceId);
+  }).catch(error => {
     log.error(__PRE_BUNDLED_FILENAME__, `Failed to kill ${instanceId}:`, Errors.prettify(error));
-  }
+  });
 }
 
 function attach(handle: ProcessHandleType, endedAt?: number): ProcessHandlersType | undefined {

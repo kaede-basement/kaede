@@ -162,7 +162,7 @@ function useRenderer(
   }
 
   if (render === "2d-head") {
-    watch([canvas, selected, source], ([target, , skin], _, onCleanup) => {
+    watch([canvas, source], ([target, skin], _, onCleanup) => {
       if (!target) return;
       target.width = target.height = 32;
       const context = target.getContext("2d");

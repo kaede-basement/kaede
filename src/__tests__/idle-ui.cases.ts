@@ -1,13 +1,12 @@
 import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import { nextTick, type Ref } from "vue";
 
-import { finishRun, recordRun } from "@/states/instance-operation.ts";
+import { beginLaunch, finishLaunch, finishRun, recordRun } from "@/states/instance-operation.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 
-import {
-  cleanupHarness, documentState, type Element, instances,   mount, noop, overrideGlobals, state,
-  translationsKey,
-} from "./idle-ui-harness.ts";
+import { cleanupHarness, closeKey,
+  documentState, type Element, instances,   mount, noop, overrideGlobals, startKey, state,
+  translationsKey } from "./idle-ui-harness.ts";
 
 afterEach(cleanupHarness);
 
@@ -62,6 +61,26 @@ test("video follows initial and changed visibility until unmount", async () => {
   documentState.hidden = false;
   documentState.dispatchEvent(new Event("visibilitychange"));
   expect(video.play).toHaveBeenCalledTimes(1);
+});
+
+test("Home disables Launch and Stop after process exit until launch hooks settle", async () => {
+  mock.module("@/components/general/base/MaterialRipple.vue", () => ({ "default": {} }));
+  mock.module("@/lib/launcher/scopes/fetching", () => ({ "default": {} }));
+  const { "default": launch } = await import("@/components/home/instance/Launch.vue");
+  const view = mount<{ "launchable": Ref<boolean>; "unstoppable": Ref<boolean> }>(
+    launch, "", [[startKey, noop], [closeKey, noop]],
+  );
+  const statuses = beginLaunch("first")!;
+
+  statuses.downloads.total = 3;
+  expect(view.bindings.unstoppable.value).toBe(false);
+  recordRun("first", { "token": "A" } as MinecraftProcessType, 5000, false);
+  finishRun("first", "A");
+  expect(view.bindings.launchable.value).toBe(false);
+  expect(view.bindings.unstoppable.value).toBe(true);
+  finishLaunch("first", statuses);
+  expect(view.bindings.launchable.value).toBe(true);
+  view.unmount();
 });
 
 test("Home accrues only the selected instance's active gameplay time", async () => {

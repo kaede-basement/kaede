@@ -29,7 +29,12 @@ import type {
   ProgramSpecType,
 } from "@/types/application/server-process.type.ts";
 
-export const SpawnObservers = new Set<(process: ProcessHandleType, startedAt: number) => void>;
+type Lifetime = { "startedAt": number; "endedAt"?: number };
+const lifetimes = new WeakMap<ProcessHandleType, Lifetime>;
+
+export function spawnLifetime(process: ProcessHandleType): Readonly<Lifetime> | undefined {
+  return lifetimes.get(process);
+}
 
 // 'crypto.randomUUID()' is unavailable outside secure contexts on webkitgtk...
 function createToken(): string {
@@ -47,6 +52,7 @@ export async function spawnProcess<Meta>(
     "meta"   : Meta;
   },
   processHandlers: ProcessHandlersType = {},
+  onSpawn?: (process: ProcessHandleType<Meta>, startedAt: number) => void,
 ): Promise<ProcessHandleType<Meta>> {
   const token = createToken();
 
@@ -56,9 +62,8 @@ export async function spawnProcess<Meta>(
   function confirm(dto: ProcessDtoType<Meta>, startedAt: number): ProcessHandleType<Meta> {
     if (!confirmed) {
       confirmed = toProcessHandle(dto);
-      for (const observe of SpawnObservers) {
-        observe(confirmed, startedAt);
-      }
+      lifetimes.set(confirmed, { startedAt });
+      onSpawn?.(confirmed, startedAt);
     }
 
     return confirmed;
@@ -69,7 +74,9 @@ export async function spawnProcess<Meta>(
       // An exit proves the process spawned even when its IPC reply is still pending.
       const { kind, meta } = options;
 
-      confirm({ token, "pid": payload.pid, kind, meta }, requestedAt);
+      const process = confirm({ token, "pid": payload.pid, kind, meta }, requestedAt);
+
+      lifetimes.get(process)!.endedAt = performance.now();
       processHandlers.onExit?.(payload);
     },
   });

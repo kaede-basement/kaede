@@ -12,12 +12,12 @@ type Install = {
   "statuses"  : LauncherStatusesType;
 };
 type Run = {
-  "kind"         : "running" | "stopping";
   "process"      : MinecraftProcessType;
   "statuses"     : LauncherStatusesType;
   "startedAt"    : number;
   "launchPending": boolean;
-};
+  "exit"?        : ReturnType<typeof nativeExit>;
+} & ({ "kind": "running" } | { "kind": "stopping"; "closed": Promise<void> });
 type Launch = { "kind": "launching"; "statuses": LauncherStatusesType; "exited": boolean };
 type Operation = Install | Run | Launch;
 const operations = shallowReactive(new Map<string, Operation>);
@@ -99,15 +99,28 @@ export function finishInstall(install: Install): void {
   }
 }
 
+function nativeExit(): { "promise": Promise<void>; "resolve": () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => {
+    resolve = done;
+  });
+
+  return { promise, resolve };
+}
+
 export function recordRun(
   id: string, process: MinecraftProcessType, startedAt: number, rehydrated: boolean,
+  managed = rehydrated,
 ): boolean {
   const op = operations.get(id);
 
   if (op && (op.kind !== "launching" || op.exited || rehydrated)) return false;
   const statuses = op?.statuses ?? reactive(status(id));
 
-  operations.set(id, { "kind": "running", process, startedAt, statuses, "launchPending": !!op });
+  operations.set(id, {
+    "kind"         : "running", process, startedAt, statuses, "launchPending": !!op,
+    "exit"         : managed ? nativeExit() : undefined,
+  });
   if (!op) {
     statuses.launching = 2;
     statuses.current = LaunchStatus.General.Success;
@@ -117,25 +130,29 @@ export function recordRun(
   return true;
 }
 
-export function beginStop(id: string): Run | undefined {
+export function stopRun(id: string, stop: (run: Run) => Promise<void>): Promise<void> {
   const run = activeRun(id);
 
-  if (run?.kind !== "running") return;
-  const stopping = { ...run, "kind": "stopping" } as const;
+  if (!run) return Promise.resolve();
+  if (run.kind === "stopping") return run.closed;
+  const closed = Promise.resolve().then(() => stop(stopping))
+    .finally(() => {
+      if (operations.get(id) === stopping) {
+        operations.set(id, { ...run, "launchPending": stopping.launchPending });
+      }
+    });
+  const stopping: Run = { ...run, "kind": "stopping", closed };
 
   operations.set(id, stopping);
 
-  return stopping;
-}
-
-export function undoStop(id: string, run: Run): void {
-  if (operations.get(id) === run) operations.set(id, { ...run, "kind": "running" });
+  return closed;
 }
 
 export function finishRun(id: string, token: string): void {
   const run = activeRun(id);
 
   if (run?.process.token === token) {
+    run.exit?.resolve();
     run.statuses.current = LaunchStatus.General.Aborted;
     if (run.launchPending) {
       operations.set(id, { "kind": "launching", "statuses": run.statuses, "exited": true });

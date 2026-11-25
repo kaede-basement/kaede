@@ -11,6 +11,7 @@ import { getHooks } from "@/extendable/hooks-registry.ts";
 import type { handleLaunch } from "@/lib/launcher/scopes/handle-launch.ts";
 import { spawnMinecraft } from "@/lib/launcher/scopes/spawn-minecraft.ts";
 import { dispatchProcessExit, toProcessHandle } from "@/lib/processes/core.ts";
+import { spawnProcess } from "@/lib/processes/spawn-process.ts";
 import { declareInstanceStates, instanceStates } from "@/states/instance.ts";
 import { activeRun, operation } from "@/states/instance-operation.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
@@ -21,21 +22,27 @@ import type {
 const id = "test";
 
 type LaunchInput = Parameters<typeof handleLaunch>[0];
-const prepareAndSpawn = mock(({ instanceId, statuses, onClose, onInput }: LaunchInput) => (
+const prepareAndSpawn = mock(({ instanceId, statuses, onClose, onInput, onSpawn }: LaunchInput) => (
   spawnMinecraft({
-    instanceId, onClose, onInput, "command"    : { "java": "java", "arguments": [] },
+    instanceId, onClose, onInput, onSpawn, "command"    : { "java": "java", "arguments": [] },
     "necessaries": { statuses, "directories": { "instance": id } } as PreLaunchInformationType,
   })
 ));
 
+const nativeKill = mock((pid: number) => pid);
 const noop = (): void => {};
 const asyncNoop = async (): Promise<void> => {};
 
 beforeAll(async () => {
   Object.assign(globalThis, { "window": { crypto } });
+  let pid = 0;
+
   mockIPC((cmd, arguments_) => {
     if (cmd === "list_processes") return [];
-    if (cmd === "spawn_process") return { ...(arguments_ as { "spec": object }).spec, "pid": 1 };
+    if (cmd === "kill_process") nativeKill((arguments_ as { "pid": number }).pid);
+    if (cmd === "spawn_process") {
+      return { ...(arguments_ as { "spec": object }).spec, "pid": ++pid };
+    }
   });
   mock.module("@/lib/launcher", () => ({ "default": { "handleLaunch": prepareAndSpawn } }));
   const findCurrent = (): { "id": string; "instance": InstanceStateType } => (
@@ -71,7 +78,7 @@ function exit(token: string): void {
   dispatchProcessExit({ token, "pid": 1, "code": 0, "signal": null });
 }
 
-test("await close permits relaunch before the native exit arrives", async () => {
+test("await close permits relaunch only after the native exit arrives", async () => {
   const { launchInstance, closeInstance, launches } = GlobalInternals.instanceContext!;
   const clock = spyOn(performance, "now").mockReturnValue(100);
   const initial = instanceStates[id].playTime;
@@ -79,8 +86,22 @@ test("await close permits relaunch before the native exit arrives", async () => 
   await launchInstance(id);
   const token = activeRun(id)!.process.token;
 
+  clock.mockReturnValue(250);
+  const closed = mock(noop);
+  const close = closeInstance(id).then(closed);
+  const duplicate = closeInstance(id).then(closed);
+
+  await Bun.sleep(0);
+  expect(operation(id).kind).toBe("stopping");
+  expect(closed).not.toHaveBeenCalled();
+  const launchesBefore = prepareAndSpawn.mock.calls.length;
+
+  await launchInstance(id);
+  expect(prepareAndSpawn).toHaveBeenCalledTimes(launchesBefore);
+  expect(instanceStates[id].playTime).toBe(initial);
   clock.mockReturnValue(600);
-  await closeInstance(id);
+  exit(token);
+  await Promise.all([close, duplicate]);
   expect(instanceStates[id].playTime).toBe(initial + 500);
   await launchInstance(id);
   const next = activeRun(id)!;
@@ -114,6 +135,37 @@ test("a replacement process can reject Stop, then close without an exit notifica
   expect(operation(id).kind).toBe("idle");
 });
 
+test("a before hook owns only its selected child and awaits that child's native exit", async () => {
+  const { launchInstance, closeInstance } = GlobalInternals.instanceContext!;
+  const spec = {
+    "program": { "type": "path", "value": "java" },
+    "kind"   : "minecraft", "meta"   : { "instanceId": id },
+  } as const;
+  let selected!: Awaited<ReturnType<typeof spawnProcess<{ "instanceId": string }>>>;
+  const childExit = mock(noop);
+
+  // @ts-expect-error JavaScript extensions can return a process despite the void declaration.
+  getHooks().onMinecraftLaunch.before.push(async () => {
+    const helper = await spawnProcess(spec);
+
+    exit(helper.token);
+    selected = await spawnProcess(spec, { "onExit": childExit });
+
+    return { "status": "stop", "response": { "success": true, "process": selected } };
+  });
+  await launchInstance(id);
+  expect(activeRun(id)?.process).toBe(selected);
+  const closing = closeInstance(id);
+
+  await Bun.sleep(0);
+  expect(nativeKill).toHaveBeenLastCalledWith(selected.pid);
+  expect(operation(id).kind).toBe("stopping");
+  exit(selected.token);
+  await closing;
+  expect(childExit).toHaveBeenCalledTimes(1);
+  expect(operation(id).kind).toBe("idle");
+});
+
 test.each(["exit", "kill"])("%s retains ownership until the after hook settles", async mode => {
   const { launchInstance, closeInstance, launches } = GlobalInternals.instanceContext!;
   const clock = spyOn(performance, "now").mockReturnValue(100);
@@ -132,8 +184,11 @@ test.each(["exit", "kill"])("%s retains ownership until the after hook settles",
   clock.mockReturnValue(800);
   const token = activeRun(id)!.process.token;
 
-  if (mode === "exit") exit(token);
-  else await closeInstance(id);
+  const closing = mode === "kill" ? closeInstance(id) : undefined;
+
+  await Bun.sleep(0);
+  exit(token);
+  await closing;
   expect(activeRun(id)).toBeUndefined();
   expect(instanceStates[id].playTime).toBe(initial + 700);
   expect(launches[id].launching).toBe(1);
@@ -143,7 +198,7 @@ test.each(["exit", "kill"])("%s retains ownership until the after hook settles",
   expect(prepareAndSpawn).toHaveBeenCalledTimes(calls);
   release.resolve();
   await launch;
-  if (mode === "kill") exit(token);
+
   expect(operation(id).kind).toBe("idle");
   expect(launches[id].launching).toBe(0);
   expect(instanceStates[id].playTime).toBe(initial + 700);

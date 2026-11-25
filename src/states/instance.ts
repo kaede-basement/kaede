@@ -152,10 +152,11 @@ export function startPlaytime(
   process: MinecraftProcessType,
   rehydrated = false,
   startedAt = performance.now(),
+  managed = rehydrated,
 ): boolean {
   const previous = rehydrated ? restored.get(process.token) : undefined;
 
-  if (!recordRun(id, process, previous?.startedAt ?? startedAt, rehydrated)) return false;
+  if (!recordRun(id, process, previous?.startedAt ?? startedAt, rehydrated, managed)) return false;
   restored.delete(process.token);
   const instance = instanceStates[id];
 

@@ -33,7 +33,7 @@ const unstoppable = computed(() => {
   const op = selectedOperation.value;
 
   if (op.kind === "installing") return !op.cancel;
-  if (op.kind === "launching") return op.statuses.downloads.total === 0;
+  if (op.kind === "launching") return op.exited || op.statuses.downloads.total === 0;
 
   return op.kind !== "running";
 });
@@ -53,7 +53,7 @@ function handleLaunch(): void {
 async function handleClose(): Promise<void> {
   const instanceId = currentInstance.value?.id;
 
-  if (!instanceId) return;
+  if (!instanceId || unstoppable.value) return;
   const op = operation(instanceId);
   const confirmed = await ask("Do you really want to cancel the Minecraft launch?", "Minecraft");
 

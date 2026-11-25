@@ -65,6 +65,14 @@ test("heads draw both scaled layers and discard superseded or unmounted loads", 
       expect(view.bindings.shown.value).toBe(true);
       context.drawImage.mockClear();
     }
+    const count = images.length;
+    const clears = context.clearRect.mock.calls.length;
+
+    accounts.value[0] = { "skin": { ...accounts.value[0].skin } };
+    await nextTick();
+    expect(images.length).toBe(count);
+    expect(context.clearRect).toHaveBeenCalledTimes(clears);
+    expect(view.bindings.shown.value).toBe(true);
     const latest = images[images.length - 1];
 
     latest.dispatchEvent(new Event("error"));

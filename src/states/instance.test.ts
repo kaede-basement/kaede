@@ -7,7 +7,7 @@ import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import {
   dispatchProcessExit, ProcessHandlers, rehydrateProcesses, toProcessHandle,
 } from "@/lib/processes/core.ts";
-import { SpawnObservers, spawnProcess } from "@/lib/processes/spawn-process.ts";
+import { spawnProcess } from "@/lib/processes/spawn-process.ts";
 import States from "@/states";
 import {
   checkpointActivePlaytime, commitPlaytime, declareInstanceStates, flushPlaytime,
@@ -166,28 +166,23 @@ function observe(handle: ProcessHandleType, startedAt: number): void {
 }
 
 instanceTest("Credit an exit before the spawn reply", async ({ clock, ipc }) => {
-  SpawnObservers.add(observe);
-  try {
-    ipc((_cmd, { spec }) => {
-      clock(175, 5075);
-      dispatchProcessExit({ "token": spec.token, "pid": 7, "code": 0, "signal": null });
-      expect(instanceStates[id].playTime).toBe(100);
-      clock(300, 5200);
-
-      return { ...spec, "pid": 7 };
-    });
-    const handle = await spawnProcess({
-      "program": { "type": "path", "value": "java" }, "kind": "minecraft", "meta": dto.meta,
-    }, {
-      "onExit": () => commitPlaytime(id, activeRun(id)!.process.token, performance.now()),
-    });
-
-    expect(ProcessHandlers.has(handle.token)).toBe(false);
-    expect(Boolean(activeRun(id))).toBe(false);
+  ipc((_cmd, { spec }) => {
+    clock(175, 5075);
+    dispatchProcessExit({ "token": spec.token, "pid": 7, "code": 0, "signal": null });
     expect(instanceStates[id].playTime).toBe(100);
-  } finally {
-    SpawnObservers.delete(observe);
-  }
+    clock(300, 5200);
+
+    return { ...spec, "pid": 7 };
+  });
+  const handle = await spawnProcess({
+    "program": { "type": "path", "value": "java" }, "kind": "minecraft", "meta": dto.meta,
+  }, {
+    "onExit": () => commitPlaytime(id, activeRun(id)!.process.token, performance.now()),
+  }, observe);
+
+  expect(ProcessHandlers.has(handle.token)).toBe(false);
+  expect(Boolean(activeRun(id))).toBe(false);
+  expect(instanceStates[id].playTime).toBe(100);
 });
 
 for (const stage of ["spawn", "exit"] as const) {

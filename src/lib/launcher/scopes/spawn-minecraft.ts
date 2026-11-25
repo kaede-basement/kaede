@@ -37,6 +37,7 @@ export async function spawnMinecraft({
   necessaries,
   onClose,
   onInput,
+  onSpawn,
 }: {
   "command": {
     "java"     : string;
@@ -44,6 +45,7 @@ export async function spawnMinecraft({
   };
   "instanceId" : string;
   "necessaries": PreLaunchInformationType;
+  "onSpawn"?   : (process: MinecraftProcessType, startedAt: number) => void;
   "onClose"    : (instanceId: string) => void;
   "onInput"    : (lines: Array<string>) => void;
 }): Promise<LaunchResponseType> {
@@ -104,7 +106,7 @@ export async function spawnMinecraft({
           "timing": "after",
         });
       },
-    });
+    }, onSpawn);
   } catch (error: unknown) {
     statuses.current = LaunchStatus.Errors.UnhandledError;
     log.error(logPrefix, log.templates.json.contents(
