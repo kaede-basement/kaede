@@ -22,29 +22,25 @@ import {
   computed,
   inject,
   nextTick,
-  onMounted,
   onUnmounted,
   ref,
   type ShallowReactive,
+  shallowRef,
   useTemplateRef,
   watch,
 } from "vue";
 
 import LogHeader from "@/components/logging/LogHeader.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
-import { useLogSearch } from "@/composables/use-log-search.ts";
+import { type SearchRows, useLogSearch } from "@/composables/use-log-search.ts";
 import { useLogSegmentation } from "@/composables/use-log-segmentation.ts";
-import { useLogStream } from "@/composables/use-log-stream.ts";
+import { type LogBuffer, useLogStream } from "@/composables/use-log-stream.ts";
 import { InstanceLogsContextKey } from "@/constants/application.ts";
 import { GeneralSettings } from "@/constants/launcher.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { globalStates } from "@/states/global.ts";
-import type { LogLineType } from "@/types/logging/log-line.type.ts";
 
-const instanceLogs = inject<ShallowReactive<Record<
-  string,
-  { "list": Array<string> }
->>>(InstanceLogsContextKey);
+const instanceLogs = inject<ShallowReactive<Record<string, LogBuffer>>>(InstanceLogsContextKey);
 
 const { styles } = useConfigColors();
 const { lines } = useLogStream();
@@ -52,43 +48,91 @@ const { "height": innerHeight } = useWindowSize();
 
 const scrollBarSize = 17;
 
-const position = ref<number>(0);
+const defaultLineHeight = 20;
+const lineHeight = computed(() => {
+  const value = Number(globalStates.logs.lineHeight);
 
-const filtered = computed((): { "list": Array<LogLineType> } => {
-  const filtering: string = globalStates.logs.filtering.trim().toLowerCase();
-  const original: Array<string> = globalStates.logs.mode === "kaede-launcher"
-    ? lines.value.list
-    : instanceLogs?.[globalStates.logs.mode]?.list ?? [];
+  return Number.isFinite(value) && value >= 1 ? value : defaultLineHeight;
+});
+const scrollRow = ref(0);
+const displayed = shallowRef<SearchRows>({ "list": [] });
+const filtered = computed(() => displayed.value);
+let scanned = 0;
 
-  if (filtering === "") {
-    return {
-      "list": original.map((line: string, index: number) => ({ "raw": line, index })),
-    };
-  }
+watch([
+  (): string => globalStates.logs.filtering.trim().toLowerCase(),
+  (): LogBuffer | undefined => (globalStates.logs.mode === "kaede-launcher"
+    ? lines.value
+    : instanceLogs?.[globalStates.logs.mode]),
+], ([filter, source], [previousFilter, previousSource]) => {
+  const original = source?.list ?? [];
+  let rows = displayed.value.list;
+  const reset = filter !== previousFilter || original !== previousSource?.list;
 
-  const result: Array<LogLineType> = [];
+  if (
+    reset || scanned > original.length || source?.dropped !== previousSource?.dropped ||
+    source?.revision !== previousSource?.revision
+  ) {
+    rows = [];
+    scanned = 0;
+  } else if (
+    source?.dropped === undefined && globalStates.logs.mode !== "kaede-launcher" &&
+    original.length === Math.ceil(GeneralSettings.Logs.LineLimit / 2)
+  ) {
+    /*
+     * A large batch may trim the head even if the published length did not decrease.
+     * Compare the visible prefix at the only length the sink can publish after a trim.
+     */
+    let matched = 0;
 
-  for (const [index, line] of original.entries()) {
-    if (line.toLowerCase().includes(filtering)) {
-      result.push({ "raw": line, index });
+    for (let index = 0; index < scanned; index++) {
+      const raw = original[index];
+
+      if (!filter || raw.toLowerCase().includes(filter)) {
+        const previous = rows[matched++];
+
+        if (previous?.index !== index || previous.raw !== raw) {
+          rows = [];
+          scanned = 0;
+          break;
+        }
+      }
+    }
+
+    if (matched !== rows.length) {
+      rows = [];
+      scanned = 0;
     }
   }
 
-  return { "list": result };
-});
+  for (; scanned < original.length; scanned++) {
+    const raw = original[scanned];
+
+    if (typeof raw === "string" && (!filter || raw.toLowerCase().includes(filter))) {
+      rows.push({ raw, "index": scanned });
+    }
+  }
+
+  displayed.value = { "list": rows, "source": original, filter, "dropped": source?.dropped };
+}, { "immediate": true, "flush": "sync" });
 
 const { status, matchesByLine, utils } = useLogSearch(filtered);
 
 const boundary = computed((): number => {
   const region: number = innerHeight.value - GeneralSettings.Logs.OuterRegion;
 
-  return Math.ceil(region / globalStates.logs.lineHeight);
+  return Math.max(0, Math.ceil(region / lineHeight.value));
 });
 const elements = computed((): number[] => {
   const size: number = Math.min(boundary.value, filtered.value.list.length);
 
   return Array.from({ "length": size }, (_, index) => index);
 });
+
+const position = computed(() => Math.max(
+  0,
+  Math.min(scrollRow.value, filtered.value.list.length - elements.value.length),
+));
 
 const { segments } = useLogSegmentation({ filtered, matchesByLine, elements, status, position });
 
@@ -102,32 +146,40 @@ function updateView(event: Event): void {
     return;
   }
 
-  position.value = Math.round(target.scrollTop / globalStates.logs.lineHeight);
+  scrollRow.value = Math.round(target.scrollTop / lineHeight.value);
 }
 
-// Stick to the bottom of the log viewer
-watch(
-  () => [
-    filtered.value.list.length,
-    elements.value.length,
-  ],
-  async () => {
-    if (!container.value) {
+watch([filtered, boundary], async ([current], [previous]) => {
+  const viewer = container.value;
+
+  if (!viewer) {
+    return;
+  }
+
+  const top = viewer.scrollTop;
+  const followsTail = viewer.scrollHeight - viewer.clientHeight <= top + (lineHeight.value * 2) + 1;
+
+  if (followsTail) {
+    await nextTick();
+    viewer.scrollTop = viewer.scrollHeight - viewer.clientHeight;
+  } else {
+    if (
+      current.source !== previous.source || current.filter !== previous.filter ||
+      current.dropped === undefined || previous.dropped === undefined ||
+      current.dropped <= previous.dropped
+    ) {
       return;
     }
 
-    const viewer = container.value;
-    const twoLinesHeight = globalStates.logs.lineHeight * 2;
-    const toCatchRange = viewer.scrollTop + twoLinesHeight + 1;
-    const isAtTheBottom = viewer.scrollHeight - viewer.clientHeight <= toCatchRange;
+    const dropped = current.dropped - previous.dropped;
+    const firstRetained = previous.list.findIndex(row => row.index >= dropped);
+    const removed = firstRetained === -1 ? previous.list.length : firstRetained;
 
-    await nextTick();
+    viewer.scrollTop = Math.max(0, top - (removed * lineHeight.value));
+  }
 
-    if (isAtTheBottom) {
-      viewer.scrollTo({ "top": viewer.scrollHeight - viewer.clientHeight });
-    }
-  },
-);
+  scrollRow.value = Math.round(viewer.scrollTop / lineHeight.value);
+});
 
 function scrollToMatch(match: { "lineIndex": number } | undefined): void {
   if (!match || !container.value) {
@@ -135,20 +187,14 @@ function scrollToMatch(match: { "lineIndex": number } | undefined): void {
   }
 
   const targetTop =
-    (match.lineIndex * globalStates.logs.lineHeight) -
+    (match.lineIndex * lineHeight.value) -
     (container.value.clientHeight / 2) +
-    globalStates.logs.lineHeight;
+    lineHeight.value;
 
   container.value.scrollTo({ "top": Math.max(0, targetTop), "behavior": "instant" });
 }
 
-const searcher: {
-  "back"  : () => void;
-  "next"  : () => void;
-  "to"    : (index: number) => void;
-  "reset" : () => void;
-  "search": (input: string) => void;
-} = {
+const searcher = {
   "back"  : (): void => scrollToMatch(utils.previous()),
   "next"  : (): void => scrollToMatch(utils.next()),
   "to"    : (index: number): void => scrollToMatch(utils.goTo(index)),
@@ -158,8 +204,12 @@ const searcher: {
   },
 };
 
-onMounted(() => container?.value?.addEventListener?.("scroll", updateView, { "passive": true }));
-onUnmounted(() => container?.value?.removeEventListener?.("scroll", updateView));
+onUnmounted(() => {
+  if (GlobalInternals.logs.raw === lines) {
+    delete GlobalInternals.logs.raw;
+    delete GlobalInternals.logs.filtered;
+  }
+});
 
 // Expose log arrays for plugins
 GlobalInternals.logs.raw = lines;
@@ -187,20 +237,21 @@ GlobalInternals.logs.filtered = filtered;
           id="__log-viewer__bound"
           class="relative w-full select-text overflow-scroll"
           ref="container"
+          @scroll.passive="updateView"
           :style="{
-            'height': boundary * globalStates.logs.lineHeight + scrollBarSize + 'px',
+            'height': boundary * lineHeight + scrollBarSize + 'px',
           }"
         >
           <div
             id="__log-viewer__scroll-placeholder"
             class="w-fit font-mono"
-            :style="{ 'height': filtered.list.length * globalStates.logs.lineHeight + 'px' }"
+            :style="{ 'height': filtered.list.length * lineHeight + 'px' }"
           >
             <div
               v-for="index in elements"
               :key="index"
               :id="`__log-viewer__log-line-${index}`"
-              :style="{ 'top': index * globalStates.logs.lineHeight + 'px' }"
+              :style="{ 'top': index * lineHeight + 'px' }"
               class="__log-viewer__log-line"
             >
               <div

@@ -117,7 +117,6 @@ function handleRowClick(event: MouseEvent): void {
       :disabled="row.disabled"
       :icon="row.inner.icon"
       :tooltip="row.inner.tooltip"
-      :on-click="handleRowClick"
       :invert="row.inner.invert"
       :hide="row.inner.hide"
     />
@@ -197,7 +196,7 @@ function handleRowClick(event: MouseEvent): void {
       :id="`${childRow.idRoot}-padding`"
       class="flex flex-nowrap items-center gap-5 pl-5"
     >
-      <div :id="`${childRow.idRoot}-divider`" class="grid h-8 place-items-center">
+      <div :id="`${childRow.idRoot}-divider-wrapper`" class="grid h-8 place-items-center">
         <div
           :id="`${childRow.idRoot}-divider`"
           class="h-[1px] w-2"

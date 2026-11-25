@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { TemplateRef } from "vue";
+import { onUnmounted, type TemplateRef } from "vue";
 
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
@@ -31,6 +31,10 @@ export function useLogResizer(
   "resizeSection": (event: PointerEvent, section: "time" | "level" | "target") => void;
   "toggleSection": (section: "time" | "level" | "target" | "message") => void;
 } {
+  let cleanup: (() => void) | undefined;
+
+  onUnmounted(() => cleanup?.());
+
   const resizeSection = (event: PointerEvent, section: "time" | "level" | "target"): void => {
     if (!characterElement.value) {
       return log.error(
@@ -41,17 +45,24 @@ export function useLogResizer(
 
     // 'width' in 'onMount' is zero for some reason, so we get it here
     const width: number = characterElement.value.getBoundingClientRect().width;
+
+    if (cleanup || !(width > 0 && Number.isFinite(width))) {
+      return;
+    }
+
+    const activePointerId = event.pointerId;
+    const previousCursor = document.body.style.cursor;
     const start: number = event.clientX;
     const currentSize: number = globalStates.logs.partsSize[section];
 
     document.body.style.cursor = "col-resize";
 
     const onMove = (childEvent: PointerEvent): void => {
-      const delta: number = childEvent.clientX - start;
-
-      if (delta === 0) {
+      if (childEvent.pointerId !== activePointerId) {
         return;
       }
+
+      const delta: number = childEvent.clientX - start;
 
       const absolute: number = Math.abs(delta);
       // I do not think cutting tab section titles is worth it
@@ -62,13 +73,21 @@ export function useLogResizer(
         ? Math.max(currentSize - newSize, minimum)
         : Math.max(currentSize + newSize, minimum);
     };
-    const cleanListeners = (): void => {
-      document.body.style.cursor = "";
+    const cleanListeners = (end?: PointerEvent): void => {
+      if (end && end.pointerId !== activePointerId) {
+        return;
+      }
+
+      document.body.style.cursor = previousCursor;
+      cleanup = undefined;
 
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointercancel", cleanListeners);
       window.removeEventListener("pointerup", cleanListeners);
     };
 
+    cleanup = cleanListeners;
+    window.addEventListener("pointercancel", cleanListeners);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", cleanListeners);
   };
