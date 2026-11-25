@@ -51,7 +51,6 @@ fn bind_at_dispatch<R: tauri::Runtime>(
             .state::<ipc_dispatch::Dispatcher>()
             .inner()
             .clone();
-        dispatcher.drain();
         match invoke.message.command() {
             "concurrently_download" => {
                 dispatcher.dispatch(invoke, downloads::concurrently_download)

@@ -32,6 +32,7 @@ fn next_id() -> u64 {
     })
 }
 
+const MAX_DRAIN_BATCH: usize = 64;
 const WAKE_RETRY_DELAY: Duration = Duration::from_millis(16);
 
 type Work = Pin<Box<dyn Future<Output = ()> + Send>>;
@@ -84,7 +85,7 @@ impl Queue {
         }
     }
 
-    fn drain(&self, from_wakeup: bool) {
+    fn drain(self: &Arc<Self>, from_wakeup: bool) {
         let mut pending = self.pending.lock().unwrap();
         if from_wakeup {
             pending.scheduled = false;
@@ -93,12 +94,24 @@ impl Queue {
             return;
         }
         pending.draining = true;
-        while let Some(action) = pending.actions.pop_front() {
+        let mut delivered = 0;
+        while pending.closed || delivered < MAX_DRAIN_BATCH {
+            let Some(action) = pending.actions.pop_front() else {
+                break;
+            };
+            delivered += 1;
             drop(pending);
             action();
             pending = self.pending.lock().unwrap();
         }
         pending.draining = false;
+        if !pending.actions.is_empty() && !pending.scheduled {
+            pending.scheduled = true;
+            drop(pending);
+            // Wry executes main-thread posts inline. Post the next turn from a worker.
+            let queue = self.clone();
+            tauri::async_runtime::spawn(async move { queue.schedule() });
+        }
     }
 }
 
@@ -128,13 +141,9 @@ impl Dispatcher {
         })
     }
 
-    pub(super) fn drain(&self) {
-        self.queue.drain(false);
-    }
-
     pub(super) fn shutdown(&self) {
         self.queue.pending.lock().unwrap().closed = true;
-        self.drain();
+        self.queue.drain(false);
         let pending = REPLIES.take();
         for respond in pending.into_values() {
             respond(Err("Application exiting".into()));
@@ -378,7 +387,22 @@ mod tests {
             move |work| submit.send(work).unwrap(),
         );
         let owner = thread::current().id();
+        let quiet_file = tempfile::NamedTempFile::new().unwrap();
+        let (events, progress) = mpsc::channel();
         let app = mock_builder()
+            .channel_interceptor(move |_, callback, _, body| {
+                assert_eq!(thread::current().id(), owner);
+                events
+                    .send((
+                        callback.0,
+                        body.clone().deserialize::<serde_json::Value>().unwrap(),
+                    ))
+                    .unwrap();
+                true
+            })
+            .manage(Arc::new(crate::logging::LogTail::new(
+                quiet_file.path().into(),
+            )))
             .manage(crate::downloads::CancelFlags::default())
             .manage(dispatcher.clone())
             .invoke_handler(crate::bind_at_dispatch(|_| false))
@@ -387,9 +411,9 @@ mod tests {
         let window = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
             .build()
             .unwrap();
-        let dispatch = |cmd: &str, body| {
+        let dispatch_to = |view: &tauri::Webview<tauri::test::MockRuntime>, cmd: &str, body| {
             let (tx, rx) = mpsc::channel();
-            window.as_ref().clone().on_message(
+            view.clone().on_message(
                 InvokeRequest {
                     cmd: cmd.into(),
                     body: tauri::ipc::InvokeBody::Json(body),
@@ -412,6 +436,7 @@ mod tests {
             );
             (workers.recv_timeout(Duration::from_secs(5)).unwrap(), rx)
         };
+        let dispatch = |cmd: &str, body| dispatch_to(window.as_ref(), cmd, body);
         let batch = || {
             dispatch(
                 "concurrently_download",
@@ -422,11 +447,40 @@ mod tests {
             )
         };
         let (start, report) = batch();
+        let (record, received) = mpsc::channel();
+        let backlog = MAX_DRAIN_BATCH * 2 + 1;
+        let queued = worker_channel(
+            Channel::new(move |body| {
+                assert_eq!(thread::current().id(), owner);
+                record.send(body.deserialize::<usize>()?).unwrap();
+                Ok(())
+            }),
+            dispatcher.queue.clone(),
+            Delivery::Queued,
+        );
+        for index in 0..backlog {
+            queued.send(index).unwrap();
+        }
+        drop(queued);
         let (cancel, cancelled) =
             dispatch("cancel_downloads", serde_json::json!({"cancelId":"id"}));
+        assert!(received.try_recv().is_err());
         tokio::spawn(cancel).await.unwrap();
         tokio::spawn(start).await.unwrap();
-        tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+        for start in (0..backlog).step_by(MAX_DRAIN_BATCH) {
+            tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+            assert_eq!(
+                received.try_iter().collect::<Vec<_>>(),
+                (start..(start + MAX_DRAIN_BATCH).min(backlog)).collect::<Vec<_>>()
+            );
+        }
+        assert_eq!(
+            progress.try_iter().last().unwrap(),
+            (
+                1,
+                serde_json::json!({"current":{}, "success":0, "failed":0})
+            )
+        );
         let InvokeResponse::Ok(value) = cancelled.try_recv().unwrap() else {
             panic!("cancel failed")
         };
@@ -443,17 +497,58 @@ mod tests {
             if abort {
                 thread::spawn(move || drop(work)).join().unwrap();
             } else {
-                assert!(tokio::spawn(async move {
-                    let _pending = work;
+                let panic = tokio::spawn(async move {
+                    let mut work = work;
+                    assert!(futures_util::poll!(&mut work).is_pending());
                     panic!("worker interrupted");
                 })
                 .await
                 .unwrap_err()
-                .is_panic());
+                .into_panic();
+                assert_eq!(panic.downcast_ref::<&str>(), Some(&"worker interrupted"));
             }
             tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
-            assert!(matches!(reply.try_recv(), Ok(InvokeResponse::Err(_))));
+            let InvokeResponse::Err(error) = reply.try_recv().unwrap() else {
+                panic!("interrupted command succeeded")
+            };
+            assert_eq!(error.0, "IPC command interrupted");
+            assert!(matches!(
+                reply.try_recv(),
+                Err(mpsc::TryRecvError::Disconnected)
+            ));
+            while !CHANNELS.with_borrow(HashMap::is_empty) {
+                tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+            }
         }
+        let quiet = tauri::WebviewWindowBuilder::new(&app, "quiet", Default::default())
+            .build()
+            .unwrap();
+        let view: &tauri::Webview<_> = quiet.as_ref();
+        let parent = view.window();
+        use tauri::Manager;
+        crate::logging::page_changed(&mut parent.resources_table(), false);
+        let (work, reply) = dispatch_to(
+            view,
+            "stream_logs",
+            serde_json::json!({"onEvent":"__CHANNEL__:2"}),
+        );
+        let stream = tokio::spawn(work);
+        tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+        assert_eq!(
+            progress.try_recv().unwrap(),
+            (2, serde_json::json!({"type":"snapshot", "data":[]}))
+        );
+        view.close().unwrap();
+        assert!(parent.webviews().is_empty());
+        tokio::time::timeout(Duration::from_secs(5), stream)
+            .await
+            .unwrap()
+            .unwrap();
+        while !REPLIES.with_borrow(HashMap::is_empty) || !CHANNELS.with_borrow(HashMap::is_empty) {
+            tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+        }
+        assert!(matches!(reply.try_recv(), Ok(InvokeResponse::Ok(_))));
+
         let (never_polled, interrupted) = batch();
         let (pending, reply) = dispatch("cancel_downloads", serde_json::json!({"cancelId":"id"}));
         tokio::spawn(pending).await.unwrap();

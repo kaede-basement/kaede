@@ -11,7 +11,8 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tauri::{ipc::Channel, Manager, ResourceTable, State};
+use tauri::{ipc::Channel, Listener, Manager, ResourceTable, State};
+use tokio::sync::watch;
 const TICK: Duration = Duration::from_millis(100);
 
 #[derive(Serialize, Clone)]
@@ -305,6 +306,47 @@ impl Cursor {
     }
 }
 
+struct WebviewLifetime(watch::Receiver<()>);
+impl tauri::Resource for WebviewLifetime {}
+
+impl WebviewLifetime {
+    fn for_caller<R: tauri::Runtime>(view: &tauri::Webview<R>) -> Option<watch::Receiver<()>> {
+        let mut table = view.resources_table();
+        let existing = table
+            .names()
+            .find(|(_, name)| name == std::any::type_name::<Self>())
+            .map(|(id, _)| id);
+        let (id, lifetime, listener) = match existing {
+            Some(id) => (id, table.get::<Self>(id).ok()?, None),
+            None => {
+                let (open, closed) = watch::channel(());
+                let lifetime = Arc::new(Self(closed));
+                let id = table.add_arc(lifetime.clone());
+                // Tauri removes the webview's listeners even when its parent window survives.
+                let listener = view.listen("tauri://destroyed", move |_| {
+                    let _ = &open;
+                });
+                (id, lifetime, Some(listener))
+            }
+        };
+        drop(table);
+        let live = view.window().webviews().into_iter().any(|live| {
+            live.label() == view.label()
+                && live
+                    .resources_table()
+                    .get::<Self>(id)
+                    .is_ok_and(|owner| Arc::ptr_eq(&owner, &lifetime))
+        });
+        if !live {
+            if let Some(listener) = listener {
+                view.unlisten(listener);
+            }
+            return None;
+        }
+        Some(lifetime.0.clone())
+    }
+}
+
 pub struct LogCaller(Option<Arc<LogWindow>>);
 
 impl<R: tauri::Runtime> tauri::ipc::CommandArg<'_, R> for LogCaller {
@@ -461,10 +503,17 @@ pub(crate) fn stream_logs<R: tauri::Runtime>(
     let tail = crate::argument::<State<Arc<LogTail>>, _>(invoke, NAME, "state")?
         .inner()
         .clone();
-    let completion = caller.0.map(|window| tail.stream(&window, channel, viewer));
+    let completion = caller.0.and_then(|window| {
+        let closed = WebviewLifetime::for_caller(invoke.message.webview_ref())?;
+        Some((closed, tail.stream(&window, channel, viewer)))
+    });
     Ok(async move {
         match completion {
-            Some(work) => work.await,
+            Some((mut closed, work)) => tokio::select! {
+                biased;
+                _ = closed.changed() => Ok(()),
+                result = work => result,
+            },
             None => Ok(()),
         }
     })
