@@ -69,6 +69,11 @@ tauri-plugin-single-instance = "2.5.5"
 # Modded shell plugin that allows any commands (...recipe for disaster?)
 tauri-plugin-shellx = "2.0.16"
 
+[target.'cfg(windows)'.dependencies]
+async-io = "2.6"
+getrandom = { version = "0.2", features = ["std"] }
+windows-sys = { version = "0.59", features = ["Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_SystemServices"] }
+
 [profile.release]
 # Compile each crate as one unit instead of 16 parallel units.
 # The build becomes slower, but more optimizations might be applied

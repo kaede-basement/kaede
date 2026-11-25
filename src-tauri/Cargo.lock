@@ -2363,6 +2363,8 @@ dependencies = [
 name = "kaede"
 version = "0.0.0"
 dependencies = [
+ "async-io",
+ "getrandom 0.2.16",
  "image",
  "log",
  "md-5",
@@ -2393,6 +2395,7 @@ dependencies = [
  "tempfile",
  "time",
  "tokio",
+ "windows-sys 0.59.0",
  "zip",
 ]
 
