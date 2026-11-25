@@ -23,8 +23,11 @@ export const ExtensionsSchema = Type.Object({
    * ),
    * ```
    */
-  "permissions"               : Type.Any(),
-  "enabled"                   : Type.Boolean(),
+  "permissions"  : Type.Any(),
+  "enabled"      : Type.Boolean(),
+  "sandboxEngine": Type.Optional(Type.Union([
+    Type.Literal("ses"), Type.Literal("worker"),
+  ])),
   "allowUnrestrictedUntrusted": Type.Boolean(),
   "showAppAfterExtensionsLoad": Type.Boolean(),
 });

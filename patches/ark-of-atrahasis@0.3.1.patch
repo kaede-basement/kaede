@@ -1,0 +1,177 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 0f1005a8102e5f9bb47890cfbccf117888ae67ab..0daf98332eb4a5bbdb8aa57468044862bf047eb2 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -29,7 +29,13 @@ interface SafeStyleSheet {
+     getCSS(): string;
+     remove(): void;
+ }
++export interface DeclarativeListenerOptions {
++    preventDefault?: boolean;
++    stopPropagation?: boolean;
++    stopImmediatePropagation?: boolean;
++}
+ interface SafeElement {
++    addEventListener(type: string, handler: EventHandler, options?: DeclarativeListenerOptions): EventCleanup;
+     appendChild(child: SafeElement | SafeTextNode): void;
+     insertBefore(newChild: SafeElement | SafeTextNode, reference: SafeElement | SafeTextNode): void;
+     removeChild(child: SafeElement | SafeTextNode): void;
+@@ -274,6 +280,15 @@ interface SafeDocument {
+     getElement(id: string): SafeElement | null;
+ }
+-
++
+-declare function createSafeDocument(pluginRootID: string): SafeDocument;
++export declare function assertPrimitiveInput(value: unknown): asserts value is string | number | boolean;
++export declare function isInputTypeAllowed(type: string): boolean;
++export declare function isButtonTypeAllowed(type: string): boolean;
++export declare function hasCssUrl(css: string): boolean;
++export declare function isAttrKeySafe(key: string): boolean;
++export declare function isUrlSafe(value: unknown): value is string;
++export declare function getRealNode(wrapper: object): Node | undefined;
++export declare function validateFactory(name: string, argument: unknown): void;
++export declare function validStyle(property: string, value: string): boolean;
++declare function createSafeDocument(pluginRootID: string | HTMLElement): SafeDocument;
+-
++
+ export { type EventCleanup, type EventHandler, type FormattingTag, type HeadingLevel, type ListType, type SafeAnchorElement, type SafeAudioElement, type SafeButtonElement, type SafeCanvasElement, type SafeDescriptionListElement, type SafeDetailsElement, type SafeDialogElement, type SafeDocument, type SafeElement, type SafeEvent, type SafeFieldsetElement, type SafeImageElement, type SafeInputElement, type SafeLabelElement, type SafeListElement, type SafeMeterElement, type SafeOptionElement, type SafeProgressElement, type SafeSelectElement, type SafeSourceElement, type SafeStyle, type SafeStyleSheet, type SafeTableCellElement, type SafeTextNode, type SafeTextareaElement, type SafeVideoElement, createSafeDocument };
+diff --git a/dist/index.js b/dist/index.js
+index b7018e33765c56a5812b7c80658670e609c24e13..6f632e2a2ec09471e6401f19d5c9c63b3997fecc 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -330,6 +330,9 @@ var ALLOWED_STYLE_PROPERTIES = /* @__PURE__ */ new Set([
+   "containerType",
+   "cursor"
+ ]);
++function validStyle(prop, value) {
++  return ALLOWED_STYLE_PROPERTIES.has(prop) && !hasCssUrl(value);
++}
+ function createSafeStyle(realEl) {
+   return new Proxy(/* @__PURE__ */ Object.create(null), {
+     get(_, prop) {
+@@ -339,9 +342,8 @@ function createSafeStyle(realEl) {
+     },
+     set(_, prop, value) {
+       if (typeof prop !== "string") return false;
+-      if (!ALLOWED_STYLE_PROPERTIES.has(prop)) return false;
+       const stringValue = String(value ?? "");
+-      if (hasCssUrl(stringValue)) return false;
++      if (!validStyle(prop, stringValue)) return false;
+       realEl.style[prop] = stringValue;
+       return true;
+     }
+@@ -359,6 +361,17 @@ function addSafeEvent(realEl, wrapper, eventName, handler) {
+ function createSafeElement(realEl) {
+   const htmlEl = realEl;
+   const wrapper = {
++    addEventListener(type, handler, options = {}) {
++      const method = Object.keys(wrapper).find(key => key.startsWith("on") && key.slice(2).toLowerCase() === type);
++      if (!method) throw new Error("Unsupported event");
++      const { preventDefault, stopPropagation, stopImmediatePropagation } = options;
++      return wrapper[method](event => {
++        if (preventDefault) event.preventDefault();
++        if (stopPropagation) event.stopPropagation();
++        if (stopImmediatePropagation) event.stopImmediatePropagation();
++        handler(event);
++      });
++    },
+     appendChild(child) {
+       const realChild = getRealNode(child);
+       if (!realChild) return;
+@@ -884,7 +897,7 @@ function createSafeListElement(realEl) {
+   const base = createSafeElement(realEl);
+   return Object.assign(base, {
+     createItem() {
+-      const li = createSafeElement(document.createElement("li"));
++      const li = createSafeElement(realEl.ownerDocument.createElement("li"));
+       base.appendChild(li);
+       return li;
+     }
+@@ -894,12 +907,12 @@ function createSafeDescriptionListElement(realEl) {
+   const base = createSafeElement(realEl);
+   return Object.assign(base, {
+     createTerm() {
+-      const dt = createSafeElement(document.createElement("dt"));
++      const dt = createSafeElement(realEl.ownerDocument.createElement("dt"));
+       base.appendChild(dt);
+       return dt;
+     },
+     createDescription() {
+-      const dd = createSafeElement(document.createElement("dd"));
++      const dd = createSafeElement(realEl.ownerDocument.createElement("dd"));
+       base.appendChild(dd);
+       return dd;
+     }
+@@ -940,7 +953,7 @@ function createSafeStyleSheet(realStyle) {
+       unregisterPair(wrapper, realStyle);
+     }
+   };
+-  document.head.appendChild(realStyle);
++  realStyle.ownerDocument.head.appendChild(realStyle);
+   registerPair(wrapper, realStyle);
+   return wrapper;
+ }
+@@ -963,14 +976,16 @@ var FORMATTING_TAGS = /* @__PURE__ */ new Set([
+   "abbr",
+   "cite"
+ ]);
+-function simple(tag) {
+-  return createSafeElement(document.createElement(tag));
++function validateFactory(name, value) {
++  if (name === "createHeading" && (value < 1 || value > 6)) throw new Error("Heading level must be 1-6");
++  if (name === "createFormatting" && !FORMATTING_TAGS.has(value)) throw new Error(`Unknown formatting tag: ${value}`);
++  if (name === "createList" && !["ordered", "unordered", "description"].includes(value)) throw new Error(`Unknown list type: ${value}`);
+ }
+ function createSafeDocument(pluginRootID) {
+-  const pluginRoot = document.getElementById(pluginRootID);
+-  if (!pluginRoot) {
+-    throw new Error(`No HTML element with the '${pluginRootID}' id was found`);
+-  }
++  const pluginRoot = typeof pluginRootID === "string" ? globalThis.document.getElementById(pluginRootID) : pluginRootID;
++  if (!pluginRoot) throw new Error(`No HTML element with the '${pluginRootID}' id was found`);
++  const document = pluginRoot.ownerDocument;
++  const simple = tag => createSafeElement(document.createElement(tag));
+   return {
+     createDiv() {
+       return simple("div");
+@@ -1009,11 +1024,11 @@ function createSafeDocument(pluginRootID) {
+       return simple("p");
+     },
+     createHeading(level) {
+-      if (level < 1 || level > 6) throw new Error("Heading level must be 1-6");
++      validateFactory("createHeading", level);
+       return simple(`h${level}`);
+     },
+     createFormatting(format) {
+-      if (!FORMATTING_TAGS.has(format)) throw new Error(`Unknown formatting tag: ${format}`);
++      validateFactory("createFormatting", format);
+       return simple(format);
+     },
+     createBlockquote() {
+@@ -1023,10 +1038,10 @@ function createSafeDocument(pluginRootID) {
+       return simple("pre");
+     },
+     createList(type) {
++      validateFactory("createList", type);
+       if (type === "unordered") return createSafeListElement(document.createElement("ul"));
+       if (type === "ordered") return createSafeListElement(document.createElement("ol"));
+-      if (type === "description") return createSafeDescriptionListElement(document.createElement("dl"));
+-      throw new Error(`Unknown list type: ${type}`);
++      return createSafeDescriptionListElement(document.createElement("dl"));
+     },
+     createListItem() {
+       return simple("li");
+@@ -1169,11 +1184,12 @@ function createSafeDocument(pluginRootID) {
+     getElement(id) {
+       if (pluginRoot.id === id) return createSafeElement(pluginRoot);
+       const realEl = pluginRoot.querySelector(`#${CSS.escape(id)}`);
+-      if (!realEl || !(realEl instanceof HTMLElement)) return null;
++      if (!realEl || !(realEl instanceof document.defaultView.HTMLElement)) return null;
+       return createSafeElement(realEl);
+     }
+   };
+ }
+ export {
++  hasCssUrl, isAttrKeySafe, isUrlSafe, getRealNode, validStyle, validateFactory, assertPrimitiveInput, isInputTypeAllowed, isButtonTypeAllowed,
+   createSafeDocument
+ };

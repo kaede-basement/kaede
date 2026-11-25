@@ -10,8 +10,6 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use zip::ZipArchive;
 
-use crate::hashes::sha256_hex;
-
 const METADATA_ENTRY: &str = "metadata.json";
 const CODE_ENTRY: &str = "index.js";
 
@@ -24,10 +22,8 @@ pub struct ExtensionFile {
     pub file_name: String,
     pub metadata: serde_json::Value,
     pub code: String,
-    // Matched against the trusted hashes list, which lists code hashes
-    pub code_sha256: String,
-    // Covers both metadata.json and index.js, so changed metadata makes a different extension
     pub artifact_sha256: String,
+    pub code_sha256: String,
 }
 
 #[derive(Serialize)]
@@ -56,10 +52,13 @@ fn read_entry_text(
     archive: &mut ZipArchive<File>,
     entry_name: &str,
     max_size: u64,
-) -> Result<String, String> {
-    let entry = archive
-        .by_name(entry_name)
-        .map_err(|error| format!("Could not find '{}' at the archive root: {}", entry_name, error))?;
+) -> Result<(String, bool), String> {
+    let entry = archive.by_name(entry_name).map_err(|error| {
+        format!(
+            "Could not find '{}' at the archive root: {}",
+            entry_name, error
+        )
+    })?;
     let declared_size = entry.size();
 
     if declared_size > max_size {
@@ -72,51 +71,69 @@ fn read_entry_text(
     let mut contents = String::new();
     let mut limited_reader = entry.take(max_size + 1);
 
+    let mut prefix = Vec::with_capacity(3);
     limited_reader
+        .by_ref()
+        .take(3)
+        .read_to_end(&mut prefix)
+        .map_err(|error| format!("Could not read '{entry_name}': {error}"))?;
+    let bom = prefix == b"\xef\xbb\xbf";
+    if bom {
+        prefix.clear();
+    }
+    prefix
+        .as_slice()
+        .chain(limited_reader)
         .read_to_string(&mut contents)
         .map_err(|error| format!("Could not read '{}' as UTF-8 text: {}", entry_name, error))?;
 
-    if contents.len() as u64 > max_size {
+    if contents.len() as u64 + if bom { 3 } else { 0 } > max_size {
         return Err(format!(
             "'{}' decompressed past the {} bytes limit",
             entry_name, max_size,
         ));
     }
 
-    // Strip the UTF-8 BOM
-    if contents.starts_with('\u{feff}') {
-        contents.remove(0);
-    }
-
-    Ok(contents)
+    Ok((contents, bom))
 }
 
-/*
- * Hashing the two per-file digests keeps the boundary between the files unambiguous:
- * moving bytes from one file to the other changes the identity
- */
-fn artifact_sha256(metadata: &str, code: &str) -> String {
-    let mut digests = Vec::with_capacity(64);
-
-    digests.extend_from_slice(&Sha256::digest(metadata.as_bytes()));
-    digests.extend_from_slice(&Sha256::digest(code.as_bytes()));
-
-    sha256_hex(&digests)
+fn extension_hashes(
+    metadata: &str,
+    metadata_bom: bool,
+    code: &str,
+    code_bom: bool,
+) -> (String, String) {
+    let code_digest = Sha256::digest(code.as_bytes());
+    let artifact = Sha256::new()
+        .chain_update([metadata_bom as u8])
+        .chain_update(metadata.as_bytes())
+        .chain_update([code_bom as u8])
+        .chain_update(code_digest)
+        .finalize();
+    (format!("{code_digest:x}"), format!("{artifact:x}"))
 }
 
-fn read_archive(path: &Path) -> Result<(serde_json::Value, String, String), String> {
+fn read_archive(path: &Path, file_name: &str) -> Result<ExtensionFile, String> {
     let file = File::open(path)
         .map_err(|error| format!("Failed to open {}: {}", path.display(), error))?;
     let mut archive = ZipArchive::new(file)
         .map_err(|error| format!("Failed to read {} as a zip: {}", path.display(), error))?;
 
-    let metadata_text = read_entry_text(&mut archive, METADATA_ENTRY, MAX_METADATA_SIZE)?;
+    let (metadata_text, metadata_bom) =
+        read_entry_text(&mut archive, METADATA_ENTRY, MAX_METADATA_SIZE)?;
     let metadata: serde_json::Value = serde_json::from_str(&metadata_text)
         .map_err(|error| format!("'{}' is not valid JSON: {}", METADATA_ENTRY, error))?;
-    let code = read_entry_text(&mut archive, CODE_ENTRY, MAX_CODE_SIZE)?;
-    let artifact_sha256 = artifact_sha256(&metadata_text, &code);
+    let (code, code_bom) = read_entry_text(&mut archive, CODE_ENTRY, MAX_CODE_SIZE)?;
 
-    Ok((metadata, code, artifact_sha256))
+    let (code_sha256, artifact_sha256) =
+        extension_hashes(&metadata_text, metadata_bom, &code, code_bom);
+    Ok(ExtensionFile {
+        file_name: file_name.into(),
+        metadata,
+        code,
+        code_sha256,
+        artifact_sha256,
+    })
 }
 
 #[tauri::command]
@@ -131,11 +148,21 @@ pub async fn read_extensions(extensions_dir_path: String) -> Result<ExtensionsRe
 
         for entry in entries {
             let entry = entry.map_err(|error| {
-                format!("Failed to read an entry of {}: {}", extensions_dir.display(), error)
+                format!(
+                    "Failed to read an entry of {}: {}",
+                    extensions_dir.display(),
+                    error
+                )
             })?;
             let path = entry.path();
 
-            if path.is_file() && is_extension_archive(&path) {
+            if !is_extension_archive(&path) {
+                continue;
+            }
+            let kind = entry
+                .file_type()
+                .map_err(|error| format!("Failed to stat {}: {}", path.display(), error))?;
+            if kind.is_file() || (kind.is_symlink() && path.is_file()) {
                 archive_paths.push(path);
             }
         }
@@ -154,18 +181,8 @@ pub async fn read_extensions(extensions_dir_path: String) -> Result<ExtensionsRe
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default();
 
-            match read_archive(&path) {
-                Ok((metadata, code, artifact_sha256)) => {
-                    let code_sha256 = sha256_hex(code.as_bytes());
-
-                    extensions.push(ExtensionFile {
-                        file_name,
-                        metadata,
-                        code,
-                        code_sha256,
-                        artifact_sha256,
-                    })
-                }
+            match read_archive(&path, &file_name) {
+                Ok(extension) => extensions.push(extension),
                 Err(error) => failures.push(ExtensionFailure { file_name, error }),
             }
         }
@@ -181,26 +198,67 @@ pub async fn read_extensions(extensions_dir_path: String) -> Result<ExtensionsRe
 
 #[cfg(test)]
 mod tests {
-    use super::artifact_sha256;
+    use super::extension_hashes;
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn discovers_symlinked_archives() {
+        use std::path::PathBuf;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::{fs, io::Write, os::unix::fs::symlink};
+
+        struct TempDir(PathBuf);
+        impl Drop for TempDir {
+            fn drop(&mut self) {
+                let _ = fs::remove_dir_all(&self.0);
+            }
+        }
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let directory = loop {
+            let n = NEXT.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir()
+                .join(format!("kaede-linked-archive-{}-{n}", std::process::id()));
+            match fs::create_dir(&path) {
+                Ok(()) => break TempDir(path),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => panic!("Creating test directory: {error}"),
+            }
+        };
+        let target = directory.0.join("archive");
+        let mut archive = zip::ZipWriter::new(fs::File::create(&target).unwrap());
+        for (name, data) in [("metadata.json", "{}"), ("index.js", "")] {
+            archive
+                .start_file(name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            archive.write_all(data.as_bytes()).unwrap();
+        }
+        drop(archive.finish().unwrap());
+        symlink(target, directory.0.join("linked.kaede")).unwrap();
+
+        let result = super::read_extensions(directory.0.to_str().unwrap().into()).await;
+        let files = result.unwrap().extensions;
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].file_name, "linked.kaede");
+    }
 
     #[test]
-    fn artifact_sha256_is_stable_for_the_same_files() {
+    fn identity_covers_both_files_and_their_boundary() {
+        let (code, artifact) = extension_hashes("{}", false, "abc", false);
         assert_eq!(
-            artifact_sha256("{\"type\":\"sandbox\"}", "run();"),
-            artifact_sha256("{\"type\":\"sandbox\"}", "run();"),
+            code,
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
-    }
-
-    #[test]
-    fn artifact_sha256_changes_with_metadata_when_code_is_the_same() {
-        assert_ne!(
-            artifact_sha256("{\"type\":\"sandbox\"}", "run();"),
-            artifact_sha256("{\"type\":\"unrestricted\"}", "run();"),
-        );
-    }
-
-    #[test]
-    fn artifact_sha256_changes_when_bytes_move_between_files() {
-        assert_ne!(artifact_sha256("{}a", "b"), artifact_sha256("{}", "ab"));
+        for (metadata, metadata_bom, js, code_bom) in [
+            ("{ }", false, "abc", false),
+            ("{}a", false, "bc", false),
+            ("{}", false, "abd", false),
+            ("{}", true, "abc", false),
+            ("{}", false, "abc", true),
+        ] {
+            assert_ne!(
+                artifact,
+                extension_hashes(metadata, metadata_bom, js, code_bom).1
+            );
+        }
     }
 }

@@ -72,7 +72,7 @@ async function run(): Promise<void> {
     await Browser.handleTauriEnvironment();
   }
 
-  const { basic, parsed } = await Initialization.start();
+  const { basic, parsed, executableHash } = await Initialization.start();
   const baseDirectory = basic.baseDirectory;
 
   // Caching
@@ -80,7 +80,7 @@ async function run(): Promise<void> {
   GlobalInternals.portable = basic.portable;
   GlobalInternals.joinDelimiter = basic.separator;
   GlobalInternals.launcherVersion = basic.launcherVersion;
-  GlobalInternals.executableHash = basic.executableHash;
+  GlobalInternals.executableHash = executableHash;
   GlobalInternals.launchCount = basic.launchCount;
 
   // Show a pretty ASCII art with the launcher name :3
@@ -90,7 +90,7 @@ async function run(): Promise<void> {
       basic.portable,
       basic.launchCount,
       basic.launcherVersion,
-      basic.executableHash,
+      executableHash,
     ),
   );
 
@@ -109,40 +109,25 @@ async function run(): Promise<void> {
     Configs.getTranslations({ baseDirectory, "parsedFile": parsed.translations }),
     Instances.readInstances({ baseDirectory, "parsedFile": parsed.instances }),
     Configs.getAccounts({ baseDirectory, "parsedFile": parsed.accounts }),
-
-    /*
-     * Variables returned from this 'Promise#all' are globally visible,
-     * and exposing user accounts like that feels bad (even though
-     * anyone can use 'Configs#getAccounts' to fetch accounts again),
-     * so we return a one-time fetch function (for ContextProviders).
-     *
-     * UPD: Alright, they are no longer globally visible since we are wrapping the code
-     * in a function, but let the code stay commented
-     */
-
-    /*
-     * (async (): Promise<() => Array<AccountType>> => {
-     *   const accounts: Array<AccountType> = await Configs.getAccounts({
-     *     baseDirectory,
-     *     "parsedFile": parsed.accounts,
-     *   });
-     *   let executed: boolean = false;
-     *
-     *   return function () {
-     *     if (!executed) {
-     *       executed = true;
-     *
-     *       return accounts;
-     *     }
-     *
-     *     // HMR might trigger this branch
-     *     log.error(__PRE_BUNDLED_FILENAME__, "You cannot load accounts once more");
-     *
-     *     return [];
-     *   };
-     * })(),
-     */
   ]);
+
+  // At this point, we can make WebView visible
+  if (!config.extensions.enabled || config.extensions.showAppAfterExtensionsLoad !== true) {
+    getCurrentWebviewWindow()
+      .show()
+      .then(() => {
+        log.info(
+          __PRE_BUNDLED_FILENAME__,
+          `Successfully made WebView visible at time mark: ${performance.now().toFixed(1)} ms`,
+        );
+      })
+      .catch(error => {
+        log.error(
+          __PRE_BUNDLED_FILENAME__,
+          `An error occurred while making WebView visible: ${Errors.prettify(error)}`,
+        );
+      });
+  }
 
   // Define launcher's initial values at globals to make them accessible from anywhere
   GlobalInternals.initialConfig = config;
@@ -206,7 +191,7 @@ async function run(): Promise<void> {
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing launcher");
   await Initialization
-    .finish({ config, baseDirectory })
+    .finish({ baseDirectory })
     .catch((error: unknown) => {
       log.error(__PRE_BUNDLED_FILENAME__, "Failed to initialize launcher:", Errors.prettify(error));
     });

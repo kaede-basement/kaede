@@ -1,0 +1,8 @@
+{
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "bun preview:frontend --port 5173",
+    "beforeBuildCommand": "bun build:frontend"
+  }
+}

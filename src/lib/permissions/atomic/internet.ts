@@ -20,32 +20,17 @@ import "ses";
 
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 
-import type { SandboxFetchRequestType } from "@/lib/extensions/sandbox/host/host-methods.ts";
-import type { SandboxFetchResponse } from "@/lib/extensions/sandbox/protocol.ts";
+import { throwIfAborted } from "@/lib/extensions/sandbox/abort.ts";
 import { log } from "@/lib/logging/log.ts";
+import { hardenIfAvailable } from "@/lib/permissions/harden.ts";
+import {
+  fetchWithinScope, type Transport, validateContentType,
+} from "@/lib/permissions/internet-scope.ts";
+import {
+  buildSafeResponse, type ResponseMetadata, type RestrictedResponse,
+} from "@/lib/permissions/safe-response.ts";
 
-function guard(input: string | unknown, allowed: string): void {
-  if (typeof input !== "string") {
-    throw new TypeError("The input URL for the fetch should be a string");
-  }
-
-  const requestUrl = new URL(input);
-  const scopeUrl = new URL(allowed);
-
-  // Let the scope 'https://github.com/safeProfile' not allow 'https://github.com/safeProfileOhNotSoSafe'
-  const scopePath: string = scopeUrl.pathname.endsWith("/")
-    ? scopeUrl.pathname
-    : scopeUrl.pathname + "/";
-  const allowedOrigin: boolean = requestUrl.origin === scopeUrl.origin;
-  const allowedPath: boolean =
-    requestUrl.pathname === scopeUrl.pathname ||
-    requestUrl.pathname.startsWith(scopePath);
-
-  if (!allowedOrigin || !allowedPath) {
-    throw new Error(`This request (${requestUrl.href}) goes out of your allowed scope`);
-  }
-}
-function validateRequestData(body: unknown, contentType: unknown): void {
+function validateRequestBody(body: unknown): void {
   const isValidBody: boolean = (
     body === undefined ||
     typeof body === "string" ||
@@ -56,91 +41,90 @@ function validateRequestData(body: unknown, contentType: unknown): void {
   if (!isValidBody) {
     throw new TypeError("The request body must be a string");
   }
-
-  if (typeof contentType !== "string") {
-    throw new TypeError("The request 'Content-Type' header must be a string");
-  }
-
-  switch (contentType.toLowerCase()) {
-    // 'https://www.iana.org/assignments/media-types/media-types.xhtml'
-    case "text/plain":
-    case "image/gif":
-    case "image/jpeg":
-    case "image/png":
-    case "video/mpeg":
-    case "video/mp4":
-    case "video/webm":
-    case "application/json; charset=utf-8":
-    case "application/json;charset=utf-8":
-    case "application/json":
-    case "application/zip":
-    case "application/x-www-form-urlencoded":
-    case "application/ogg":
-    case "audio/mpeg": {
-      break;
-    }
-    default: {
-      throw new Error("The provided content type is not allowed");
-    }
-  }
 }
 
-function hook({ id, url, argument, method, label, body }: {
+type InternetScope = {
   "id"      : string;
-  "url"     : string | unknown;
-  "argument": string;
-  "method"  : "GET" | "POST";
-  "label"   : "Web" | "Tauri";
-  "body"   ?: Uint8Array | ArrayBuffer | string;
-}): void {
-  guard(url, argument);
-  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-    `The '${id}' plugin made a ${label} fetch call with the next params`,
-    { url, argument, method, body },
-  ));
-}
+  "scope"   : "http-get" | "http-post";
+  "argument": URL;
+};
 
-/**
- * Performs a fetch for a sandboxed plugin after the host checked its grant.
- * The URL must stay inside the granted scope, redirects are not followed,
- * and POST bodies are restricted.
- *
- * @param id - a string that represents the plugin ID
- * @param request - untrusted request parameters and the granted URL scope
- * @returns the response reduced to data
- */
-export async function fetchForPlugin(
-  id: string,
-  { scope, argument, client, url, body, contentType = "text/plain" }: SandboxFetchRequestType,
-): Promise<SandboxFetchResponse> {
-  const method = scope === "http-get" ? "GET" as const : "POST" as const;
-  const init: RequestInit = { method, "redirect": "manual" };
+export async function fetchForExtension(
+  { id, scope, argument }: InternetScope, transport: "webFetch" | "tauriFetch",
+  url: string, body?: string | ArrayBuffer | Uint8Array<ArrayBuffer>,
+  contentType = "text/plain", signal?: AbortSignal,
+): Promise<{
+  "metadata"   : ResponseMetadata;
+  "arrayBuffer": () => Promise<ArrayBuffer>;
+  "release"?   : () => void;
+}> {
+  throwIfAborted(signal);
+  const method = scope === "http-get" ? "GET" : "POST";
+  const options: RequestInit = { method, "redirect": "manual", signal };
 
   if (method === "POST") {
-    validateRequestData(body, contentType);
-    init.body = body as BodyInit | undefined;
-    init.headers = { "Content-Type": contentType as string };
+    validateRequestBody(body);
+    options.body = body;
+    options.headers = { "Content-Type": validateContentType(contentType) };
   }
+  log.debug(__PRE_BUNDLED_FILENAME__, `The '${id}' plugin made a ${method} request`);
 
-  hook({
-    id,
-    url,
-    argument,
-    method,
-    "label": client === "web" ? "Web" : "Tauri",
-    "body" : init.body as string | ArrayBuffer | Uint8Array | undefined,
-  });
+  // Plugin-http retains both request and body listeners on the supplied signal.
+  const child = transport === "tauriFetch" && signal ? new AbortController : undefined;
+  const abort = (): void => child?.abort(signal?.reason);
+  const detach = (): void => signal?.removeEventListener("abort", abort);
+  const send: Transport = transport === "webFetch" ? fetch : (href, init): Promise<Response> => (
+    tauriFetch(href, { ...init, "signal": child?.signal, "maxRedirections": 0 })
+  );
 
-  const response: Response = await (client === "web" ? fetch : tauriFetch)(url as string, init);
+  if (child) signal?.addEventListener("abort", abort, { "once": true });
+  let pendingBody = false;
 
-  return {
-    "status"     : response.status,
-    "statusText" : response.statusText,
-    "ok"         : response.ok,
-    "redirected" : response.redirected,
-    "type"       : response.type,
-    "url"        : response.url,
-    "contentType": response.headers.get("content-type") ?? "",
-    "body"       : await response.arrayBuffer(),
+  try {
+    const response = await fetchWithinScope(send, url, argument, options);
+
+    const release = (): void => {
+      if (child) detach();
+      void response.body?.cancel().catch(() => {});
+    };
+
+    if (signal?.aborted) {
+      release();
+      throwIfAborted(signal);
+    }
+    const { ok, redirected, status, statusText, type, "url": responseUrl } = response;
+    const headers = [...response.headers].filter(([name]) => (
+      name !== "set-cookie" && name !== "set-cookie2"
+    ));
+
+    pendingBody = !!response.body;
+
+    return {
+      "metadata": { ok, redirected, status, statusText, type, "url": responseUrl, headers },
+      "release" : pendingBody ? release : undefined,
+      async arrayBuffer(): Promise<ArrayBuffer> {
+        throwIfAborted(signal);
+        if (response.bodyUsed) throw new TypeError("Response body already consumed");
+        try {
+          return await response.arrayBuffer();
+        } finally {
+          if (child) detach();
+        }
+      },
+    };
+  } finally {
+    if (child && !pendingBody) detach();
+  }
+}
+
+export function handleInternetPermission(scope: InternetScope, signal?: AbortSignal): unknown {
+  const bind = (transport: "webFetch" | "tauriFetch") => async (
+    url: string, body?: string | ArrayBuffer | Uint8Array<ArrayBuffer>, contentType?: string,
+  ): Promise<RestrictedResponse> => {
+    const response = await fetchForExtension(scope, transport, url, body, contentType, signal);
+
+    return buildSafeResponse(response.metadata, response.arrayBuffer, response.release);
   };
+
+  return hardenIfAvailable({ "webFetch": bind("webFetch"), "tauriFetch": bind("tauriFetch") });
 }

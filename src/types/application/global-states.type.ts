@@ -17,10 +17,10 @@ type DevelopmentType = {
   "useNativeColorPicker"      : boolean;
 };
 type ExtensionsType = {
-  // 'sha256' is the artifact SHA-256 of an extension; renaming the key would invalidate configs
   "list"                      : Array<{ "enabled": boolean; "sha256": string; "label": string }>;
   "permissions"               : Record<string, Record<string, boolean>>;
   "enabled"                   : boolean;
+  "sandboxEngine"?            : "ses" | "worker";
   "allowUnrestrictedUntrusted": boolean;
   "showAppAfterExtensionsLoad": boolean;
 };

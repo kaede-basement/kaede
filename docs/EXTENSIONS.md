@@ -69,101 +69,40 @@ Balancing between the safety, performance, and developer experience (DX) of plug
 - [ShadowRealm (continuation of realms-shim)](https://tc39.es/proposal-shadowrealm/);
 - executing JS plugins in another WebView window spawned by Tauri with no permissions.
 
-Every approach above has its advantages, but there are also disadvantages. Consequently, satisfying all three requirements might be impossible. Therefore, I propose the following idea: separate extensions into sandboxed and unrestricted types. Sandboxed ones will focus on security while unrestricted ones are made for performance and DX.
+An extension declares its type in its metadata. For a sandboxed extension, **Settings → Extensions → Run sandboxed extensions in Web Workers** selects the execution engine. SES is the default. Switching the setting restarts enabled sandboxed extensions. Both engines use the same archive and artifact-scoped permission decisions. If a saved Worker selection is unavailable at startup, the launcher restores enabled extensions in SES.
 
-<table>
-  <thead>
-    <tr>
-      <th></th>
-      <th>Sandboxed</th>
-      <th>Unrestricted</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><strong>Safety</strong></td>
-      <td>Uses Android-like permissions and <a href="https://www.npmjs.com/package/ses" target="_blank">Secure ECMAScript Compartments</a></td>
-      <td>Nothing stops the plugin from deleting your whole system after stealing MSA tokens</td>
-    </tr>
-    <tr>
-      <td><strong>Performance</strong></td>
-      <td>
-        <blockquote>When using direct eval, especially when the eval source cannot be proven to be in strict mode, the engine — and build tools — have to disable all optimizations related to inlining, because the eval() source can depend on any variable name in its surrounding scope<br />- Source: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#never_use_direct_eval!">MDN</a></blockquote>
-        Also, all provided to the plugin utilities are wrapped into another functions that have lots of checks for security purposes, making code run a little bit slower.<br />
-        However, the code still runs in the same engine context, so it should be faster than a regular interpretation or even code executed in iframes.
-      </td>
-      <td>Faster than the sandboxed plugins and should be really close to a non-dynamically-initialized code.</td>
-    </tr>
-    <tr>
-      <td><strong>Developer Experience</strong></td>
-      <td></td>
-      <td></td>
-    </tr>
-  </tbody>
-</table>
+| | Unrestricted | Sandboxed · SES | Sandboxed · Web Worker |
+| --- | --- | --- | --- |
+| Authority | Runs with launcher privileges, including access to accounts and files. | A locked-down Compartment receives the capabilities approved for the artifact. | A locked-down Compartment in a dedicated Worker receives the same capabilities. The launcher checks grants and executes privileged requests. |
+| UI | Direct access to the launcher DOM. | Kaede’s patched Ark 0.3.1 exposes a synchronous UI in a host-owned frame at the bottom of the launcher. Root IDs such as `app` name private extension roots. | Ark operations cross the thread boundary in batches. Root lookup, styles and listeners stay inside the extension frame. Plugin computation runs off the UI thread. DOM commits still use it. |
+| Reads and events | Native browser values and event dispatch. | Synchronous browser-normalized values and native event cancellation through Ark. | Synchronous reads return Worker-local submitted values. Input events refresh form values from the host. Event handlers receive snapshots. Use declarative listener options to cancel during dispatch. |
+| Create 10,000 divs · commit | 3.8 / 3.9 ms | 14.5 / 16.8 ms | 39.2 / 45.9 ms |
+| Create 10,000 divs · frame-settled | 34.1 / 41.6 ms | 49.2 / 55.1 ms | 94.5 / 99.6 ms |
+| Edit 500 rows · commit | 0.5 / 0.8 ms | 1.1 / 1.2 ms | 3.6 / 4.2 ms |
+| Edit 500 rows · frame-settled | 25.0 / 26.8 ms | 24.8 / 28.9 ms | 19.3 / 31.0 ms |
+| Focused input to text update · commit | 0.0 / 0.1 ms | 0.1 / 0.2 ms | 2.3 / 2.8 ms |
+| Focused input to text update · frame-settled | 32.6 / 32.9 ms | 32.5 / 32.8 ms | 32.5 / 32.8 ms |
+| Mount, create 1,000 divs, remove and dispose · commit | 2.0 / 2.2 ms | 4.0 / 4.4 ms | 20.4 / 21.3 ms |
+| Mount, create 1,000 divs, remove and dispose · frame-settled | 21.5 / 22.1 ms | 16.5 / 18.0 ms | 46.2 / 47.4 ms |
+| Renderer JS heap delta after lifecycle and GC | +0.04 / +0.04 KiB | -224.04 / -221.38 KiB | -224.06 / -223.05 KiB |
 
-> [!CAUTION]
-> There is always a small chance the sandbox will be broken, which will allow the plugin to act like an unrestricted plugin
+The launcher presents static permissions when the user enables the extension. A plugin can request additional capabilities with `await requestPermissions([...])`. A Worker can wait for a permission decision during startup or activation. Teardown has a separate 10-second deadline, including permission waits. In SES, the launcher can cancel its wait for an asynchronous hook and revoke the activation’s capabilities once the event loop can run. A synchronous loop in an SES hook blocks the launcher and its timeout. In Worker mode the launcher runs the timeout on its own thread and can terminate a Worker even while the hook loops. Disabling either sandbox removes its UI.
 
-The restricted environment (sandbox) uses a permission-based system. When enabling the plugin for the first time, the list of static permissions will be shown. Static permissions are defined ahead-of-time. In case the plugin wants to extend its capabilities, it can use the `requestPermissions` function that returns a promise that resolves as soon as the user allows the request. `requestPermissions` is a plugin-scoped global variable that is essentially a reference to the function from another lexical environment, i.e., Kaede itself.
+In Worker mode, register cancellation before dispatch, for example with `button.addEventListener("click", handler, { preventDefault: true, stopPropagation: true })`. The same options accept `stopImmediatePropagation` to suppress later listeners on the target. The public `SandboxUIDocument` type includes this listener signature. Calling `event.preventDefault()`, `stopPropagation()`, or `stopImmediatePropagation()` inside the Worker callback throws because native dispatch has finished. Use SES for conditional native cancellation or immediate browser-normalized reads such as CSS serialization. Worker mutations are asynchronous, and serializing operations and committing them in the launcher adds overhead.
 
-// write here uhh i forgot
+### Benchmark methodology
 
-// remove or move: A restricted environment is achieved by using a [Secure ECMAScript](https://github.com/endojs/endo) framework. Each permission has its own list of globals passed to the plugin. Unfortunately, almost every DOM operation is prohibited since it leads to the sandbox escape.
+Run `bun scripts/sandbox-browser/run.ts` with Chrome or Chromium available. The harness builds the production sandbox runners with Vite and serves the resulting assets to headless Chrome. The table gives **median / nearest-rank p95** from 20 samples per mode after one warm-up, rotating execution order. All three render in equally sized frames. Each workload has two timings from the same start. **Commit** ends when the host has applied the DOM change. **Frame-settled** ends after two subsequent animation-frame callbacks, which includes waiting for a rendering opportunity. Verification runs outside both reported times.
 
-// remove or move: The second one is an unrestricted environment that allows plugins to do everything that the Kaede can do itself. Trusted extensions are executed in this environment.
+Creation sets text and class on each div. The sparse update changes text, a data attribute and color on every twentieth row. Both end with one marker attribute write on the container. A MutationObserver watching only that attribute timestamps its delivery on the host. For focused input, the observer watches the row whose text the handler changes and timing starts at event dispatch. The zero median for direct input means the start and observer callback fell within the same browser timer tick.
 
-// remove or move: Settings have an option to enable the execution of KUR extensions that require an unrestricted environment. Since those extensions may be harmful, the option is disabled by default.
+Lifecycle timing starts with a prepared artifact, includes sandbox startup, and ends at frame removal after creating and removing the 1,000-row subtree. Both times exclude the interval spent checking the row count and each row’s initial text before removal. Its frame-settled time adds two callbacks after disposal. The Unrestricted column is a direct-DOM baseline that creates and removes the same UI without running the launcher’s unrestricted extension loader.
 
-### Benchmarks
+The heap row measures the renderer isolate through Chrome DevTools Protocol before and after the lifecycle sample, with forced garbage collection on each side. Negative deltas can include collection of prior frames. Worker-isolate memory and native DOM storage are outside this measurement.
 
-```js
-const container = document.createElement("div");
+Measured on NixOS, Chrome 158.0.8127.36, AMD Ryzen 9 9950X (32 logical CPUs). Load averages before the run were 1.43 / 0.92 / 0.84. The Windows VM used 8.1 GiB and 6.9% CPU in the cgroup sample.
 
-container.style.position = "absolute";
-container.style.height = "fit-content";
-container.style.left = "0";
-container.style.top = "0";
-
-document.getElementById("app").append(container);
-
-const start = performance.now();
-
-for (let index = 0; index < 10_000; index++) {
-  const child = document.createElement("div");
-  child.textContent = index;
-  child.className = "text-neutral-300";
-  container.appendChild(child);
-}
-
-// Average time across 5 runs - 6,72 ms
-const result = performance.now() - start;
-```
-
-```js
-const gui = scopedThis["ui-basic"]("app");
-const performance = scopedThis["time::performance"].performance;
-const container = gui.createDiv();
-
-container.style.position = "absolute";
-container.style.height = "fit-content";
-container.style.left = "0";
-container.style.top = "0";
-
-gui.getElement("app").appendChild(container);
-
-const start = performance.now();
-
-for (let index = 0; index < 10_000; index++) {
-  const child = gui.createDiv();
-  child.setText(index);
-  child.setClass("text-neutral-300");
-  container.appendChild(child);
-}
-
-// Average time across 5 runs - 29,42 ms
-const result = performance.now() - start;
-```
+In a separate 350-cycle Worker run, Chrome reported one harness document, eight harness nodes and zero JS event listeners after collection at every 50-cycle checkpoint. Renderer JS heap usage at cycles 250, 300 and 350 was 1.41, 1.36 and 1.42 MiB. The run began at load averages of 1.51 / 0.99 / 0.87 with the same VM using 8.1 GiB and 7.1% CPU.
 
 ## Making a Plugin
 

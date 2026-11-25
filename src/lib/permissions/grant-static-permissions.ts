@@ -15,45 +15,44 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 import "ses";
 
-import { getGrantKey } from "@/lib/permissions/get-grant-key.ts";
+import type { ExtensionUI } from "@/lib/extensions/sandbox/ui-root.ts";
+import { handlePermission } from "@/lib/permissions/handle-permission.ts";
 import { parsePermission } from "@/lib/permissions/parse-permission.ts";
+import { artifactGrantKey } from "@/lib/permissions/request-permissions.ts";
 import { globalStates } from "@/states/global.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
-/**
- * Records the permissions declared in the plugin metadata as granted.
- *
- * @param artifactSha256 - the artifact whose grants are recorded
- * @param permissions - permissions from the plugin metadata
- * @returns the granted permissions
- */
 export function grantStaticPermissions({
+  id,
   artifactSha256,
   permissions = [],
+  ui, signal,
 }: {
-  // Grants are stored per artifact, so a changed archive with the same ID does not inherit them
+  "id"            : string;
   "artifactSha256": string;
-  "permissions"?  : Array<PermissionType | string>;
-}): Array<string> {
-  for (const permission of permissions) {
-    if (parsePermission(permission) === undefined) {
-      throw new TypeError(`The static permission '${permission}' is invalid`);
-    }
+  "signal"?       : AbortSignal;
+  "ui"?           : ExtensionUI;
+  "permissions"?  : Array<PermissionType>;
+}): Record<string, unknown> {
+  recordStaticGrants(artifactSha256, permissions);
+  const scopedThis = Object.fromEntries(
+    permissions.map(raw => [raw, handlePermission(raw, id, ui, signal)]),
+  );
+
+  return harden(scopedThis);
+}
+
+
+export function recordStaticGrants(artifactSha256: string, permissions: string[]): void {
+  const key = artifactGrantKey(artifactSha256);
+  const current = globalStates.extensions.permissions;
+
+  if (!permissions.every(raw => parsePermission(raw))) {
+    throw new TypeError("Invalid static permission");
   }
-
-  const currentPermissions = globalStates.extensions.permissions;
-  const key: string = getGrantKey(artifactSha256);
-
-  if (currentPermissions[key] === undefined) {
-    currentPermissions[key] = {};
+  for (const raw of permissions) {
+    (current[key] ??= {})[raw] = true;
   }
-
-  for (const permission of permissions) {
-    currentPermissions[key][permission] = true;
-  }
-
-  return [...permissions];
 }
