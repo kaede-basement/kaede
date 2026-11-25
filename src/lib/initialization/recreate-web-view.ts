@@ -16,12 +16,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
+import { log } from "@/lib/logging/log.ts";
 
+// Each new WebView starts a fresh JS realm, including a fresh counter.
+const labelPrefix = crypto.getRandomValues(new Uint32Array(4)).join("-");
+let sequence = 0;
 let pending = false;
+let survivingReplacement: WebviewWindow | undefined;
 
 export async function recreateWebView(): Promise<void> {
   if (pending) {
@@ -30,19 +34,33 @@ export async function recreateWebView(): Promise<void> {
 
   pending = true;
 
-  const id = getCurrentWindow().label === "reloaded" ? "switched-reloaded" : "reloaded";
-  const webview = new WebviewWindow(id, GlobalInternals.webViewRecreation);
+  try {
+    if (survivingReplacement) {
+      await survivingReplacement.destroy();
+      survivingReplacement = undefined;
+    }
 
-  return new Promise((resolve, reject) => {
-    webview.once("tauri://created", async () => {
-      await getCurrentWindow()
-        .destroy()
-        .catch(reject);
+    const current = getCurrentWebviewWindow();
+    const id = `main-${labelPrefix}-${++sequence}`;
+    const webview = new WebviewWindow(id, GlobalInternals.webViewRecreation);
 
-      resolve();
+    await new Promise<void>((resolve, reject) => {
+      webview.once("tauri://created", () => resolve()).catch(reject);
+      webview.once("tauri://error", reject).catch(reject);
     });
-    webview.once("tauri://error", error => {
-      reject(error);
-    });
-  });
+    try {
+      await current.destroy();
+    } catch (error) {
+      survivingReplacement = webview;
+      try {
+        await webview.destroy();
+        survivingReplacement = undefined;
+      } catch (cleanupError) {
+        log.warn(__PRE_BUNDLED_FILENAME__, "Replacement cleanup failed:", String(cleanupError));
+      }
+      throw error;
+    }
+  } finally {
+    pending = false;
+  }
 }

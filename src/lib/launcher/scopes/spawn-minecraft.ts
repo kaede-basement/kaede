@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { mkdir } from "@tauri-apps/plugin-fs";
+
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Hooks from "@/lib/hooks";
 import { log } from "@/lib/logging/log.ts";
@@ -45,6 +47,7 @@ export async function spawnMinecraft({
   "onClose"    : (instanceId: string) => void;
   "onInput"    : (lines: Array<string>) => void;
 }): Promise<LaunchResponseType> {
+  await mkdir(necessaries.directories.instance, { "recursive": true });
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await Hooks.catchAsyncResponseHooks<LaunchResponseType>({
       "scope" : "onMinecraftLaunch",
@@ -63,6 +66,7 @@ export async function spawnMinecraft({
     `Spawning a Minecraft process with the '${directories.instance}' working directory`,
   );
 
+  let exited = false;
   let process: MinecraftProcessType;
 
   try {
@@ -75,12 +79,12 @@ export async function spawnMinecraft({
     }, {
       "onOutput": onInput,
       "onExit"  : payload => {
+        exited = true;
         onClose(instanceId);
-        log.warn(logPrefix, log.templates.json.contents(
-          "Successfully closed. Payload",
-          payload,
-          true,
-        ));
+        log.warn(
+          logPrefix,
+          `Minecraft exited (PID ${payload.pid}, code ${payload.code}, signal ${payload.signal})`,
+        );
         void Hooks.catchAsyncVoidHooks({
           "scope" : "onMinecraftKill",
           "toPass": payload.pid,
@@ -112,11 +116,19 @@ export async function spawnMinecraft({
     return { "success": false, "process": undefined };
   }
 
-  await Hooks.catchAsyncVoidHooks({
-    "scope" : "onMinecraftLaunch",
-    "toPass": { process, command, instanceId, necessaries },
-    "timing": "after",
-  });
+  if (!exited) {
+    await Hooks.catchAsyncVoidHooks({
+      "scope" : "onMinecraftLaunch",
+      "toPass": { process, command, instanceId, necessaries },
+      "timing": "after",
+    });
+  }
+
+  if (exited) {
+    statuses.current = LaunchStatus.Errors.UnhandledError;
+
+    return { "success": false, "process": undefined };
+  }
 
   log.info(logPrefix, `Successfully launched with the ${process.pid} PID`);
   statuses.current = LaunchStatus.General.Success;

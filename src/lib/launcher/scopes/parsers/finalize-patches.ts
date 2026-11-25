@@ -106,7 +106,7 @@ export function finalizePatches({
    * Initially, patches are sorted from parents to dependencies.
    * However, we need to go from dependencies to parents
    */
-  const reversed: Array<SpecificPatchMetaType> = patches.reverse();
+  const reversed: Array<SpecificPatchMetaType> = [...patches].reverse();
 
   /*
    * Previously, maven files and libraries shared the same unique artifacts map...

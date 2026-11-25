@@ -28,3 +28,11 @@ export type DownloadReportType = {
   "failures" : Array<{ "url": string; "path": string; "error": string }>;
   "cancelled": boolean;
 };
+
+export type DownloadEntryType = {
+  "url"       : string;
+  "path"      : string;
+  "hash"?     : string;
+  "algorithm"?: "sha1" | "sha256" | "sha512" | "md5";
+  "size"?     : number;
+};
