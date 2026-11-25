@@ -25,7 +25,6 @@ import Extractors from "@/lib/launcher/scopes/extractors";
 import Fetching from "@/lib/launcher/scopes/fetching";
 import Parsers from "@/lib/launcher/scopes/parsers";
 import Patches from "@/lib/launcher/scopes/patches";
-import Validators from "@/lib/launcher/scopes/validators";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
@@ -66,13 +65,6 @@ export async function handleLaunch({
     logPrefix,
   });
 
-  // Same as 'necessaries.logPrefix'
-  log.info(logPrefix, log.templates.json.contents(
-    "Pre-launch information contents",
-    necessaries,
-    true,
-  ));
-
   if (necessaries === false) {
     log.warn(
       // Same as 'necessaries.logPrefix'
@@ -82,6 +74,16 @@ export async function handleLaunch({
 
     return failed;
   }
+
+  log.info(logPrefix, log.templates.json.contents(
+    "Pre-launch environment",
+    {
+      "platform" : necessaries.platform,
+      "arch"     : necessaries.arch,
+      "javaMajor": necessaries.user.javaMajor,
+    },
+    true,
+  ));
 
   if (!necessaries.user.account) {
     log.error(__PRE_BUNDLED_FILENAME__, "You cannot launch Minecraft without an account");
@@ -98,7 +100,7 @@ export async function handleLaunch({
         statuses,
       })
       .then(({ report }) => {
-        if (report.failed > 0) {
+        if (report.failed > 0 || report.cancelled) {
           return { "status": false, "failed": report.failed };
         }
 
@@ -137,12 +139,6 @@ export async function handleLaunch({
       }
     }
   }
-
-  await Promise.all([
-    Validators.ensurePatchDirectories(necessaries),
-    Validators.ensureMinecraftDirectory(necessaries),
-    Validators.initializeAssetsDirectories(necessaries),
-  ]);
 
   const entryPatch: SpecificPatchMetaType | false = await Patches.resolvePatch({
     necessaries,

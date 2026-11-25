@@ -30,7 +30,7 @@ export async function serveFile(
   const selectedPort: number = port ?? getFreePort();
 
   try {
-    return Processes.spawnServer({
+    return await Processes.spawnServer({
       name,
       "port"   : selectedPort,
       "program": { "type": "sidecar", "value": "txiki-server" },

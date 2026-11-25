@@ -30,31 +30,58 @@ export async function resolveSubPatches({
   "necessaries": PreLaunchInformationType;
   "patchMeta"  : SpecificPatchMetaType;
 }): Promise<Array<SpecificPatchMetaType>> {
-  const toResolve: Array<Array<PatchDependencyType> | undefined> = [patchMeta?.requires];
-  const patches: Array<SpecificPatchMetaType> = [patchMeta];
+  const patches = new Map<string, SpecificPatchMetaType>([[patchMeta.uid, patchMeta]]);
+  const dependents = (new Map<string, number>);
 
-  for (const currentGroup of toResolve) {
-    if (currentGroup === undefined) {
-      continue;
+  for (const patch of patches.values()) {
+    const missing: Array<PatchDependencyType> = [];
+
+    for (const required of patch.requires ?? []) {
+      if (!dependents.has(required.uid) && !patches.has(required.uid)) {
+        missing.push(required);
+      }
+      dependents.set(required.uid, (dependents.get(required.uid) ?? 0) + 1);
     }
 
-    const currentResolved: Array<SpecificPatchMetaType | false> = await Promise.all(
-      currentGroup.map(required => resolvePatch({
-        "metadata": required,
-        necessaries,
-        patchMeta,
-      })),
-    );
+    const resolved = await Promise.all(missing.map(async metadata => {
+      const result = await resolvePatch({ necessaries, metadata, patchMeta });
 
-    for (const resolvedPatch of currentResolved) {
-      if (resolvedPatch === false) {
-        continue;
+      if (!result) {
+        throw new Error(`Failed to resolve required patch ${metadata.uid}`);
       }
 
-      patches.push(resolvedPatch);
-      toResolve.push(resolvedPatch.requires);
+      return result;
+    }));
+
+    for (const [index, result] of resolved.entries()) {
+      patches.set(missing[index].uid, result);
     }
   }
 
-  return patches;
+  // Finalization applies the result in reverse, so every dependent must precede its dependencies.
+  const ordered = dependents.has(patchMeta.uid) ? [] : [patchMeta];
+
+  for (const patch of ordered) {
+    for (const { uid, equals } of patch.requires ?? []) {
+      const dependency = patches.get(uid)!;
+      const version = necessaries.user.versions?.[uid] ?? equals;
+
+      if (version !== undefined && version !== dependency.version) {
+        throw new Error(`Conflicting required version of ${uid}: ${version}`);
+      }
+
+      const remaining = dependents.get(uid)! - 1;
+
+      dependents.set(uid, remaining);
+      if (remaining === 0) {
+        ordered.push(dependency);
+      }
+    }
+  }
+
+  if (ordered.length !== patches.size) {
+    throw new Error("Cycle in required Minecraft patches");
+  }
+
+  return ordered;
 }

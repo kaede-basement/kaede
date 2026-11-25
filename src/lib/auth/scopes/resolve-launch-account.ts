@@ -71,12 +71,18 @@ export async function resolveLaunchAccount(
     };
   }
 
-  const updatedAccounts: Array<AccountType> = [
-    account,
-    ...accounts.slice(1),
-  ];
+  if (accounts[selectedIndex]?.profile.uuid !== account.profile.uuid ||
+    activeAccount.profile.uuid !== account.profile.uuid) {
+    throw new Error("The refreshed account does not match the selected profile");
+  }
 
-  await Configs.writeAccounts({ "accounts": updatedAccounts });
+  const updatedAccounts = [...accounts];
+
+  updatedAccounts[selectedIndex] = account;
+
+  if (!await Configs.writeAccounts({ "accounts": updatedAccounts })) {
+    throw new Error("Failed to save the refreshed account");
+  }
 
   return {
     "auth"    : buildLaunchAuth(account),

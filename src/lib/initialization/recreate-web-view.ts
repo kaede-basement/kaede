@@ -30,19 +30,17 @@ export async function recreateWebView(): Promise<void> {
 
   pending = true;
 
-  const id = getCurrentWindow().label === "reloaded" ? "switched-reloaded" : "reloaded";
-  const webview = new WebviewWindow(id, GlobalInternals.webViewRecreation);
+  try {
+    const current = getCurrentWindow();
+    const id = current.label === "reloaded" ? "switched-reloaded" : "reloaded";
+    const webview = new WebviewWindow(id, GlobalInternals.webViewRecreation);
 
-  return new Promise((resolve, reject) => {
-    webview.once("tauri://created", async () => {
-      await getCurrentWindow()
-        .destroy()
-        .catch(reject);
-
-      resolve();
+    await new Promise<void>((resolve, reject) => {
+      webview.once("tauri://created", () => resolve()).catch(reject);
+      webview.once("tauri://error", reject).catch(reject);
     });
-    webview.once("tauri://error", error => {
-      reject(error);
-    });
-  });
+    await current.destroy();
+  } finally {
+    pending = false;
+  }
 }

@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { mkdir } from "@tauri-apps/plugin-fs";
+
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Hooks from "@/lib/hooks";
 import { log } from "@/lib/logging/log.ts";
@@ -66,6 +68,7 @@ export async function spawnMinecraft({
   let process: MinecraftProcessType;
 
   try {
+    await mkdir(directories.instance, { "recursive": true });
     process = await Processes.spawnProcess<MinecraftMetaType>({
       "program": { "type": "path", "value": command.java },
       "args"   : command.arguments,

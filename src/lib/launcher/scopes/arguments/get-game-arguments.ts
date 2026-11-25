@@ -5,6 +5,8 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
+import { splitArguments } from "./split-arguments.ts";
+
 export async function getGameArguments({
   necessaries,
   finalizedPatch,
@@ -37,7 +39,7 @@ export async function getGameArguments({
   }
 
   const tweakersList: Array<string> = finalizedPatch["+tweakers"] ?? [];
-  const argumentsWithTweakers: Array<string> = finalizedPatch.minecraftArguments.split(" ");
+  let argumentsWithTweakers: Array<string> = splitArguments(finalizedPatch.minecraftArguments);
 
   for (const tweaker of tweakersList) {
     argumentsWithTweakers.push("--tweakClass", tweaker);
@@ -50,6 +52,10 @@ export async function getGameArguments({
     necessaries.instance.windowWidth.toString(),
     ...(necessaries.instance.add?.gameArguments ?? []),
   );
+
+  const removed = new Set(necessaries.instance.remove?.gameArguments);
+
+  argumentsWithTweakers = argumentsWithTweakers.filter(argument => !removed.has(argument));
 
   const afterHooksResult: "continue" | Array<string> | undefined =
     await Hooks.catchAsyncResponseHooks<Array<string>>({

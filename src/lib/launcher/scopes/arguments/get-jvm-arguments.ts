@@ -15,7 +15,7 @@ export async function getJvmArguments({
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<Array<string>> {
-  const jvmArguments: Array<string> = [];
+  let jvmArguments: Array<string> = [];
 
   const beforeHooksResult: "continue" | Array<string> | undefined =
     await Hooks.catchAsyncResponseHooks<Array<string>>({
@@ -96,10 +96,14 @@ export async function getJvmArguments({
     jvmArguments.push(loggingArguments);
   }
 
+  const removed = new Set(necessaries.instance.remove?.jvmArguments);
+
+  jvmArguments = jvmArguments.filter(argument => !removed.has(argument));
+
   const afterHooksResult: "continue" | Array<string> | undefined =
     await Hooks.catchAsyncResponseHooks<Array<string>>({
       "scope" : "onJVMArgumentsGet",
-      "toPass": { necessaries, finalizedPatch },
+      "toPass": { jvmArguments, necessaries, finalizedPatch },
       "timing": "after",
     });
 

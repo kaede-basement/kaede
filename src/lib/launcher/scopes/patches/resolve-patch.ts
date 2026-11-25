@@ -56,6 +56,11 @@ export async function resolvePatch({
 
   const { directories, statuses, logPrefix } = necessaries;
   const version: string | false = await Patches.resolvePatchVersion({ necessaries, metadata });
+
+  if (version === false) {
+    return false;
+  }
+
   const fileName: string = version + ".json";
   const descriptiveLogPrefix: string = metadata.uid + ":" + fileName + ":" + logPrefix;
   let parsedPatch: unknown;
@@ -72,9 +77,7 @@ export async function resolvePatch({
         log.warn(descriptiveLogPrefix, "No cache; generating the patch metadata");
         statuses.current = LaunchStatus.PatchMetadata.Fetching;
 
-        const generated: Record<string, unknown> | false = version === false
-          ? false
-          : await OptiFine.resolveOptiFinePatch({ necessaries, version });
+        const generated = await OptiFine.resolveOptiFinePatch({ necessaries, version });
 
         if (generated !== false) {
           return generated;

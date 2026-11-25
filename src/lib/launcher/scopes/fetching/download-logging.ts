@@ -1,14 +1,12 @@
-import { exists, mkdir } from "@tauri-apps/plugin-fs";
-
 import { LaunchStatus } from "@/constants/launcher.ts";
-import Errors from "@/lib/errors";
 import Hooks from "@/lib/hooks";
 import { log } from "@/lib/logging/log.ts";
-import Network from "@/lib/network";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
+
+import { downloadMissing } from "./download-missing.ts";
 
 export async function downloadLogging({
   necessaries,
@@ -41,51 +39,20 @@ export async function downloadLogging({
     return beforeHooksResult;
   }
 
-  const { directories, statuses, cancelId } = necessaries;
-  const { url, path } = logging;
+  const { statuses, instance, cancelId } = necessaries;
 
-  log.debug(logPrefix, "Checking if the logging config exists");
   statuses.current = LaunchStatus.Logging.Checking;
+  const report = await downloadMissing({
+    statuses,
+    cancelId,
+    "entries"    : [logging],
+    "checksum"   : instance.checksum,
+    "concurrency": 1,
+    "label"      : "logging",
+  });
 
-  const [
-    directoryExists,
-    fileExists,
-  ]: [
-    boolean,
-    boolean,
-  ] = await Promise.all([
-    exists(directories.logging),
-    exists(path),
-  ]);
-
-  if (!directoryExists) {
-    log.warn(logPrefix, "The logging config directory does not exist");
-    await mkdir(directories.logging);
-  }
-
-  if (!fileExists) {
-    log.warn(logPrefix, "The logging config file does not exist");
-    log.debug(logPrefix, "Downloading the logging config file");
-    try {
-      const report = await Network.concurrentlyDownload({
-        statuses,
-        cancelId,
-        "concurrency": 1,
-        "entries"    : [{ path, url }],
-        "label"      : "logging",
-      });
-
-      if (report.cancelled) {
-        return false;
-      }
-    } catch (error: unknown) {
-      log.error(
-        logPrefix,
-        "Could not download the logging config file:",
-        Errors.prettify(error),
-      );
-      statuses.downloads.failed++;
-    }
+  if (report.failed > 0 || report.cancelled) {
+    return false;
   }
 
   await Hooks.catchAsyncVoidHooks({
