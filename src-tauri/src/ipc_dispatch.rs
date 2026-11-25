@@ -2,17 +2,19 @@
 //! the native channels and resolvers, including their Webview drop callbacks.
 use std::{
     cell::{Cell, RefCell},
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     future::Future,
-    sync::{Arc, OnceLock},
+    pin::Pin,
+    sync::{Arc, Mutex, OnceLock},
+    time::Duration,
 };
 use tauri::{
     ipc::{Channel, InvokeError, InvokeResponseBody, IpcResponse},
-    AppHandle, Manager,
+    AppHandle,
 };
 
 type Task = Box<dyn FnOnce() + Send>;
-pub(super) type Post = Arc<dyn Fn(Task) -> tauri::Result<()> + Send + Sync>;
+type Post = Arc<dyn Fn(Task) -> tauri::Result<()> + Send + Sync>;
 type Reply = Result<InvokeResponseBody, InvokeError>;
 type Responder = Box<dyn FnOnce(Reply)>;
 
@@ -30,25 +32,144 @@ fn next_id() -> u64 {
     })
 }
 
-fn scheduler(app: &AppHandle) -> Post {
-    // The static retains the AppHandle. Workers clone only the Arc to the posting function.
-    static POST: OnceLock<Post> = OnceLock::new();
-    POST.get_or_init(|| {
-        let app = app.clone();
-        Arc::new(move |task| app.run_on_main_thread(task))
-    })
-    .clone()
+const WAKE_RETRY_DELAY: Duration = Duration::from_millis(16);
+
+type Work = Pin<Box<dyn Future<Output = ()> + Send>>;
+
+#[derive(Default)]
+struct Pending {
+    actions: VecDeque<Task>,
+    scheduled: bool,
+    draining: bool,
+    closed: bool,
+}
+
+pub(super) struct Queue {
+    wake: Post,
+    pending: Mutex<Pending>,
+}
+
+impl Queue {
+    fn push(self: &Arc<Self>, task: Task) -> tauri::Result<()> {
+        {
+            let mut pending = self.pending.lock().unwrap();
+            if pending.closed {
+                return Err(tauri::Error::FailedToReceiveMessage);
+            }
+            pending.actions.push_back(task);
+            if pending.scheduled || pending.draining {
+                return Ok(());
+            }
+            pending.scheduled = true;
+        }
+        self.schedule();
+        Ok(())
+    }
+
+    fn schedule(self: &Arc<Self>) {
+        let queue = self.clone();
+        if (self.wake)(Box::new(move || queue.drain(true))).is_err() {
+            let queue = self.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(WAKE_RETRY_DELAY).await;
+                {
+                    let mut pending = queue.pending.lock().unwrap();
+                    if pending.closed || pending.actions.is_empty() {
+                        pending.scheduled = false;
+                        return;
+                    }
+                }
+                queue.schedule();
+            });
+        }
+    }
+
+    fn drain(&self, from_wakeup: bool) {
+        let mut pending = self.pending.lock().unwrap();
+        if from_wakeup {
+            pending.scheduled = false;
+        }
+        if pending.draining {
+            return;
+        }
+        pending.draining = true;
+        while let Some(action) = pending.actions.pop_front() {
+            drop(pending);
+            action();
+            pending = self.pending.lock().unwrap();
+        }
+        pending.draining = false;
+    }
+}
+
+#[derive(Clone)]
+pub(super) struct Dispatcher {
+    queue: Arc<Queue>,
+    spawn: Arc<dyn Fn(Work) + Send + Sync>,
+}
+
+impl Dispatcher {
+    fn new(wake: Post, spawn: impl Fn(Work) + Send + Sync + 'static) -> Self {
+        Self {
+            queue: Arc::new(Queue {
+                wake,
+                pending: Mutex::default(),
+            }),
+            spawn: Arc::new(spawn),
+        }
+    }
+
+    pub(super) fn for_app(app: &AppHandle) -> Self {
+        // Workers post through a borrowed handle; its native owner lives for the event loop's lifetime.
+        static APP: OnceLock<AppHandle> = OnceLock::new();
+        let app = APP.get_or_init(|| app.clone());
+        Self::new(Arc::new(move |task| app.run_on_main_thread(task)), |work| {
+            tauri::async_runtime::spawn(work);
+        })
+    }
+
+    pub(super) fn drain(&self) {
+        self.queue.drain(false);
+    }
+
+    pub(super) fn shutdown(&self) {
+        self.queue.pending.lock().unwrap().closed = true;
+        self.drain();
+        let pending = REPLIES.take();
+        for respond in pending.into_values() {
+            respond(Err("Application exiting".into()));
+        }
+        drop(CHANNELS.take());
+    }
+
+    pub(super) fn dispatch<R, T, F>(
+        &self,
+        incoming: tauri::ipc::Invoke<R>,
+        bind: impl FnOnce(&crate::Invoke<R>) -> Result<F, InvokeError>,
+    ) -> bool
+    where
+        R: tauri::Runtime,
+        T: IpcResponse,
+        F: Future<Output = Result<T, String>> + Send + 'static,
+    {
+        if self.queue.pending.lock().unwrap().closed {
+            incoming.resolver.reject("Application exiting");
+            return true;
+        }
+        (self.spawn)(Box::pin(prepare(incoming, self.queue.clone(), bind)));
+        true
+    }
 }
 
 struct Completion {
-    post: Post,
+    queue: Arc<Queue>,
     id: Option<u64>,
 }
 
 impl Completion {
     fn finish(&mut self, reply: Reply) {
         if let Some(id) = self.id.take() {
-            if let Err(error) = (self.post)(Box::new(move || {
+            if let Err(error) = self.queue.push(Box::new(move || {
                 let respond = REPLIES.with_borrow_mut(|pending| pending.remove(&id));
                 if let Some(respond) = respond {
                     respond(reply);
@@ -70,7 +191,7 @@ impl Drop for Completion {
 
 fn prepare<R, T, F>(
     incoming: tauri::ipc::Invoke<R>,
-    post: Post,
+    queue: Arc<Queue>,
     bind: impl FnOnce(&crate::Invoke<R>) -> Result<F, InvokeError>,
 ) -> impl Future<Output = ()> + Send + 'static
 where
@@ -87,7 +208,7 @@ where
     let bound = bind(&crate::Invoke {
         message,
         acl,
-        post: post.clone(),
+        queue: queue.clone(),
     });
     let pending = match bound {
         Ok(work) => {
@@ -95,7 +216,13 @@ where
             REPLIES.with_borrow_mut(|pending| {
                 pending.insert(id, Box::new(move |reply| resolver.respond(reply)))
             });
-            Some((Completion { post, id: Some(id) }, work))
+            Some((
+                Completion {
+                    queue,
+                    id: Some(id),
+                },
+                work,
+            ))
         }
         Err(error) => {
             resolver.invoke_error(error);
@@ -113,24 +240,15 @@ where
     }
 }
 
-pub(super) fn dispatch<T: IpcResponse, F: Future<Output = Result<T, String>> + Send + 'static>(
-    incoming: crate::Incoming,
-    bind: impl FnOnce(&crate::Invoke) -> Result<F, InvokeError>,
-) -> bool {
-    let post = scheduler(incoming.message.webview_ref().app_handle());
-    tauri::async_runtime::spawn(prepare(incoming, post, bind));
-    true
-}
-
 struct ChannelHandle {
     id: u64,
-    post: Post,
+    queue: Arc<Queue>,
 }
 
 impl Drop for ChannelHandle {
     fn drop(&mut self) {
         let id = self.id;
-        let _ = (self.post)(Box::new(move || {
+        let _ = self.queue.push(Box::new(move || {
             drop(CHANNELS.with_borrow_mut(|channels| channels.remove(&id)));
         }));
     }
@@ -149,20 +267,20 @@ pub(super) fn channel<T, R: tauri::Runtime>(
     delivery: Delivery,
 ) -> Result<Channel<T>, InvokeError> {
     let native = crate::argument(invoke, name, key)?;
-    Ok(worker_channel(native, invoke.post.clone(), delivery))
+    Ok(worker_channel(native, invoke.queue.clone(), delivery))
 }
 
-fn worker_channel<T>(native: Channel, post: Post, delivery: Delivery) -> Channel<T> {
+fn worker_channel<T>(native: Channel, queue: Arc<Queue>, delivery: Delivery) -> Channel<T> {
     let id = next_id();
     CHANNELS.with_borrow_mut(|channels| channels.insert(id, native));
-    let handle = ChannelHandle { id, post };
+    let handle = ChannelHandle { id, queue };
     Channel::new(move |body| {
         // Log stop waits for an admitted send. Its blocking polling worker needs
         // the delivery result; download progress callers only enqueue updates.
         let ack = matches!(delivery, Delivery::Wait).then(std::sync::mpsc::channel);
         let (tx, rx) = ack.unzip();
         let id = handle.id;
-        (handle.post)(Box::new(move || {
+        handle.queue.push(Box::new(move || {
             let native = CHANNELS.with_borrow(|channels| channels.get(&id).cloned());
             let result = native
                 .ok_or(tauri::Error::FailedToReceiveMessage)
@@ -182,7 +300,10 @@ fn worker_channel<T>(native: Channel, post: Post, delivery: Delivery) -> Channel
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{pin::Pin, sync::mpsc, thread, time::Duration};
+    use std::{
+        sync::{mpsc, Barrier},
+        thread,
+    };
     use tauri::{
         ipc::{CallbackFn, InvokeResponse},
         test::{mock_builder, mock_context, noop_assets, INVOKE_KEY},
@@ -210,53 +331,57 @@ mod tests {
         let owner = thread::current().id();
         let (released, dropped) = mpsc::channel();
         let release = OnDrop(released);
+        let barrier = Arc::new(Barrier::new(2));
+        let entered = barrier.clone();
         let native = Channel::new(move |body| {
             let _keep_alive = &release;
             assert_eq!(thread::current().id(), owner);
             assert_eq!(body.deserialize::<u32>().unwrap(), 17);
-            Ok(())
+            Err(tauri::Error::AssetNotFound("delivery".into()))
         });
         let (post, tasks) = event_queue();
-        let proxy = worker_channel(native, post, Delivery::Wait);
-        let worker = thread::spawn(move || proxy.send(17_u32).unwrap());
+        let queue = Arc::new(Queue {
+            wake: post,
+            pending: Mutex::default(),
+        });
+        let proxy = worker_channel(native, queue, Delivery::Wait);
+        let worker = thread::spawn(move || {
+            entered.wait();
+            assert!(matches!(
+                proxy.send(17_u32),
+                Err(tauri::Error::AssetNotFound(_))
+            ));
+        });
+        barrier.wait();
         let deliver = tasks.recv_timeout(Duration::from_secs(5)).unwrap();
-        assert!(!worker.is_finished());
         deliver();
         worker.join().unwrap();
-        assert!(dropped.try_recv().is_err());
-        tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
+        for wake in tasks.try_iter() {
+            wake();
+        }
         assert_eq!(dropped.try_recv().unwrap(), owner);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn dispatch_binds_in_order_and_replies_and_releases_channels_on_event_thread() {
-        async fn failing_worker() -> Result<(), String> {
-            panic!("worker panic")
-        }
-        type Work = Pin<Box<dyn Future<Output = ()> + Send>>;
         let (post, tasks) = event_queue();
+        let reject_first = std::sync::atomic::AtomicBool::new(true);
         let (submit, workers) = mpsc::channel::<Work>();
+        let dispatcher = Dispatcher::new(
+            Arc::new(move |task| {
+                if reject_first.swap(false, std::sync::atomic::Ordering::Relaxed) {
+                    Err(tauri::Error::FailedToReceiveMessage)
+                } else {
+                    post(task)
+                }
+            }),
+            move |work| submit.send(work).unwrap(),
+        );
         let owner = thread::current().id();
         let app = mock_builder()
             .manage(crate::downloads::CancelFlags::default())
-            .invoke_handler(move |invoke| {
-                let work: Work = match invoke.message.command() {
-                    "concurrently_download" => Box::pin(prepare(
-                        invoke,
-                        post.clone(),
-                        crate::downloads::concurrently_download,
-                    )),
-                    "cancel_downloads" => Box::pin(prepare(
-                        invoke,
-                        post.clone(),
-                        crate::downloads::cancel_downloads,
-                    )),
-                    "panic" => Box::pin(prepare(invoke, post.clone(), |_| Ok(failing_worker()))),
-                    _ => return false,
-                };
-                submit.send(work).unwrap();
-                true
-            })
+            .manage(dispatcher.clone())
+            .invoke_handler(crate::bind_at_dispatch(|_| false))
             .build(mock_context(noop_assets()))
             .unwrap();
         let window = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
@@ -287,20 +412,21 @@ mod tests {
             );
             (workers.recv_timeout(Duration::from_secs(5)).unwrap(), rx)
         };
-        let (start, report) = dispatch(
-            "concurrently_download",
-            serde_json::json!({
-                "cancelId":"id","entries":[{"url":"invalid","path":"unused"}],"label":"batch",
-                "concurrency":1,"debug":false,"onProgress":"__CHANNEL__:1"
-            }),
-        );
+        let batch = || {
+            dispatch(
+                "concurrently_download",
+                serde_json::json!({
+                    "cancelId":"id","entries":[{"url":"invalid","path":"unused"}],"label":"batch",
+                    "concurrency":1,"debug":false,"onProgress":"__CHANNEL__:1"
+                }),
+            )
+        };
+        let (start, report) = batch();
         let (cancel, cancelled) =
             dispatch("cancel_downloads", serde_json::json!({"cancelId":"id"}));
         tokio::spawn(cancel).await.unwrap();
         tokio::spawn(start).await.unwrap();
-        for task in tasks.try_iter() {
-            task();
-        }
+        tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
         let InvokeResponse::Ok(value) = cancelled.try_recv().unwrap() else {
             panic!("cancel failed")
         };
@@ -312,15 +438,32 @@ mod tests {
         assert_eq!(report["cancelled"], true);
         assert_eq!(report["failed"], 0);
         for abort in [true, false] {
-            let (work, reply) = dispatch("panic", serde_json::json!({}));
+            let (work, reply) = batch();
+            assert_eq!(CHANNELS.with_borrow(HashMap::len), 1);
             if abort {
                 thread::spawn(move || drop(work)).join().unwrap();
             } else {
-                assert!(tokio::spawn(work).await.unwrap_err().is_panic());
+                assert!(tokio::spawn(async move {
+                    let _pending = work;
+                    panic!("worker interrupted");
+                })
+                .await
+                .unwrap_err()
+                .is_panic());
             }
             tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
             assert!(matches!(reply.try_recv(), Ok(InvokeResponse::Err(_))));
         }
+        let (never_polled, interrupted) = batch();
+        let (pending, reply) = dispatch("cancel_downloads", serde_json::json!({"cancelId":"id"}));
+        tokio::spawn(pending).await.unwrap();
+        dispatcher.shutdown();
+        let InvokeResponse::Ok(body) = reply.try_recv().unwrap() else {
+            panic!("exit discarded a queued reply");
+        };
+        assert!(body.deserialize::<bool>().unwrap());
+        assert!(matches!(interrupted.try_recv(), Ok(InvokeResponse::Err(_))));
+        thread::spawn(move || drop(never_polled)).join().unwrap();
         assert!(REPLIES.with_borrow(HashMap::is_empty));
         assert!(CHANNELS.with_borrow(HashMap::is_empty));
     }

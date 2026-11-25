@@ -98,8 +98,8 @@ pub struct MrpackManifest {
     pub overrides: usize,
 }
 
-pub(crate) fn install_mrpack(
-    invoke: &crate::Invoke,
+pub(crate) fn install_mrpack<R: tauri::Runtime>(
+    invoke: &crate::Invoke<R>,
 ) -> Result<
     impl std::future::Future<Output = Result<MrpackManifest, String>>,
     tauri::ipc::InvokeError,
@@ -137,7 +137,6 @@ pub(crate) fn install_mrpack(
     })
 }
 
-#[tauri::command]
 pub async fn peek_mrpack(archive_path: String) -> Result<Option<MrpackManifest>, String> {
     tokio::task::spawn_blocking(move || peek(Path::new(&archive_path)))
         .await
@@ -276,8 +275,8 @@ pub enum RepairOutcome {
     ArchiveUnavailable,
 }
 
-pub(crate) fn repair_legacy_mrpack(
-    invoke: &crate::Invoke,
+pub(crate) fn repair_legacy_mrpack<R: tauri::Runtime>(
+    invoke: &crate::Invoke<R>,
 ) -> Result<impl std::future::Future<Output = Result<RepairOutcome, String>>, tauri::ipc::InvokeError>
 {
     const NAME: &str = "repair_legacy_mrpack";

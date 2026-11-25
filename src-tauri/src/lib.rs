@@ -19,10 +19,10 @@ mod system;
 mod translations;
 mod zip;
 
-type Incoming = tauri::ipc::Invoke<tauri::Wry>;
+type Incoming<R> = tauri::ipc::Invoke<R>;
 
 struct Invoke<R: tauri::Runtime = tauri::Wry> {
-    post: ipc_dispatch::Post,
+    queue: std::sync::Arc<ipc_dispatch::Queue>,
     message: tauri::ipc::InvokeMessage<R>,
     acl: Option<Vec<tauri::utils::acl::resolved::ResolvedCommand>>,
 }
@@ -41,16 +41,68 @@ fn argument<'a, T: tauri::ipc::CommandArg<'a, R>, R: tauri::Runtime>(
     })
 }
 
-fn bind_at_dispatch(other: impl Fn(Incoming) -> bool) -> impl Fn(Incoming) -> bool {
-    use ipc_dispatch::dispatch;
-    move |invoke| match invoke.message.command() {
-        "concurrently_download" => dispatch(invoke, downloads::concurrently_download),
-        "repair_legacy_mrpack" => dispatch(invoke, modrinth::repair_legacy_mrpack),
-        "cancel_downloads" => dispatch(invoke, downloads::cancel_downloads),
-        "install_mrpack" => dispatch(invoke, modrinth::install_mrpack),
-        "stream_logs" => dispatch(invoke, logging::stream_logs),
-        "stop_log_stream" => dispatch(invoke, logging::stop_log_stream),
-        _ => other(invoke),
+fn bind_at_dispatch<R: tauri::Runtime>(
+    other: impl Fn(Incoming<R>) -> bool,
+) -> impl Fn(Incoming<R>) -> bool {
+    move |invoke| {
+        let dispatcher = invoke
+            .message
+            .webview_ref()
+            .state::<ipc_dispatch::Dispatcher>()
+            .inner()
+            .clone();
+        dispatcher.drain();
+        match invoke.message.command() {
+            "concurrently_download" => {
+                dispatcher.dispatch(invoke, downloads::concurrently_download)
+            }
+            "repair_legacy_mrpack" => dispatcher.dispatch(invoke, modrinth::repair_legacy_mrpack),
+            "cancel_downloads" => dispatcher.dispatch(invoke, downloads::cancel_downloads),
+            "install_mrpack" => dispatcher.dispatch(invoke, modrinth::install_mrpack),
+            "stream_logs" => dispatcher.dispatch(invoke, logging::stream_logs),
+            "stop_log_stream" => dispatcher.dispatch(invoke, logging::stop_log_stream),
+            "get_system_memory" => dispatcher.dispatch(invoke, |_| Ok(system::get_system_memory())),
+            "get_cpu_usage" => dispatcher.dispatch(invoke, |_| Ok(system::get_cpu_usage())),
+            "resize_image" => dispatcher.dispatch(invoke, |i| {
+                Ok(image::resize_image(
+                    argument(i, "resize_image", "imagePath")?,
+                    argument(i, "resize_image", "toWidth")?,
+                    argument(i, "resize_image", "toHeight")?,
+                    argument(i, "resize_image", "toDirectory")?,
+                ))
+            }),
+            "peek_mrpack" => dispatcher.dispatch(invoke, |i| {
+                Ok(modrinth::peek_mrpack(argument(
+                    i,
+                    "peek_mrpack",
+                    "archivePath",
+                )?))
+            }),
+            "verify_paths" => dispatcher.dispatch(invoke, |i| {
+                Ok(file_system::verify_paths(argument(
+                    i,
+                    "verify_paths",
+                    "paths",
+                )?))
+            }),
+            "verify_paths_hash" => dispatcher.dispatch(invoke, |i| {
+                Ok(file_system::verify_paths_hash(
+                    argument(i, "verify_paths_hash", "artifacts")?,
+                    argument(i, "verify_paths_hash", "algorithm")?,
+                ))
+            }),
+            "clear_mod_cache" => dispatcher.dispatch(invoke, |i| {
+                let store = argument::<tauri::State<mod_store::ModStore>, _>(
+                    i,
+                    "clear_mod_cache",
+                    "store",
+                )?
+                .inner()
+                .clone();
+                Ok(async move { store.clear().await })
+            }),
+            _ => other(invoke),
+        }
     }
 }
 
@@ -121,6 +173,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            app.manage(ipc_dispatch::Dispatcher::for_app(app.handle()));
             // Initially, checking whether the application is in a portable mode or not
             // was made by reading the window label to find a 'Portable' string, which
             // only took '225.60µs' on my laptop, not as slow as I thought.
@@ -237,8 +290,6 @@ pub fn run() {
             application::get_initial_state,
             downloads::prepare_mrpack_install,
             extensions::read_extensions,
-            file_system::verify_paths,
-            file_system::verify_paths_hash,
             finalization::finalize_initialization,
             // TODO move to java::get_java_major and java::detect_java_installations
             finalization::get_java_major,
@@ -247,7 +298,6 @@ pub fn run() {
             hashing::hash_request_sha256,
             hashing::hash_request_sha1,
             hashing::hash_request_md5,
-            image::resize_image,
             // Used by 'hybrid_ipc.js'. If app commands ever get an ACL manifest
             // ('tauri_build::AppManifest'), these two must be allowed for every window
             #[cfg(any(windows, target_os = "linux"))]
@@ -255,19 +305,22 @@ pub fn run() {
             #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::ipc_batch_take,
             logging::next_log_subscription_id,
-            mod_store::clear_mod_cache,
-            modrinth::peek_mrpack,
             processes::list_processes,
             processes::spawn_process,
             processes::kill_process,
             processes::write_process,
             processes::run_process,
-            system::get_system_memory,
-            system::get_cpu_usage,
             translations::get_locales,
             zip::read_archive_entry,
             zip::unzip_files,
         ]))
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error building tauri application")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                if let Some(dispatcher) = app.try_state::<ipc_dispatch::Dispatcher>() {
+                    dispatcher.shutdown();
+                }
+            }
+        });
 }

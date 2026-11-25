@@ -134,6 +134,23 @@ impl Subscription {
         true
     }
 
+    fn remove_issued(&mut self, id: u64) {
+        let index = self.pending_issued.partition_point(|&(_, end)| end < id);
+        let Some(&(start, end)) = self.pending_issued.get(index) else {
+            return;
+        };
+        if id < start {
+            return;
+        }
+        self.pending_issued.remove(index);
+        if id < end {
+            self.pending_issued.insert(index, (id + 1, end));
+        }
+        if start < id {
+            self.pending_issued.insert(index, (start, id - 1));
+        }
+    }
+
     fn remember(&mut self, viewer: Viewer) {
         if let Viewer::Legacy(Some(id)) = viewer {
             if !self.stopped_legacy.contains(&id) {
@@ -177,7 +194,7 @@ impl Subscription {
     fn stop(&mut self, viewer: Viewer) -> bool {
         self.remember(viewer);
         if let Viewer::Token(id) = viewer {
-            self.consume_issued(id);
+            self.remove_issued(id);
         }
         if self.active.as_ref().is_some_and(|a| a.viewer == viewer) {
             self.active = None;
@@ -308,8 +325,8 @@ pub fn next_log_subscription_id(
     state.issue_viewer_id(&window.0.ok_or("Window closed")?)
 }
 
-fn bind_viewer(
-    invoke: &crate::Invoke,
+fn bind_viewer<R: tauri::Runtime>(
+    invoke: &crate::Invoke<R>,
     name: &'static str,
 ) -> Result<(LogCaller, Viewer), tauri::ipc::InvokeError> {
     let caller = crate::argument(invoke, name, "window")?;
@@ -318,8 +335,8 @@ fn bind_viewer(
     Ok((caller, Viewer::from_args(legacy, token)))
 }
 
-pub(crate) fn stop_log_stream(
-    invoke: &crate::Invoke,
+pub(crate) fn stop_log_stream<R: tauri::Runtime>(
+    invoke: &crate::Invoke<R>,
 ) -> Result<impl std::future::Future<Output = Result<bool, String>>, tauri::ipc::InvokeError> {
     let (caller, viewer) = bind_viewer(invoke, "stop_log_stream")?;
     let completion = caller.0.map(|window| window.stop(viewer));
@@ -434,8 +451,8 @@ impl LogTail {
     }
 }
 
-pub(crate) fn stream_logs(
-    invoke: &crate::Invoke,
+pub(crate) fn stream_logs<R: tauri::Runtime>(
+    invoke: &crate::Invoke<R>,
 ) -> Result<impl std::future::Future<Output = Result<(), String>>, tauri::ipc::InvokeError> {
     const NAME: &str = "stream_logs";
     let (caller, viewer) = bind_viewer(invoke, NAME)?;
@@ -607,6 +624,41 @@ mod tests {
             stream.await.unwrap();
             tail.stream(&window, Channel::new(|_| panic!("retired page sent")), Viewer::Token(pending)).await.unwrap();
         }).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn stopping_pending_viewer_preserves_earlier_snapshot() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(file.path(), "hello\n").unwrap();
+        let tail = LogTail::new(file.path().into());
+        let window = page(&mut ResourceTable::default());
+        let first = Viewer::Token(tail.issue_viewer_id(&window).unwrap());
+        let second = Viewer::Token(tail.issue_viewer_id(&window).unwrap());
+        let third = Viewer::Token(tail.issue_viewer_id(&window).unwrap());
+        assert!(!window.stop(second).await);
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let stream = tail.stream(
+            &window,
+            Channel::new(move |event| {
+                tx.send(event).unwrap();
+                Ok(())
+            }),
+            first,
+        );
+        let running = tokio::spawn(stream);
+        let event = tokio::time::timeout(Duration::from_secs(5), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            event.deserialize::<serde_json::Value>().unwrap(),
+            serde_json::json!({"type":"snapshot","data":["hello"]})
+        );
+        assert!(window.stop(first).await);
+        running.await.unwrap().unwrap();
+        let mut state = window.0.lock().unwrap();
+        assert!(state.begin(second).is_none());
+        assert!(state.begin(third).is_some());
     }
 
     #[tokio::test]

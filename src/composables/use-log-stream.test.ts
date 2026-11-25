@@ -130,3 +130,32 @@ test("unmount retires a late token before any stream starts", () => withWindow(a
   await retired.promise;
   expect(commands).toEqual(["next_log_subscription_id", "stop_log_stream"]);
 }));
+
+test("Wails stops the legacy subscription on unmount", () => withWindow(async () => {
+  const started = Promise.withResolvers<number>();
+  const stopped = Promise.withResolvers<number>();
+
+  mockIPC((command, payload) => {
+    const { subscriptionId } = (payload ?? {}) as { "subscriptionId": number };
+
+    if (command === "stream_logs") {
+      started.resolve(subscriptionId);
+    } else if (command === "stop_log_stream") {
+      stopped.resolve(subscriptionId);
+    }
+  });
+  const app = renderer.createApp({
+    setup() {
+      useLogStream();
+
+      return (): null => null;
+    },
+  });
+
+  app.mount({});
+  const id = await started.promise;
+
+  expect(typeof id).toBe("number");
+  app.unmount();
+  expect(await stopped.promise).toBe(id);
+}));

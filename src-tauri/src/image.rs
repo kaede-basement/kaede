@@ -70,7 +70,6 @@ const EXTENSION: &str = "png";
 #[cfg(not(all(target_os = "macos", feature = "old-safari")))]
 const EXTENSION: &str = "webp";
 
-#[tauri::command]
 pub async fn resize_image(
     image_path: String,
     to_width: u32,

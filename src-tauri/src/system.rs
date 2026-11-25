@@ -5,7 +5,6 @@ use tokio::sync::OnceCell;
 static MEMORY: Mutex<Option<System>> = Mutex::new(None);
 static CPU: OnceCell<Mutex<System>> = OnceCell::const_new();
 
-#[tauri::command]
 pub async fn get_system_memory() -> Result<(u64, u64), String> {
     tokio::task::spawn_blocking(|| {
         let mut memory = MEMORY.lock().unwrap();
@@ -17,7 +16,6 @@ pub async fn get_system_memory() -> Result<(u64, u64), String> {
     .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
 pub async fn get_cpu_usage() -> Result<f32, String> {
     let cpu = CPU
         .get_or_try_init(|| async {

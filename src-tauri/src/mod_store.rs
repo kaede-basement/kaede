@@ -333,11 +333,6 @@ fn plain_directory(path: &Path) -> io::Result<()> {
     }
 }
 
-#[tauri::command]
-pub async fn clear_mod_cache(store: tauri::State<'_, ModStore>) -> Result<(), String> {
-    store.clear().await
-}
-
 pub fn materialize_blob(src: &Path, dst: &Path) -> io::Result<()> {
     crate::file_system::persist_temp_path(stage_blob(src, dst)?, dst, false).map_err(|e| e.error)
 }

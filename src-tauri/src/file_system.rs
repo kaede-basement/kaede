@@ -196,7 +196,6 @@ fn matches_size(path: &Path, size: Option<u64>) -> bool {
         .is_ok_and(|meta| meta.is_file() && size.map_or(true, |s| s == meta.len()))
 }
 
-#[tauri::command]
 pub async fn verify_paths(paths: Vec<ExpectedPath>) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
         paths
@@ -214,7 +213,6 @@ pub async fn verify_paths(paths: Vec<ExpectedPath>) -> Result<Vec<String>, Strin
     .map_err(|error| error.to_string())
 }
 
-#[tauri::command]
 pub async fn verify_paths_hash(
     artifacts: Vec<Artifact>,
     algorithm: HashAlgorithm,

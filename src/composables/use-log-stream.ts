@@ -28,6 +28,8 @@ type LogStreamEventType =
   | { "type": "lines";    "data": Array<string> }
   | { "type": "truncated" };
 
+let lastLegacyId = 0;
+
 export function useLogStream(): {
   "lines": ShallowRef<{ "list": Array<string> }>;
 } {
@@ -49,17 +51,24 @@ export function useLogStream(): {
 
   let mounted = false;
   let token: number | undefined;
+  let subscriptionId: number | undefined;
 
   onMounted(async (): Promise<void> => {
     mounted = true;
-    const id = await invoke<number>("next_log_subscription_id");
+    const id = await invoke<number | undefined>("next_log_subscription_id");
 
     if (!mounted) {
-      await Logging.stopStreamingLogs(undefined, id);
+      if (typeof id === "number") {
+        await Logging.stopStreamingLogs(undefined, id);
+      }
 
       return;
     }
-    token = id;
+    if (typeof id === "number") {
+      token = id;
+    } else {
+      subscriptionId = ++lastLegacyId;
+    }
     const channel = new Channel<LogStreamEventType>;
 
     // eslint-disable-next-line unicorn/prefer-add-event-listener
@@ -87,13 +96,13 @@ export function useLogStream(): {
       }
     };
 
-    await Logging.streamLogs<LogStreamEventType>(channel, undefined, id);
+    await Logging.streamLogs<LogStreamEventType>(channel, subscriptionId, token);
   });
 
   onUnmounted(async (): Promise<void> => {
     mounted = false;
-    if (token !== undefined) {
-      await Logging.stopStreamingLogs(undefined, token);
+    if (token !== undefined || subscriptionId !== undefined) {
+      await Logging.stopStreamingLogs(subscriptionId, token);
     }
   });
 
