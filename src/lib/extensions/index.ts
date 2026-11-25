@@ -17,7 +17,7 @@
  */
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
-import { dirtyLifecycle } from "@/lib/extensions/dirty-lifecycle.ts";
+import { setExtensionEnabled, startExtensionSession } from "@/lib/extensions/dirty-lifecycle.ts";
 import { readExtensions } from "@/lib/extensions/read-extensions.ts";
 import { runInUnrestricted } from "@/lib/extensions/run-in-unrestricted.ts";
 import { onGlobalStateChange } from "@/lib/extensions/sandbox/events/on-global-state-change.ts";
@@ -30,7 +30,8 @@ import { updateTrustedHashes } from "@/lib/extensions/update-trusted-hashes.ts";
 
 export default {
   "requestPermissions": GlobalInternals.requestPermissions,
-  dirtyLifecycle,
+  setExtensionEnabled,
+  startExtensionSession,
   readExtensions,
   runInUnrestricted,
   onGlobalStateChange,

@@ -23,23 +23,32 @@ import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/log.ts";
 import { trustedExtensionHashes } from "@/states/extension.ts";
 
-let cached: Array<string> | undefined;
+let update: Promise<void> | undefined;
 
-export async function updateTrustedHashes(): Promise<void> {
-  if (cached) {
-    trustedExtensionHashes.value = new Set(cached);
+export function updateTrustedHashes(): Promise<void> {
+  update ??= fetchTrustedHashes().finally(() => {
+    update = undefined;
+  });
 
-    return;
-  }
+  return update;
+}
 
+async function fetchTrustedHashes(): Promise<void> {
   try {
     log.debug(__PRE_BUNDLED_FILENAME__, "Fetching the trusted hashes...");
 
     const response: Response = await fetch(TrustedHashesURL);
-    const data: Array<string> = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Trusted hashes request returned ${response.status}`);
+    }
+    const data: unknown = await response.json();
+
+    if (!Array.isArray(data) || !data.every(hash => typeof hash === "string")) {
+      throw new TypeError("Expected a list of trusted hashes");
+    }
 
     trustedExtensionHashes.value = new Set(data);
-    cached = data;
 
     log.info(
       __PRE_BUNDLED_FILENAME__,

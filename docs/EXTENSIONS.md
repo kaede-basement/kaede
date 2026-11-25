@@ -14,7 +14,7 @@ Kaede extensions are pieces of JavaScript code that change the User Interface (U
 Plugins are stored in the `extensions` folder and represent [ZIP](https://en.wikipedia.org/wiki/ZIP_(file_format)) archive files that use [DEFLATE](https://en.wikipedia.org/wiki/Deflate) compression. They can have either `.zip` or `.kaede` file extension. Every plugin archive should have two files: (1) `index.js` and (2) `metadata.json`. The `index.js` file is the code that will be executed, and `metadata.json` is a plugin metadata that has the following type.
 
 > [!NOTE]
-> The SHA256 hash of `index.js` is calculated for Kaede to know which plugin was enabled by the user. Even if the ID of a plugin stays the same but the hash changes, the plugin will be automatically disabled.
+> Kaede remembers which plugins the user enabled by a SHA256 hash of both `metadata.json` and `index.js`. Even if the ID of a plugin stays the same, changing either file disables the plugin and asks for its permissions again. The trusted-extensions check uses the hash of `index.js` alone.
 
 ```ts
 type MetadataType = {

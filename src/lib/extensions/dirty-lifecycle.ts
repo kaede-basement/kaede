@@ -17,61 +17,149 @@
  */
 
 import Errors from "@/lib/errors";
+import { runInUnrestricted } from "@/lib/extensions/run-in-unrestricted.ts";
+import { runInSandbox } from "@/lib/extensions/sandbox/run-in-sandbox.ts";
 import { log } from "@/lib/logging/log.ts";
-import type { extensionStates } from "@/states/extension.ts";
+import { extensionStates, trustedExtensionHashes } from "@/states/extension.ts";
+import { globalStates } from "@/states/global.ts";
 import type { ExtensionType } from "@/types/extensions/extension.type.ts";
 
-type ExecutedListType = (typeof extensionStates)["executed"];
+type Setting = { "enabled": boolean };
+type ActivationResult = "policy-skipped" | void;
+const active = (new Set<string>);
+const pending = (new Map<string, Promise<ActivationResult>>);
+let session: symbol | undefined;
 
-export async function dirtyLifecycle(
-  executedList: ExecutedListType,
-  { id, sha256, metadata }: ExtensionType,
-  enable: boolean,
-  // Represents 'needsCleanRun'
-): Promise<boolean> {
-  const existing = executedList.find(searching => (
-    searching.extension.sha256 === sha256 &&
+export function startExtensionSession(): () => void {
+  const owner = Symbol();
 
-    /*
-     * Just to be sure... Maybe there will be extensions that can work in both environments
-     * with the same code
-     */
-    searching.extension.metadata.type === metadata.type
+  session = owner;
+
+  return () => {
+    if (session !== owner) {
+      return;
+    }
+    session = undefined;
+    for (const { extension } of extensionStates.executed) {
+      void setExtensionEnabled(extension, false);
+    }
+  };
+}
+
+async function applyEnabled(
+  extension: ExtensionType, enabled: boolean, owner: symbol | undefined, setting?: Setting,
+): Promise<ActivationResult> {
+  const { id, artifactSha256, codeSha256, metadata, code } = extension;
+
+  if (enabled && (!owner || owner !== session || !globalStates.extensions.enabled)) {
+    return;
+  }
+  if (enabled && metadata.type === "unrestricted" && !trustedExtensionHashes.value.has(codeSha256)
+    && !globalStates.extensions.allowUnrestrictedUntrusted) {
+    return "policy-skipped";
+  }
+
+  const existing = extensionStates.executed.find(entry => (
+    entry.extension.artifactSha256 === artifactSha256
   ));
-  const status = enable ? "Re-enabling" : "Disabling";
 
-  if (existing !== undefined) {
+  if (!enabled) {
+    const wasActive = active.has(artifactSha256);
+
+    if (setting) {
+      setting.enabled = false;
+    }
+    if (existing && wasActive) {
+      try {
+        await existing.api.disable();
+      } catch (error) {
+        log.error(__PRE_BUNDLED_FILENAME__, `Failed to disable '${id}':`, Errors.prettify(error));
+
+        return;
+      }
+      active.delete(artifactSha256);
+      if (setting && owner === session) {
+        await existing.api.afterDisable();
+      }
+    }
+
+    return;
+  }
+
+  if (!active.has(artifactSha256)) {
+    let api = existing?.api;
+
+    if (api) {
+      try {
+        await api.enable();
+      } catch (error) {
+        try {
+          await api.disable();
+        } catch (cleanupError) {
+          log.error(
+            __PRE_BUNDLED_FILENAME__, `Rollback failed for '${id}':`, Errors.prettify(cleanupError),
+          );
+        }
+        throw error;
+      }
+    } else {
+      api = (metadata.type === "sandbox"
+        ? runInSandbox({ id, code, "permissions": metadata.permissions })
+        : await runInUnrestricted(id, code, metadata, artifactSha256)) || undefined;
+    }
+    if (owner !== session) {
+      await api?.disable();
+
+      return;
+    }
+    if (!api) {
+      if (setting) {
+        setting.enabled = false;
+      }
+
+      return;
+    }
+    if (!existing) {
+      extensionStates.executed = [...extensionStates.executed, { extension, api }];
+    }
+    active.add(artifactSha256);
+  }
+  if (setting) {
+    setting.enabled = true;
+  }
+}
+
+export async function setExtensionEnabled(
+  extension: ExtensionType, enabled: boolean | "restore", setting?: Setting,
+): Promise<ActivationResult> {
+  const owner = session;
+  const key = extension.artifactSha256;
+  const previous = pending.get(key);
+  const run = async (): Promise<ActivationResult> => {
+    if (enabled === "restore" && !setting?.enabled) {
+      return;
+    }
     try {
-      log.debug(
-        __PRE_BUNDLED_FILENAME__,
-        `${status} extension '${id}' (sha256: ${sha256})`,
-      );
-      await (
-        enable
-          ? existing.api.enable()
-          : existing.api.disable()
-      );
-
-      log.info(
-        __PRE_BUNDLED_FILENAME__,
-        `Successfully finished ${status.toLowerCase()} extension '${id}' (sha256: ${sha256})`,
-      );
-    } catch (error: unknown) {
+      return await applyEnabled(extension, enabled !== false, owner, setting);
+    } catch (error) {
+      if (enabled && setting && owner === session) {
+        setting.enabled = false;
+      }
       log.error(
         __PRE_BUNDLED_FILENAME__,
-        `Error while ${status.toLowerCase()} extension '${id}' (sha256: ${sha256}):`,
+        `Extension lifecycle failed for '${extension.id}':`,
         Errors.prettify(error),
       );
     }
+  };
+  const operation = (previous ?? Promise.resolve()).then(run);
 
-    /*
-     * Even if 'api#enable' threw an error, we still assume that the extension was re-enabled.
-     * User can check errors in the log viewer. For clean runs, an error should be treated as fatal,
-     * because clean enables initialize everything from scratch, and dirty enables generally
-     * simply re-attach the event listeners and DOM
-     */
-    return false;
+  pending.set(key, operation);
+  try {
+    return await operation;
+  } finally {
+    if (pending.get(key) === operation) {
+      pending.delete(key);
+    }
   }
-
-  return true;
 }
