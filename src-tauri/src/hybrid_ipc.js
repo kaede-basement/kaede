@@ -157,33 +157,37 @@
     queue = []
     queuedChars = 0
     if (items.length === 0) return
-    const registered = []
     try {
-      postBatch(items, registered)
+      postBatch(items)
     } catch (e) {
-      for (const id of registered) internals.unregisterCallback(id)
       for (const { message } of items) internals.runCallback(message.error, e)
     }
   }
 
-  // `registered` collects the callbacks it registers, for the caller to drop if it throws.
-  function postBatch(items, registered) {
-    const calls = items.map(({ message: { cmd, callback, error }, headers, bin, payload }) =>
-      toJson({ cmd, callback, error, headers, bin, payload })
-    )
-    const ok = internals.transformCallback(() => internals.unregisterCallback(failed), true)
+  let admitted
+
+  function postBatch(items) {
+    // Tauri parses the entire envelope before dispatch. Keep each payload opaque there:
+    // an invalid surrogate or deeply nested value must only reject its own call.
+    const calls = items.map(({ message: { cmd, callback, error }, headers, bin, payload }) => (
+      { cmd, callback, error, headers, bin, payload: payload === '{}' ? undefined : payload }
+    ))
+    // Rust echoes the batch's one-shot error callback id on admission. Every successful
+    // batch can therefore share this page's acknowledgement callback.
+    admitted ??= internals.transformCallback(internals.unregisterCallback)
     const failed = internals.transformCallback((e) => {
-      internals.unregisterCallback(ok)
       for (const { message } of items) internals.runCallback(message.error, e)
     }, true)
-    registered.push(ok, failed)
-    const options = { headers: {}, customProtocolIpcBlocked: customProtocolFailed }
-    window.ipc.postMessage(
-      withPayload(
-        { cmd: BATCH_COMMAND, callback: ok, error: failed, options, __TAURI_INVOKE_KEY__: invokeKey },
-        `{"page":"${page}","blocked":${customProtocolFailed},"calls":[${calls.join(',')}]}`
-      )
-    )
+    try {
+      window.ipc.postMessage(JSON.stringify({
+        cmd: BATCH_COMMAND, callback: admitted, error: failed, __TAURI_INVOKE_KEY__: invokeKey,
+        options: { headers: {}, customProtocolIpcBlocked: customProtocolFailed },
+        payload: { page, blocked: customProtocolFailed, calls, admissionError: failed }
+      }))
+    } catch (e) {
+      internals.unregisterCallback(failed)
+      throw e
+    }
   }
 
   function sendOverPostMessage(item) {
@@ -225,21 +229,6 @@
       return sendOverFetch(message)
     }
     sendOverPostMessage(item)
-  }
-
-  // An empty batch tells ipc_batch this page replaced the webview's previous one, whose large
-  // responses nobody will take now. Tauri runs invoke_system's script as an init script of its own
-  // before the one with core.js, which defines transformCallback: a task runs after both.
-  if (topFrame) {
-    setTimeout(() => {
-      const registered = []
-      try {
-        postBatch([], registered)
-      } catch (e) {
-        for (const id of registered) internals.unregisterCallback(id)
-        console.warn('ipc_batch: cannot announce the page', e)
-      }
-    }, 0)
   }
 
   Object.defineProperty(internals, 'postMessage', {

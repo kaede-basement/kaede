@@ -9,7 +9,8 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Mutex, OnceLock};
+use std::fmt;
+use std::sync::{Mutex, OnceLock, RwLock};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use tauri::http::header::{CONTENT_TYPE, ORIGIN};
@@ -41,12 +42,37 @@ struct Pending {
 
 /// Schedules deliveries from any thread without touching a `Webview` there; set on the main
 /// thread by the first `ipc_batch`.
-static APP: OnceLock<AppHandle> = OnceLock::new();
+static TRANSPORT: OnceLock<Transport> = OnceLock::new();
+
+struct Transport {
+    app: AppHandle,
+    invoke_key_header: HeaderValue,
+}
+
+impl Transport {
+    // Synchronous app commands on this transport run on the webview thread.
+    fn initialize(app: &AppHandle) -> Result<&'static Self, String> {
+        if let Some(transport) = TRANSPORT.get() {
+            return Ok(transport);
+        }
+        let invoke_key_header = HeaderValue::from_str(app.invoke_key()).map_err(|e| e.to_string())?;
+        // No page can leave a large response behind before the first batch.
+        let cleanup = tauri::plugin::Builder::<tauri::Wry>::new("ipc-batch-cleanup")
+            .on_page_load(|webview, load| {
+                if load.event() == tauri::webview::PageLoadEvent::Started {
+                    LARGE.write().unwrap().page_left(webview.label());
+                }
+            })
+            .build();
+        app.plugin(cleanup).map_err(|e| e.to_string())?;
+        Ok(TRANSPORT.get_or_init(|| Self { app: app.clone(), invoke_key_header }))
+    }
+}
 
 /// Responses too large for eval, kept until the page asking for them takes them with
 /// `ipc_batch_take` over the custom protocol, so they reach it as a fetch response, as on the
 /// default transport.
-static LARGE: Mutex<LargeStore> = Mutex::new(LargeStore { responses: BTreeMap::new(), pages: BTreeMap::new() });
+static LARGE: RwLock<LargeStore> = RwLock::new(LargeStore { responses: BTreeMap::new(), pages: BTreeMap::new() });
 static NEXT_LARGE: AtomicU64 = AtomicU64::new(0);
 
 struct LargeStore {
@@ -54,7 +80,7 @@ struct LargeStore {
     responses: BTreeMap<u64, Large>,
     /// The page each live webview last sent a batch from: a response for any other page, or for a
     /// webview whose window was destroyed, has no one left to take it.
-    pages: BTreeMap<String, String>,
+    pages: BTreeMap<String, Option<String>>,
 }
 
 struct Large {
@@ -65,27 +91,49 @@ struct Large {
 
 impl LargeStore {
     /// Records that the webview now holds `page`, dropping what its earlier pages left.
-    fn page_loaded(&mut self, webview: &Webview, page: &str) {
-        let label = webview.label().to_owned();
-        if self.pages.insert(label.clone(), page.to_owned()).is_none() {
-            webview.window().on_window_event(move |event| {
-                if let tauri::WindowEvent::Destroyed = event {
-                    let mut store = LARGE.lock().unwrap();
-                    store.pages.remove(&label);
-                    store.responses.retain(|_, large| large.label != label);
-                }
-            });
+    /// Returns true when this label needs a window destruction listener.
+    fn page_loaded(&mut self, label: &str, page: &str) -> bool {
+        if let Some(current) = self.pages.get_mut(label) {
+            if current.as_deref() == Some(page) {
+                return false;
+            }
+            if current.replace(page.to_owned()).is_some() {
+                self.responses.retain(|_, large| large.label != label);
+            }
+            false
+        } else {
+            self.pages.insert(label.to_owned(), Some(page.to_owned()));
+            true
         }
-        self.responses.retain(|_, large| large.label != webview.label() || large.page == page);
+    }
+
+    fn page_left(&mut self, label: &str) {
+        if let Some(current) = self.pages.get_mut(label) {
+            if current.take().is_some() {
+                self.responses.retain(|_, large| large.label != label);
+            }
+        }
+    }
+
+    fn take(&mut self, label: &str, page: &str, id: u64) -> Result<InvokeResponseBody, String> {
+        match self.responses.entry(id) {
+            std::collections::btree_map::Entry::Occupied(entry)
+                if entry.get().page == page && entry.get().label == label => Ok(entry.remove().body),
+            _ => Err(format!("ipc_batch_take: no response {id} for this page")),
+        }
+    }
+
+    fn is_current(&self, label: &str, page: &str) -> bool {
+        self.pages.get(label).and_then(Option::as_deref) == Some(page)
     }
 
     /// Keeps a response if its page is still the one its webview holds.
-    fn insert(&mut self, webview: &Webview, page: &str, body: InvokeResponseBody) -> Option<u64> {
-        if self.pages.get(webview.label()).map(String::as_str) != Some(page) {
+    fn insert(&mut self, label: &str, page: &str, body: InvokeResponseBody) -> Option<u64> {
+        if !self.is_current(label, page) {
             return None;
         }
         let id = NEXT_LARGE.fetch_add(1, Ordering::Relaxed);
-        let large = Large { page: page.to_owned(), label: webview.label().to_owned(), body };
+        let large = Large { page: page.to_owned(), label: label.to_owned(), body };
         self.responses.insert(id, large);
         Some(id)
     }
@@ -122,15 +170,15 @@ pub struct Call {
     callback: CallbackFn,
     error: CallbackFn,
     /// The payload as JSON text, parsed per call as the custom protocol parses a request body, so
-    /// a payload it rejects (too deep, a lone surrogate) rejects this call alone.
-    payload: String,
+    /// a payload it rejects (too deep, a lone surrogate) rejects this call alone. Omitted for {}.
+    payload: Option<String>,
     /// The payload is the bytes of a binary argument, as a JSON array of numbers.
     bin: bool,
     headers: HashMap<String, String>,
 }
 
 #[tauri::command]
-pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool) -> Result<(), String> {
+pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool, admission_error: u32) -> Result<u32, String> {
     let page_url = webview.url().map_err(|e| e.to_string())?;
     // The transport a call replaces decides the URL its ACL check sees: the custom protocol's is
     // the Origin header, Tauri's postMessage fallback's is the page's whole URL.
@@ -139,14 +187,24 @@ pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool
         Err(e) if !blocked => return Err(e),
         origin => (page_url, origin.ok().map(|origin| origin.header)),
     };
-    let invoke_key = webview.app_handle().invoke_key().to_owned();
-    let invoke_key_header = HeaderValue::from_str(&invoke_key).map_err(|e| e.to_string())?;
-    APP.get_or_init(|| webview.app_handle().clone());
-    LARGE.lock().unwrap().page_loaded(&webview, &page);
+    let app = webview.app_handle();
+    let transport = Transport::initialize(app)?;
+    let label = webview.label();
+    let same_page = LARGE.read().unwrap().is_current(label, &page);
+    if !same_page && LARGE.write().unwrap().page_loaded(label, &page) {
+        let label = webview.label().to_owned();
+        webview.window().on_window_event(move |event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                let mut store = LARGE.write().unwrap();
+                store.pages.remove(&label);
+                store.responses.retain(|_, large| large.label != label);
+            }
+        });
+    }
     let dispatching = Dispatching::start();
     for call in calls {
         let error = call.error;
-        match request(call, &acl_url, origin_header.as_ref(), &invoke_key, &invoke_key_header) {
+        match request(call, &acl_url, origin_header.as_ref(), app.invoke_key(), &transport.invoke_key_header) {
             Ok(request) => {
                 let page = page.clone();
                 webview.clone().on_message(
@@ -163,7 +221,7 @@ pub fn ipc_batch(webview: Webview, page: String, calls: Vec<Call>, blocked: bool
     for page in DEFERRED.take() {
         deliver(&page);
     }
-    Ok(())
+    Ok(admission_error)
 }
 
 /// The Origin header the page's fetch would send, and the URL Tauri's custom protocol parses
@@ -212,10 +270,11 @@ fn request(
     if let Some(origin) = origin_header {
         headers.insert(ORIGIN, origin.clone());
     }
+    let payload = call.payload.as_deref().unwrap_or("{}");
     let body = if call.bin {
-        InvokeBody::Raw(serde_json::from_str(&call.payload).map_err(|e| e.to_string())?)
+        InvokeBody::Raw(serde_json::from_str(payload).map_err(|e| e.to_string())?)
     } else {
-        InvokeBody::Json(serde_json::from_str(&call.payload).map_err(|e| e.to_string())?)
+        InvokeBody::Json(serde_json::from_str(payload).map_err(|e| e.to_string())?)
     };
     Ok(InvokeRequest {
         cmd: call.cmd,
@@ -231,13 +290,7 @@ fn request(
 /// Hands a large response to the page that `ipc_batch` delivered its number to.
 #[tauri::command]
 pub fn ipc_batch_take(webview: Webview, page: String, id: u64) -> Result<InvokeResponseBody, String> {
-    let mut store = LARGE.lock().unwrap();
-    match store.responses.get(&id) {
-        Some(entry) if entry.page == page && entry.label == webview.label() => {
-            Ok(store.responses.remove(&id).expect("the entry is there").body)
-        }
-        _ => Err(format!("ipc_batch_take: no response {id} for this page")),
-    }
+    LARGE.write().unwrap().take(webview.label(), &page, id)
 }
 
 fn error_item(error: CallbackFn, message: &str) -> String {
@@ -255,7 +308,7 @@ fn respond(webview: Webview, page: &str, response: InvokeResponse, callback: Cal
             let numbers = serde_json::to_string(&bytes).expect("bytes serialize");
             format!("[{},{numbers},1]", callback.0)
         }
-        InvokeResponse::Ok(body) => match LARGE.lock().unwrap().insert(&webview, page, body) {
+        InvokeResponse::Ok(body) => match LARGE.write().unwrap().insert(webview.label(), page, body) {
             // The page takes it with this call's own callbacks.
             Some(id) => format!("[[{},{}],{id},2]", callback.0, error.0),
             // The page that asked is gone, and so is the callback this would go to. A task the
@@ -302,7 +355,7 @@ fn discard(page: &str) {
 
 /// False when the event loop rejected the task, which it then drops on this thread.
 fn on_main_thread(task: impl FnOnce() + Send + 'static) -> bool {
-    let app = APP.get().expect("ipc_batch ran before any response");
+    let app = &TRANSPORT.get().expect("ipc_batch ran before any response").app;
     match app.run_on_main_thread(task) {
         Ok(()) => true,
         Err(e) => {
@@ -317,14 +370,115 @@ fn deliver(page: &str) {
     let Some(Pending { items, webviews }) = PENDING.lock().unwrap().remove(page) else {
         return;
     };
-    let json = format!("[{}]", items.join(","));
-    let literal = serde_json::to_string(&json).expect("a string serializes");
-    let page = serde_json::to_string(page).expect("a string serializes");
-    // The check comes before the responses are parsed, so another document never sees them.
-    let script = format!(
-        "(() => {{ const i = window.__TAURI_INTERNALS__; if (i.ipcPage === {page}) i.ipcBatchDeliver(JSON.parse({literal})) }})()"
-    );
+    let script = delivery_script(page, &items);
     if let Err(e) = webviews[0].eval(script) {
         log::error!("ipc_batch: cannot deliver {} responses: {e}", items.len());
+    }
+}
+
+/// Stream the inner array through serde_json's string escaper into the final script.
+fn delivery_script(page: &str, items: &[String]) -> String {
+    struct Items<'a>(&'a [String]);
+    impl fmt::Display for Items<'_> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str("[")?;
+            for (i, item) in self.0.iter().enumerate() {
+                if i > 0 {
+                    f.write_str(",")?;
+                }
+                f.write_str(item)?;
+            }
+            f.write_str("]")
+        }
+    }
+
+    const PREFIX: &[u8] = b"(() => { const i = window.__TAURI_INTERNALS__; if (i.ipcPage === ";
+    const PARSE: &[u8] = b") i.ipcBatchDeliver(JSON.parse(";
+    const END: &[u8] = b")) })()";
+    // A valid JSON item's quotes, backslashes and whitespace each expand by at most
+    // one byte. Other control characters can occur in the untrusted page identifier.
+    let size = 2 * items.iter().map(String::len).sum::<usize>() + items.len() + 6 * page.len();
+    let mut script = Vec::with_capacity(PREFIX.len() + PARSE.len() + END.len() + size + 6);
+    script.extend_from_slice(PREFIX);
+    serde_json::to_writer(&mut script, page).expect("a string serializes");
+    script.extend_from_slice(PARSE);
+    serde::Serializer::collect_str(&mut serde_json::Serializer::new(&mut script), &Items(items))
+        .expect("strings serialize");
+    script.extend_from_slice(END);
+    String::from_utf8(script).expect("JSON is UTF-8")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::{Value, json};
+
+    #[test]
+    fn delivery_round_trips_both_json_layers() {
+        let page = "a\"\\\n\u{2028}";
+        let value = json!({"__proto__": {"text": "quote\" slash\\ line\n\u{2028}\u{2029}"}});
+        let first = json!([5, value, 0]).to_string();
+        let script = delivery_script(page, &[first, "[6,[0,255],1]".into()]);
+        let (_, condition) = script.split_once("if (i.ipcPage === ").unwrap();
+        let (guard, parse) = condition.split_once(") i.ipcBatchDeliver(JSON.parse(").unwrap();
+        assert_eq!(serde_json::from_str::<String>(guard).unwrap(), page);
+        let inner: String = serde_json::from_str(parse.strip_suffix(")) })()").unwrap()).unwrap();
+        assert_eq!(serde_json::from_str::<Value>(&inner).unwrap(), json!([[5, value, 0], [6, [0, 255], 1]]));
+    }
+
+    #[test]
+    fn large_tokens_are_scoped_to_the_live_page_and_consumed_once() {
+        let mut store = LargeStore { responses: BTreeMap::new(), pages: BTreeMap::new() };
+        let body = || InvokeResponseBody::Raw(vec![0, 255]);
+        assert!(store.page_loaded("main", "old"));
+        assert!(store.page_loaded("settings", "other"));
+        let old = store.insert("main", "old", body()).unwrap();
+        let other = store.insert("settings", "other", body()).unwrap();
+        assert!(!store.page_loaded("main", "old"));
+        assert!(store.responses.contains_key(&old));
+        assert!(!store.page_loaded("main", "new"));
+        assert!(!store.responses.contains_key(&old));
+        assert!(store.insert("main", "old", body()).is_none());
+        let new = store.insert("main", "new", body()).unwrap();
+        store.page_left("main");
+        assert!(!store.responses.contains_key(&new));
+        assert!(store.insert("main", "new", body()).is_none());
+        assert!(store.take("main", "other", other).is_err());
+        assert!(store.take("settings", "new", other).is_err());
+        assert!(matches!(store.take("settings", "other", other), Ok(InvokeResponseBody::Raw(b)) if b == [0, 255]));
+        assert!(store.take("settings", "other", other).is_err());
+    }
+
+    #[test]
+    fn fetch_acl_uses_the_origin_without_credentials_path_or_query() {
+        for (input, expected) in [
+            ("tauri://localhost/index.html", "tauri://localhost"),
+            ("https://u:p@[::1]:8443/path?q#f", "https://[::1]:8443"),
+            ("https://localhost:443/path", "https://localhost"),
+        ] {
+            let origin = origin(&tauri::Url::parse(input).unwrap()).unwrap();
+            assert_eq!(origin.header, expected);
+            assert_eq!(origin.url, tauri::Url::parse(expected).unwrap());
+        }
+        assert!(origin(&tauri::Url::parse("data:text/plain,x").unwrap()).is_err());
+    }
+
+    #[test]
+    fn invalid_payloads_leave_sibling_requests_dispatchable() {
+        let deep = format!("{}0{}", "[".repeat(150), "]".repeat(150));
+        let payloads = ["true", "{", r#""\ud800""#, &deep, "[0,255]"];
+        let mut envelope: Vec<_> = payloads.iter().enumerate().map(|(i, payload)| json!({
+            "cmd": "test", "callback": 1, "error": 2, "headers": {}, "bin": i == 4, "payload": payload
+        })).collect();
+        envelope.push(json!({"cmd": "empty", "callback": 1, "error": 2, "headers": {}, "bin": false}));
+        let calls: Vec<Call> = serde_json::from_str(&serde_json::to_string(&envelope).unwrap()).unwrap();
+        let url = tauri::Url::parse("tauri://localhost").unwrap();
+        let mut results = calls.into_iter().map(|call| request(call, &url, None, "key", &HeaderValue::from_static("key")));
+        assert!(matches!(results.next().unwrap().unwrap().body, InvokeBody::Json(Value::Bool(true))));
+        for _ in 0..3 {
+            assert!(results.next().unwrap().is_err());
+        }
+        assert!(matches!(results.next().unwrap().unwrap().body, InvokeBody::Raw(b) if b == [0, 255]));
+        assert!(matches!(results.next().unwrap().unwrap().body, InvokeBody::Json(v) if v == json!({})));
     }
 }
