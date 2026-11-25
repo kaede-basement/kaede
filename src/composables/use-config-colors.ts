@@ -23,51 +23,51 @@ import General from "@/lib/general";
 import { globalStates } from "@/states/global.ts";
 import type { UIColorsType } from "@/types/ui/ui-colors.type.ts";
 
+const styles = computed((): UIColorsType => {
+  const current: UIColorsType = {
+    "overlay": {
+      "background": globalStates.ui.background.color || "rgba(28, 28, 28, 0.6)",
+    },
+    "widget": {
+      "background": globalStates.ui.widget.background || "rgb(10, 10, 10)",
+      "color"     : globalStates.ui.widget.textColor || "rgb(255, 255, 255)",
+    },
+    "widgetSecondary": {
+      "color": globalStates.ui.widget.secondaryColor || "rgb(212, 212, 212)",
+    },
+    "text": {
+      "color": globalStates.ui.text.mainColor || "rgb(255, 255, 255)",
+    },
+    "textSecondary": {
+      "color": globalStates.ui.text.secondaryColor || "rgb(212, 212, 212)",
+    },
+  };
+
+  if (globalStates.ui.text.font !== null) {
+    /*
+     * A picked font file is stored as a URL and registered via '@font-face'
+     * (see 'watchCustomFont'), so we reference its family name here instead
+     */
+    current.root = {
+      "fontFamily": General.isFontSourceUrl(globalStates.ui.text.font)
+        ? CustomFontFamily
+        : globalStates.ui.text.font,
+    };
+  }
+
+  if (globalStates.ui.background.blur !== null && globalStates.ui.background.blur > 0) {
+    current.overlay.backdropFilter = `blur(${globalStates.ui.background.blur}px)`;
+  }
+
+  if (globalStates.ui.widget.blur !== null && globalStates.ui.widget.blur > 0) {
+    current.widget.backdropFilter = `blur(${globalStates.ui.widget.blur}px)`;
+  }
+
+  return current;
+});
+
 export function useConfigColors(): {
   "styles": ComputedRef<UIColorsType>;
 } {
-  const styles = computed((): UIColorsType => {
-    const current: UIColorsType = {
-      "overlay": {
-        "background": globalStates.ui.background.color || "rgba(28, 28, 28, 0.6)",
-      },
-      "widget": {
-        "background": globalStates.ui.widget.background || "rgb(10, 10, 10)",
-        "color"     : globalStates.ui.widget.textColor || "rgb(255, 255, 255)",
-      },
-      "widgetSecondary": {
-        "color": globalStates.ui.widget.secondaryColor || "rgb(212, 212, 212)",
-      },
-      "text": {
-        "color": globalStates.ui.text.mainColor || "rgb(255, 255, 255)",
-      },
-      "textSecondary": {
-        "color": globalStates.ui.text.secondaryColor || "rgb(212, 212, 212)",
-      },
-    };
-
-    if (globalStates.ui.text.font !== null) {
-      /*
-       * A picked font file is stored as a URL and registered via '@font-face'
-       * (see 'watchCustomFont'), so we reference its family name here instead
-       */
-      current.root = {
-        "fontFamily": General.isFontSourceUrl(globalStates.ui.text.font)
-          ? CustomFontFamily
-          : globalStates.ui.text.font,
-      };
-    }
-
-    if (globalStates.ui.background.blur !== null) {
-      current.overlay.backdropFilter = `blur(${globalStates.ui.background.blur}px)`;
-    }
-
-    if (globalStates.ui.widget.blur !== null) {
-      current.widget.backdropFilter = `blur(${globalStates.ui.widget.blur}px)`;
-    }
-
-    return current;
-  });
-
   return { styles };
 }

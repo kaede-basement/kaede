@@ -31,13 +31,13 @@ import { createApp } from "vue";
 
 import App from "@/App.vue";
 import { ApplicationRootID, AuthOneTimeFetchContextKey } from "@/constants/application";
-import ASCIIArt from "@/constants/ascii-art.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import Globals from "@/lib/globals";
 import Initialization from "@/lib/initialization";
+import { ensureExecutableHash, startShell } from "@/lib/initialization/start.ts";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import Wails from "@/lib/wails";
@@ -61,18 +61,23 @@ async function run(): Promise<void> {
   Globals.declareActionRegistry();
 
   // Used in Wails v3 builds
-  if (await Wails.detectIsWails()) {
+  const wails = await Wails.detectIsWails();
+
+  if (wails) {
     // Replaces the Tauri API with a Wails v3 API
     await Wails.handleTauriEnvironment();
   }
 
   // For a live preview: https://kaede-basement.github.io/kaede/
-  if (Browser.detectIsBrowser()) {
+  const browser = Browser.detectIsBrowser();
+
+  if (browser) {
     // Handle Tauri API placeholders
     await Browser.handleTauriEnvironment();
   }
 
-  const { basic, parsed, executableHash } = await Initialization.start();
+  const legacy = wails || browser ? await Initialization.start() : undefined;
+  const { basic, parsed } = legacy ?? await startShell();
   const baseDirectory = basic.baseDirectory;
 
   // Caching
@@ -80,19 +85,7 @@ async function run(): Promise<void> {
   GlobalInternals.portable = basic.portable;
   GlobalInternals.joinDelimiter = basic.separator;
   GlobalInternals.launcherVersion = basic.launcherVersion;
-  GlobalInternals.executableHash = executableHash;
   GlobalInternals.launchCount = basic.launchCount;
-
-  // Show a pretty ASCII art with the launcher name :3
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    ASCIIArt.getASCIIArt(
-      basic.portable,
-      basic.launchCount,
-      basic.launcherVersion,
-      executableHash,
-    ),
-  );
 
   const [
     config,
@@ -188,6 +181,9 @@ async function run(): Promise<void> {
     `Mounting an app instance to the DOM element (${ApplicationRootID})`,
   );
   GlobalInternals.mountedInstance = AppInstance.mount(ApplicationRootID);
+
+  void ensureExecutableHash(legacy?.executableHash)
+    .catch(error => log.error(__PRE_BUNDLED_FILENAME__, Errors.prettify(error)));
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing launcher");
   await Initialization

@@ -7,6 +7,7 @@ import { GlobalObject } from "@/extendable/global-object.ts";
 import Errors from "@/lib/errors";
 import ExtensionAPI from "@/lib/extension-api";
 import Extensions from "@/lib/extensions";
+import { ensureExecutableHash } from "@/lib/initialization/start.ts";
 import { log } from "@/lib/logging/log.ts";
 import Permissions from "@/lib/permissions";
 import Txiki from "@/lib/txiki";
@@ -19,12 +20,20 @@ GlobalObject.libs.Extensions = Extensions;
 GlobalObject.libs.Permissions = Permissions;
 GlobalObject.libs.Txiki = Txiki;
 
+let closed = false;
+
 onMounted(async () => {
   // A background task to update the trusted hashes
   void Extensions.updateTrustedHashes();
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Getting all extensions");
-  const { valid, invalid } = await Extensions.readExtensions();
+  const [{ valid, invalid }] = await Promise.all([
+    Extensions.readExtensions(), ensureExecutableHash(),
+  ]);
+
+  if (closed) {
+    return;
+  }
 
   extensionStates.valid = valid;
   extensionStates.invalid = invalid;
@@ -150,6 +159,7 @@ onMounted(async () => {
 });
 
 onUnmounted(async () => {
+  closed = true;
   log.debug(
     __PRE_BUNDLED_FILENAME__,
     `Disabling ${extensionStates.executed.length} enabled extensions`,

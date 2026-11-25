@@ -6,7 +6,7 @@ use serde::Serialize;
 use tauri::Manager;
 
 use crate::file_system::{load_config_files, ParsedFile};
-use crate::hashing::{APPLICATION_HASH, get_executable_hash};
+use crate::hashing::{self, APPLICATION_HASH};
 
 static LAUNCH_COUNT: AtomicI32 = AtomicI32::new(0);
 
@@ -44,9 +44,9 @@ pub fn get_application_directory_info(app: &tauri::AppHandle) -> Result<(PathBuf
     Ok((base_directory, portable))
 }
 
-pub fn get_basic_state(app: &tauri::AppHandle, base_directory: PathBuf, portable: bool) -> InitialStateBasic {
+fn get_basic_state(launcher_version: String, base_directory: &Path, portable: bool) -> InitialStateBasic {
     InitialStateBasic {
-        launcher_version: app.package_info().version.to_string(),
+        launcher_version,
         base_directory  : base_directory.to_string_lossy().to_string(),
         launch_count    : LAUNCH_COUNT.fetch_add(1, Ordering::SeqCst),
         separator       : std::path::MAIN_SEPARATOR.to_string(),
@@ -65,9 +65,16 @@ pub struct InitialStateParsedFiles {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InitialState {
+pub struct InitialShellState {
     pub basic: InitialStateBasic,
     pub parsed: InitialStateParsedFiles,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InitialState {
+    #[serde(flatten)]
+    pub shell: InitialShellState,
     pub executable_hash: String,
 }
 
@@ -96,10 +103,17 @@ impl PreloadedState {
 }
 
 #[tauri::command]
-pub async fn get_initial_state(
+pub async fn get_initial_shell_state(
     app: tauri::AppHandle,
     preloaded_state: tauri::State<'_, PreloadedState>,
-) -> Result<InitialState, String> {
+) -> Result<InitialShellState, String> {
+    load_shell_state(app.package_info().version.to_string(), &preloaded_state).await
+}
+
+async fn load_shell_state(
+    launcher_version: String,
+    preloaded_state: &PreloadedState,
+) -> Result<InitialShellState, String> {
     let handle = preloaded_state.initial_configs.lock().unwrap().take();
     let parsed_configs = match handle {
         Some(actual_handle) => match actual_handle.await {
@@ -109,18 +123,39 @@ pub async fn get_initial_state(
         None => load_config_files(preloaded_state.base_directory.clone()).await?,
     };
 
-    let executable_hash = APPLICATION_HASH.get_or_init(get_executable_hash).await;
     let basic_state = get_basic_state(
-        &app,
-        preloaded_state.base_directory.clone(),
+        launcher_version,
+        &preloaded_state.base_directory,
         preloaded_state.portable,
     );
 
-    Ok(InitialState {
+    Ok(InitialShellState {
         basic: basic_state,
         parsed: parsed_configs,
-        executable_hash: executable_hash.clone(),
     })
+}
+
+#[tauri::command]
+pub async fn get_executable_hash() -> Result<String, String> {
+    APPLICATION_HASH.get_or_try_init(|| async {
+        let digest = hashing::get_executable_hash().await;
+        if digest.len() == 64 {
+            Ok(digest)
+        } else {
+            Err(digest)
+        }
+    }).await.cloned()
+}
+
+#[tauri::command]
+pub async fn get_initial_state(
+    app: tauri::AppHandle,
+    preloaded_state: tauri::State<'_, PreloadedState>,
+) -> Result<InitialState, String> {
+    let shell = get_initial_shell_state(app, preloaded_state).await?;
+    // Preserve the legacy command's error sentinel while allowing another window to retry.
+    let executable_hash = get_executable_hash().await.unwrap_or_else(|sentinel| sentinel);
+    Ok(InitialState { shell, executable_hash })
 }
 
 // If the 'latest.log' file exists and is not empty,
@@ -179,4 +214,30 @@ pub fn prepare_log_file(logs_dir: &Path, app_name: &str) -> std::io::Result<()> 
     fs::rename(&latest_log_path, &new_log_path)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn shell_state_precedes_shared_digest() {
+        let directory = std::env::temp_dir().join(format!("kaede-shell-test-{}", std::process::id()));
+        let preloaded = PreloadedState::new(directory, true);
+        let shell = load_shell_state("test".to_string(), &preloaded).await.unwrap();
+        assert!(matches!(shell.parsed.config, ParsedFile::Missing));
+        assert!(shell.basic.portable);
+        assert!(APPLICATION_HASH.get().is_none());
+
+        let (first, second) = tokio::join!(get_executable_hash(), get_executable_hash());
+        let first = first.unwrap();
+        assert_eq!(first.len(), 64);
+        assert!(first.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        assert_eq!(second.unwrap(), first);
+        assert_eq!(APPLICATION_HASH.get(), Some(&first));
+        let legacy = serde_json::to_value(InitialState { shell, executable_hash: first }).unwrap();
+        assert!(legacy["basic"]["portable"].as_bool().unwrap());
+        assert!(legacy["parsed"]["config"].is_object());
+        assert_eq!(legacy["executableHash"], APPLICATION_HASH.get().unwrap().as_str());
+    }
 }

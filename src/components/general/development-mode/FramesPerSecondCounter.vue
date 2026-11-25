@@ -1,72 +1,66 @@
 <script setup lang="ts">
-import { useInterval } from "@vueuse/core";
-import { onMounted, onUnmounted, ref, shallowRef } from "vue";
+import { onMounted, onUnmounted, shallowRef } from "vue";
 
-// This variable will determine whether to stop counting FPS
-const aborted = ref<boolean>(false);
-
-// If I make these variables non-reactive, somehow Vue still tracks them (???)
-const limits = shallowRef<{
-  "max"    : number;
-  "current": number;
-  "latency": string;
-  "peak"   : string;
-}>({
-  // Define 60 as the standard value
-  "max"    : 60,
-  "current": 0,
-  "latency": "0",
-  "peak"   : "16.7",
-});
+const barCount = 15;
+const publishInterval = 125;
+const limits = shallowRef({ "max": 60, "current": 0, "latency": "0", "peak": "16.7" });
 const frames = shallowRef<Array<number>>([]);
-const times = shallowRef<Array<number>>([]);
-
-// The FPS graph will re-render 50 times per second
-const key = useInterval(20);
 
 onMounted(() => {
-  function countFrame(): void {
-    if (aborted.value) {
-      return;
+  let times = new Float64Array(64);
+  let head = 0;
+  let count = 0;
+  let previous: number | undefined;
+  let lastPublish = -Infinity;
+  let max = 60;
+  let peak = 16.7;
+  const bars = new Uint32Array(barCount);
+  let nextBar = 0;
+
+  function countFrame(now: number): void {
+    while (count && times[head] <= now - 1000) {
+      head = (head + 1) % times.length;
+      count--;
+    }
+    if (count === times.length) {
+      const larger = new Float64Array(count * 2);
+
+      larger.set(times.subarray(head));
+      larger.set(times.subarray(0, head), count - head);
+      times = larger;
+      head = 0;
     }
 
-    requestAnimationFrame(() => {
-      const now = performance.now();
+    times[(head + count) % times.length] = now;
+    count++;
+    max = Math.max(max, count);
+    const latency = now - (previous ?? now);
 
-      while (times.value.length > 0 && times.value[0] <= now - 1000) {
-        times.value.shift();
+    previous = now;
+    peak = Math.max(peak, latency);
+    bars[nextBar] = count;
+    nextBar = (nextBar + 1) % barCount;
 
-        // Change a reactive variable **without** triggering Vue reactivity
-        frames.value.shift();
-      }
+    if (now - lastPublish >= publishInterval) {
+      lastPublish = now;
+      limits.value = {
+        max, "current": count, "latency": latency.toFixed(1), "peak": peak.toFixed(1),
+      };
+      const length = Math.min(count, barCount);
 
-      times.value.push(now);
-
-      const currentLatency = (
-        times.value[times.value.length - 1] -
-        times.value[times.value.length - 2]
-      );
-
-      // Change reactive variables **without** triggering Vue reactivity
-      frames.value.push(times.value.length);
-      limits.value.current = times.value.length;
-      limits.value.max = Math.max(limits.value.max, times.value.length);
-      limits.value.latency = currentLatency.toFixed(1);
-      limits.value.peak = Math.max(
-        Number.parseFloat(limits.value.peak),
-        currentLatency || 16.7,
-      ).toFixed(1);
-
-      countFrame();
-    });
+      frames.value = Array.from({ length }, (_, index) => (
+        bars[(nextBar - length + index + barCount) % barCount]
+      ));
+    }
+    rafId = requestAnimationFrame(countFrame);
   }
 
-  countFrame();
+  rafId = requestAnimationFrame(countFrame);
 });
-onUnmounted(() => {
-  // We do NOT want to count FPS when the component is not shown
-  aborted.value = true;
-});
+
+let rafId: number;
+
+onUnmounted(() => cancelAnimationFrame(rafId));
 </script>
 
 <template>
@@ -75,7 +69,6 @@ onUnmounted(() => {
     class="flex flex-col items-end gap-2 bg-black p-2 opacity-50"
   >
     <div
-      :key="key"
       id="__dev-fps-counter__counter-container"
       class="w-full flex flex-nowrap justify-between gap-4 text-sm text-white font-mono"
     >
@@ -86,19 +79,18 @@ onUnmounted(() => {
         {{ limits.max }} peak
       </p>
     </div>
-    <!-- Attaching a reactive key to the peer element somehow affects all element peers (?) -->
     <div
       id="__dev-fps-counter__lines-container"
       class="box-content h-fit w-60 flex flex-nowrap justify-start border"
     >
       <!-- Display only 15 last frames -->
       <div
-        v-for="(frame, index) in frames.slice(-15)"
-        :key="`${frame}-${index}`"
+        v-for="(frame, index) in frames"
+        :key="index"
         :id="`__dev-fps-counter__line-${index}`"
-        class="h-15 w-4 bg-red"
+        class="h-15 w-4"
         :style="{
-          filter: `hue-rotate(${frame / limits.max * 140}deg)`,
+          backgroundColor: `hsl(${frame / limits.max * 140} 100% 50%)`,
         }"
       ></div>
     </div>

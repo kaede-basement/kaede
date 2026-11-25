@@ -17,6 +17,7 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { markRaw } from "vue";
 
 import { log } from "@/lib/logging/log.ts";
 import type {
@@ -74,7 +75,7 @@ export async function concurrentlyDownload({
    */
   let previousSuccess: number = 0;
   let previousFailed : number = 0;
-  let previousPaths  : Set<string> = new Set;
+  const previousPaths = new Set<string>;
 
   const applySnapshotData = (success: number, failed: number): void => {
     if (success < previousSuccess || failed < previousFailed) {
@@ -88,28 +89,32 @@ export async function concurrentlyDownload({
     previousFailed  = failed;
   };
 
-  // eslint-disable-next-line unicorn/prefer-add-event-listener
-  onProgress.onmessage = (snapshot: DownloadSnapshotType): void => {
+  function publishCurrent(snapshot: DownloadSnapshotType["current"]): void {
     const current = statuses.downloads.current;
+    let next: Map<string, [number, number]> | undefined;
 
     for (const path of previousPaths) {
-      // If the path is missing, then the download task for this path was finished
-      if (!(path in snapshot.current)) {
-        current.delete(path);
+      if (!Object.prototype.hasOwnProperty.call(snapshot, path)) {
+        (next ??= new Map(current)).delete(path);
+        previousPaths.delete(path);
       }
     }
+    for (const [path, progress] of Object.entries(snapshot)) {
+      const old = current.get(path);
 
-    previousPaths = new Set;
-
-    for (const [path, fileProgress] of Object.entries(snapshot.current)) {
-      /*
-       * 'fileProgress' is '[progress, speed]',
-       * where 'progress' is accumulated while 'speed' is not
-       */
-      current.set(path, fileProgress);
+      if (!old || old[0] !== progress[0] || old[1] !== progress[1]) {
+        (next ??= new Map(current)).set(path, progress);
+      }
       previousPaths.add(path);
     }
+    if (next) {
+      statuses.downloads.current = markRaw(next);
+    }
+  }
 
+  // eslint-disable-next-line unicorn/prefer-add-event-listener
+  onProgress.onmessage = (snapshot: DownloadSnapshotType): void => {
+    publishCurrent(snapshot.current);
     applySnapshotData(snapshot.success, snapshot.failed);
   };
 
@@ -124,11 +129,7 @@ export async function concurrentlyDownload({
 
   applySnapshotData(report.success, report.failed);
 
-  for (const path of previousPaths) {
-    statuses.downloads.current.delete(path);
-  }
-
-  previousPaths = new Set;
+  publishCurrent({});
 
   if (report.cancelled) {
     log.info(logPrefix, "The Minecraft download tasks were cancelled");

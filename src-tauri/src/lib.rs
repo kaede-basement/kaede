@@ -76,23 +76,6 @@ pub fn run() {
             let (base_directory, portable) = application::get_application_directory_info(app.handle())?;
             let path = base_directory.join("logs");
 
-            // 'app.get_webview_window("main").is_some()' is true at this point since Tauri initializes a WebView
-            // creation somewhere right before this 'setup' code. Sleeping the thread for 5 seconds makes
-            // the tauri IPC hang while the WebView itself is already loaded (?)
-            //
-            // '09:57:54.326 | ... | Hi: true' - 'info!("Hi: {}", app.get_webview_window("main").is_some());'
-            // '09:57:59.358 | ... | WebView for Kaede has loaded >.<'
-            // '...'
-            // '09:58:00.104 | ... | Launcher successfully initialized in: 5810.9 ms'
-            //
-            // Since 'get_initial_state' fetches the hash of the executable only when the frontend
-            // makes a call to it, I decided that we can offload the hash calculation to a one-time
-            // action that runs *while* the WebView is loading, i.e., before the frontend itself
-            // can make such a call
-            tauri::async_runtime::spawn(async {
-                hashing::APPLICATION_HASH.get_or_init(hashing::get_executable_hash).await;
-            });
-            // Besides hashing, we can also read configs ahead-of-time
             app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist
@@ -173,6 +156,8 @@ pub fn run() {
         // Register custom Tauri commands
         .invoke_handler(tauri::generate_handler![
             application::get_initial_state,
+            application::get_initial_shell_state,
+            application::get_executable_hash,
             downloads::concurrently_download,
             downloads::cancel_downloads,
             extensions::read_extensions,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useDraggable, useElementSize, useIntervalFn, useWindowSize } from "@vueuse/core";
-import { computed, inject, ref, useTemplateRef, watch } from "vue";
+import { useDraggable, useElementSize, useWindowSize } from "@vueuse/core";
+import { computed, inject, useTemplateRef, watch } from "vue";
 
 import { useConfigColors } from "@/composables/use-config-colors.ts";
 import {
@@ -34,8 +34,6 @@ const { position } = useDraggable(container, {
   "containerElement": document.getElementById("app"),
   "initialValue"    : { "x": 0, "y": 0 },
 });
-
-const currentDownloadSpeed = ref<string>("0");
 
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates.selected.currentInstance)
@@ -86,12 +84,12 @@ const progress = computed<number>((oldValue: number | undefined): number => {
   }
 });
 
-useIntervalFn(() => {
+const currentDownloadSpeed = computed(() => {
   const currentDownloads: MapIterator<[number, number]> | undefined =
     statuses.value?.downloads?.current?.values?.();
 
   if (!currentDownloads) {
-    return;
+    return "0.00";
   }
 
   const divider: number = 1024 * 1024;
@@ -101,9 +99,8 @@ useIntervalFn(() => {
     totalSpeed += speed;
   }
 
-  currentDownloadSpeed.value = (totalSpeed / divider).toFixed(2);
-  // Updates 10 times a second
-}, 100);
+  return (totalSpeed / divider).toFixed(2);
+});
 
 watch(
   () => [

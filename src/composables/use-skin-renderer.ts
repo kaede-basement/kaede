@@ -118,9 +118,11 @@ export function useSkinRenderer({
       }
 
       let closed = false;
+      let resize: ResizeObserver | undefined;
 
       onCleanup(() => {
         closed = true;
+        resize?.disconnect();
         viewer.value?.dispose();
         viewer.value = undefined;
         shown.value = false;
@@ -136,7 +138,10 @@ export function useSkinRenderer({
           created.dispose();
         } else {
           viewer.value = created;
-          created.startRenderLoop();
+          created.onZoomChange = created.render;
+          created.onRotationChange = created.render;
+          resize = new ResizeObserver(() => created.render());
+          resize.observe(target);
           shown.value = true;
         }
       } catch (error) {
@@ -146,7 +151,10 @@ export function useSkinRenderer({
       }
     }, { "flush": "post" });
 
-    watch([viewer, slim], ([current, isSlim]) => current?.setSlim(isSlim));
+    watch([viewer, slim], ([current, isSlim]) => {
+      current?.setSlim(isSlim);
+      current?.render();
+    });
     watch([viewer, source], async ([current, skin], [previous], onCleanup) => {
       const request = ++generation;
 
@@ -160,6 +168,9 @@ export function useSkinRenderer({
 
       try {
         await current.setSkin(skin);
+        if (generation === request) {
+          current.render();
+        }
       } catch (error) {
         if (generation === request) {
           report(error);

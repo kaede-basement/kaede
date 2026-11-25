@@ -20,6 +20,17 @@ const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
 const { styles } = useConfigColors();
 const { canvas, viewer, shown } = useSkinRenderer({ "render": "3d" });
+
+function startWalk(): void {
+  viewer.value?.playAnimation("walk");
+  viewer.value?.startRenderLoop();
+}
+
+function stopWalk(): void {
+  viewer.value?.stopRenderLoop();
+  viewer.value?.stopAnimation();
+  viewer.value?.render();
+}
 </script>
 
 <template>
@@ -48,8 +59,8 @@ const { canvas, viewer, shown } = useSkinRenderer({ "render": "3d" });
             id="__profile-page__skin-canvas"
             width="150"
             height="225"
-            @pointerover="() => viewer?.playAnimation?.('walk')"
-            @pointerleave="() => viewer?.stopAnimation?.()"
+            @pointerover="startWalk"
+            @pointerleave="stopWalk"
             :class="[
               shown ? 'opacity-100' : 'opacity-0',
               'cursor-grab duration-300 transition-[opacity] active:cursor-grabbing',
