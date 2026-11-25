@@ -21,9 +21,9 @@ import type {
 const id = "test";
 
 type LaunchInput = Parameters<typeof handleLaunch>[0];
-const prepareAndSpawn = mock(({ instanceId, statuses, onClose, onInput, onSpawn }: LaunchInput) => (
+const prepareAndSpawn = mock(({ instanceId, statuses, onClose, onInput }: LaunchInput) => (
   spawnMinecraft({
-    instanceId, onClose, onInput, onSpawn, "command"    : { "java": "java", "arguments": [] },
+    instanceId, onClose, onInput, "command"    : { "java": "java", "arguments": [] },
     "necessaries": { statuses, "directories": { "instance": id } } as PreLaunchInformationType,
   })
 ));

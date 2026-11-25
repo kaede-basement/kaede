@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import { nextTick, type Ref } from "vue";
 
-import { beginLaunch, finishLaunch, finishRun, recordRun } from "@/states/instance-operation.ts";
+import {
+  beginLaunch, finishLaunch, finishRun, launchCancelled, recordRun,
+} from "@/states/instance-operation.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 
 import { cleanupHarness, closeKey,
@@ -112,6 +114,26 @@ test.each([false, true])("Stop confirmation follows its launch (replaced %p)", a
   await closing;
   expect(close).toHaveBeenCalledTimes(replaced ? 0 : 1);
   finishRun("first", "A");
+  view.unmount();
+});
+
+test("confirmed Stop remembers cancellation after downloads have deregistered", async () => {
+  mock.module("@tauri-apps/plugin-dialog", () => ({ "ask": async (): Promise<boolean> => true }));
+  const cancelAll = mock(async () => false);
+
+  mock.module("@/lib/launcher/scopes/fetching", () => ({ "default": { cancelAll } }));
+  mock.module("@/components/general/base/MaterialRipple.vue", () => ({ "default": {} }));
+  const { "default": launch } = await import("@/components/home/instance/Launch.vue");
+  const view = mount<{ handleClose(): Promise<void> }>(
+    launch, "", [[startKey, noop], [closeKey, noop]],
+  );
+  const statuses = beginLaunch("first")!;
+
+  statuses.downloads.total = statuses.downloads.success = 1;
+  await view.bindings.handleClose();
+  expect(cancelAll).toHaveBeenCalledWith("first-download");
+  expect(launchCancelled(statuses)).toBe(true);
+  finishLaunch("first", statuses);
   view.unmount();
 });
 

@@ -34,7 +34,7 @@ import {
   commitPlaytime, excludedHelpers, missingRunHandlers, restoredRunTokens, startPlaytime,
 } from "@/states/instance.ts";
 import {
-  activeRun, beginLaunch, finishLaunch, Launches as launches, operation, stopRun,
+  activeRun, beginLaunch, finishLaunch, launchCancelled, Launches as launches, operation, stopRun,
 } from "@/states/instance-operation.ts";
 import type {
   ProcessHandlersType,
@@ -63,7 +63,7 @@ function finishSelectedProcess(
   void syncExitedPlaytime();
   globalStates.logs.show = true;
   globalStates.logs.mode = instanceId;
-  void notifyMinecraftExit(instanceId, process);
+  void notifyMinecraftExit(process);
 }
 
 function observeSelected(
@@ -150,13 +150,25 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
     return log.error(__PRE_BUNDLED_FILENAME__, "No current instance found");
   }
 
-  const statuses = beginLaunch(instanceId);
+  const statuses = beginLaunch(instanceId, (process, startedAt) => select(process, startedAt));
 
   if (!statuses) return;
 
+  let closedAt: number | undefined;
+  const onClose = (): void => {
+    closedAt ??= performance.now();
+    const run = activeRun(instanceId);
+
+    if (run?.statuses === statuses) finishSelectedProcess(instanceId, run.process, closedAt);
+  };
+  const select = (process: MinecraftProcessType, startedAt?: number): void => {
+    adopt(instanceId, process, startedAt);
+    if (closedAt !== undefined) finishSelectedProcess(instanceId, process, closedAt);
+    else if (launchCancelled(statuses)) void closeInstance(instanceId);
+  };
+
   try {
     const onInput = createLogSink(instanceId);
-
     const cachedMajor = options?.javaPath ? undefined : GlobalInternals.javaMajor;
     const [javaMajor, account] = await Promise.all([
       cachedMajor || Launcher.fetchJavaMajor(options?.javaPath), resolveLaunchAccount(),
@@ -172,16 +184,14 @@ const launchInstance: LaunchContextType = async (instanceId, options) => {
       },
       instanceId,
       statuses,
-      "onSpawn": (process, startedAt) => {
-        adopt(instanceId, process, startedAt);
-      },
+      onClose,
       onInput,
     });
 
     const op = operation(instanceId);
 
     if (success && process && op.kind === "launching" && op.statuses === statuses) {
-      adopt(instanceId, process);
+      select(process);
     }
   } catch (error: unknown) {
     statuses.current = LaunchStatus.Errors.UnhandledError;

@@ -19,11 +19,38 @@ type Run = {
   "excludeSibling"?: (token: string) => void;
   "exit"?          : ReturnType<typeof completion>;
 } & ({ "kind": "running" } | { "kind": "stopping"; "closed": Promise<void> });
-type Launch = { "kind": "launching"; "statuses": LauncherStatusesType } & (
-  { "exited": false; "selection": ReturnType<typeof completion> } | { "exited": true }
-);
+type SpawnObserver = (process: MinecraftProcessType, startedAt?: number) => void;
+type Launch = {
+  "kind"    : "launching";
+  "statuses": LauncherStatusesType;
+  "exited"  : boolean;
+  "observe"?: SpawnObserver;
+};
+
 type Operation = Install | Run | Launch;
 const operations = shallowReactive(new Map<string, Operation>);
+
+export function takeLaunchObserver(
+  instanceId: string, statuses: LauncherStatusesType,
+): SpawnObserver | undefined {
+  const op = operations.get(instanceId);
+
+  if (op?.kind !== "launching" || op.statuses !== statuses) return;
+  const observer = op.observe;
+
+  delete op.observe;
+
+  return observer;
+}
+const cancelled = new WeakSet<LauncherStatusesType>;
+
+export function cancelLaunch(statuses: LauncherStatusesType): void {
+  cancelled.add(statuses);
+}
+
+export function launchCancelled(statuses: LauncherStatusesType): boolean {
+  return cancelled.has(statuses);
+}
 
 export const Launches = reactive<Record<string, LauncherStatusesType>>({});
 const idle = { "kind": "idle" } as const;
@@ -49,11 +76,11 @@ function status(instanceId: string): LauncherStatusesType {
   };
 }
 
-export function beginLaunch(id: string): LauncherStatusesType | undefined {
+export function beginLaunch(id: string, observe?: SpawnObserver): LauncherStatusesType | undefined {
   if (operations.has(id)) return;
   const statuses = reactive(status(id));
 
-  operations.set(id, { "kind": "launching", statuses, "exited": false, "selection": completion() });
+  operations.set(id, { "kind": "launching", statuses, observe, "exited": false });
   Launches[id] = statuses;
 
   return statuses;
@@ -64,8 +91,8 @@ export function finishLaunch(id: string, statuses: LauncherStatusesType): void {
 
   if (!op || op.kind === "installing" || op.statuses !== statuses) return;
   if (op.kind === "launching") {
-    if (op.exited) statuses.current = LaunchStatus.General.Aborted;
-    else op.selection.resolve();
+    if (op.exited || launchCancelled(statuses)) statuses.current = LaunchStatus.General.Aborted;
+
     statuses.launching = 0;
     operations.delete(id);
   } else {
@@ -119,7 +146,6 @@ export function recordRun(
   const op = operations.get(id);
 
   if (op && (op.kind !== "launching" || op.exited || rehydrated)) return false;
-  op?.selection.resolve();
   const statuses = op?.statuses ?? reactive(status(id));
 
   operations.set(id, {

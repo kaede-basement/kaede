@@ -30,6 +30,11 @@ import type {
   ProgramSpecType,
 } from "@/types/application/server-process.type.ts";
 
+type ExitHandler = NonNullable<ProcessHandlersType["onExit"]>;
+export const SpawnObservers = new WeakMap<
+  ExitHandler, (handle: ProcessHandleType, startedAt: number) => void
+>;
+
 // 'crypto.randomUUID()' is unavailable outside secure contexts on webkitgtk...
 function createToken(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36)
@@ -46,7 +51,6 @@ export async function spawnProcess<Meta>(
     "meta"   : Meta;
   },
   processHandlers: ProcessHandlersType = {},
-  onSpawn?: (process: ProcessHandleType<Meta>, startedAt: number) => void,
 ): Promise<ProcessHandleType<Meta>> {
   const token = createToken();
 
@@ -64,7 +68,9 @@ export async function spawnProcess<Meta>(
 
         if (owner && owner.process.token !== dto.token) owner.excludeSibling?.(dto.token);
       }
-      onSpawn?.(confirmed, startedAt);
+      if (processHandlers.onExit) {
+        SpawnObservers.get(processHandlers.onExit)?.(confirmed, startedAt);
+      }
     }
 
     return confirmed;

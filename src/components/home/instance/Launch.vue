@@ -12,7 +12,7 @@ import Instances from "@/lib/instances";
 import Fetching from "@/lib/launcher/scopes/fetching";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
-import { operation } from "@/states/instance-operation.ts";
+import { cancelLaunch, operation } from "@/states/instance-operation.ts";
 import type { LaunchContextType } from "@/types/launcher/launch/launch-context.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
@@ -69,6 +69,7 @@ async function handleClose(): Promise<void> {
   }
   if (op.kind === "launching") {
     if (op.exited) return;
+    cancelLaunch(op.statuses);
     await Fetching.cancelAll(`${instanceId}-download`);
 
     return;

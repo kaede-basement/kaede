@@ -4,7 +4,6 @@ import { expect, mock, spyOn, test } from "bun:test";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Hooks from "@/lib/hooks";
 import Processes from "@/lib/processes";
-import { dispatchProcessExit, recordSpawnLifetime } from "@/lib/processes/core.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -18,15 +17,13 @@ test("Minecraft exiting before spawn returns never publishes a running handle", 
   } as PreLaunchInformationType;
 
   using mkdir = spyOn(fs, "mkdir").mockResolvedValue();
-  using spawn = spyOn(Processes, "spawnProcess").mockImplementation(async (options, _, onSpawn) => {
+  using spawn = spyOn(Processes, "spawnProcess").mockImplementation(async (options, handlers) => {
     const child = {
       "pid"  : 1, "token": "test", "kind" : options.kind, "meta" : options.meta,
       "kill" : async (): Promise<void> => {}, "write": async (): Promise<void> => {},
     };
 
-    recordSpawnLifetime(child, performance.now());
-    onSpawn?.(child, performance.now());
-    dispatchProcessExit({ "pid": 1, "code": 1, "signal": null, "token": child.token });
+    handlers?.onExit?.({ "pid": 1, "code": 1, "signal": null });
 
     return child;
   });
@@ -54,19 +51,19 @@ test("Minecraft exiting before spawn returns never publishes a running handle", 
   expect(mkdir).toHaveBeenCalledWith("game", { "recursive": true });
 });
 
-test("a legacy veto returns an own undefined process field", async () => {
-  const failure = { "success": false };
+test.each([false, true])("preserve success %p without a process", async success => {
+  const response = success ? { success, "process": undefined } : { success };
 
-  using hooks = spyOn(Hooks, "catchAsyncResponseHooks").mockResolvedValue(failure);
+  using hooks = spyOn(Hooks, "catchAsyncResponseHooks").mockResolvedValue(response);
   using mkdir = spyOn(fs, "mkdir").mockResolvedValue();
   const result = await spawnMinecraft({
     "command"    : { "java": "java", "arguments": [] }, "instanceId" : "veto",
     "necessaries": { "directories": { "instance": "game" } } as PreLaunchInformationType,
-    "onInput"    : () => {},
+    "onClose"    : () => {}, "onInput"    : () => {},
   });
 
   expect(hooks).toHaveBeenCalledTimes(1);
   expect(mkdir).toHaveBeenCalledTimes(1);
-  expect(result).toStrictEqual({ "success": false, "process": undefined });
+  expect(result).toStrictEqual({ success, "process": undefined });
   expect(Object.keys(result)).toContain("process");
 });

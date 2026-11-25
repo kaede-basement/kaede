@@ -28,9 +28,10 @@ import Patches from "@/lib/launcher/scopes/patches";
 import { spawnMinecraft } from "@/lib/launcher/scopes/spawn-minecraft.ts";
 import { log } from "@/lib/logging/log.ts";
 import { repairLegacyMrpack } from "@/lib/modrinth/install-mrpack.ts";
+import { launchCancelled } from "@/states/instance-operation.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type {
-  LaunchResponseType, MinecraftProcessType,
+  LaunchResponseType,
 } from "@/types/launcher/launch/launch-response.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type {
@@ -55,14 +56,12 @@ export async function handleLaunch({
   userPreferences,
   onClose,
   onInput,
-  onSpawn,
 }: {
   "instanceId"     : string;
   "instance"       : InstanceStateType;
   "statuses"       : LauncherStatusesType;
   "userPreferences": PreLaunchInformationType["user"];
-  "onSpawn"?       : (process: MinecraftProcessType, startedAt: number) => void;
-  "onClose"?       : (instanceId: string) => void;
+  "onClose"        : (instanceId: string) => void;
   "onInput"        : (lines: Array<string>) => void;
 }): Promise<LaunchResponseType> {
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
@@ -190,12 +189,13 @@ export async function handleLaunch({
     "arguments": Array<string>;
   } = await LaunchCommands.createCommand({ necessaries, finalizedPatch });
 
+  if (launchCancelled(statuses)) return failed;
+
   return LaunchCommands.spawnMinecraft({
     command,
     instanceId,
     necessaries,
     onClose,
     onInput,
-    onSpawn,
   });
 }

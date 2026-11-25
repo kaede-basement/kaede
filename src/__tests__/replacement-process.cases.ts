@@ -5,13 +5,15 @@ import { LaunchStatus } from "@/constants/launcher.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { getHooks } from "@/extendable/hooks-registry.ts";
 import { spawnMinecraft } from "@/lib/launcher/scopes/spawn-minecraft.ts";
+import Processes from "@/lib/processes";
 import { rehydrateProcesses, toProcessHandle } from "@/lib/processes/core.ts";
+import { spawnProcess } from "@/lib/processes/spawn-process.ts";
 import { instanceStates } from "@/states/instance.ts";
-import { activeRun } from "@/states/instance-operation.ts";
+import { activeRun, cancelLaunch } from "@/states/instance-operation.ts";
 import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 
 import {
-  exit, id, listProcesses, noop, useInstanceContextHarness,
+  exit, id, listProcesses, nativeKill, noop, useInstanceContextHarness,
 } from "./instance-context-harness.ts";
 import { launchHooks } from "./launch-extension-fixture.ts";
 
@@ -23,9 +25,11 @@ test.each(["before adoption", "after adoption"])("nested launcher exits %s", asy
   const closed = mock(noop);
   const clock = spyOn(performance, "now").mockReturnValue(100);
   const initial = instanceStates[id].playTime;
+  const notification = Promise.withResolvers<void>();
   const credits: Array<number> = [];
   const killed = mock(async () => {
     credits.push(instanceStates[id].playTime);
+    notification.resolve();
   });
   const observed: Array<number> = [];
   const stopWatching = watch(
@@ -56,7 +60,7 @@ test.each(["before adoption", "after adoption"])("nested launcher exits %s", asy
     clock.mockReturnValue(500);
     if (order === "before adoption") {
       exit(child.token);
-      await Bun.sleep(0);
+      await notification.promise;
     }
 
     return { "status": "stop", "response": { "success": true, "process": { ...child } } };
@@ -77,9 +81,59 @@ test.each(["before adoption", "after adoption"])("nested launcher exits %s", asy
   stopWatching();
   stopWatchingLaunch();
   expect(killed).toHaveBeenCalledTimes(1);
-  expect(credits).toEqual([initial + 400]);
+  expect(credits).toEqual([order === "before adoption" ? initial : initial + 400]);
   expect(observed).toEqual([initial + 400]);
   expect(idleCredits).toEqual([initial + 400]);
+});
+
+test("published forwarding signatures preserve an exit before the wrapper returns", async () => {
+  const { launchInstance } = GlobalInternals.instanceContext!;
+  const clock = spyOn(performance, "now").mockReturnValue(100);
+  const initial = instanceStates[id].playTime;
+  const afterLaunch = mock(async () => {});
+  const killed = mock(async () => {});
+
+  getHooks().onMinecraftLaunch.after.push(afterLaunch);
+  getHooks().onMinecraftKill.after.push(killed);
+  using wrapper = spyOn(Processes, "spawnProcess").mockImplementation(async (request, handlers) => {
+    const child = await spawnProcess(request, { ...handlers });
+
+    handlers?.onOutput?.(["wrapper log"], "stdout");
+    clock.mockReturnValue(250);
+    exit(child.token);
+    clock.mockReturnValue(900);
+
+    return child;
+  });
+  await launchInstance(id);
+  expect(wrapper.mock.calls[0]).toHaveLength(2);
+  expect(afterLaunch).not.toHaveBeenCalled();
+  expect(killed).toHaveBeenCalledTimes(1);
+  expect(instanceStates[id].playTime).toBe(initial + 150);
+  expect(activeRun(id)).toBeUndefined();
+  expect(GlobalInternals.instanceContext!.logs[id].list).toEqual(["wrapper log"]);
+});
+
+test("a confirmed Stop during native spawn closes the child as soon as it is known", async () => {
+  const { launchInstance, launches } = GlobalInternals.instanceContext!;
+  const afterLaunch = mock(async () => {});
+
+  getHooks().onMinecraftLaunch.after.push(afterLaunch);
+  using wrapper = spyOn(Processes, "spawnProcess").mockImplementation(async (request, handlers) => {
+    cancelLaunch(launches[id]);
+
+    return spawnProcess(request, handlers);
+  });
+  await launchInstance(id);
+  await Bun.sleep(0);
+  const child = activeRun(id)!;
+
+  expect(wrapper).toHaveBeenCalledTimes(1);
+  expect(child.kind).toBe("stopping");
+  expect(nativeKill).toHaveBeenLastCalledWith(child.process.pid);
+  expect(afterLaunch).not.toHaveBeenCalled();
+  exit(child.process.token);
+  expect(activeRun(id)).toBeUndefined();
 });
 
 test.each([false, true])("published launch hook payloads (async %p)", async asynchronous => {

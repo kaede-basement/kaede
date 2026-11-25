@@ -7,7 +7,7 @@ import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import {
   dispatchProcessExit, ProcessHandlers, rehydrateProcesses, toProcessHandle,
 } from "@/lib/processes/core.ts";
-import { spawnProcess } from "@/lib/processes/spawn-process.ts";
+import { SpawnObservers, spawnProcess } from "@/lib/processes/spawn-process.ts";
 import States from "@/states";
 import {
   checkpointActivePlaytime, commitPlaytime, declareInstanceStates, flushPlaytime,
@@ -174,11 +174,16 @@ instanceTest("Credit an exit before the spawn reply", async ({ clock, ipc }) => 
 
     return { ...spec, "pid": 7 };
   });
+  const onExit = (): void => commitPlaytime(id, activeRun(id)!.process.token, performance.now());
+
+  SpawnObservers.set(onExit, observe);
   const handle = await spawnProcess({
     "program": { "type": "path", "value": "java" }, "kind": "minecraft", "meta": dto.meta,
   }, {
-    "onExit": () => commitPlaytime(id, activeRun(id)!.process.token, performance.now()),
-  }, observe);
+    onExit,
+  });
+
+  SpawnObservers.delete(onExit);
 
   expect(ProcessHandlers.has(handle.token)).toBe(false);
   expect(Boolean(activeRun(id))).toBe(false);

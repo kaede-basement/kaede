@@ -1907,7 +1907,7 @@ declare function handleLaunch({ instanceId, instance, statuses, userPreferences,
 	"instance": InstanceStateType;
 	"statuses": LauncherStatusesType;
 	"userPreferences": PreLaunchInformationType["user"];
-	"onClose"?: (instanceId: string) => void;
+	"onClose": (instanceId: string) => void;
 	"onInput": (lines: Array<string>) => void;
 }): Promise<LaunchResponseType>;
 declare function spawnMinecraft({ command, instanceId, necessaries, onClose, onInput, }: {
@@ -1917,7 +1917,7 @@ declare function spawnMinecraft({ command, instanceId, necessaries, onClose, onI
 	};
 	"instanceId": string;
 	"necessaries": PreLaunchInformationType;
-	"onClose"?: (instanceId: string) => void;
+	"onClose": (instanceId: string) => void;
 	"onInput": (lines: Array<string>) => void;
 }): Promise<LaunchResponseType>;
 declare function getAdditionalStartArguments({ necessaries, finalizedPatch, }: {
