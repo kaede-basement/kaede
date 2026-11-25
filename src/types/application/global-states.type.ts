@@ -20,6 +20,7 @@ type ExtensionsType = {
   "list"                      : Array<{ "enabled": boolean; "sha256": string; "label": string }>;
   "permissions"               : Record<string, Record<string, boolean>>;
   "enabled"                   : boolean;
+  "sandboxEngine"?            : "ses" | "worker";
   "allowUnrestrictedUntrusted": boolean;
   "showAppAfterExtensionsLoad": boolean;
 };

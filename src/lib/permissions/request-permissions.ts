@@ -16,63 +16,139 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import "ses";
+import { shallowRef } from "vue";
 
-import { handlePermission } from "@/lib/permissions/handle-permission.ts";
-import { globalStates } from "@/states/global.ts";
-import type { PermissionType } from "@/types/extensions/permission.type.ts";
+import { activationAbortReason, throwIfAborted } from "@/lib/extensions/sandbox/abort.ts";
+import { parsePermission } from "@/lib/permissions/parse-permission.ts";
 
-export async function __requestPermissions(
-  permissions: Array<PermissionType | string> | unknown,
-  extension: string,
-  request: (
-    permission?: PermissionType | string,
-    extension?: string,
-    resolve?: (state: boolean) => void
-  ) => void,
-): Promise<Array<unknown>> {
-  if (!Array.isArray(permissions)) {
-    throw new TypeError("Permissions must be an array");
+export const PermissionCooldownMs = 5000;
+
+type GrantStore = Record<string, Record<string, boolean>>;
+type Prompt = { "id": number; "extension": string; "permission": string; "deadline": number };
+
+export function artifactGrantKey(hash: unknown): string {
+  if (typeof hash !== "string" || !(/^[a-f0-9]{64}$/u).test(hash)) {
+    throw new TypeError("Expected an artifact SHA-256 digest");
   }
 
-  const currentPermissions = globalStates.extensions.permissions;
-  const granted = [];
+  return `artifact/${hash}`;
+}
 
-  for (const permission of permissions) {
-    if (typeof permission !== "string") {
-      throw new TypeError("A permission must be a string");
+export class PermissionService {
+  readonly prompt = shallowRef<Prompt>();
+  private queue   : Promise<void> = Promise.resolve();
+  private nextId = 0;
+  private disposed = false;
+  private resolve?: (allowed: boolean) => void;
+  private reject? : (error: Error) => void;
+
+  constructor(private store: GrantStore, private now: () => number = () => performance.now()) {}
+
+  async request(
+    input: unknown, extension: string, artifactSha256: string, signal?: AbortSignal,
+  ): Promise<Array<string | false>> {
+    const key = artifactGrantKey(artifactSha256);
+
+    if (!Array.isArray(input)) {
+      throw new TypeError("Expected an array of permissions");
     }
+    const batch: Array<string> = [];
+    const length = input.length;
 
-    const hasPermission: boolean | undefined = currentPermissions?.[extension]?.[permission];
-
-    if (hasPermission !== undefined) {
-      granted.push(hasPermission
-        // 'handlePermission' validates the permission type, so we are safe to typecast
-        ? handlePermission(permission as PermissionType, extension)
-        : false);
-
-      continue;
+    if (!Number.isSafeInteger(length) || length < 0 || length > 0xFF_FF_FF_FF) {
+      throw new TypeError("Invalid permission array length");
     }
+    for (let index = 0; index < length; index++) {
+      const parsed = parsePermission(input[index]);
 
-    // This triggers a modal window with two buttons: 'allow' and 'disallow'
-    const allowed = await new Promise((resolve: (state: boolean) => void) => {
-      request(permission, extension, resolve);
+      if (!parsed) {
+        throw new TypeError("Invalid permission");
+      }
+      batch.push(parsed.raw);
+    }
+    throwIfAborted(signal);
+    let abortPrompt: (() => void) | undefined;
+    let rejectRequest: (reason: unknown) => void;
+    const cancelled = new Promise<never>((_, reject) => {
+      rejectRequest = reject;
+    });
+    const abort = (): void => {
+      abortPrompt?.();
+      rejectRequest(activationAbortReason(signal));
+    };
+
+    signal?.addEventListener("abort", abort, { "once": true });
+    const result = this.queue.then(async () => {
+      throwIfAborted(signal);
+      if (this.disposed) {
+        throw new Error("Permission session closed");
+      }
+      const granted: Array<string | false> = [];
+
+      for (const permission of batch) {
+        let allowed = this.store[key]?.[permission];
+
+        if (typeof allowed !== "boolean") {
+          allowed = await new Promise<boolean>((resolve, reject) => {
+            abortPrompt = (): void => {
+              reject(activationAbortReason(signal));
+              this.clear();
+            };
+            this.resolve = resolve;
+            this.reject = reject;
+            this.prompt.value = {
+              "id"      : ++this.nextId,
+              extension,
+              permission,
+              "deadline": this.now() + PermissionCooldownMs,
+            };
+          });
+          abortPrompt = undefined;
+          throwIfAborted(signal);
+          if (this.disposed) {
+            throw new Error("Permission session closed");
+          }
+          this.store[key] ??= {};
+          this.store[key][permission] = allowed;
+        }
+        granted.push(allowed ? permission : false);
+      }
+
+      return granted;
     });
 
-    if (currentPermissions[extension] === undefined) {
-      currentPermissions[extension] = {};
+    this.queue = result.then(() => {}, () => {});
+
+    try {
+      return await (signal ? Promise.race([result, cancelled]) : result);
+    } finally {
+      signal?.removeEventListener("abort", abort);
     }
-
-    granted.push(allowed
-      // 'handlePermission' validates the permission type, so we are safe to typecast
-      ? handlePermission(permission as PermissionType, extension)
-      : false);
-
-    currentPermissions[extension][permission] = allowed;
   }
 
-  // Clear the permissions request state by passing nothing
-  request();
+  answer(id: number, allowed: boolean): boolean {
+    const prompt = this.prompt.value;
 
-  return harden(granted);
+    if (!prompt || prompt.id !== id || (allowed && this.now() < prompt.deadline)) {
+      return false;
+    }
+    this.resolve?.(allowed);
+    this.clear();
+
+    return true;
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.reject?.(new Error("Permission session closed"));
+    this.clear();
+  }
+
+  private clear(): void {
+    this.prompt.value = undefined;
+    this.resolve = undefined;
+    this.reject = undefined;
+  }
 }
+
+export const permissionSession = shallowRef<PermissionService>();

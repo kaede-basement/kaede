@@ -15,35 +15,44 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 import "ses";
 
+import type { ExtensionUI } from "@/lib/extensions/sandbox/ui-root.ts";
 import { handlePermission } from "@/lib/permissions/handle-permission.ts";
+import { parsePermission } from "@/lib/permissions/parse-permission.ts";
+import { artifactGrantKey } from "@/lib/permissions/request-permissions.ts";
 import { globalStates } from "@/states/global.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 export function grantStaticPermissions({
   id,
-  permissions,
+  artifactSha256,
+  permissions = [],
+  ui, signal,
 }: {
-  "id"          : string;
-  "permissions"?: Array<PermissionType>;
+  "id"            : string;
+  "artifactSha256": string;
+  "signal"?       : AbortSignal;
+  "ui"?           : ExtensionUI;
+  "permissions"?  : Array<PermissionType>;
 }): Record<string, unknown> {
-  const currentPermissions = globalStates.extensions.permissions;
-  const scopedThis: Record<string, unknown> = {};
-
-  if (!permissions) {
-    return scopedThis;
-  }
-
-  if (currentPermissions?.[id] === undefined) {
-    currentPermissions[id] = {};
-  }
-
-  for (const permission of permissions) {
-    scopedThis[permission] = handlePermission(permission, id);
-    currentPermissions[id][permission] = true;
-  }
+  recordStaticGrants(artifactSha256, permissions);
+  const scopedThis = Object.fromEntries(
+    permissions.map(raw => [raw, handlePermission(raw, id, ui, signal)]),
+  );
 
   return harden(scopedThis);
+}
+
+
+export function recordStaticGrants(artifactSha256: string, permissions: string[]): void {
+  const key = artifactGrantKey(artifactSha256);
+  const current = globalStates.extensions.permissions;
+
+  if (!permissions.every(raw => parsePermission(raw))) {
+    throw new TypeError("Invalid static permission");
+  }
+  for (const raw of permissions) {
+    (current[key] ??= {})[raw] = true;
+  }
 }

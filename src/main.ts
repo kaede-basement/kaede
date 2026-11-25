@@ -118,7 +118,7 @@ async function run(): Promise<void> {
   ]);
 
   // At this point, we can make WebView visible
-  if (config.extensions.showAppAfterExtensionsLoad !== true) {
+  if (!config.extensions.enabled || config.extensions.showAppAfterExtensionsLoad !== true) {
     getCurrentWebviewWindow()
       .show()
       .then(() => {

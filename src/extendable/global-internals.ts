@@ -70,7 +70,6 @@ export const GlobalInternals: KaedeNamespaceType["internals"] = {
     "visible"  : false,
     "resizable": true,
   },
-  "requestPermissions" : async (): Promise<Array<unknown>> => [],
   "joinDelimiter"      : "",
   "launcherVersion"    : "",
   "executableHash"     : "",

@@ -20,24 +20,29 @@ import { invoke } from "@tauri-apps/api/core";
 import type { DeepPartial } from "unocss";
 
 import FileStructure from "@/constants/file-structure.ts";
-import { PermissionsList } from "@/constants/permissions.ts";
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
+import { parsePermission } from "@/lib/permissions/parse-permission.ts";
 import Schemas from "@/lib/schemas";
 import type { ExtensionType } from "@/types/extensions/extension.type.ts";
 
 type ReadExtensionsType = {
   "extensions": Array<{
-    "fileName"  : string;
-    "metadata"  : unknown;
-    "codeSha256": string;
-    "code"      : string;
+    "fileName"      : string;
+    "metadata"      : unknown;
+    "artifactSha256": string;
+    "codeSha256"    : string;
+    "code"          : string;
   }>;
   "failures": Array<{
     "fileName": string;
     "error"   : string;
   }>;
 };
+
+function extensionId(filename: string): string {
+  return filename.slice(0, filename.lastIndexOf("."));
+}
 
 export async function readExtensions(): Promise<{
   "valid"  : Array<ExtensionType>;
@@ -47,24 +52,15 @@ export async function readExtensions(): Promise<{
     FileManager.getBaseDirectory(),
     FileStructure.Folders.Extensions.Path,
   );
-  const result = await invoke<ReadExtensionsType | string>("read_extensions", {
+  const result = await invoke<ReadExtensionsType>("read_extensions", {
     "extensionsDirPath": directory,
   });
-
-  if (typeof result === "string") {
-    throw new TypeError(result);
-  }
 
   const invalid: Array<DeepPartial<ExtensionType>> = [];
   const { extensions, failures } = result;
 
   for (const failure of failures) {
-    const parts = failure.fileName.split(".");
-
-    // Remove the '.kaede' or '.zip' part
-    parts.pop();
-
-    const id = parts.join(".");
+    const id = extensionId(failure.fileName);
 
     log.error(
       __PRE_BUNDLED_FILENAME__,
@@ -78,12 +74,7 @@ export async function readExtensions(): Promise<{
   const validated: Array<ExtensionType> = [];
 
   for (const [index, extension] of extensions.entries()) {
-    const parts = extension.fileName.split(".");
-
-    // Remove the '.kaede' or '.zip' part
-    parts.pop();
-
-    const id = parts.join(".");
+    const id = extensionId(extension.fileName);
     // It does not, however, validate permissions precisely
     const valid: ExtensionType["metadata"] | false = Schemas.validate.extension({
       "value": extension.metadata,
@@ -93,42 +84,18 @@ export async function readExtensions(): Promise<{
         "index": index,
       },
     });
-    // Set to true by default since 'permissions' is an optional field
-    let permissionsValid: boolean = true;
 
-    // The permissions are validated precisely here
-    if (valid && valid.permissions) {
-      for (const permission of valid.permissions) {
-        const currentValid: boolean = PermissionsList
-
-          /*
-           * Comparing permissions with '::' suffix to prevent 'time::performanceLOL' to be allowed
-           * while the valid one is 'time::performance' (remember: 'base::scope::argument').
-           *
-           * 'time::performance::' will pass, though, but it should be okay
-           * since we split the permission by '::'
-           */
-          .some(existing => `${permission}::`.startsWith(`${existing}::`));
-
-        if (!currentValid) {
-          permissionsValid = false;
-
-          break;
-        }
-      }
-    }
-
-    if (valid && permissionsValid) {
+    if (valid && !valid.permissions?.some(permission => !parsePermission(permission))) {
       validated.push({
         id,
-        "code"    : extension.code,
-        "sha256"  : extension.codeSha256,
-        "metadata": valid,
+        "code"          : extension.code,
+        "codeSha256"    : extension.codeSha256,
+        "artifactSha256": extension.artifactSha256,
+        "metadata"      : valid,
       });
     } else {
       invalid.push({
         id,
-        "code"    : extension.code,
         "metadata": typeof extension.metadata === "object"
           ? { ...extension.metadata }
           : undefined,

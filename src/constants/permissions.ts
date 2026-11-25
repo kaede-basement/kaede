@@ -1,5 +1,5 @@
 import PermissionData from "@/constants/permission-data.json";
-import type { PermissionType } from "@/types/extensions/permission.type.ts";
+import { parsePermission } from "@/lib/permissions/parse-permission.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
 
 export const Permissions = {
@@ -11,42 +11,31 @@ export const Permissions = {
     "Basic"        : "ui::basic",
     "Interactivity": "ui::interactivity",
   },
-  "Events": {
-    "Page"             : "events::page",
-    "InstanceSelection": "events::instance-selection",
-  },
   "Internet": {
     "HTTPGet" : "internet::http-get",
     "HTTPPost": "internet::http-post",
   },
   "Log": {
-    "Write" : "log::write",
-    "Read"  : "log::read",
-    "Stream": "log::stream",
-  },
-  "InternalStorage": {
-    "Read" : "internal-storage::read",
-    "Write": "internal-storage::write",
-  },
-  "ExternalStorage": {
-    "Read" : "external-storage::read",
-    "Write": "external-storage::write",
+    "Write": "log::write",
+    "Read" : "log::read",
   },
 } as const satisfies Record<
   string,
   Record<string, `${string}::${string}`>
 >;
-export const PermissionsList: Array<PermissionType> = Object
+export const PermissionsList = Object
   .values(Permissions)
   .flatMap(scope => Object.values(scope));
 
 export const getPermissionDisplayData: (id: string | undefined) => {
+  "permission" : string;
   "label"      : string;
   "icon"       : string;
   "description": string;
 } = id => {
   if (!id) {
     return {
+      "permission" : "",
       "label"      : "do unknown",
       "icon"       : "i-lucide-question-mark",
       "description": "The requested permission is undefined",
@@ -57,10 +46,14 @@ export const getPermissionDisplayData: (id: string | undefined) => {
   const requested: string = `${base}::${scope}`;
 
   if (IsKeyInObject(requested, PermissionData)) {
-    return PermissionData[requested];
+    const parsed = parsePermission(id);
+    const permission = parsed?.base === "internet" ? `${requested}::${parsed.url.href}` : id;
+
+    return { ...PermissionData[requested], permission };
   }
 
   return {
+    "permission" : id,
     "label"      : "do unknown",
     "icon"       : "i-lucide-question-mark",
     "description": "The requested permission does not exist in the list of available permissions",

@@ -1,76 +1,32 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onUnmounted } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import AllowButton from "@/components/general/extensions/permissions/AllowButton.vue";
 import { ContextMenu } from "@/constants/application.ts";
 import Permissions from "@/constants/permissions.ts";
-import { GlobalInternals } from "@/extendable/global-internals.ts";
-import { __requestPermissions } from "@/lib/permissions/request-permissions.ts";
+import { PermissionService, permissionSession } from "@/lib/permissions/request-permissions.ts";
 import { globalStates } from "@/states/global.ts";
-import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
-const requestedPermissionState = ref<{
-  "id"       : PermissionType | string;
-  "extension": string;
-  "resolve"  : (state: boolean) => void;
-} | undefined>();
+const service = new PermissionService(globalStates.extensions.permissions);
 
-const displayData = computed(() => {
-  return Permissions.getPermissionDisplayData(requestedPermissionState.value?.id);
+permissionSession.value = service;
+const prompt = service.prompt;
+const displayData = computed(() => Permissions.getPermissionDisplayData(prompt.value?.permission));
+
+onUnmounted(() => {
+  service.dispose();
+  if (permissionSession.value === service) {
+    permissionSession.value = undefined;
+  }
 });
-
-function handlePermissionRequest(
-  permission?: PermissionType | string,
-  extension?: string,
-  resolve?: (state: boolean) => void,
-): void {
-  if (!permission || !extension || !resolve) {
-    requestedPermissionState.value = undefined;
-
-    return;
-  }
-
-  requestedPermissionState.value = {
-    "id"       : permission,
-    "extension": extension,
-    "resolve"  : resolve,
-  };
-}
-
-function requestPermissions(
-  // After all, this is the value provided by the extension
-  permissions: unknown,
-  extension: string,
-): Promise<Array<unknown>> {
-  return __requestPermissions(permissions, extension, handlePermissionRequest);
-}
-
-function handleUserRequest(state: boolean): void {
-  if (!requestedPermissionState.value) {
-    return;
-  }
-
-  const currentPermissions = globalStates.extensions.permissions;
-  const _extension = requestedPermissionState.value.extension;
-  const _permission = requestedPermissionState.value.id;
-
-  if (!currentPermissions[_extension]) {
-    currentPermissions[_extension] = {};
-  }
-
-  currentPermissions[_extension][_permission] = state;
-
-  requestedPermissionState.value.resolve(state);
-}
-
-GlobalInternals.requestPermissions = requestPermissions;
 </script>
 
 <template>
   <Transition name="pop">
     <div
-      v-if="requestedPermissionState"
+      v-if="prompt"
+      :key="prompt.id"
       id="__extensions-loader__permission-request-wrapper"
       @contextmenu.prevent
       @contextmenu="ContextMenu.show"
@@ -109,7 +65,7 @@ GlobalInternals.requestPermissions = requestPermissions;
                   id="__extensions-loader__permission-request-information-title-extension"
                   class="text-white font-medium"
                 >
-                {{ requestedPermissionState.extension }}
+                {{ prompt.extension }}
               </span>
                 <span
                   id="__extensions-loader__permission-request-information-title-after"
@@ -122,7 +78,7 @@ GlobalInternals.requestPermissions = requestPermissions;
               class="whitespace-pre-wrap text-base text-neutral-400"
             >
               {{ displayData.description }}
-              (Permission: '{{ requestedPermissionState.id }}')
+              (Permission: '{{ displayData.permission }}')
             </div>
           </div>
         </div>
@@ -131,11 +87,12 @@ GlobalInternals.requestPermissions = requestPermissions;
           class="w-full flex flex-nowrap items-center justify-end gap-2"
         >
           <AllowButton
-            :on-click="() => handleUserRequest(true)"
+            :key="prompt.id"
+            :on-click="service.answer.bind(service, prompt.id, true)"
           />
           <button
             id="__extensions-loader__permission-request-deny-wrapper"
-            @click="() => handleUserRequest(false)"
+            v-on="{ click: service.answer.bind(service, prompt.id, false) }"
             class="relative rounded-md bg-neutral-800 px-3 py-1"
           >
             <span
