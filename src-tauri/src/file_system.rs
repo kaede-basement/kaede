@@ -64,7 +64,7 @@ pub(crate) fn persist_temp_path(
 }
 
 #[cfg(windows)]
-fn move_noclobber(src: &Path, dst: &Path) -> io::Result<()> {
+pub(crate) fn move_noclobber(src: &Path, dst: &Path) -> io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
     #[link(name = "kernel32")]
     extern "system" {
@@ -145,7 +145,8 @@ async fn load_json_file(path: PathBuf) -> Result<ParsedFile, String> {
         return Ok(ParsedFile::Missing);
     }
 
-    match serde_json::from_slice::<Value>(&content) {
+    match serde_json::from_slice::<Value>(content.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&content))
+    {
         Ok(data) => Ok(ParsedFile::Loaded { data }),
         Err(error) => Ok(ParsedFile::Corrupt {
             raw: String::from_utf8_lossy(&content).into_owned(),
@@ -343,6 +344,13 @@ mod tests {
                 serde_json::json!({
                     "status": "loaded", "data": serde_json::from_str::<serde_json::Value>(input).unwrap()
                 })
+            );
+        }
+        for (file, json) in [("accounts.json", "[]"), ("instances.json", "{}")] {
+            let path = dir.path().join(file);
+            std::fs::write(&path, format!("\u{feff}{json}")).unwrap();
+            assert!(
+                matches!(load_json_file(path).await.unwrap(), ParsedFile::Loaded { data } if data == serde_json::from_str::<Value>(json).unwrap())
             );
         }
         for input in [" {broken ", "1e400", r#""\uD800""#] {

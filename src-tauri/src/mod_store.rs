@@ -24,6 +24,28 @@ pub struct ModStore {
     trim_writer: Arc<std::sync::Mutex<()>>,
 }
 
+#[derive(Clone)]
+pub struct ObjectLease {
+    tree: Arc<ObjectTree>,
+    // Release the tree before the last guard schedules the idle check.
+    _trim: Arc<TrimOnRelease>,
+}
+
+impl std::ops::Deref for ObjectLease {
+    type Target = Arc<ObjectTree>;
+    fn deref(&self) -> &Self::Target {
+        &self.tree
+    }
+}
+
+struct TrimOnRelease(ModStore);
+
+impl Drop for TrimOnRelease {
+    fn drop(&mut self) {
+        self.0.trim_after_install();
+    }
+}
+
 pub struct ObjectTree {
     root: PathBuf,
     shards: [Mutex<()>; 256],
@@ -87,11 +109,14 @@ impl ModStore {
         }
     }
 
-    pub async fn lease(&self) -> Result<Arc<ObjectTree>, String> {
+    pub async fn lease(&self) -> Result<ObjectLease, String> {
         self.recover_once();
         let tree = self.active_tree().await?;
         self.installs.fetch_add(1, Ordering::Relaxed);
-        Ok(tree)
+        Ok(ObjectLease {
+            tree,
+            _trim: Arc::new(TrimOnRelease(self.clone())),
+        })
     }
 
     async fn active_tree(&self) -> Result<Arc<ObjectTree>, String> {
@@ -144,9 +169,9 @@ impl ModStore {
         remove_tree(&cache.join(other(active)))
     }
 
-    pub(crate) fn trim_after_install(&self) {
+    fn trim_after_install(&self) {
         let store = self.clone();
-        tokio::task::spawn_blocking(move || {
+        tauri::async_runtime::spawn_blocking(move || {
             if let Err(error) = store.trim(OBJECT_BUDGET) {
                 log::warn!("Cannot trim mod cache: {error}");
             }
@@ -195,38 +220,49 @@ impl ModStore {
                 let entry = entry?;
                 let name = entry.file_name();
                 let Some(name) = name.to_str() else { continue };
-                if name.len() != 128
-                    || !name.starts_with(prefix)
-                    || !name.bytes().all(|c| c.is_ascii_hexdigit())
+                let partial = name
+                    .strip_prefix(".tmp")
+                    .is_some_and(|s| s.len() == 6 && s.bytes().all(|b| b.is_ascii_alphanumeric()))
+                    || name.ends_with(".tmp");
+                if !partial
+                    && (name.len() != 128
+                        || !name.starts_with(prefix)
+                        || !name.bytes().all(|c| c.is_ascii_hexdigit()))
                 {
                     continue;
                 }
                 let meta = fs::symlink_metadata(entry.path())?;
                 if meta.is_file() && !is_reparse_point(&meta) {
-                    total += meta.len();
-                    files.push((meta.modified()?, entry.path(), meta.len()));
+                    if !partial {
+                        total += meta.len();
+                    }
+                    files.push((!partial, meta.modified()?, entry.path(), meta.len()));
                 }
             }
         }
         if total > budget {
             files.sort_unstable();
-            for (_, path, size) in files {
-                // Hold admission only across the unlink, never across the traversal.
-                let active = self.active.blocking_lock();
-                if !active
-                    .as_ref()
-                    .is_some_and(|current| Arc::ptr_eq(&tree, current))
-                    || Arc::strong_count(&tree) != 2
-                    || self.installs.load(Ordering::Relaxed) != generation
-                {
-                    break;
-                }
-                fs::remove_file(path)?;
-                drop(active);
+        } else {
+            files.retain(|(object, ..)| !object);
+        }
+        for (object, _, path, size) in files {
+            if object && total <= budget {
+                break;
+            }
+            // Hold admission only across the unlink, never across the traversal.
+            let active = self.active.blocking_lock();
+            if !active
+                .as_ref()
+                .is_some_and(|current| Arc::ptr_eq(&tree, current))
+                || Arc::strong_count(&tree) != 2
+                || self.installs.load(Ordering::Relaxed) != generation
+            {
+                break;
+            }
+            fs::remove_file(path)?;
+            drop(active);
+            if object {
                 total -= size;
-                if total <= budget {
-                    break;
-                }
             }
         }
         Ok(())
@@ -294,7 +330,10 @@ impl ObjectTree {
             _lease: lease,
         })
     }
-    pub async fn prepare(self: &Arc<Self>) -> Result<(), String> {
+}
+
+impl ObjectLease {
+    pub async fn prepare(&self) -> Result<(), String> {
         let tree = self.clone();
         tokio::task::spawn_blocking(move || {
             plain_directory(tree.root.parent().unwrap())?;
@@ -307,7 +346,7 @@ impl ObjectTree {
     }
 
     pub async fn ensure(
-        self: &Arc<Self>,
+        &self,
         file: &ManifestFile,
         cancel: &CancelSignal,
         siblings: Option<&watch::Receiver<bool>>,
@@ -322,7 +361,7 @@ impl ObjectTree {
     }
 
     async fn ensure_object(
-        self: Arc<Self>,
+        &self,
         file: &ManifestFile,
         cancel: &mut crate::downloads::TransferStop,
     ) -> Result<PathBuf, DownloadError> {
@@ -363,11 +402,13 @@ impl ObjectTree {
                                     name
                                 )));
                             }
-                            fs::File::options()
+                            if let Err(error) = fs::File::options()
                                 .write(true)
                                 .open(&path)
                                 .and_then(|f| f.set_modified(std::time::SystemTime::now()))
-                                .map_err(DownloadError::other)?;
+                            {
+                                log::debug!("Cannot update mod cache recency: {error}");
+                            }
                             return Ok(true);
                         }
                         fs::remove_file(&path).map_err(DownloadError::other)?;
@@ -517,8 +558,13 @@ mod tests {
             .set_modified(std::time::SystemTime::UNIX_EPOCH)
             .unwrap();
         fs::write(&new, b"x").unwrap();
+        let partial = crate::file_system::staging_file(&shard)
+            .unwrap()
+            .into_temp_path()
+            .keep()
+            .unwrap();
         tokio::task::block_in_place(|| store.trim(0)).unwrap();
-        assert!(old.exists() && new.exists());
+        assert!(old.exists() && new.exists() && partial.exists());
         fs::write(&old, b"y").unwrap();
         fs::File::options()
             .write(true)
@@ -528,7 +574,7 @@ mod tests {
             .unwrap();
         drop(lease);
         tokio::task::block_in_place(|| store.trim(1)).unwrap();
-        assert!(!old.exists() && new.exists());
+        assert!(!old.exists() && new.exists() && !partial.exists());
     }
 
     #[tokio::test]

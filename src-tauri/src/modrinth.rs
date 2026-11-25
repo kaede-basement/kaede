@@ -106,7 +106,7 @@ pub(crate) fn install_mrpack<R: tauri::Runtime>(
 > {
     const NAME: &str = "install_mrpack";
     let archive: PathBuf = crate::argument(invoke, NAME, "archivePath")?;
-    let pin = crate::argument::<State<crate::staging::Staging>, _>(invoke, NAME, "staging")?.pin(&archive);
+    let staging = crate::argument::<State<crate::staging::Staging>, _>(invoke, NAME, "staging")?;
     let target = crate::argument(invoke, NAME, "targetDirPath")?;
     let id: String = crate::argument(invoke, NAME, "cancelId")?;
     let reservation = crate::argument(invoke, NAME, "reservation")?;
@@ -121,15 +121,16 @@ pub(crate) fn install_mrpack<R: tauri::Runtime>(
         .inner()
         .clone();
     let flags: State<CancelFlags> = crate::argument(invoke, NAME, "flags")?;
-    let (cancel, decision) = flags.bind_install(&id, reservation, &webview.resources_table())?;
+    let (mut cancel, decision) =
+        flags.bind_install(&id, reservation, &webview.resources_table())?;
+    if cancel.archive.as_ref().map(|pin| &pin.path) != Some(&archive) {
+        cancel.archive = staging.pin_install(&archive);
+    }
     Ok(async move {
-        let result = install(archive, target, &store, decision, cancel, |ok, total| {
+        install(archive, target, &store, decision, cancel, |ok, total| {
             let _ = progress.send((ok, total));
         })
-        .await;
-        if let Some(pin) = pin { pin.finish_install(); }
-        store.trim_after_install();
-        result
+        .await
     })
 }
 
@@ -329,7 +330,7 @@ pub(crate) fn repair_legacy_mrpack<R: tauri::Runtime>(
         .clone();
     let cancel = flags.register(&id);
     Ok(async move {
-        let result = repair(
+        repair(
             archive_path,
             target_dir_path,
             &store,
@@ -338,9 +339,7 @@ pub(crate) fn repair_legacy_mrpack<R: tauri::Runtime>(
                 let _ = on_progress.send((done, total));
             },
         )
-        .await;
-        store.trim_after_install();
-        result
+        .await
     })
 }
 
@@ -1438,6 +1437,35 @@ mod tests {
             }
             assert!(!target.exists());
         }
+    }
+
+    #[tokio::test]
+    async fn read_only_first_hit_serves_verified_blob_then_reclaims_abandoned_transfer() {
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let (file, path) = seed_blob(root.path(), b"read-only");
+        let partial = crate::file_system::staging_file(path.parent().unwrap())
+            .unwrap()
+            .into_temp_path()
+            .keep()
+            .unwrap();
+        let permissions = path.metadata().unwrap().permissions();
+        let mut readonly = permissions.clone();
+        readonly.set_readonly(true);
+        std::fs::set_permissions(&path, readonly).unwrap();
+        let lease = store.lease().await.unwrap();
+        let (_sender, cancel) = CancelSignal::channel();
+        assert_eq!(lease.ensure(&file, &cancel, None).await.unwrap(), path);
+        assert!(partial.exists());
+        drop(lease);
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            while partial.exists() {
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+        std::fs::set_permissions(path, permissions).unwrap();
     }
 
     #[tokio::test]

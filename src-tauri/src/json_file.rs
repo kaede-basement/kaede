@@ -103,17 +103,16 @@ fn publish(path: &Path, bytes: &[u8], private: bool, replace: bool) -> io::Resul
     Ok(())
 }
 
-fn backup(path: &Path, private: bool, expected_json: Option<&str>) -> io::Result<()> {
-    let bytes = fs::read(path)?;
-    let matches = match expected_json {
-        Some(expected) => {
-            let expected: serde_json::Value = serde_json::from_str(expected)?;
-            serde_json::from_slice::<serde_json::Value>(&bytes)
-                .is_ok_and(|actual| actual == expected)
+fn backup(path: &Path, private: bool, expected_hash: Option<&str>) -> io::Result<()> {
+    use sha2::{Digest, Sha256};
+    let bytes = fs::read(path).map_err(|e| {
+        if e.kind() == io::ErrorKind::NotFound {
+            io::Error::other("State changed before recovery")
+        } else {
+            e
         }
-        None => serde_json::from_slice::<serde_json::Value>(&bytes).is_err(),
-    };
-    if !matches {
+    })?;
+    if expected_hash != Some(format!("{:x}", Sha256::digest(&bytes)).as_str()) {
         return Err(io::Error::other("State changed before recovery"));
     }
     let name = path
@@ -125,13 +124,6 @@ fn backup(path: &Path, private: bool, expected_json: Option<&str>) -> io::Result
         .duration_since(SystemTime::UNIX_EPOCH)
         .map_err(io::Error::other)?
         .as_nanos();
-    publish(
-        &path.with_file_name(format!("{prefix}{ts}.bak")),
-        &bytes,
-        private,
-        false,
-    )?;
-    let current_timestamp = ts;
     let mut archives = Vec::new();
     for entry in fs::read_dir(path.parent().unwrap())? {
         let entry = entry?;
@@ -142,16 +134,69 @@ fn backup(path: &Path, private: bool, expected_json: Option<&str>) -> io::Result
             .and_then(|s| s.strip_suffix(".bak"))
             .and_then(|s| s.parse::<u128>().ok())
         {
-            if ts != current_timestamp && entry.file_type()?.is_file() {
+            if entry.file_type()?.is_file() {
                 archives.push((ts, entry.path()));
             }
         }
     }
     archives.sort_unstable();
-    for (_, old) in archives.drain(..archives.len().saturating_sub(2)) {
-        fs::remove_file(old)?;
+    const LIMIT: usize = 3;
+    let duplicate = archives.iter().find(|(_, archive)| {
+        fs::metadata(archive).is_ok_and(|meta| meta.len() == bytes.len() as u64)
+            && fs::read(archive).is_ok_and(|saved| saved == bytes)
+    });
+    let mut excess = (archives.len() + usize::from(duplicate.is_none())).saturating_sub(LIMIT);
+    let mut last_error = None;
+    for entry in &archives {
+        if excess == 0 {
+            break;
+        }
+        if Some(entry) == duplicate {
+            continue;
+        }
+        match fs::remove_file(&entry.1) {
+            Ok(()) => excess -= 1,
+            Err(e) => last_error = Some(e),
+        }
+    }
+    if excess != 0 {
+        return Err(last_error.unwrap());
+    }
+    if duplicate.is_none() {
+        publish(
+            &path.with_file_name(format!("{prefix}{ts}.bak")),
+            &bytes,
+            private,
+            false,
+        )?;
     }
     Ok(())
+}
+
+fn destination(path: &Path) -> io::Result<PathBuf> {
+    let mut seen = std::collections::HashSet::new();
+    let mut path = path.to_owned();
+    loop {
+        let parent = path
+            .parent()
+            .ok_or_else(|| io::Error::other("Missing parent"))?
+            .canonicalize()?;
+        let name = path
+            .file_name()
+            .ok_or_else(|| io::Error::other("Missing filename"))?;
+        path = parent.join(name);
+        match fs::symlink_metadata(&path) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                if !seen.insert(path.clone()) {
+                    return Err(io::Error::other("Symlink cycle"));
+                }
+                path = parent.join(fs::read_link(&path)?);
+            }
+            Ok(_) => return Ok(path),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(path),
+            Err(e) => return Err(e),
+        }
+    }
 }
 
 fn write(
@@ -159,17 +204,8 @@ fn write(
     contents: &str,
     private: bool,
     preserve: bool,
-    expected_json: Option<&str>,
+    expected_hash: Option<&str>,
 ) -> io::Result<()> {
-    let dest = match fs::symlink_metadata(path) {
-        Ok(_) => path.canonicalize()?,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => path
-            .parent()
-            .ok_or(e)?
-            .canonicalize()?
-            .join(path.file_name().unwrap()),
-        Err(e) => return Err(e),
-    };
     // Recovery compares, copies and replaces one snapshot across all launcher windows.
     static STATE_WRITER: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let state = matches!(
@@ -177,8 +213,18 @@ fn write(
         Some("accounts.json" | "instances.json")
     );
     let _writer = (state || preserve).then(|| STATE_WRITER.lock().unwrap());
+    let dest = destination(path)?;
+    if expected_hash == Some("missing") {
+        return publish(&dest, contents.as_bytes(), private, false).map_err(|e| {
+            if e.kind() == io::ErrorKind::AlreadyExists {
+                io::Error::other("State changed before recovery")
+            } else {
+                e
+            }
+        });
+    }
     if preserve {
-        backup(path, private, expected_json)?;
+        backup(path, private, expected_hash)?;
     }
     publish(&dest, contents.as_bytes(), private, true)
 }
@@ -188,7 +234,7 @@ pub(crate) async fn publish_text(
     contents: String,
     private: bool,
     preserve: bool,
-    expected_json: Option<String>,
+    expected_hash: Option<String>,
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         write(
@@ -196,7 +242,7 @@ pub(crate) async fn publish_text(
             &contents,
             private,
             preserve,
-            expected_json.as_deref(),
+            expected_hash.as_deref(),
         )
     })
     .await
@@ -207,6 +253,7 @@ pub(crate) async fn publish_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sha2::{Digest, Sha256};
     #[test]
     fn state_recovery_preserves_last_three_original_byte_sequences() {
         let dir = tempfile::tempdir().unwrap();
@@ -214,7 +261,25 @@ mod tests {
             let path = dir.path().join(name);
             for i in 0..5 {
                 fs::write(&path, [0xff, i]).unwrap();
-                write(&path, "[]", true, true, None).unwrap();
+                write(
+                    &path,
+                    "[]",
+                    true,
+                    true,
+                    Some(&format!("{:x}", Sha256::digest(fs::read(&path).unwrap()))),
+                )
+                .unwrap();
+            }
+            for _ in 0..4 {
+                fs::write(&path, [255, 3]).unwrap();
+                write(
+                    &path,
+                    "[]",
+                    true,
+                    true,
+                    Some(&format!("{:x}", Sha256::digest([255, 3]))),
+                )
+                .unwrap();
             }
             let mut saved: Vec<_> = fs::read_dir(dir.path())
                 .unwrap()
@@ -230,6 +295,52 @@ mod tests {
             assert_eq!(saved, [[255, 2], [255, 3], [255, 4]]);
             assert!(write(&path, "{}", true, true, None).is_err());
             assert_eq!(fs::read(path).unwrap(), b"[]");
+        }
+    }
+    #[cfg(windows)]
+    #[test]
+    fn locked_backup_cannot_grow_the_archive_set() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("accounts.json");
+        for n in 0..3 {
+            fs::write(
+                dir.path().join(format!("accounts.json.corrupt-{n}.bak")),
+                [n],
+            )
+            .unwrap();
+        }
+        let lock = |n| {
+            fs::File::options()
+                .read(true)
+                .share_mode(0)
+                .open(dir.path().join(format!("accounts.json.corrupt-{n}.bak")))
+                .unwrap()
+        };
+        let _oldest = lock(0);
+        fs::write(&path, [2]).unwrap();
+        write(
+            &path,
+            "[]",
+            true,
+            true,
+            Some(&format!("{:x}", Sha256::digest([2]))),
+        )
+        .unwrap();
+        assert!(dir.path().join("accounts.json.corrupt-1.bak").exists());
+        let _rest = [lock(1), lock(2)];
+        fs::write(&path, [9]).unwrap();
+        for _ in 0..4 {
+            assert!(write(
+                &path,
+                "[]",
+                true,
+                true,
+                Some(&format!("{:x}", Sha256::digest([9])))
+            )
+            .is_err());
+            assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 4);
+            assert_eq!(fs::read(&path).unwrap(), [9]);
         }
     }
     #[test]
@@ -256,7 +367,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("accounts.json");
         fs::write(&path, "{").unwrap();
-        write(&path, "[]", true, true, None).unwrap();
+        write(
+            &path,
+            "[]",
+            true,
+            true,
+            Some(&format!("{:x}", Sha256::digest(fs::read(&path).unwrap()))),
+        )
+        .unwrap();
         for entry in fs::read_dir(dir.path()).unwrap() {
             let result = std::process::Command::new("powershell.exe").args(["-NoProfile", "-NonInteractive", "-Command",
                 "$acl = Get-Acl -LiteralPath $env:KAEDE_ACL_PATH; $rules = $acl.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]); if (!$acl.AreAccessRulesProtected -or $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne 'S-1-3-4' -or $rules[0].AccessControlType -ne 'Allow') { exit 1 }"])
@@ -269,10 +387,13 @@ mod tests {
     fn publication_keeps_link_and_private_target() {
         use std::os::unix::fs::{symlink, PermissionsExt};
         let dir = tempfile::tempdir().unwrap();
-        let dest = dir.path().join("actual");
+        let parent = dir.path().join("profile");
+        fs::create_dir(&parent).unwrap();
+        let dest = parent.join("actual");
         let link = dir.path().join("accounts.json");
-        fs::write(&dest, "old").unwrap();
-        symlink(&dest, &link).unwrap();
+        let intermediate = dir.path().join("profile-link");
+        symlink("profile/actual", &intermediate).unwrap();
+        symlink("profile-link", &link).unwrap();
         write(&link, "new", true, false, None).unwrap();
         assert!(link.is_symlink());
         assert_eq!(fs::read(&dest).unwrap(), b"new");

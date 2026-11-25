@@ -1,6 +1,7 @@
 import { exists, readTextFile } from "@tauri-apps/plugin-fs";
 
 import { join } from "@/lib/file-manager/path.ts";
+import { log } from "@/lib/logging/log.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 
@@ -22,7 +23,17 @@ export function pinLaunchMetadata(profile: Profile): () => void {
   };
 }
 
-export async function offlineMetadata(root: string, baseDirectory?: string): Promise<Set<string>> {
+export async function offlineMetadata(root: string, baseDirectory?: string):
+Promise<Set<string> | undefined> {
+  try {
+    return await collectOfflineMetadata(root, baseDirectory);
+  } catch (error) {
+    // An unreadable dependency can refer to any asset index or transitive patch.
+    log.warn(__PRE_BUNDLED_FILENAME__, "Deferring metadata eviction", String(error));
+  }
+}
+
+async function collectOfflineMetadata(root: string, baseDirectory?: string): Promise<Set<string>> {
   const protectedKeys = new Set<string>;
   const documents = new Map<string, unknown>;
 
@@ -48,7 +59,8 @@ export async function offlineMetadata(root: string, baseDirectory?: string): Pro
     const persisted = join(baseDirectory, "instances.json");
 
     if (await exists(persisted)) {
-      const otherWindows: Record<string, Profile> = JSON.parse(await readTextFile(persisted));
+      const text = await readTextFile(persisted);
+      const otherWindows: Record<string, Profile> = JSON.parse(text.replace(/^\uFEFF/, ""));
 
       for (const instance of Object.values(otherWindows)) profiles.push(instance);
     }

@@ -4,7 +4,6 @@ import { createRenderer, nextTick, ref } from "vue";
 import { compileScript, parse } from "vue/compiler-sfc";
 
 import { TranslationsContextKey } from "@/constants/application.ts";
-import English from "@/constants/english.json";
 
 import { withTestWindow } from "../../../scripts/setup-tests.ts";
 
@@ -63,7 +62,7 @@ test("cache action feedback and duplicate clicks", () => withTestWindow(async ()
   mockIPC(command);
   const app = renderer.createApp(component);
 
-  app.provide(TranslationsContextKey, ref(English));
+  app.provide(TranslationsContextKey, ref({}));
   app.mount({});
   try {
     const button = elements.get("button")!;

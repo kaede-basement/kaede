@@ -11,7 +11,7 @@ const pending = ref(false);
 const feedback = ref("");
 
 function label(key: keyof typeof English.Messages): string {
-  return translations?.value.Messages[key] ?? English.Messages[key];
+  return translations?.value?.Messages?.[key] ?? English.Messages[key];
 }
 async function clearCache(): Promise<void> {
   if (pending.value) return;

@@ -98,9 +98,9 @@ fn bind_at_dispatch<R: tauri::Runtime>(
                     .inner().clone();
                 Ok(store.collect(argument(i, name, "only")?, argument(i, name, "protected")?))
             }),
-            "trim_legacy_logs" => dispatcher.dispatch(invoke, |i| {
+            "trim_archives" => dispatcher.dispatch(invoke, |i| {
                 let tail = argument::<tauri::State<std::sync::Arc<logging::LogTail>>, _>(
-                    i, "trim_legacy_logs", "tail",
+                    i, "trim_archives", "tail",
                 )?.inner().clone();
                 Ok(async move {
                     tokio::task::spawn_blocking(move || tail.trim_archives()).await
@@ -112,7 +112,7 @@ fn bind_at_dispatch<R: tauri::Runtime>(
                 Ok(json_file::publish_text(
                     argument(i, name, "path")?, argument(i, name, "contents")?,
                     argument(i, name, "private")?, argument(i, name, "preserve")?,
-                    argument(i, name, "expectedJson")?,
+                    argument(i, name, "expectedHash")?,
                 ))
             }),
             "clear_mod_cache" => dispatcher.dispatch(invoke, |i| {
@@ -233,10 +233,10 @@ pub fn run() {
             // Creates the 'logs' directory if it doesn't exist
             std::fs::create_dir_all(&path)?;
 
-            app.manage(std::sync::Arc::new(logging::LogTail::new(
-                path.join("latest.log"),
-            )));
-            app.handle().plugin(
+            let tail = std::sync::Arc::new(logging::LogTail::new(path.join("latest.log")));
+            app.manage(tail.clone());
+            let open = || {
+                let tail = tail.clone();
                 tauri_plugin_log::Builder::new()
                     // Clear any default output targets
                     .clear_targets()
@@ -247,7 +247,7 @@ pub fn run() {
                     // Make a new output target that will save logs in a log file
                     .target(tauri_plugin_log::Target::new(
                         tauri_plugin_log::TargetKind::Folder {
-                            path,
+                            path: path.clone(),
                             file_name: Some("latest".to_string()),
                         },
                     ))
@@ -256,24 +256,32 @@ pub fn run() {
                         tauri_plugin_log::TargetKind::Stdout,
                     ))
                     // Make a custom logs format
-                    .format(|out, message, record| {
+                    .format(move |out, message, record| {
                         let now = time::OffsetDateTime::now_utc();
                         // Default tauri logging format does not include milliseconds
-                        out.finish(format_args!(
+                        let line = format!(
                             "{:02}:{:02}:{:02}.{:03} | {} | {} | {}",
                             now.hour(), now.minute(), now.second(), now.millisecond(),
                             record.level(),
                             record.target(),
                             message,
-                        ))
+                        );
+                        out.finish(format_args!("{line}"));
+                        tail.record_bytes(line.len() + 1);
                     })
                     // Keep the log file size at 8 MiB
-                    .max_file_size(8_388_608)
+                    .max_file_size(logging::LOG_BYTES as u128)
                     // Keep the recent log lines if the file size exceeds 8 MiB
                     .file_open_strategy(tauri_plugin_log::FileOpenStrategy::Rotate)
-                    .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(logging::ARCHIVES))
-                    .build(),
-            )?;
+                    .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+                    .split(app.handle())
+            };
+            let logger = open();
+            #[cfg(windows)]
+            let logger = logging::retry_locked_rotation(&path.join("latest.log"), logger, open);
+            let (plugin, level, logger) = logger?;
+            tauri_plugin_log::attach_logger(level, logger)?;
+            app.handle().plugin(plugin)?;
 
             Ok(())
         })

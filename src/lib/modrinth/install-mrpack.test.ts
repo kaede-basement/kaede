@@ -58,6 +58,7 @@ test("cancel requested before registration reaches Rust before installation star
   mockIPC(async (cmd, payload) => {
     calls.push(cmd);
     if (cmd === "prepare_mrpack_install") {
+      expect(payload).toMatchObject({ "archivePath": "pack" });
       await prepared.promise;
     }
     if (cmd === "install_mrpack") {
@@ -252,8 +253,8 @@ test("draft replacement, install completion and cancellation release staging pin
 
     return true;
   });
-  const one = "/launcher/cache/modrinth-one.mrpack";
-  const two = "/launcher/cache/modrinth-two.mrpack";
+  const one = "/launcher/cache/mrpack-staging/modrinth-one.mrpack";
+  const two = "/launcher/cache/mrpack-staging/modrinth-two.mrpack";
 
   try {
     scope.run(watchStaging);
@@ -263,7 +264,7 @@ test("draft replacement, install completion and cancellation release staging pin
     await Bun.sleep(0);
     expect(collected).toEqual([one, two]);
     await select(one);
-    await select("/external/modrinth-user.mrpack");
+    await select("/launcher/cache/modrinth-user.mrpack");
     await Bun.sleep(0);
     expect(collected).toEqual([one, two, one]);
     expect(pin).toBe(3);

@@ -1,5 +1,6 @@
 use same_file::Handle;
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 ///
 /// ATTENTION: AI-generated (by Qwen 3.8-Max and Claude Fable 5 on 'max' reasoning)
 ///
@@ -26,6 +27,8 @@ pub enum LogStreamEvent {
 pub struct LogTail {
     path: PathBuf,
     last_issued: Mutex<u64>,
+    retention_enabled: AtomicBool,
+    logged_bytes: AtomicUsize,
 }
 
 const MAX_SAFE_ID: u64 = (1 << 53) - 1;
@@ -225,6 +228,8 @@ impl LogTail {
         Self {
             path,
             last_issued: Default::default(),
+            retention_enabled: Default::default(),
+            logged_bytes: Default::default(),
         }
     }
 }
@@ -857,41 +862,110 @@ mod tests {
     }
 }
 
-pub(crate) const ARCHIVES: usize = 10;
+const ARCHIVES: usize = 10;
+pub(crate) const LOG_BYTES: usize = 8 * 1024 * 1024;
+
+// KeepAll still renames a dated archive on a same-second collision. A Windows
+// reader can deny that rename even when latest.log itself is free to rotate.
+#[cfg(windows)]
+pub(crate) fn retry_locked_rotation<T>(
+    latest: &Path,
+    result: Result<T, tauri_plugin_log::Error>,
+    open: impl FnOnce() -> Result<T, tauri_plugin_log::Error>,
+) -> Result<T, tauri_plugin_log::Error> {
+    let Err(tauri_plugin_log::Error::Io(ref e)) = result else {
+        return result;
+    };
+    if !matches!(e.raw_os_error(), Some(5 | 32 | 33)) {
+        return result;
+    }
+
+    let mut stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(io::Error::other)?
+        .as_nanos();
+    loop {
+        let backup = latest.with_file_name(format!("kaede-{stamp}.log"));
+        match crate::file_system::move_noclobber(latest, &backup) {
+            Ok(()) => return open(),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => stamp += 1,
+            Err(_) => return result,
+        }
+    }
+}
+
+fn archive_number(name: &str) -> Option<u64> {
+    if let Some(number) = name.strip_prefix("kaede-")?.strip_suffix(".log") {
+        if number.bytes().all(|b| b.is_ascii_digit()) {
+            return number.parse().ok();
+        }
+    }
+    None
+}
+
+fn dated_archive(name: &str) -> bool {
+    let name = name.strip_suffix(".bak").unwrap_or(name);
+    name.strip_prefix("latest_")
+        .and_then(|s| s.strip_suffix(".log"))
+        .is_some_and(|date| {
+            time::PrimitiveDateTime::parse(
+                date,
+                time::macros::format_description!("[year]-[month]-[day]_[hour]-[minute]-[second]"),
+            )
+            .is_ok()
+        })
+}
 
 impl LogTail {
-    pub(crate) fn trim_archives(&self) -> io::Result<()> {
-        static MIGRATION: Mutex<()> = Mutex::new(());
-        let _migration = MIGRATION.lock().unwrap();
-        let directory = self.path.parent().unwrap();
-        let marker = directory.join(".numbered-logs-trimmed");
-        if marker.try_exists()? {
-            return Ok(());
+    pub(crate) fn record_bytes(self: &Arc<Self>, count: usize) {
+        if self.retention_enabled.load(Ordering::Relaxed) {
+            let prior = self.logged_bytes.fetch_add(count, Ordering::Relaxed);
+            if prior / LOG_BYTES != prior.wrapping_add(count) / LOG_BYTES {
+                let tail = self.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    if let Err(error) = tail.trim_archives() {
+                        log::warn!("Cannot trim log archives: {error}");
+                    }
+                });
+            }
         }
+    }
+
+    pub(crate) fn trim_archives(&self) -> io::Result<()> {
+        static WRITER: Mutex<()> = Mutex::new(());
+        let _writer = WRITER.lock().unwrap();
+        self.retention_enabled.store(true, Ordering::Relaxed);
         let mut archives = Vec::new();
-        for entry in std::fs::read_dir(directory)? {
-            let entry = entry?;
-            if let Some(number) = entry
-                .file_name()
-                .to_str()
-                .and_then(|s| s.strip_prefix("kaede-"))
-                .and_then(|s| s.strip_suffix(".log"))
-                .filter(|s| s.bytes().all(|b| b.is_ascii_digit()))
-                .and_then(|s| s.parse::<u64>().ok())
-            {
-                if entry.file_type()?.is_file() {
-                    archives.push((number, entry.path()));
+        for entry in std::fs::read_dir(self.path.parent().unwrap())? {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) => {
+                    log::warn!("Cannot inspect archive directory entry: {error}");
+                    continue;
                 }
+            };
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else { continue };
+            let number = archive_number(name);
+            if number.is_none() && !dated_archive(name) {
+                continue;
+            }
+            match entry.metadata() {
+                Ok(meta) if meta.is_file() && !crate::mod_store::is_reparse_point(&meta) => {
+                    match meta.modified() {
+                        Ok(time) => archives.push((time, number, entry.path())),
+                        Err(e) => log::warn!("Cannot read log archive time for {name}: {e}"),
+                    }
+                }
+                Ok(_) => (),
+                Err(e) => log::warn!("Cannot inspect log archive {name}: {e}"),
             }
         }
         archives.sort_unstable();
-        for (_, path) in archives.drain(..archives.len().saturating_sub(ARCHIVES)) {
-            std::fs::remove_file(path)?;
-        }
-        match File::create_new(marker) {
-            Ok(_) => (),
-            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => (),
-            Err(e) => return Err(e),
+        for (_, _, path) in archives.drain(..archives.len().saturating_sub(ARCHIVES)) {
+            if let Err(e) = std::fs::remove_file(&path) {
+                log::warn!("Cannot remove log archive {}: {e}", path.display());
+            }
         }
         Ok(())
     }
@@ -900,19 +974,92 @@ impl LogTail {
 #[cfg(test)]
 mod retention_tests {
     use super::*;
+    #[cfg(windows)]
     #[test]
-    fn rotates_numbered_archives_by_number() {
+    fn same_second_rotation_can_open_a_fresh_log_while_the_dated_archive_is_locked() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let latest = dir.path().join("latest.log");
+        let archive = dir.path().join("latest_2026-01-01_00-00-00.log");
+        std::fs::write(&latest, b"previous session").unwrap();
+        std::fs::write(&archive, b"older archive").unwrap();
+        let locked = File::options()
+            .read(true)
+            .share_mode(0)
+            .open(&archive)
+            .unwrap();
+        let open = || -> Result<_, tauri_plugin_log::Error> {
+            if latest.exists() {
+                std::fs::rename(&archive, archive.with_extension("log.bak"))?;
+            }
+            Ok(File::create_new(&latest)?)
+        };
+        let fresh = retry_locked_rotation(&latest, open(), open).unwrap();
+        assert_eq!(fresh.metadata().unwrap().len(), 0);
+        drop(locked);
+        assert_eq!(std::fs::read(archive).unwrap(), b"older archive");
+        let saved = std::fs::read_dir(dir.path())
+            .unwrap()
+            .flatten()
+            .find(|e| archive_number(&e.file_name().to_string_lossy()).is_some())
+            .unwrap();
+        assert_eq!(std::fs::read(saved.path()).unwrap(), b"previous session");
+    }
+    #[cfg(windows)]
+    #[test]
+    fn a_locked_archive_does_not_block_trimming_other_old_logs() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        for n in 0..ARCHIVES + 4 {
+            File::create(dir.path().join(format!("kaede-{n}.log")))
+                .unwrap()
+                .set_modified(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap();
+        }
+        let locked = dir.path().join("kaede-0.log");
+        let _lock = File::options()
+            .read(true)
+            .share_mode(0)
+            .open(&locked)
+            .unwrap();
+        LogTail::new(dir.path().join("latest.log"))
+            .trim_archives()
+            .unwrap();
+        assert!(locked.exists());
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), ARCHIVES + 1);
+    }
+    #[test]
+    fn unified_retention_handles_legacy_dated_and_collision_archives() {
         let dir = tempfile::tempdir().unwrap();
         for i in 0..13 {
             File::create(dir.path().join(format!("kaede-{i}.log"))).unwrap();
+        }
+        let paths = [
+            "latest_2026-01-01_01-00-00.log",
+            "latest_2026-01-01_01-00-00.log.bak",
+        ];
+        let keep = dir.path().join("latest_user.log");
+        File::create(&keep).unwrap();
+        for name in paths {
+            let file = File::create(dir.path().join(name)).unwrap();
+            file.set_modified(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap();
         }
         let latest = dir.path().join("latest.log");
         File::create(&latest).unwrap();
         let tail = LogTail::new(latest.clone());
         tail.trim_archives().unwrap();
-        assert!(latest.exists());
+        assert!(latest.exists() && keep.exists());
+        for name in paths {
+            assert!(!dir.path().join(name).exists());
+        }
         for i in 0..13 {
             assert_eq!(dir.path().join(format!("kaede-{i}.log")).exists(), i >= 3);
         }
+        for name in paths {
+            File::create(dir.path().join(name)).unwrap();
+        }
+        tail.trim_archives().unwrap();
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), ARCHIVES + 2);
     }
 }

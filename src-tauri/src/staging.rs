@@ -13,21 +13,10 @@ pub(crate) struct Staging {
 
 pub(crate) struct Pin {
     staging: Staging,
-    path: PathBuf,
+    pub(crate) path: PathBuf,
+    collect_on_drop: bool,
 }
 impl tauri::Resource for Pin {}
-impl Pin {
-    pub(crate) fn finish_install(self) {
-        let path = self.path.clone();
-        let staging = self.staging.clone();
-        drop(self);
-        tokio::task::spawn_blocking(move || {
-            if let Err(error) = staging.cleanup(Some(path), Vec::new()) {
-                log::warn!("Cannot release staged install: {error}");
-            }
-        });
-    }
-}
 impl Drop for Pin {
     fn drop(&mut self) {
         let mut pins = self.staging.pins.lock().unwrap();
@@ -35,6 +24,15 @@ impl Drop for Pin {
         *count -= 1;
         if *count == 0 {
             pins.remove(&self.path);
+            if self.collect_on_drop {
+                let path = self.path.clone();
+                let staging = self.staging.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    if let Err(error) = staging.cleanup(Some(path), Vec::new()) {
+                        log::warn!("Cannot release staged install: {error}");
+                    }
+                });
+            }
         }
     }
 }
@@ -47,7 +45,7 @@ impl Staging {
         }
     }
     fn owns(&self, path: &Path) -> bool {
-        path.parent() == Some(self.base.join("cache").as_path())
+        path.parent() == Some(self.base.join("cache/mrpack-staging").as_path())
             && path
                 .file_name()
                 .and_then(|s| s.to_str())
@@ -66,15 +64,24 @@ impl Staging {
         Some(Pin {
             staging: self.clone(),
             path: path.to_owned(),
+            collect_on_drop: false,
         })
+    }
+    pub(crate) fn pin_install(&self, path: &Path) -> Option<Pin> {
+        let mut pin = self.pin(path)?;
+        pin.collect_on_drop = true;
+        Some(pin)
     }
     fn cleanup(&self, only: Option<PathBuf>, protected: Vec<PathBuf>) -> io::Result<()> {
         let cache = self.base.join("cache");
-        if !cache.try_exists()? {
-            return Ok(());
-        }
-        if !crate::mod_store::ordinary_directory(&fs::symlink_metadata(&cache)?) {
-            return Err(io::Error::other("Invalid staging directory"));
+        let staging = cache.join("mrpack-staging");
+        for directory in [&cache, &staging] {
+            match fs::symlink_metadata(directory) {
+                Ok(meta) if crate::mod_store::ordinary_directory(&meta) => (),
+                Ok(_) => return Err(io::Error::other("Invalid staging directory")),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+                Err(e) => return Err(e),
+            }
         }
         let mut paths = Vec::new();
         if let Some(path) = only {
@@ -82,7 +89,7 @@ impl Staging {
                 paths.push(path);
             }
         } else {
-            for entry in fs::read_dir(cache)? {
+            for entry in fs::read_dir(staging)? {
                 let path = entry?.path();
                 if self.owns(&path) {
                     paths.push(path);
@@ -95,7 +102,8 @@ impl Staging {
         let mut protected: HashSet<_> = protected.into_iter().collect();
         match fs::read(self.base.join("instances.json")) {
             Ok(bytes) => {
-                let instances: HashMap<String, serde_json::Value> = serde_json::from_slice(&bytes)?;
+                let instances: HashMap<String, serde_json::Value> =
+                    serde_json::from_slice(bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&bytes))?;
                 protected.extend(
                     instances
                         .values()
@@ -179,13 +187,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = Staging::new(dir.path());
         let cache = dir.path().join("cache");
-        fs::create_dir(&cache).unwrap();
+        let staging = cache.join("mrpack-staging");
+        fs::create_dir_all(&staging).unwrap();
         let paths = ["draft", "install", "legacy", "orphan"]
-            .map(|s| cache.join(format!("modrinth-{s}.mrpack")));
+            .map(|s| staging.join(format!("modrinth-{s}.mrpack")));
         for path in &paths {
             fs::write(path, b"pack").unwrap();
         }
-        let local = dir.path().join("modrinth-local.mrpack");
+        let local = cache.join("modrinth-local.mrpack");
         fs::write(&local, b"local").unwrap();
         fs::write(
             dir.path().join("instances.json"),

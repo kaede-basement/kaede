@@ -144,7 +144,7 @@ async function handleCreate(): Promise<void> {
   } catch (error: unknown) {
     if (error === "Installation cancelled") {
       if (imported.value === archive) {
-        globalStates.pages["add-instance"].importedModpack = undefined;
+        Instances.resetPageStates();
       }
       await message(error, { "title": "Modpack installation", "kind": "info" });
 

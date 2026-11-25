@@ -34,6 +34,7 @@ import { ApplicationRootID, AuthOneTimeFetchContextKey } from "@/constants/appli
 import ASCIIArt from "@/constants/ascii-art.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Browser from "@/lib/browser";
+import { enableMetadataRetention } from "@/lib/cache/storage.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import { checkWailsStorage, hasNativeStorage } from "@/lib/file-manager/storage-backend.ts";
@@ -204,14 +205,14 @@ async function run(): Promise<void> {
     .catch((error: unknown) => {
       log.error(__PRE_BUNDLED_FILENAME__, "Failed to initialize launcher:", Errors.prettify(error));
     });
-  if (hasNativeStorage()) {
-    void LauncherShown.then(() => {
+  void LauncherShown.then(() => {
+    enableMetadataRetention();
+    if (hasNativeStorage() || Browser.detectIsBrowser()) {
       watchStaging();
 
-      return invoke("trim_legacy_logs");
-    })
-      .catch(error => log.warn(__PRE_BUNDLED_FILENAME__, String(error)));
-  }
+      if (hasNativeStorage()) return invoke("trim_archives");
+    }
+  }).catch(error => log.warn(__PRE_BUNDLED_FILENAME__, String(error)));
 }
 
 run().catch(error => {

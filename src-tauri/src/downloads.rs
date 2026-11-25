@@ -286,6 +286,7 @@ enum InstallPhase {
         token: u64,
         page: ScopeId,
         window: ScopeId,
+        archive: Option<crate::staging::Pin>,
     },
     Running(InstallDecision),
 }
@@ -356,6 +357,7 @@ pub(crate) struct Registration {
     id: String,
     signal: CancelSignal,
     install: Option<InstallDecision>,
+    pub(crate) archive: Option<crate::staging::Pin>,
 }
 
 impl std::ops::Deref for Registration {
@@ -480,17 +482,20 @@ impl InstallDecision {
 pub fn prepare_mrpack_install(
     webview: tauri::Webview,
     flags: State<CancelFlags>,
+    staging: State<crate::staging::Staging>,
+    archive_path: Option<PathBuf>,
     cancel_id: String,
 ) -> Result<u64, String> {
     static NEXT: AtomicU64 = AtomicU64::new(1);
     let token = NEXT.fetch_add(1, Ordering::Relaxed);
+    let archive = archive_path.and_then(|p| staging.pin_install(&p));
     let page = {
         let window = webview.window_ref();
         let mut window_table = window.resources_table();
         let mut page_table = webview.resources_table();
         let window = ReservationScope::current(&mut window_table, window.label(), &flags);
         let page = ReservationScope::current(&mut page_table, webview.label(), &flags);
-        flags.reserve_install(cancel_id, token, page.clone(), window)?;
+        flags.reserve_install(cancel_id, token, page.clone(), window, archive)?;
         page
     };
     // A queued synchronous invoke may still hold the handle of a closed webview.
@@ -518,6 +523,7 @@ impl CancelFlags {
         token: u64,
         page: ScopeId,
         window: ScopeId,
+        archive: Option<crate::staging::Pin>,
     ) -> Result<(), String> {
         let mut entries = self.0.lock().unwrap();
         let entry = entries.entry(id).or_default();
@@ -528,6 +534,7 @@ impl CancelFlags {
             token,
             page,
             window,
+            archive,
         };
         Ok(())
     }
@@ -564,6 +571,7 @@ impl CancelFlags {
         let InstallPhase::Prepared {
             token: own,
             ref page,
+            ref mut archive,
             ..
         } = entry.install
         else {
@@ -576,12 +584,14 @@ impl CancelFlags {
         if entry.cancel_requested {
             decision.claim();
         }
+        let archive = archive.take();
         entry.install = InstallPhase::Running(decision.clone());
         let registration = Registration {
             flags: Some(self.clone()),
             id: id.into(),
             signal: entry.signal.clone(),
             install: Some(decision.clone()),
+            archive,
         };
         Ok((registration, decision))
     }
@@ -596,6 +606,9 @@ impl CancelFlags {
                 return None;
             }
             // A prepared install can start between releasing the registry and notifying workers.
+            if let InstallPhase::Prepared { archive, .. } = &mut entry.install {
+                archive.take();
+            }
             entry.cancel_requested = true;
             (entry.flag.clone(), entry.signal.publish_gate.clone())
         };
@@ -628,6 +641,7 @@ impl CancelFlags {
             id: id.into(),
             signal: entry.signal.clone(),
             install: None,
+            archive: None,
         }
     }
 }
@@ -1138,6 +1152,51 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn reservation_keeps_archive_after_draft_release_until_terminal_decision() {
+        let dir = tempfile::tempdir().unwrap();
+        let stages = crate::staging::Staging::new(dir.path());
+        let folder = dir.path().join("cache/mrpack-staging");
+        std::fs::create_dir_all(&folder).unwrap();
+        let flags = CancelFlags::default();
+        for terminal in ["finish", "cancel", "reload"] {
+            let path = folder.join(format!("modrinth-{terminal}.mrpack"));
+            std::fs::write(&path, b"archive").unwrap();
+            let draft = stages.pin(&path).unwrap();
+            flags
+                .reserve_install(
+                    terminal.into(),
+                    1,
+                    scope(1),
+                    scope(2),
+                    stages.pin_install(&path),
+                )
+                .unwrap();
+            drop(draft);
+            stages.clone().collect(None, vec![]).await.unwrap();
+            assert!(path.exists());
+            match terminal {
+                "finish" => {
+                    let (running, _) = flags.start_install(terminal, Some(1), None).unwrap();
+                    stages.clone().collect(None, vec![]).await.unwrap();
+                    assert!(path.exists());
+                    running.finish();
+                }
+                "cancel" => {
+                    flags.cancel(terminal).await.unwrap();
+                }
+                _ => flags.revoke_scope(&scope(1)),
+            }
+            tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                while path.exists() {
+                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                }
+            })
+            .await
+            .unwrap();
+        }
+    }
+
     #[test]
     fn navigation_and_destruction_retire_only_their_instances() {
         let flags = CancelFlags::default();
@@ -1146,14 +1205,14 @@ mod tests {
         let owner = ReservationScope::current(&mut window, "main", &flags);
         let prepared = ReservationScope::current(&mut page, "main", &flags);
         flags
-            .reserve_install("pack".into(), 1, prepared, owner.clone())
+            .reserve_install("pack".into(), 1, prepared, owner.clone(), None)
             .unwrap();
         end_reservation_scope(&mut page);
         assert!(flags.start_install("pack", None, None).is_err());
 
         let reopened = ReservationScope::current(&mut page, "main", &flags);
         flags
-            .reserve_install("pack".into(), 2, reopened, owner)
+            .reserve_install("pack".into(), 2, reopened, owner, None)
             .unwrap();
         end_reservation_scope(&mut window);
         assert!(flags.start_install("pack", Some(2), None).is_err());
@@ -1162,7 +1221,7 @@ mod tests {
         let next = ReservationScope::current(&mut next_page, "main", &flags);
         let owner = ReservationScope::current(&mut window, "main", &flags);
         flags
-            .reserve_install("pack".into(), 3, next, owner)
+            .reserve_install("pack".into(), 3, next, owner, None)
             .unwrap();
         assert!(flags.bind_install("pack", None, &page).is_err());
         drop(page);
@@ -1188,7 +1247,7 @@ mod tests {
         let flags = CancelFlags::default();
         let batch = flags.register("shared");
         flags
-            .reserve_install("shared".into(), 1, scope(1), scope(10))
+            .reserve_install("shared".into(), 1, scope(1), scope(10), None)
             .unwrap();
         assert!(flags.cancel("shared").await.unwrap());
         let (run, decision) = flags.start_install("shared", Some(1), None).unwrap();
@@ -1196,11 +1255,11 @@ mod tests {
         assert!(!decision.claim());
         drop((run, batch));
         flags
-            .reserve_install("shared".into(), 2, scope(2), scope(10))
+            .reserve_install("shared".into(), 2, scope(2), scope(10), None)
             .unwrap();
         flags.revoke_scope(&scope(2));
         flags
-            .reserve_install("shared".into(), 3, scope(3), scope(10))
+            .reserve_install("shared".into(), 3, scope(3), scope(10), None)
             .unwrap();
         flags.revoke_scope(&scope(2));
         assert!(flags.start_install("shared", Some(2), None).is_err());
@@ -1209,7 +1268,7 @@ mod tests {
         drop(run);
         assert!(!decision.claim());
         flags
-            .reserve_install("shared".into(), 4, scope(4), scope(10))
+            .reserve_install("shared".into(), 4, scope(4), scope(10), None)
             .unwrap();
         let (run, published) = flags
             .start_install("shared", None, Some(&scope(4)))
@@ -1477,7 +1536,7 @@ mod tests {
                 .unwrap();
         });
         flags
-            .reserve_install("install".into(), 1, scope(1), scope(10))
+            .reserve_install("install".into(), 1, scope(1), scope(10), None)
             .unwrap();
         let (registration, decision) = flags.start_install("install", Some(1), None).unwrap();
         let mut work = Box::pin(crate::modrinth::install(
@@ -1516,7 +1575,7 @@ mod tests {
             let stage = tempfile::tempdir_in(root.path()).unwrap();
             let target = root.path().join("instance");
             flags
-                .reserve_install("install".into(), 1, scope(1), scope(10))
+                .reserve_install("install".into(), 1, scope(1), scope(10), None)
                 .unwrap();
             let (registration, decision) = flags.start_install("install", Some(1), None).unwrap();
             let barrier = std::sync::Barrier::new(2);

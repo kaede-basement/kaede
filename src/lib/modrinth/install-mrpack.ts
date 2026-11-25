@@ -22,6 +22,8 @@ import { shallowRef } from "vue";
 import { MrpackDependencies } from "@/constants/modrinth.ts";
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
+import { log } from "@/lib/logging/log.ts";
+import { pinPreviewArchive } from "@/lib/modrinth/staging.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -100,9 +102,11 @@ export async function installMrpack({
     }
   };
 
+  const releaseArchive = pinPreviewArchive(archivePath);
+
   ActiveInstall.value = { instanceId, cancel };
   try {
-    const reservation = await invoke<number>("prepare_mrpack_install", { cancelId });
+    const reservation = await invoke<number>("prepare_mrpack_install", { cancelId, archivePath });
 
     ready = true;
     if (requested) {
@@ -115,6 +119,7 @@ export async function installMrpack({
   } finally {
     finished = true;
     ActiveInstall.value = undefined;
+    await releaseArchive?.().catch(error => log.warn(__PRE_BUNDLED_FILENAME__, String(error)));
   }
 }
 

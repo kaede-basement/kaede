@@ -1,6 +1,7 @@
 import * as fs from "@tauri-apps/plugin-fs";
 
 import { join } from "@/lib/file-manager/path.ts";
+import { log } from "@/lib/logging/log.ts";
 
 export class ValidationError extends Error {}
 
@@ -124,22 +125,45 @@ async function readIndex(root: string): Promise<Entries> {
   return new Map;
 }
 
+let enableRetention: () => void;
+const retentionReady = new Promise<void>(resolve => {
+  enableRetention = resolve;
+});
+
+export function enableMetadataRetention(): void {
+  enableRetention();
+}
+
 export class CacheIndex {
   private entries?: Promise<Entries>;
   private writer = Promise.resolve();
 
   constructor(
     private root: string,
-    private protectedKeys: () => Promise<Set<string>>,
+    private protectedKeys: () => Promise<Set<string> | undefined>,
     private maxEntries = 512,
     private maxBytes = 128 * 1024 * 1024,
   ) {}
 
   private load(): Promise<Entries> {
-    return this.entries ??= readIndex(this.root).catch(error => {
-      this.entries = undefined;
-      throw error;
-    });
+    return this.entries ??= readIndex(this.root).then(entries => {
+      if (entries.size > 0) {
+        void retentionReady.then(() => {
+          setTimeout(() => {
+            if (!this.overBudget(entries)) return;
+            void this.commit().catch(error => {
+              log.warn(__PRE_BUNDLED_FILENAME__, "Cannot trim metadata cache", String(error));
+            });
+          }, 0);
+        });
+      }
+
+      return entries;
+    })
+      .catch(error => {
+        this.entries = undefined;
+        throw error;
+      });
   }
 
   async get(path: string): Promise<Entry | undefined> {
@@ -154,7 +178,21 @@ export class CacheIndex {
     return entry;
   }
 
+  private overBudget(entries: Entries): boolean {
+    let bytes = 0;
+
+    for (const entry of entries.values()) bytes += entry.size;
+
+    return entries.size > this.maxEntries || bytes > this.maxBytes;
+  }
+
   update(path: string, entry?: Entry, publishDocument?: () => Promise<void>): Promise<void> {
+    return this.commit(path, entry, publishDocument);
+  }
+
+  private commit(
+    path?: string, entry?: Entry, publishDocument?: () => Promise<void>,
+  ): Promise<void> {
     const locks = globalThis.navigator?.locks;
     const commit = async (): Promise<void> => {
       const local = await this.load();
@@ -168,22 +206,25 @@ export class CacheIndex {
       }
       await publishDocument?.();
 
-      if (!entry && !entries.has(path)) return;
+      if (path !== undefined && !entry && !entries.has(path)) return;
       const next = new Map(entries);
 
-      next.delete(path);
-
-      if (entry) next.set(path, { ...entry, "lastUsed": Date.now() });
+      if (path !== undefined) {
+        next.delete(path);
+        if (entry) next.set(path, { ...entry, "lastUsed": Date.now() });
+      }
       let size = 0;
 
       for (const value of next.values()) size += value.size;
       if (next.size > this.maxEntries || size > this.maxBytes) {
         const protectedKeys = await this.protectedKeys();
 
-        const oldest = [...next].sort((a, b) => (a[1].lastUsed ?? 0) - (b[1].lastUsed ?? 0));
+        const oldest = protectedKeys ? [...next] : [];
+
+        oldest.sort((a, b) => (a[1].lastUsed ?? 0) - (b[1].lastUsed ?? 0));
 
         for (const [key, value] of oldest) {
-          if (protectedKeys.has(key.toLowerCase())) continue;
+          if (protectedKeys?.has(key.toLowerCase())) continue;
           let target = this.root;
 
           for (const part of key.split("/")) {
@@ -197,6 +238,7 @@ export class CacheIndex {
           if (next.size <= this.maxEntries && size <= this.maxBytes) break;
         }
       }
+      if (path === undefined && next.size === entries.size) return;
       const json = JSON.stringify({ "version": 1, "entries": Object.fromEntries(next) });
 
       await publish(this.root, "index.json", (new TextEncoder).encode(json));
