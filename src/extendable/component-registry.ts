@@ -18,20 +18,6 @@
 
 import { type Component, defineAsyncComponent, shallowReactive } from "vue";
 
-import AddInstance from "@/components/add-instance/AddInstance.vue";
-import ContextMenu from "@/components/general/layout/ContextMenu.vue";
-import GlobalBackground from "@/components/general/layout/GlobalBackground.vue";
-import LaunchProgress from "@/components/general/layout/LaunchProgress.vue";
-import Layout from "@/components/general/layout/Layout.vue";
-import PagesSelector from "@/components/general/layout/PagesSelector.vue";
-import PageWrapper from "@/components/general/layout/PageWrapper.vue";
-import Router from "@/components/general/layout/Router.vue";
-import Sidebar from "@/components/general/layout/Sidebar.vue";
-import Tabs from "@/components/general/layout/Tabs.vue";
-import Home from "@/components/home/Home.vue";
-import Library from "@/components/library/Library.vue";
-import Profile from "@/components/profile/Profile.vue";
-import Settings from "@/components/settings/Settings.vue";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { log } from "@/lib/logging/log.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
@@ -64,30 +50,14 @@ export const LazyPluginPlayground = defineAsyncComponent(() => (
 /*
  * Extensions can use this registry to replace existing components with their own ones.
  */
-const ComponentStorage = {
-  ContextMenu,
-  GlobalBackground,
-  LaunchProgress,
-  Layout,
-  PagesSelector,
-  PageWrapper,
-  Router,
-  Sidebar,
-  Tabs,
-  AddInstance,
-  Home,
-  Library,
-  Profile,
-  Settings,
-} as const;
+let originals: ComponentRegistryType;
 
-/**
- * HMR might break this
- */
-const PreservedForRestoring = { ...ComponentStorage };
+export const C: ComponentRegistryType = shallowReactive({} as ComponentRegistryType);
 
-// // @ts-expect-error The registry is missing required properties only for 'dts-bundle-generator'
-export const C: ComponentRegistryType = shallowReactive<ComponentRegistryType>(ComponentStorage);
+export function initializeComponents(builtins: ComponentRegistryType): void {
+  originals = builtins;
+  Object.assign(C, builtins);
+}
 
 export function __registerComponent(name: string, component: Component): void {
   if (name in C) {
@@ -101,9 +71,9 @@ export function __registerComponent(name: string, component: Component): void {
 }
 
 export function __restoreComponent(name: string): boolean {
-  if (IsKeyInObject(name, C) && IsKeyInObject(name, PreservedForRestoring)) {
+  if (IsKeyInObject(name, C) && IsKeyInObject(name, originals)) {
     log.debug(__PRE_BUNDLED_FILENAME__, `Restoring a component '${name}'...`);
-    C[name] = PreservedForRestoring[name];
+    C[name] = originals[name];
 
     log.info(__PRE_BUNDLED_FILENAME__, `The component '${name}' was restored`);
 

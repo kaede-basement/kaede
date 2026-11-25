@@ -10,3 +10,5 @@ export function prettify(error: unknown): string {
     "\n" + extracted.stack,
   ].join(" ");
 }
+
+export const ErrorFormatting = { prettify } as const;

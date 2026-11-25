@@ -17,13 +17,15 @@
  */
 
 import { DefaultInstanceIcon, DefaultInstanceSettings } from "@/constants/launcher.ts";
-import Instances from "@/lib/instances/index.ts";
+import { extractSavedFromPages } from "@/lib/instances/extract-saved-from-pages.ts";
 import { globalStates } from "@/states/global.ts";
+
+export const InstanceDefaults = { extractSavedFromPages } as const;
 
 export function resetPageStates(): void {
   globalStates.pages["add-instance"].importedModpack = undefined;
 
-  const currentInstance = Instances.extractSavedFromPages(
+  const currentInstance = InstanceDefaults.extractSavedFromPages(
     globalStates.pages?.["add-instance"]?.instance,
     globalStates.minecraft,
   );

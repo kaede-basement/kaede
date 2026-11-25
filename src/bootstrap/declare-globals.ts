@@ -19,8 +19,9 @@
 import { cancel, onInvalidUrl, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
 import * as Vue from "vue";
 
+import _Application from "@/bootstrap/application.ts";
 import Composables from "@/composables";
-import _Application, { ContextMenu } from "@/constants/application.ts";
+import { ContextMenu } from "@/constants/application.ts";
 import _ASCIIArt from "@/constants/ascii-art.ts";
 import _Browser from "@/constants/browser.ts";
 import _EventListeners from "@/constants/event-listeners.ts";
@@ -30,6 +31,7 @@ import _Meta from "@/constants/meta.ts";
 import _Permissions from "@/constants/permissions.ts";
 import _Routes from "@/constants/routes.ts";
 import _RowCollections from "@/constants/row-collections.ts";
+import type { KaedeNamespaceType } from "@/declarations.ts";
 import { GlobalObject } from "@/extendable/global-object.ts";
 import Auth from "@/lib/auth";
 import Browser from "@/lib/browser";
@@ -41,7 +43,6 @@ import type ExtensionAPI from "@/lib/extension-api";
 import type Extensions from "@/lib/extensions";
 import FileManager from "@/lib/file-manager";
 import General from "@/lib/general";
-import Globals from "@/lib/globals";
 import Hashing from "@/lib/hashing";
 import Hooks from "@/lib/hooks";
 import Initialization from "@/lib/initialization";
@@ -56,7 +57,7 @@ import Schemas from "@/lib/schemas";
 import type Txiki from "@/lib/txiki";
 import Watchers from "@/lib/watchers";
 
-export function declareGlobals(): void {
+export function declareGlobals(Globals: KaedeNamespaceType["libs"]["Globals"]): void {
   window.__TAURI_PLUGINS_COMMUNITY__ = {
     "oauth2": {
       cancel,

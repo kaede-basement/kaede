@@ -18,8 +18,8 @@
 
 import { shallowRef } from "vue";
 
-import { activationAbortReason, throwIfAborted } from "@/lib/extensions/sandbox/abort.ts";
 import { parsePermission } from "@/lib/permissions/parse-permission.ts";
+import { activationAbortReason, throwIfAborted } from "@/lib/shared/abort.ts";
 
 export const PermissionCooldownMs = 5000;
 
@@ -67,6 +67,19 @@ export class PermissionService {
       batch.push(parsed.raw);
     }
     throwIfAborted(signal);
+    if (this.disposed) {
+      throw new Error("Permission session closed");
+    }
+    const cached: Array<string | false> = [];
+
+    for (const permission of batch) {
+      const decision = this.store[key]?.[permission];
+
+      if (typeof decision !== "boolean") break;
+      cached.push(decision ? permission : false);
+    }
+    if (cached.length === batch.length) return cached;
+
     let abortPrompt: (() => void) | undefined;
     let rejectRequest: (reason: unknown) => void;
     const cancelled = new Promise<never>((_, reject) => {

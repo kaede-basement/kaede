@@ -19,7 +19,7 @@
 import { Patches } from "@/constants/meta.ts";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
-import Modrinth from "@/lib/modrinth/index.ts";
+import { resolvePatchVersions } from "@/lib/modrinth/install-mrpack.ts";
 import { globalStates } from "@/states/global.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
@@ -46,7 +46,7 @@ export function applyManifest({
     );
   }
 
-  const patchVersions = Modrinth.resolvePatchVersions(manifest.dependencies);
+  const patchVersions = resolvePatchVersions(manifest.dependencies);
   const currentInstance = Instances.extractSavedFromPages(
     globalStates.pages?.["add-instance"]?.instance,
     globalStates.minecraft,

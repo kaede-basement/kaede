@@ -16,12 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { ExtensionUI } from "@/lib/extensions/sandbox/ui-root.ts";
 import { handleInternetPermission } from "@/lib/permissions/atomic/internet.ts";
 import { handleLoggingPermission } from "@/lib/permissions/atomic/logging.ts";
 import { handleTimePermission } from "@/lib/permissions/atomic/time.ts";
 import { handleUIPermission } from "@/lib/permissions/atomic/ui.ts";
 import { parsePermission } from "@/lib/permissions/parse-permission.ts";
+import type { ExtensionUI } from "@/lib/shared/ui-root.ts";
 
 export function handlePermission(
   raw: string, id: string, ui?: ExtensionUI, signal?: AbortSignal,

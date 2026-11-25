@@ -1,5 +1,5 @@
 import type { KaedeNamespaceType } from "@/declarations.ts";
-import { GlobalObject } from "@/extendable/global-object.ts";
+import { HooksRegistry } from "@/extendable/hooks-registry.ts";
 import { formatHookError } from "@/lib/hooks/format-hook-error.ts";
 import { log } from "@/lib/logging/log.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
@@ -14,7 +14,7 @@ export async function catchAsyncVoidHooks({
   "toPass": unknown;
   "timing": "before" | "after";
 }): Promise<void> {
-  const currentScopeHooks = GlobalObject.hooks[scope];
+  const currentScopeHooks = HooksRegistry.hooks[scope];
 
   if (!IsKeyInObject(timing, currentScopeHooks)) {
     return;

@@ -31,8 +31,8 @@ import type * as TauriUpload from "@tauri-apps/plugin-upload";
 import type DevelopmentMode from "src/lib/development-mode";
 import type { App, ComponentPublicInstance, ComputedRef, ShallowReactive, ShallowRef } from "vue";
 
+import type _Application from "@/bootstrap/application.ts";
 import type Composables from "@/composables";
-import type _Application from "@/constants/application.ts";
 import type _ASCIIArt from "@/constants/ascii-art.ts";
 import type _Browser from "@/constants/browser.ts";
 import type _EventListeners from "@/constants/event-listeners.ts";

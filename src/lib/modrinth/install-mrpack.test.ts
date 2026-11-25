@@ -5,6 +5,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import { afterEach, beforeEach, expect, expectTypeOf, mock, spyOn, test } from "bun:test";
 import { computed, effectScope } from "vue";
 
+import { DefaultGlobalStatesPagesStates } from "@/bootstrap/application.ts";
 import { Patches } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
 import { verifyPaths } from "@/lib/file-manager/path.ts";
@@ -74,7 +75,7 @@ test("cancel requested before registration reaches Rust before installation star
 
 test("remount retains the install and its completion preserves the newer draft", async () => {
   using initialPage = spyOn(Router, "getInitialPage").mockReturnValue(Routes.AddInstance);
-  declareGlobalStates();
+  declareGlobalStates(DefaultGlobalStatesPagesStates);
   declareInstanceStates();
   expect(initialPage).toHaveBeenCalled();
   const prepared = Promise.withResolvers<void>();
@@ -144,7 +145,7 @@ test("remount retains the install and its completion preserves the newer draft",
 
 test("registration awaits the instance write and preserves an active Modrinth tab", async () => {
   using initial = spyOn(Router, "getInitialPage").mockReturnValue(Routes.AddInstance);
-  declareGlobalStates();
+  declareGlobalStates(DefaultGlobalStatesPagesStates);
   declareInstanceStates();
   expect(initial).toHaveBeenCalled();
   const writing = Promise.withResolvers<void>();

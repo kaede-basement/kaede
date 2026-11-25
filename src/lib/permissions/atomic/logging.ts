@@ -3,10 +3,10 @@ import "ses";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 
 import FileStructure from "@/constants/file-structure.ts";
-import { throwIfAborted } from "@/lib/extensions/sandbox/abort.ts";
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
 import { hardenIfAvailable } from "@/lib/permissions/harden.ts";
+import { throwIfAborted } from "@/lib/shared/abort.ts";
 
 export function handleLoggingPermission({ id, scope, signal }: {
   "signal"?: AbortSignal;

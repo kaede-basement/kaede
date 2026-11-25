@@ -19,13 +19,15 @@
 import "ses";
 
 import Errors from "@/lib/errors";
-import Extensions from "@/lib/extensions";
+import { lockdownEnvironment } from "@/lib/extensions/sandbox/lockdown-environment.ts";
 import { log } from "@/lib/logging/log.ts";
 import Permissions, { bindPermissionRequest } from "@/lib/permissions";
+import { ExtensionUI } from "@/lib/shared/ui-root.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 import { lifecycleHooks, type SandboxHooks } from "./lifecycle-hooks.ts";
-import { ExtensionUI } from "./ui-root.ts";
+
+export const SandboxEnvironment = { lockdownEnvironment } as const;
 
 export function runInSandbox({
   id,
@@ -42,7 +44,7 @@ export function runInSandbox({
 }): void | SandboxHooks {
   try {
     // It will not lock down more than once
-    Extensions.lockdownEnvironment();
+    SandboxEnvironment.lockdownEnvironment();
   } catch (error: unknown) {
     // Do not continue executing the plugin if the lockdown failed
     return log.error(

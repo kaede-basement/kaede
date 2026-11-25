@@ -1,5 +1,6 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 
+import { DefaultGlobalStatesPagesStates } from "@/bootstrap/application.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { GlobalObject } from "@/extendable/global-object.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
@@ -16,7 +17,7 @@ mockIPC(command => {
 });
 window.__KAEDE__ = GlobalObject;
 GlobalInternals.initialConfig = await getDefaultConfig();
-declareGlobalStates();
+declareGlobalStates(DefaultGlobalStatesPagesStates);
 globalStates.extensions.enabled = true;
 let now = 0;
 const service = new PermissionService(globalStates.extensions.permissions, () => now);

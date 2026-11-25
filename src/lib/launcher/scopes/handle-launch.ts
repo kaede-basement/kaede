@@ -20,11 +20,12 @@ import { mkdir } from "@tauri-apps/plugin-fs";
 
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
-import Launcher from "@/lib/launcher";
+import { createCommand } from "@/lib/launcher/scopes/create-command.ts";
 import Extractors from "@/lib/launcher/scopes/extractors";
 import Fetching from "@/lib/launcher/scopes/fetching";
 import Parsers from "@/lib/launcher/scopes/parsers";
 import Patches from "@/lib/launcher/scopes/patches";
+import { spawnMinecraft } from "@/lib/launcher/scopes/spawn-minecraft.ts";
 import { log } from "@/lib/logging/log.ts";
 import { repairLegacyMrpack } from "@/lib/modrinth/install-mrpack.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
@@ -42,6 +43,8 @@ const failed: LaunchResponseType = {
   "success": false,
   "process": undefined,
 };
+
+export const LaunchCommands = { createCommand, spawnMinecraft } as const;
 
 export async function handleLaunch({
   instanceId,
@@ -181,9 +184,9 @@ export async function handleLaunch({
   const command: {
     "java"     : string;
     "arguments": Array<string>;
-  } = await Launcher.createCommand({ necessaries, finalizedPatch });
+  } = await LaunchCommands.createCommand({ necessaries, finalizedPatch });
 
-  return Launcher.spawnMinecraft({
+  return LaunchCommands.spawnMinecraft({
     command,
     instanceId,
     necessaries,

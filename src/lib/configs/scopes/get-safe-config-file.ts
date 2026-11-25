@@ -1,8 +1,11 @@
-import Configs from "@/lib/configs";
+import { getMain } from "@/lib/configs/get-main.ts";
+import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/log.ts";
 import type { ParsedFile } from "@/types/application/parsed-file.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
+
+export const ConfigReaders = { "get": getMain, "getDefault": getDefaultConfig } as const;
 
 export async function getSafeConfigFile(properties?: Partial<{
   "baseDirectory": string;
@@ -12,7 +15,7 @@ export async function getSafeConfigFile(properties?: Partial<{
     log.debug(__PRE_BUNDLED_FILENAME__, "Getting a config file");
 
     // Await here to catch errors
-    return await Configs.get(properties);
+    return await ConfigReaders.get(properties);
   } catch (error: unknown) {
     log.error(
       __PRE_BUNDLED_FILENAME__,
@@ -21,6 +24,6 @@ export async function getSafeConfigFile(properties?: Partial<{
     );
     log.debug(__PRE_BUNDLED_FILENAME__, "Getting a default config");
 
-    return Configs.getDefault();
+    return ConfigReaders.getDefault();
   }
 }

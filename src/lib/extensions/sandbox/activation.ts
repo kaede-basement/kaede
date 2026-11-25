@@ -1,4 +1,4 @@
-import { activationAbortReason, throwIfAborted } from "./abort.ts";
+import { activationAbortReason, throwIfAborted } from "@/lib/shared/abort.ts";
 
 const teardownTimeoutMs = 10_000;
 

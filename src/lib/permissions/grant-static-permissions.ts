@@ -17,10 +17,10 @@
  */
 import "ses";
 
-import type { ExtensionUI } from "@/lib/extensions/sandbox/ui-root.ts";
 import { handlePermission } from "@/lib/permissions/handle-permission.ts";
 import { parsePermission } from "@/lib/permissions/parse-permission.ts";
 import { artifactGrantKey } from "@/lib/permissions/request-permissions.ts";
+import type { ExtensionUI } from "@/lib/shared/ui-root.ts";
 import { globalStates } from "@/states/global.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 

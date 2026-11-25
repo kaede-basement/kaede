@@ -4,11 +4,11 @@ import { handleLoggingPermission } from "@/lib/permissions/atomic/logging.ts";
 import { recordStaticGrants } from "@/lib/permissions/grant-static-permissions.ts";
 import { parsePermission } from "@/lib/permissions/parse-permission.ts";
 import { permissionSession } from "@/lib/permissions/request-permissions.ts";
+import { throwIfAborted } from "@/lib/shared/abort.ts";
+import { ExtensionUI } from "@/lib/shared/ui-root.ts";
 import type { ExtensionType } from "@/types/extensions/extension.type.ts";
 
-import { throwIfAborted } from "./abort.ts";
 import type { Lifecycle } from "./lifecycle-hooks.ts";
-import { ExtensionUI } from "./ui-root.ts";
 import { createSandboxWorker, supportsWorkerSandbox } from "./worker/availability.ts";
 import { WorkerSession } from "./worker/session.ts";
 import { WorkerUIHost } from "./worker/ui-host.ts";

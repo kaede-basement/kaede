@@ -8,12 +8,12 @@ import ExtensionsSettings from "@/components/settings/tabs/ExtensionsSettings.vu
 import JavaSettings from "@/components/settings/tabs/JavaSettings.vue";
 import MinecraftSettings from "@/components/settings/tabs/MinecraftSettings.vue";
 import UserInterfaceSettings from "@/components/settings/tabs/UserInterfaceSettings.vue";
-import { SettingsSections } from "@/constants/application.ts";
 import { CustomRows } from "@/constants/row-collections.ts";
 import { C, LazyPluginPlayground } from "@/extendable/component-registry.ts";
 import { globalStates } from "@/states/global.ts";
 import type { TabSectionType } from "@/types/ui/tab-section.type.ts";
 
+const { SettingsSections } = window.__KAEDE__.constants.Application;
 const stateKey = "settings" as const;
 
 const selected = computed((): string => (

@@ -97,3 +97,39 @@ test("closing one sandbox withdraws its prompt and leaves other sandboxes queued
   service.answer(service.prompt.value!.id, false);
   expect(await next).toEqual([false]);
 });
+
+test("cached decisions settle while another artifact's prompt stays open", async () => {
+  const service = new PermissionService({
+    [`artifact/${secondHash}`]: { "log::read": true, "time::date": false },
+  });
+  const pending = service.request(["log::read"], "first", firstHash);
+
+  await Promise.resolve();
+  const prompt = service.prompt.value!;
+
+  expect(prompt.extension).toBe("first");
+  const cached = service.request(["log::read", "time::date", "log::read"], "second", secondHash);
+
+  expect(await Promise.race([cached, Promise.resolve("still queued")]))
+    .toEqual(["log::read", false, "log::read"]);
+  expect(service.prompt.value).toBe(prompt);
+  service.answer(prompt.id, false);
+  expect(await pending).toEqual([false]);
+});
+
+test("queued misses share a decision and cached grants respect session lifetime", async () => {
+  const service = new PermissionService({});
+  const request = (signal?: AbortSignal): Promise<Array<string | false>> => (
+    service.request(["log::read"], "first", firstHash, signal)
+  );
+  const first = request();
+  const queued = request();
+
+  await Promise.resolve();
+  service.answer(service.prompt.value!.id, false);
+  expect(await Promise.all([first, queued])).toEqual([[false], [false]]);
+  expect(service.prompt.value).toBeUndefined();
+  await expect(request(AbortSignal.abort(new Error("Aborted")))).rejects.toThrow("Aborted");
+  service.dispose();
+  await expect(request()).rejects.toThrow("Permission session closed");
+});

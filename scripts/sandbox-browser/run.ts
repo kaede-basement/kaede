@@ -3,14 +3,16 @@ import path from "node:path";
 import vue from "@vitejs/plugin-vue";
 import { build } from "vite";
 
-export async function browserHarness(): Promise<{ "view": Bun.WebView; "close": () => void }> {
+export async function browserHarness(
+  entryName = "page", readyFunction = "measure",
+): Promise<{ "view": Bun.WebView; "close": () => void }> {
   const output = await build({
     "plugins"   : [vue()], "define"    : { "__PRE_BUNDLED_FILENAME__": JSON.stringify("browser") },
     "configFile": false, "logLevel"  : "error",
     "resolve"   : { "alias": { "@": path.resolve("src") } },
     "build"     : {
       "write"          : false, "target"         : "esnext",
-      "rolldownOptions": { "input": "scripts/sandbox-browser/page.ts" },
+      "rolldownOptions": { "input": `scripts/sandbox-browser/${entryName}.ts` },
     },
   });
 
@@ -57,7 +59,7 @@ export async function browserHarness(): Promise<{ "view": Bun.WebView; "close": 
   try {
     view = new Bun.WebView({ "backend": { "type": "chrome", "path": chrome } });
     await view.navigate(server.url.href);
-    if (!await view.evaluate("typeof measure === 'function'")) {
+    if (!await view.evaluate(`typeof window[${JSON.stringify(readyFunction)}] === 'function'`)) {
       throw new Error("Harness failed to load");
     }
   } catch (error) {

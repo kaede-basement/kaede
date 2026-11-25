@@ -20,7 +20,6 @@ import "ses";
 
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 
-import { throwIfAborted } from "@/lib/extensions/sandbox/abort.ts";
 import { log } from "@/lib/logging/log.ts";
 import { hardenIfAvailable } from "@/lib/permissions/harden.ts";
 import {
@@ -29,6 +28,7 @@ import {
 import {
   buildSafeResponse, type ResponseMetadata, type RestrictedResponse,
 } from "@/lib/permissions/safe-response.ts";
+import { throwIfAborted } from "@/lib/shared/abort.ts";
 
 function validateRequestBody(body: unknown): void {
   const isValidBody: boolean = (

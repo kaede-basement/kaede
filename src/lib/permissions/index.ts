@@ -16,11 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { ExtensionUI } from "@/lib/extensions/sandbox/ui-root.ts";
 import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissions.ts";
 import { handlePermission } from "@/lib/permissions/handle-permission.ts";
 import { hardenIfAvailable } from "@/lib/permissions/harden.ts";
 import { permissionSession } from "@/lib/permissions/request-permissions.ts";
+import type { ExtensionUI } from "@/lib/shared/ui-root.ts";
 
 export function bindPermissionRequest(
   id: string, artifactSha256: string, ui?: ExtensionUI, signal?: AbortSignal,

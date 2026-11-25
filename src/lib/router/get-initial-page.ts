@@ -35,3 +35,5 @@ export function getInitialPage(): RouteType {
 
   return Routes.Home;
 }
+
+export const InitialRoute = { getInitialPage } as const;

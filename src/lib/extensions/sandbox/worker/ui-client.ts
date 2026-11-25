@@ -1,7 +1,8 @@
 /// <reference lib="es2021.weakref" />
 import { isAttrKeySafe, type SafeDocument, validateFactory, validStyle } from "ark-of-atrahasis";
 
-import { restrictUI } from "../ui-scope.ts";
+import { restrictUI } from "@/lib/shared/ui-scope.ts";
+
 import type { ToWorker } from "./protocol.ts";
 import { workerEvents } from "./ui-event.ts";
 import { Factories, Methods } from "./ui-methods.ts";

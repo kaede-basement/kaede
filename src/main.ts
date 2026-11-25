@@ -30,6 +30,8 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { createApp } from "vue";
 
 import App from "@/App.vue";
+import { DefaultGlobalStatesPagesStates } from "@/bootstrap/application.ts";
+import { registerComponents } from "@/bootstrap/register-components.ts";
 import { ApplicationRootID, AuthOneTimeFetchContextKey } from "@/constants/application";
 import ASCIIArt from "@/constants/ascii-art.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
@@ -40,11 +42,11 @@ import Globals from "@/lib/globals";
 import Initialization from "@/lib/initialization";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
+import { declareServerProcesses } from "@/lib/processes/declare-server-processes.ts";
 import Wails from "@/lib/wails";
 import Watchers from "@/lib/watchers";
 import { declareGlobalStates } from "@/states/global.ts";
 import { declareInstanceStates } from "@/states/instance.ts";
-import { declareServerProcesses } from "@/states/servers.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
@@ -57,6 +59,7 @@ async function run(): Promise<void> {
   );
 
   // The global object is accessed not only by extensions but by the application itself
+  registerComponents();
   Globals.declareGlobals();
   Globals.declareActionRegistry();
 
@@ -144,7 +147,7 @@ async function run(): Promise<void> {
    * The global and instance states were declared outside the Vue instance,
    * so they require the value assigning at this point
    */
-  declareGlobalStates();
+  declareGlobalStates(DefaultGlobalStatesPagesStates);
   declareInstanceStates();
 
   /*

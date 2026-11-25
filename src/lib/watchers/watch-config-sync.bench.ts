@@ -15,9 +15,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 import { bench, run } from "mitata";
 
+import { DefaultGlobalStatesPagesStates } from "@/bootstrap/application.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { projectConfig } from "@/lib/configs/sync.ts";
@@ -27,7 +27,7 @@ import { watchConfigSync } from "./watch-config-sync.ts";
 
 Object.defineProperty(globalThis, "location", { "value": new URL("http://localhost") });
 GlobalInternals.initialConfig = await getDefaultConfig();
-declareGlobalStates();
+declareGlobalStates(DefaultGlobalStatesPagesStates);
 
 bench("Project reactive config for synchronization", () => projectConfig(globalStates));
 bench("Register and stop config watcher", () => {

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { getInitialPage } from "@/lib/router/get-initial-page.ts";
+import { InitialRoute } from "@/lib/router/get-initial-page.ts";
 import { navigate } from "@/lib/router/navigate.ts";
 
-export default { getInitialPage, navigate } as const;
+export default Object.assign(InitialRoute, { navigate } as const);

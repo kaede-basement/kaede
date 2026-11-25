@@ -19,9 +19,9 @@ import "ses";
 
 import { createSafeDocument, type SafeDocument } from "ark-of-atrahasis";
 
-import type { ExtensionUI } from "@/lib/extensions/sandbox/ui-root.ts";
-import { restrictUI } from "@/lib/extensions/sandbox/ui-scope.ts";
 import { log } from "@/lib/logging/log.ts";
+import type { ExtensionUI } from "@/lib/shared/ui-root.ts";
+import { restrictUI } from "@/lib/shared/ui-scope.ts";
 
 export function handleUIPermission({
   id,

@@ -1,4 +1,5 @@
-import { throwIfAborted } from "../abort.ts";
+import { throwIfAborted } from "@/lib/shared/abort.ts";
+
 import type { Lifecycle } from "../lifecycle-hooks.ts";
 import type { FromWorker, Reply, Request, ToWorker } from "./protocol.ts";
 

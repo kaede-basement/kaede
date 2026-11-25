@@ -1,4 +1,4 @@
-import Errors from "@/lib/errors";
+import { ErrorFormatting } from "@/lib/errors/scopes/prettify.ts";
 import { log } from "@/lib/logging/log.ts";
 
 export async function handleVirtualTextCopy(
@@ -57,7 +57,7 @@ export async function handleVirtualTextCopy(
     log.error(
       __PRE_BUNDLED_FILENAME__,
       "Couldn't copy the selected text in virtualized log viewer:",
-      Errors.prettify(error),
+      ErrorFormatting.prettify(error),
     );
   }
 }

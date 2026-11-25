@@ -1,7 +1,8 @@
 import { getRealNode, type SafeDocument, type SafeElement } from "ark-of-atrahasis";
 
-import type { ExtensionUI } from "../ui-root.ts";
-import { InteractiveFactories } from "../ui-scope.ts";
+import type { ExtensionUI } from "@/lib/shared/ui-root.ts";
+import { InteractiveFactories } from "@/lib/shared/ui-scope.ts";
+
 import { FormControls } from "./form-controls.ts";
 import type { ToWorker } from "./protocol.ts";
 import { Factories } from "./ui-methods.ts";

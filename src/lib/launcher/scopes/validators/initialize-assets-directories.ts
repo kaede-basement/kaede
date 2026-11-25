@@ -18,11 +18,15 @@
 
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 
-import Validators from "@/lib/launcher/scopes/validators/index.ts";
+import {
+  initializeShortHashDirectories,
+} from "@/lib/launcher/scopes/validators/initialize-short-hash-directories.ts";
 import { log } from "@/lib/logging/log.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
+
+export const AssetDirectories = { initializeShortHashDirectories } as const;
 
 export async function initializeAssetsDirectories(
   necessaries: PreLaunchInformationType,
@@ -48,7 +52,7 @@ export async function initializeAssetsDirectories(
       mkdir(directories.assetObjects),
     ]);
 
-    return Validators.initializeShortHashDirectories(necessaries);
+    return AssetDirectories.initializeShortHashDirectories(necessaries);
   }
 
   if (!indexesExists) {
@@ -58,14 +62,14 @@ export async function initializeAssetsDirectories(
     );
     await mkdir(directories.assetIndexes);
 
-    return Validators.initializeShortHashDirectories(necessaries);
+    return AssetDirectories.initializeShortHashDirectories(necessaries);
   }
 
   if (!objectsExists) {
     log.debug(logPrefix, "Initializing the '/assets/objects/' directory");
     await mkdir(directories.assetObjects);
 
-    return Validators.initializeShortHashDirectories(necessaries);
+    return AssetDirectories.initializeShortHashDirectories(necessaries);
   }
 
   log.info(
@@ -73,5 +77,5 @@ export async function initializeAssetsDirectories(
     "The '/assets/indexes/' and '/assets/objects/' directories exist",
   );
 
-  return Validators.initializeShortHashDirectories(necessaries);
+  return AssetDirectories.initializeShortHashDirectories(necessaries);
 }
