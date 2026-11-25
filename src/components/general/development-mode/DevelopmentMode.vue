@@ -1,3 +1,7 @@
+<script lang="ts">
+let lastPosition = { "x": 0, "y": 0 };
+</script>
+
 <script setup lang="ts">
 import { useDraggable } from "@vueuse/core";
 import { computed, useTemplateRef } from "vue";
@@ -15,6 +19,10 @@ const development = computed((): GlobalStatesType["development"] => {
 });
 
 const { style } = useDraggable(container, {
+  "initialValue": lastPosition,
+  "onMove"      : position => {
+    lastPosition = position;
+  },
   "containerElement": document.getElementById("app"),
 });
 </script>

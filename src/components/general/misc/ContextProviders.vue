@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   inject,
-  markRaw,
   onUnmounted,
   provide,
   reactive,
@@ -25,6 +24,7 @@ import Hooks from "@/lib/hooks";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/log.ts";
+import { createDownloadMap } from "@/lib/network/download-map.ts";
 import { rehydrateProcesses } from "@/lib/processes/core.ts";
 import { SpawnObservers } from "@/lib/processes/spawn-process.ts";
 import Watchers from "@/lib/watchers";
@@ -130,7 +130,7 @@ function launchStatus(instanceId: string, running: boolean): LauncherStatusesTyp
     "launching": running ? 2 : 1,
     "current"  : running ? LaunchStatus.General.Success : LaunchStatus.General.Starting,
     "downloads": {
-      "current": markRaw(new Map<string, [number, number]>),
+      "current": createDownloadMap(),
       "success": 0,
       "failed" : 0,
       "total"  : 0,

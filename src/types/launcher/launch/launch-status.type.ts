@@ -1,4 +1,4 @@
-import type { Raw, Reactive } from "vue";
+import type { Reactive } from "vue";
 
 import type { LaunchStatus } from "@/constants/launcher.ts";
 
@@ -10,7 +10,7 @@ export type LaunchStatusType = {
 }[LaunchKeyType];
 
 export type LauncherStatusesDownloadsType = {
-  "current": Raw<Map<string, [number, number]>>;
+  "current": Map<string, [number, number]>;
   "success": number;
   "failed" : number;
   "total"  : number;

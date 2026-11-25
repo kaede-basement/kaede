@@ -68,7 +68,10 @@ provide<TranslationsStateType>(TranslationsContextKey, translations);
           </Transition>
 
           <Modal />
-          <DevelopmentMode />
+          <DevelopmentMode
+            v-if="globalStates.development.showFPS || globalStates.development.showCPUUsage ||
+              globalStates.development.showMemoryUsage"
+          />
         </C.Layout>
       </ContextProviders>
     </template>

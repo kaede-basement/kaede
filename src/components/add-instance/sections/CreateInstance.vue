@@ -24,7 +24,7 @@ const creatingModpack = ref(false);
 
 <script setup lang="ts">
 import { message } from "@tauri-apps/plugin-dialog";
-import { computed, inject, markRaw } from "vue";
+import { computed, inject } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -33,6 +33,7 @@ import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
+import { createDownloadMap } from "@/lib/network/download-map.ts";
 import Modrinth from "@/lib/modrinth";
 import { ActiveInstall } from "@/lib/modrinth/install-mrpack.ts";
 import { globalStates } from "@/states/global.ts";
@@ -94,7 +95,7 @@ function trackDownloads(instanceId: string): LauncherStatusesType {
     "launching": 1,
     "current"  : undefined,
     "downloads": {
-      "current": markRaw(new Map<string, [number, number]>),
+      "current": createDownloadMap(),
       "success": 0,
       "failed" : 0,
       "total"  : 0,

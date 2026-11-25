@@ -58,11 +58,11 @@ export function useConfigColors(): {
       };
     }
 
-    if (globalStates.ui.background.blur !== null) {
+    if (globalStates.ui.background.blur !== null && globalStates.ui.background.blur > 0) {
       current.overlay.backdropFilter = `blur(${globalStates.ui.background.blur}px)`;
     }
 
-    if (globalStates.ui.widget.blur !== null) {
+    if (globalStates.ui.widget.blur !== null && globalStates.ui.widget.blur > 0) {
       current.widget.backdropFilter = `blur(${globalStates.ui.widget.blur}px)`;
     }
 

@@ -17,6 +17,7 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { toRaw } from "vue";
 
 import { log } from "@/lib/logging/log.ts";
 import type {
@@ -81,7 +82,16 @@ export async function concurrentlyDownload({
    */
   let previousSuccess: number = 0;
   let previousFailed : number = 0;
-  let previousPaths  : Set<string> = new Set;
+
+  type ProgressMap = LauncherStatusesType["downloads"]["current"];
+  const writtenEntries = new Map<string, { "map": ProgressMap; "tuple": [number, number] }>;
+
+  function deleteOwned(path: string, map: ProgressMap, tuple: [number, number]): void {
+    if (toRaw(map).get(path) === toRaw(tuple)) {
+      map.delete(path);
+    }
+    writtenEntries.delete(path);
+  }
 
   const applySnapshotData = (success: number, failed: number): void => {
     if (success < previousSuccess || failed < previousFailed) {
@@ -95,26 +105,31 @@ export async function concurrentlyDownload({
     previousFailed  = failed;
   };
 
+  let finished = false;
+
   // eslint-disable-next-line unicorn/prefer-add-event-listener
   onProgress.onmessage = (snapshot: DownloadSnapshotType): void => {
+    if (finished) {
+      return;
+    }
     const current = statuses.downloads.current;
 
-    for (const path of previousPaths) {
-      // If the path is missing, then the download task for this path was finished
-      if (!(path in snapshot.current)) {
-        current.delete(path);
+    for (const [path, { map, tuple }] of writtenEntries) {
+      if (map !== current || !(path in snapshot.current)) {
+        deleteOwned(path, map, tuple);
       }
     }
-
-    previousPaths = new Set;
 
     for (const [path, fileProgress] of Object.entries(snapshot.current)) {
       /*
        * 'fileProgress' is '[progress, speed]',
        * where 'progress' is accumulated while 'speed' is not
        */
+      if (current.has(path) && toRaw(current).get(path) !== writtenEntries.get(path)?.tuple) {
+        continue;
+      }
       current.set(path, fileProgress);
-      previousPaths.add(path);
+      writtenEntries.set(path, { "map": current, "tuple": fileProgress });
     }
 
     applySnapshotData(snapshot.success, snapshot.failed);
@@ -127,15 +142,14 @@ export async function concurrentlyDownload({
     onProgress,
     cancelId,
     debug,
+  }).finally(() => {
+    finished = true;
+    for (const [path, { map, tuple }] of writtenEntries) {
+      deleteOwned(path, map, tuple);
+    }
   });
 
   applySnapshotData(report.success, report.failed);
-
-  for (const path of previousPaths) {
-    statuses.downloads.current.delete(path);
-  }
-
-  previousPaths = new Set;
 
   if (report.cancelled) {
     log.info(logPrefix, "The Minecraft download tasks were cancelled");

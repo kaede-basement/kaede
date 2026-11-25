@@ -37,18 +37,108 @@ import type { AccountType, WrappedAccountsType } from "@/types/configs/account.t
 
 use(WebGLRendererPlugin);
 
+function configureDemandRendering(viewer: SkinViewer, resizeTarget: HTMLElement): () => void {
+  let loopRunning = false;
+  let disposed = false;
+  let frame: number | undefined;
+
+  function cancelFrame(): void {
+    if (frame !== undefined) {
+      cancelAnimationFrame(frame);
+      frame = undefined;
+    }
+  }
+
+  function scheduleRender(): void {
+    if (disposed || loopRunning || frame !== undefined) {
+      return;
+    }
+    frame = requestAnimationFrame(() => {
+      frame = undefined;
+      viewer.render();
+    });
+  }
+
+  const { onZoomChange, onRotationChange } = viewer;
+
+  viewer.onZoomChange = (zoom): void => {
+    scheduleRender();
+    onZoomChange?.(zoom);
+  };
+  viewer.onRotationChange = (theta, phi): void => {
+    scheduleRender();
+    onRotationChange?.(theta, phi);
+  };
+  const observer = new ResizeObserver(([{ "contentRect": { width, height } }]) => {
+    if (!disposed && width > 0 && height > 0) {
+      viewer.resize(width, height);
+      scheduleRender();
+    }
+  });
+
+  // The layout box is independent of the DPR-scaled drawing buffer.
+  observer.observe(resizeTarget);
+
+  const { setRotation, setZoom, resetCamera } = viewer;
+
+  viewer.setRotation = (theta, phi): void => {
+    setRotation(theta, phi);
+    scheduleRender();
+  };
+  viewer.setZoom = (zoom): void => {
+    setZoom(zoom);
+    scheduleRender();
+  };
+  viewer.resetCamera = (): void => {
+    resetCamera();
+    scheduleRender();
+  };
+
+  const { startRenderLoop, stopRenderLoop, dispose } = viewer;
+
+  viewer.startRenderLoop = (): void => {
+    cancelFrame();
+    loopRunning = true;
+    startRenderLoop();
+  };
+  viewer.stopRenderLoop = (): void => {
+    stopRenderLoop();
+    loopRunning = false;
+  };
+  viewer.dispose = (): void => {
+    disposed = true;
+    cancelFrame();
+    observer.disconnect();
+    dispose();
+  };
+
+  return scheduleRender;
+}
+
+type RendererState = {
+  "canvas": TemplateRef<HTMLCanvasElement>;
+  "shown" : Ref<boolean>;
+  "viewer": ShallowRef<SkinViewer | undefined>;
+};
+
 export function useSkinRenderer({
   render,
   account,
 }: {
   "render"  : "3d" | "2d-head";
   "account"?: ComputedRef<AccountType | undefined>;
-}): {
-  "canvas": TemplateRef<HTMLCanvasElement>;
-  "shown" : Ref<boolean>;
-  // 'viewer' is undefined for '2d-head'
-  "viewer": ShallowRef<SkinViewer | undefined>;
-} {
+}): RendererState {
+  return useRenderer(render, account);
+}
+
+export function useProfileSkinRenderer(resizeTarget: TemplateRef<HTMLElement>): RendererState {
+  return useRenderer("3d", undefined, resizeTarget);
+}
+
+function useRenderer(
+  render: "3d" | "2d-head", account?: ComputedRef<AccountType | undefined>,
+  resizeTarget?: TemplateRef<HTMLElement>,
+): RendererState {
   const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
   const selected = computed(() => (
@@ -112,8 +202,12 @@ export function useSkinRenderer({
       }
     }, { "flush": "post" });
   } else {
-    watch(canvas, async (target, _, onCleanup) => {
-      if (!target) {
+    let requestRender: (() => void) | undefined;
+
+    const viewportElement = computed(() => resizeTarget?.value);
+
+    watch([canvas, viewportElement], async ([target, viewport], _, onCleanup) => {
+      if (!target || (resizeTarget && !viewport)) {
         return;
       }
 
@@ -121,6 +215,7 @@ export function useSkinRenderer({
 
       onCleanup(() => {
         closed = true;
+        requestRender = undefined;
         viewer.value?.dispose();
         viewer.value = undefined;
         shown.value = false;
@@ -136,7 +231,11 @@ export function useSkinRenderer({
           created.dispose();
         } else {
           viewer.value = created;
-          created.startRenderLoop();
+          if (viewport) {
+            requestRender = configureDemandRendering(created, viewport);
+          } else {
+            created.startRenderLoop();
+          }
           shown.value = true;
         }
       } catch (error) {
@@ -146,7 +245,10 @@ export function useSkinRenderer({
       }
     }, { "flush": "post" });
 
-    watch([viewer, slim], ([current, isSlim]) => current?.setSlim(isSlim));
+    watch([viewer, slim], ([current, isSlim]) => {
+      current?.setSlim(isSlim);
+      requestRender?.();
+    });
     watch([viewer, source], async ([current, skin], [previous], onCleanup) => {
       const request = ++generation;
 
@@ -160,6 +262,9 @@ export function useSkinRenderer({
 
       try {
         await current.setSkin(skin);
+        if (generation === request) {
+          requestRender?.();
+        }
       } catch (error) {
         if (generation === request) {
           report(error);
