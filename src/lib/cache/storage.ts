@@ -10,7 +10,9 @@ export type Digest = { "kind": "sha1" | "sha256"; "sum": string };
 export type Entry = {
   "url"          : string;
   "freshUntil"   : number;
-  "lifetime"?    : number;
+  "fallbackTtl"? : number;
+  "cacheControl"?: string;
+  "expires"?     : string;
   "etag"?        : string;
   "lastModified"?: string;
   "size"         : number;
@@ -83,11 +85,21 @@ function validHeader(value: unknown): boolean {
   return typeof value === "string" && (/^[\u0020-\u007E\u00A0-\u00FF]*$/).test(value);
 }
 
+export function validator(name: "etag" | "last-modified", value: unknown): string | undefined {
+  if (typeof value !== "string" || !validHeader(value)) return;
+  if (name === "etag" ? (/^(?:W\/)?"[^"]*"$/).test(value) : Number.isFinite(Date.parse(value))) {
+    return value;
+  }
+}
+
 function validEntry(entry: Entry): boolean {
   return !!entry && typeof entry.url === "string" && Number.isFinite(entry.freshUntil)
     && Number.isSafeInteger(entry.size) && entry.size >= 0 && validDigest(entry.hash)
-    && (entry.lifetime === undefined || (Number.isFinite(entry.lifetime) && entry.lifetime >= 0))
-    && validHeader(entry.etag) && validHeader(entry.lastModified);
+    && (entry.fallbackTtl === undefined
+      || (Number.isFinite(entry.fallbackTtl) && entry.fallbackTtl >= 0))
+    && validHeader(entry.cacheControl) && validHeader(entry.expires)
+    && validator("etag", entry.etag) === entry.etag
+    && validator("last-modified", entry.lastModified) === entry.lastModified;
 }
 
 async function readIndex(root: string): Promise<Entries> {

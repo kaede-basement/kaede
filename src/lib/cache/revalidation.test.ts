@@ -81,17 +81,97 @@ test("offline game index must match its parent digest, size and schema", async (
 });
 
 test("invalid stored validators heal through an unconditional GET", async () => {
-  for (const header of [{ "etag": "\r\n" }, { "lastModified": "snowman ☃" }]) {
+  for (const header of [
+    { "etag": "\r\n" },
+    { "etag": "*" },
+    { "etag": "unquoted" },
+    { "lastModified": "snowman ☃" },
+    { "lastModified": "yesterday" },
+  ]) {
     using c = cache();
-    const entry = { "url"       : c.request.url, "freshUntil": 0, "size"      : Raw.length,
-      "hash"      : { "kind": "sha256", "sum": sha(Raw) }, ...header };
+    const entry = {
+      "url"        : c.request.url,
+      "freshUntil" : 0,
+      "fallbackTtl": 60_000,
+      "size"       : Raw.length,
+      "hash"       : { "kind": "sha256", "sum": sha(Raw) },
+      ...header,
+    };
 
     c.files.set(c.root + "index.json", encode(JSON.stringify({
       "version": 1, "entries": { [Options.relativePath]: entry },
     })));
-    await cachedMetadata(c.request);
+    c.files.set(c.path, encode(Raw));
+    c.fetch.mockResolvedValueOnce(new Response("42"));
+    const result = await cachedMetadata(c.request);
+
+    expect(result.data).toBe(42);
+    expect(c.files.get(c.path)).toEqual(encode("42"));
     expect([...new Headers(c.fetch.mock.lastCall?.[1]?.headers)]).toEqual([]);
     expect(c.index().entries[Options.relativePath].etag).toBeUndefined();
     expect(c.index().entries[Options.relativePath].lastModified).toBeUndefined();
   }
+});
+
+test("invalid explicit Expires is stale while an absent Expires uses the fallback", async () => {
+  using c = cache();
+  using clock = spyOn(Date, "now").mockReturnValue(10_000);
+  const request = { ...c.request, "ttl": 1000 };
+
+  c.fetch.mockResolvedValueOnce(new Response(Raw, { "headers": { "expires": "not a date" } }));
+  await cachedMetadata(request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(0);
+  await cachedMetadata(request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(clock() + 1000);
+});
+
+test("response delay is added to the received Age", async () => {
+  using c = cache();
+  const start = 100_000;
+
+  using clock = spyOn(Date, "now").mockReturnValue(start);
+  c.fetch.mockImplementationOnce(async () => {
+    clock.mockReturnValue(start + 4000);
+
+    return new Response(Raw, { "headers": { "age": "8", "cache-control": "max-age=10" } });
+  });
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(start + 2000);
+});
+
+test("no-cache survives an Expires-only 304 until Cache-Control is replaced", async () => {
+  using c = cache();
+  using clock = spyOn(Date, "now").mockReturnValue(100_000);
+  const expires = new Date(clock() + 60_000).toUTCString();
+
+  c.fetch.mockResolvedValueOnce(new Response(Raw, { "headers": {
+    "cache-control": "no-cache", "etag": "\"one\"",
+  } }));
+  await cachedMetadata(c.request);
+  c.fetch.mockResolvedValueOnce(new Response(null, { "status": 304, "headers": { expires } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(0);
+  c.fetch.mockResolvedValueOnce(new Response(null, { "status" : 304, "headers": {
+    "cache-control": "private",
+  } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(Date.parse(expires));
+});
+
+test("a Date-only 304 keeps an expired absolute Expires stale", async () => {
+  using c = cache();
+  const start = 100_000;
+
+  using clock = spyOn(Date, "now").mockReturnValue(start);
+  c.fetch.mockResolvedValueOnce(new Response(Raw, { "headers": {
+    "expires": new Date(start + 1000).toUTCString(), "etag": "\"one\"",
+  } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(start + 1000);
+  clock.mockReturnValue(start + 2000);
+  c.fetch.mockResolvedValueOnce(new Response(null, { "status" : 304, "headers": {
+    "date": new Date(clock()).toUTCString(),
+  } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(0);
 });

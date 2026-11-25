@@ -48,9 +48,10 @@ Promise<Version | false> {
 
   if (version !== undefined) return { version };
   const index = await readLaunchMetadata("PatchIndex", necessaries, {
-    "relativePath": metadata.uid + ".json",
-    "url"         : APIEndpoints.Meta.Base + metadata.uid,
-    "validate"    : validIndex,
+    "relativePath"       : metadata.uid + ".json",
+    "url"                : APIEndpoints.Meta.Base + metadata.uid,
+    "validate"           : validIndex,
+    "allowUnindexedPatch": true,
   });
 
   return "data" in index && index.data.versions[0];

@@ -12,6 +12,7 @@ import {
   rejectSymlink,
   SchemaError,
   ValidationError,
+  validator,
   validDigest,
   validPath,
 } from "./storage.ts";
@@ -101,7 +102,8 @@ async function retrieve(options: RequestOptions, root: string): Promise<Document
 
   const headers = new Headers;
 
-  if (compatible && Date.now() >= entry.freshUntil) {
+  // Entries written without the original HTTP policy need a full response on expiry.
+  if (compatible && entry.fallbackTtl !== undefined && Date.now() >= entry.freshUntil) {
     if (entry.etag) headers.set("If-None-Match", entry.etag);
     if (entry.lastModified) headers.set("If-Modified-Since", entry.lastModified);
   }
@@ -135,8 +137,8 @@ async function retrieve(options: RequestOptions, root: string): Promise<Document
   if (!local && !bytes) throw new Error(`Unexpected HTTP 304 fetching ${url}`);
   const document = local ?? await decode(bytes!, options, expectedHash);
   const fallback = options.ttl ?? (expectedHash ? Number.MAX_SAFE_INTEGER : defaultTtl);
-  // Older entries lack a lifetime. Revalidate them until the server supplies a policy.
-  const policy = freshness(response.headers, local ? entry?.lifetime ?? 0 : fallback);
+  const previous = local ? entry : undefined;
+  const policy = freshness(reply, fallback, previous);
 
   if (policy) {
     if (!local) await publish(directory, filename, document.bytes);
@@ -145,9 +147,9 @@ async function retrieve(options: RequestOptions, root: string): Promise<Document
       ...policy,
       "size"        : document.bytes.length,
       "hash"        : { ...document.hash },
-      "etag"        : response.headers.get("etag") ?? (local ? entry?.etag : undefined),
-      "lastModified": response.headers.get("last-modified")
-        ?? (local ? entry?.lastModified : undefined),
+      "etag"        : validator("etag", response.headers.get("etag") ?? previous?.etag),
+      "lastModified": validator("last-modified",
+        response.headers.get("last-modified") ?? previous?.lastModified),
     };
 
     await index.update(relativePath, updated);
