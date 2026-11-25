@@ -18,7 +18,7 @@ use std::{
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_shellx::{process::Command, ShellExt};
 use tokio::{
-    sync::{mpsc, oneshot, watch, Mutex as AsyncMutex},
+    sync::{mpsc, oneshot, Mutex as AsyncMutex},
     task::JoinSet,
     time::Instant,
 };
@@ -335,7 +335,6 @@ pub async fn run_process(app: AppHandle, spec: RunSpec) -> Result<RunResult, Str
 
 async fn collect_output(command: StdCommand) -> Result<RunResult, String> {
     let (launch, _stdin, mut output) = start_process(command, Drain::Collect).await?;
-    let _child = launch.transfer();
     let (mut stdout, mut stderr) = (Vec::new(), Vec::new());
     let status = loop {
         match output.next().await {
@@ -353,6 +352,9 @@ async fn collect_output(command: StdCommand) -> Result<RunResult, String> {
             Record::Exit(status) => break status.ok(),
         }
     };
+    if status.is_some() {
+        launch.transfer();
+    }
     Ok(RunResult {
         code: status.and_then(|s| s.code()),
         success: status.is_some_and(|s| s.success()),
@@ -385,13 +387,25 @@ fn build_command(
 #[cfg(unix)]
 mod pipes {
     use super::*;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::io::AsyncWriteExt;
     use tokio::net::unix::pipe::{pipe, Receiver, Sender};
-    pub async fn read(pipe: &mut Reader, buf: &mut [u8]) -> io::Result<usize> {
-        pipe.read(buf).await
+    pub type Exit = tokio::sync::watch::Receiver<()>;
+
+    pub fn exit_signal() -> io::Result<(Exit, impl FnOnce())> {
+        let (alive, exited) = tokio::sync::watch::channel(());
+        Ok((exited, move || drop(alive)))
     }
-    pub async fn write_all(pipe: &mut Writer, bytes: Vec<u8>) -> io::Result<()> {
-        pipe.write_all(&bytes).await
+
+    pub async fn write_all(
+        mut pipe: tokio::sync::OwnedMutexGuard<Writer>,
+        bytes: Vec<u8>,
+        mut exited: Exit,
+    ) -> io::Result<()> {
+        tokio::select! {
+            biased;
+            _ = exited.changed() => Err(io::ErrorKind::BrokenPipe.into()),
+            result = pipe.write_all(&bytes) => result,
+        }
     }
     pub type Reader = Receiver;
     pub type Writer = Sender;
@@ -410,20 +424,18 @@ mod pipes {
 #[cfg(windows)]
 mod pipes {
     use super::*;
-    use async_io::os::windows::Waitable;
     use std::{
-        cell::UnsafeCell,
         fs::{File, OpenOptions},
         mem::{size_of, size_of_val, MaybeUninit},
         os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle},
         ptr::{null, null_mut},
     };
-    use tokio::{
-        io::AsyncReadExt,
-        net::windows::named_pipe::{NamedPipeServer, ServerOptions},
-    };
+    use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
     use windows_sys::Win32::{
-        Foundation::{ERROR_BROKEN_PIPE, ERROR_IO_INCOMPLETE, ERROR_IO_PENDING, GENERIC_ALL},
+        Foundation::{
+            ERROR_IO_PENDING, ERROR_OPERATION_ABORTED, GENERIC_ALL, WAIT_FAILED, WAIT_OBJECT_0,
+            WAIT_TIMEOUT,
+        },
         Security::{
             AddAccessAllowedAce, GetTokenInformation, InitializeAcl, InitializeSecurityDescriptor,
             SetSecurityDescriptorDacl, TokenUser, ACCESS_ALLOWED_ACE, ACL, ACL_REVISION,
@@ -432,14 +444,16 @@ mod pipes {
         },
         Storage::FileSystem::WriteFile,
         System::{
-            Pipes::PeekNamedPipe,
             SystemServices::SECURITY_DESCRIPTOR_REVISION,
-            Threading::{CreateEventW, GetCurrentProcess, OpenProcessToken},
+            Threading::{
+                CreateEventW, GetCurrentProcess, OpenProcessToken, SetEvent,
+                WaitForMultipleObjects, INFINITE,
+            },
             IO::{CancelIoEx, GetOverlappedResult, OVERLAPPED},
         },
     };
 
-    pub struct Connected(NamedPipeServer);
+    pub struct Connected(pub(super) NamedPipeServer);
     pub type Reader = Connected;
     pub type Writer = Connected;
 
@@ -545,180 +559,188 @@ mod pipes {
         pair(true).map(|(server, client)| (server, client.into()))
     }
 
-    pub async fn read(pipe: &mut Reader, buf: &mut [u8]) -> io::Result<usize> {
-        // Peek while Mio still holds its completed read. Consuming it posts the next 4 KiB read.
-        // Only the already available tail belongs in this refill; a lone CR must return promptly.
-        loop {
-            pipe.0.readable().await?;
-            match pipe.0.try_read(&mut []) {
-                Err(e) if e.kind() == io::ErrorKind::WouldBlock => continue,
-                result => {
-                    result?;
-                    break;
-                }
-            }
-        }
-        let mut available = 0;
-        let peek = unsafe {
-            PeekNamedPipe(
-                pipe.0.as_raw_handle(),
-                null_mut(),
-                0,
-                null_mut(),
-                &mut available,
-                null_mut(),
-            )
-        };
-        if peek == 0 {
-            let err = io::Error::last_os_error();
-            if err.raw_os_error() != Some(ERROR_BROKEN_PIPE as i32) {
-                return Err(err);
-            }
-        }
-        let n = pipe.0.read(buf).await?;
-        let tail = (available as usize).min(buf.len() - n);
-        if n > 0 && tail > 0 {
-            pipe.0.read_exact(&mut buf[n..n + tail]).await?;
-            return Ok(n + tail);
-        }
-        Ok(n)
-    }
-
-    struct WriteRequest<'a> {
-        pipe: &'a NamedPipeServer,
-        event: Waitable<OwnedHandle>,
-        overlapped: Box<UnsafeCell<OVERLAPPED>>,
-        bytes: Vec<u8>,
-        pending: bool,
-    }
-
-    // The kernel retains only pointers to the two stable heap allocations. The event
-    // stays owned by this request, and Drop synchronizes before releasing either buffer.
-    unsafe impl Send for WriteRequest<'_> {}
-
-    impl Drop for WriteRequest<'_> {
-        fn drop(&mut self) {
-            if self.pending {
-                unsafe {
-                    let handle = self.pipe.as_raw_handle();
-                    CancelIoEx(handle, self.overlapped.get());
-                    GetOverlappedResult(handle, self.overlapped.get(), &mut 0, 1);
-                }
-            }
-        }
-    }
-
-    pub async fn write_all(pipe: &mut Writer, bytes: Vec<u8>) -> io::Result<()> {
-        let event = unsafe { CreateEventW(null(), 1, 0, null()) };
-        if event.is_null() {
+    fn manual_event() -> io::Result<OwnedHandle> {
+        let handle = unsafe { CreateEventW(null(), 1, 0, null()) };
+        if handle.is_null() {
             return Err(io::Error::last_os_error());
         }
-        let event = Waitable::new(unsafe { OwnedHandle::from_raw_handle(event) })?;
-        let mut op = WriteRequest {
-            pipe: &pipe.0,
-            event,
-            overlapped: Box::new(UnsafeCell::new(unsafe { std::mem::zeroed() })),
-            bytes,
-            pending: false,
-        };
-        let mut pos = 0;
-        while pos < op.bytes.len() {
-            // The low event bit suppresses IOCP delivery: Mio owns the completion port,
-            // but only this request may interpret this OVERLAPPED.
-            let overlapped = op.overlapped.get_mut();
-            *overlapped = unsafe { std::mem::zeroed() };
-            overlapped.hEvent = (op.event.as_raw_handle() as usize | 1) as _;
-            let size = (op.bytes.len() - pos).min(u32::MAX as usize) as u32;
-            let issued = unsafe {
-                WriteFile(
-                    op.pipe.as_raw_handle(),
-                    op.bytes[pos..].as_ptr(),
-                    size,
-                    &mut 0,
-                    overlapped,
-                )
-            };
+        Ok(unsafe { OwnedHandle::from_raw_handle(handle) })
+    }
+
+    pub type Exit = Arc<OwnedHandle>;
+
+    pub fn exit_signal() -> io::Result<(Exit, impl FnOnce())> {
+        let exited = Arc::new(manual_event()?);
+        let signal = exited.clone();
+        Ok((exited, move || unsafe {
+            SetEvent(signal.as_raw_handle());
+        }))
+    }
+
+    struct CancelWrite(Arc<OwnedHandle>);
+
+    impl Drop for CancelWrite {
+        fn drop(&mut self) {
+            // Also releases the blocking task if the Tauri invocation is abandoned.
+            unsafe {
+                SetEvent(self.0.as_raw_handle());
+            }
+        }
+    }
+
+    fn write_blocking(
+        pipe: &Writer,
+        mut bytes: &[u8],
+        exited: &OwnedHandle,
+        cancel: &OwnedHandle,
+    ) -> io::Result<()> {
+        let event = manual_event()?;
+        let handles = [
+            event.as_raw_handle(),
+            exited.as_raw_handle(),
+            cancel.as_raw_handle(),
+        ];
+        let pipe = pipe.0.as_raw_handle();
+        while !bytes.is_empty() {
+            match unsafe { WaitForMultipleObjects(2, handles[1..].as_ptr(), 0, 0) } {
+                WAIT_TIMEOUT => (),
+                WAIT_FAILED => return Err(io::Error::last_os_error()),
+                _ => return Err(io::ErrorKind::BrokenPipe.into()),
+            }
+            let mut operation: OVERLAPPED = unsafe { std::mem::zeroed() };
+            // Suppress IOCP delivery. Only the blocking task owns this OVERLAPPED.
+            operation.hEvent = (handles[0] as usize | 1) as _;
+            let operation = std::ptr::addr_of_mut!(operation);
+            let size = bytes.len().min(u32::MAX as usize) as u32;
+            let mut written = 0;
+            let issued = unsafe { WriteFile(pipe, bytes.as_ptr(), size, &mut written, operation) };
+            let mut wait_error = None;
             if issued == 0 {
                 let err = io::Error::last_os_error();
                 if err.raw_os_error() != Some(ERROR_IO_PENDING as i32) {
                     return Err(err);
                 }
-                op.pending = true;
-            }
-            let mut count = 0;
-            loop {
-                match checked(unsafe {
-                    GetOverlappedResult(op.pipe.as_raw_handle(), op.overlapped.get(), &mut count, 0)
-                }) {
-                    Err(e) if e.raw_os_error() == Some(ERROR_IO_INCOMPLETE as i32) => {
-                        op.event.ready().await?
-                    }
-                    complete => {
-                        op.pending = false;
-                        complete?;
-                        break;
+                // Win32 chooses the first signaled handle, so completion wins ties.
+                let wake = unsafe {
+                    WaitForMultipleObjects(handles.len() as u32, handles.as_ptr(), 0, INFINITE)
+                };
+                wait_error = (wake == WAIT_FAILED).then(io::Error::last_os_error);
+                if wake != WAIT_OBJECT_0 {
+                    unsafe {
+                        CancelIoEx(pipe, operation);
                     }
                 }
             }
-            if count == 0 {
+            // Always finish the operation before releasing its buffer or stack storage.
+            let result = checked(unsafe { GetOverlappedResult(pipe, operation, &mut written, 1) });
+            if let Some(err) = wait_error {
+                return Err(err);
+            }
+            if let Err(err) = result {
+                if err.raw_os_error() == Some(ERROR_OPERATION_ABORTED as i32) {
+                    return Err(io::ErrorKind::BrokenPipe.into());
+                }
+                return Err(err);
+            }
+            if written == 0 {
                 return Err(io::ErrorKind::WriteZero.into());
             }
-            pos += count as usize;
+            bytes = &bytes[written as usize..];
         }
         Ok(())
     }
+
+    pub async fn write_all(
+        pipe: tokio::sync::OwnedMutexGuard<Writer>,
+        bytes: Vec<u8>,
+        exited: Exit,
+    ) -> io::Result<()> {
+        let cancel = Arc::new(manual_event()?);
+        let _signal_on_drop = CancelWrite(cancel.clone());
+        tokio::task::spawn_blocking(move || write_blocking(&pipe, &bytes, &exited, &cancel))
+            .await
+            .map_err(io::Error::other)?
+    }
+
     #[cfg(test)]
     #[tokio::test]
-    async fn pending_write_reports_client_disconnect() {
+    async fn pending_write_reports_os_result_after_exit_or_disconnect() {
         use tokio::time::timeout;
-        let (mut writer, reader) = tokio::task::spawn_blocking(|| pair(false))
-            .await
-            .unwrap()
+        for consume in [false, true] {
+            let (writer, mut reader) = tokio::task::spawn_blocking(|| pair(false))
+                .await
+                .unwrap()
+                .unwrap();
+            let mut capacity = 0;
+            checked(unsafe {
+                windows_sys::Win32::System::Pipes::GetNamedPipeInfo(
+                    writer.0.as_raw_handle(),
+                    null_mut(),
+                    &mut capacity,
+                    null_mut(),
+                    null_mut(),
+                )
+            })
             .unwrap();
-        let mut capacity = 0;
-        checked(unsafe {
-            windows_sys::Win32::System::Pipes::GetNamedPipeInfo(
-                writer.0.as_raw_handle(),
-                null_mut(),
-                &mut capacity,
-                null_mut(),
-                null_mut(),
+            assert!(capacity > 0);
+            let writer = Arc::new(AsyncMutex::new(writer));
+            let (exited, signal_exit) = exit_signal().unwrap();
+            write_all(
+                writer.clone().lock_owned().await,
+                vec![0; capacity as usize],
+                exited.clone(),
             )
-        })
-        .unwrap();
-        assert!(capacity > 0);
-        write_all(&mut writer, vec![0; capacity as usize])
             .await
             .unwrap();
-        let write = write_all(&mut writer, vec![1]);
-        tokio::pin!(write);
-        assert!(timeout(Duration::from_millis(100), &mut write)
-            .await
-            .is_err());
-        drop(reader);
-        assert!(timeout(Duration::from_secs(5), write)
-            .await
-            .unwrap()
-            .is_err());
+            let write = ProcessInput {
+                pipe: writer,
+                exited,
+            }
+            .write(vec![1]);
+            tokio::pin!(write);
+            assert!(timeout(Duration::from_millis(100), &mut write)
+                .await
+                .is_err());
+            if consume {
+                // Confirm that the OS accepted the final byte, then signal child exit
+                // before the caller polls the pending write again.
+                timeout(
+                    Duration::from_secs(5),
+                    tokio::task::spawn_blocking(move || {
+                        use std::io::Read;
+                        let mut data = vec![0; capacity as usize + 1];
+                        reader.read_exact(&mut data).unwrap();
+                        assert_eq!(data.last(), Some(&1));
+                    }),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                signal_exit();
+            } else {
+                drop(reader);
+            }
+            assert_eq!(
+                timeout(Duration::from_secs(5), write)
+                    .await
+                    .unwrap()
+                    .is_ok(),
+                consume
+            );
+        }
     }
 }
 
 #[derive(Clone)]
 struct ProcessInput {
     pipe: Arc<AsyncMutex<pipes::Writer>>,
-    exited: watch::Receiver<()>,
+    exited: pipes::Exit,
 }
 
 impl ProcessInput {
-    async fn write(mut self, bytes: Vec<u8>) -> io::Result<()> {
-        tokio::select! {
-            biased;
-            _ = self.exited.changed() => Err(io::ErrorKind::BrokenPipe.into()),
-            result = async {
-                let mut pipe = self.pipe.lock().await;
-                pipes::write_all(&mut pipe, bytes).await
-            } => result,
-        }
+    async fn write(self, bytes: Vec<u8>) -> io::Result<()> {
+        let pipe = self.pipe.lock_owned().await;
+        pipes::write_all(pipe, bytes, self.exited).await
     }
 }
 
@@ -769,19 +791,19 @@ async fn start_process(
         let (stdin, input) = pipes::input()?;
         let (stdout, out) = pipes::output()?;
         let (stderr, err) = pipes::output()?;
+        let (exited, signal_exit) = pipes::exit_signal()?;
         let child = Arc::new(SharedChild::spawn(
             command.stdin(input).stdout(out).stderr(err),
         )?);
         #[cfg(all(unix, not(target_os = "linux")))]
         drop(launch_lock);
         let (done, exit) = oneshot::channel();
-        let (alive, exited) = watch::channel(());
         let waiter = child.clone();
         if let Err(error) = std::thread::Builder::new()
             .name("child-wait".into())
             .spawn(move || {
                 let status = waiter.wait();
-                drop(alive);
+                signal_exit();
                 let _ = done.send(status);
             })
         {
@@ -890,11 +912,25 @@ async fn read_pipe(
     stream: &'static str,
     drain: Drain,
 ) {
+    #[cfg(windows)]
+    let pipe = &mut pipe.0;
+    #[cfg(unix)]
+    let pipe = &mut pipe;
+    read_records(pipe, tx, stream, drain).await;
+}
+
+async fn read_records(
+    mut pipe: impl tokio::io::AsyncRead + Unpin,
+    tx: mpsc::Sender<OutputLine>,
+    stream: &'static str,
+    drain: Drain,
+) {
+    use tokio::io::AsyncReadExt;
     let mut buf = vec![0; READ_BUFFER];
     let mut bytes = Vec::new();
     let mut trailing_cr = false;
     loop {
-        let n = match pipes::read(&mut pipe, &mut buf).await {
+        let n = match pipe.read(&mut buf).await {
             Ok(n) => n,
             Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
             Err(e) => {
@@ -929,11 +965,19 @@ async fn read_pipe(
             return;
         }
         while !chunk.is_empty() {
-            tauri::utils::io::read_line(&mut chunk, &mut bytes)
-                .expect("reading an in-memory slice cannot fail");
-            trailing_cr = chunk.is_empty() && bytes.last() == Some(&b'\r');
-            if matches!(bytes.last(), Some(b'\r' | b'\n'))
-                && !(trailing_cr && matches!(drain, Drain::Collect))
+            let Some(end) = chunk.iter().position(|b| matches!(b, b'\r' | b'\n')) else {
+                bytes.extend_from_slice(chunk);
+                break;
+            };
+            let cr = chunk[end] == b'\r';
+            let mut len = end + 1;
+            trailing_cr = cr && len == chunk.len();
+            if cr && chunk.get(len) == Some(&b'\n') {
+                len += 1;
+            }
+            bytes.extend_from_slice(&chunk[..len]);
+            chunk = &chunk[len..];
+            if !(trailing_cr && matches!(drain, Drain::Collect))
                 && tx
                     .send((stream, Ok(std::mem::take(&mut bytes))))
                     .await
@@ -1031,6 +1075,7 @@ mod tests {
                 control
                     .set_read_timeout(Some(Duration::from_secs(20)))
                     .unwrap();
+                println!("{}", std::process::id());
                 control
                     .write_all(&std::process::id().to_le_bytes())
                     .unwrap();
@@ -1120,7 +1165,31 @@ mod tests {
     async fn collection_keeps_delimiters_and_appends_lf_per_record() {
         let result = collect_output(fixture("records")).await.unwrap();
         assert!(result.success);
-        assert_eq!(result.stderr, "a\rb\r\n\nc�\n\nend\r\ntail\n");
+        assert_eq!(result.stderr, "a\r\nb\r\n\nc�\n\nend\r\ntail\n");
+    }
+
+    #[tokio::test]
+    async fn mixed_delimiters_are_independent_of_refill_boundaries() {
+        let input = b"a\rb\r\n";
+        for split in 0..=input.len() {
+            for drain in [Drain::Managed, Drain::Collect] {
+                let reader = AsyncReadExt::chain(&input[..split], &input[split..]);
+                let (tx, mut records) = mpsc::channel(8);
+                read_records(reader, tx, "stdout", drain).await;
+                let mut lines = Vec::new();
+                let mut collected = Vec::new();
+                while let Some((_, record)) = records.recv().await {
+                    let record = record.unwrap();
+                    lines.push(into_line(&record));
+                    collected.extend(record);
+                    collected.push(b'\n');
+                }
+                assert_eq!(lines, ["a", "b"], "split at {split}");
+                if matches!(drain, Drain::Collect) {
+                    assert_eq!(collected, b"a\r\nb\r\n\n", "split at {split}");
+                }
+            }
+        }
     }
 
     #[tokio::test]
@@ -1157,14 +1226,31 @@ mod tests {
 
     #[tokio::test]
     async fn abandoning_launch_terminates_and_reaps_child() {
-        use sysinfo::{Pid, ProcessesToUpdate, System};
+        let (cmd, listener) = abandoned_fixture().await;
+        let launch = tokio::spawn(start_process(cmd, Drain::Managed));
+        assert_child_reaped(listener, || drop(launch)).await;
+    }
+
+    #[tokio::test]
+    async fn aborting_collection_terminates_and_reaps_child() {
+        let (cmd, listener) = abandoned_fixture().await;
+        let collect = tokio::spawn(collect_output(cmd));
+        assert_child_reaped(listener, || collect.abort()).await;
+        assert!(matches!(collect.await, Err(e) if e.is_cancelled()));
+    }
+
+    async fn abandoned_fixture() -> (StdCommand, TcpListener) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
         let mut cmd = fixture("abandoned");
         cmd.env(
             "KAEDE_TEST_CONTROL",
             listener.local_addr().unwrap().to_string(),
         );
-        let launch = tokio::spawn(start_process(cmd, Drain::Managed));
+        (cmd, listener)
+    }
+
+    async fn assert_child_reaped(listener: TcpListener, cancel: impl FnOnce()) {
+        use sysinfo::{Pid, ProcessesToUpdate, System};
         timeout(Duration::from_secs(5), async {
             let (mut control, _) = listener.accept().await.unwrap();
             let pid = Pid::from_u32(control.read_u32_le().await.unwrap());
@@ -1172,7 +1258,7 @@ mod tests {
             let mut system = System::new();
             system.refresh_processes(ProcessesToUpdate::Some(&pids), true);
             assert!(system.process(pid).is_some());
-            drop(launch);
+            cancel();
             assert_eq!(control.read(&mut [0]).await.unwrap(), 0);
             loop {
                 system.refresh_processes(ProcessesToUpdate::Some(&pids), true);
