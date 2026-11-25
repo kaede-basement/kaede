@@ -33,6 +33,7 @@ fn next_id() -> u64 {
 }
 
 const MAX_DRAIN_BATCH: usize = 64;
+const DRAIN_PAUSE: Duration = Duration::from_millis(8);
 const WAKE_RETRY_DELAY: Duration = Duration::from_millis(16);
 
 type Work = Pin<Box<dyn Future<Output = ()> + Send>>;
@@ -86,6 +87,9 @@ impl Queue {
     }
 
     fn drain(self: &Arc<Self>, from_wakeup: bool) {
+        // Declare the guard before the queue lock: flushing can re-enter dispatch.
+        #[cfg(any(windows, target_os = "linux"))]
+        let _batch = crate::ipc_batch::Dispatching::start();
         let mut pending = self.pending.lock().unwrap();
         if from_wakeup {
             pending.scheduled = false;
@@ -110,7 +114,10 @@ impl Queue {
             drop(pending);
             // Wry executes main-thread posts inline. Post the next turn from a worker.
             let queue = self.clone();
-            tauri::async_runtime::spawn(async move { queue.schedule() });
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(DRAIN_PAUSE).await;
+                queue.schedule();
+            });
         }
     }
 }
@@ -307,7 +314,7 @@ fn worker_channel<T>(native: Channel, queue: Arc<Queue>, delivery: Delivery) -> 
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use std::{
         sync::{mpsc, Barrier},
@@ -327,6 +334,20 @@ mod tests {
                 .map_err(|_| tauri::Error::FailedToReceiveMessage)
         });
         (post, tasks)
+    }
+
+    #[cfg(any(windows, target_os = "linux"))]
+    pub(crate) fn run_turn(actions: impl IntoIterator<Item = impl FnOnce() + Send + 'static>) {
+        let (wake, tasks) = event_queue();
+        let queue = Arc::new(Queue {
+            wake,
+            pending: Mutex::default(),
+        });
+        for action in actions {
+            queue.push(Box::new(action)).unwrap();
+        }
+        tasks.try_recv().unwrap()();
+        assert!(tasks.try_recv().is_err());
     }
 
     #[test]
@@ -437,11 +458,16 @@ mod tests {
             (workers.recv_timeout(Duration::from_secs(5)).unwrap(), rx)
         };
         let dispatch = |cmd: &str, body| dispatch_to(window.as_ref(), cmd, body);
+        let server = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        server.set_nonblocking(true).unwrap();
+        let url = format!("http://{}/asset", server.local_addr().unwrap());
+        let files = tempfile::tempdir().unwrap();
+        let path = files.path().join("asset");
         let batch = || {
             dispatch(
                 "concurrently_download",
                 serde_json::json!({
-                    "cancelId":"id","entries":[{"url":"invalid","path":"unused"}],"label":"batch",
+                    "cancelId":"id","entries":[{"url":url,"path":path}],"label":"batch",
                     "concurrency":1,"debug":false,"onProgress":"__CHANNEL__:1"
                 }),
             )
@@ -465,8 +491,16 @@ mod tests {
         let (cancel, cancelled) =
             dispatch("cancel_downloads", serde_json::json!({"cancelId":"id"}));
         assert!(received.try_recv().is_err());
+        tokio::spawn(tokio::time::timeout(Duration::from_secs(5), start))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            server.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        assert!(!path.exists());
         tokio::spawn(cancel).await.unwrap();
-        tokio::spawn(start).await.unwrap();
         for start in (0..backlog).step_by(MAX_DRAIN_BATCH) {
             tasks.recv_timeout(Duration::from_secs(5)).unwrap()();
             assert_eq!(

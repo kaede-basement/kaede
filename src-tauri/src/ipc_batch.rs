@@ -196,14 +196,14 @@ thread_local! {
     static DISPATCHING: Cell<bool> = const { Cell::new(false) };
     /// The pages, of any webview, that got their first pending response during that loop: it
     /// delivers to each of them when it ends.
-    static DEFERRED: RefCell<Vec<Arc<Page>>> = const { RefCell::new(Vec::new()) };
+    static DEFERRED: RefCell<Vec<Box<dyn FnOnce()>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Marks this thread as dispatching until dropped, on a panic too.
-struct Dispatching(bool);
+pub(super) struct Dispatching(bool);
 
 impl Dispatching {
-    fn start() -> Self {
+    pub(super) fn start() -> Self {
         Self(DISPATCHING.replace(true))
     }
 }
@@ -212,8 +212,8 @@ impl Drop for Dispatching {
     fn drop(&mut self) {
         DISPATCHING.set(self.0);
         if !self.0 {
-            for page in DEFERRED.take() {
-                deliver(&page);
+            for flush in DEFERRED.take() {
+                flush();
             }
         }
     }
@@ -361,22 +361,30 @@ fn respond(webview: Webview, page: &Arc<Page>, response: InvokeResponse, callbac
 
 /// Called on any thread, with the webview the responder was handed.
 fn queue(webview: Webview, page: &Arc<Page>, item: String, large: Option<(u64, InvokeResponseBody)>) {
-    let first = {
-        let mut pending = PENDING.lock().unwrap();
-        let entry = pending.entry(page.listener).or_default();
+    enqueue(page, |entry| {
         entry.push_item(page, item, large);
         entry.webviews.push(webview);
-        entry.webviews.len() == 1
-    };
-    if first && DISPATCHING.get() {
-        DEFERRED.with_borrow_mut(|deferred| deferred.push(page.clone()));
-    } else if first {
-        // Queued behind the work already on the main thread, so responses that complete
-        // meanwhile share one eval.
-        let owned = page.clone();
-        if !on_main_thread(move || deliver(&owned)) {
-            discard(page);
+    }, deliver);
+}
+
+fn enqueue(page: &Arc<Page>, append: impl FnOnce(&mut Pending), flush: impl FnOnce(&Page) + Send + 'static) {
+    use std::collections::btree_map::Entry;
+    let mut pending = PENDING.lock().unwrap();
+    let entry = match pending.entry(page.listener) {
+        Entry::Occupied(mut entry) => {
+            append(entry.get_mut());
+            return;
         }
+        Entry::Vacant(entry) => entry.insert(Pending::default()),
+    };
+    append(entry);
+    drop(pending);
+    let owned = page.clone();
+    let delivery = move || flush(&owned);
+    if DISPATCHING.get() {
+        DEFERRED.with_borrow_mut(|deferred| deferred.push(Box::new(delivery)));
+    } else if !on_main_thread(delivery) {
+        discard(page);
     }
 }
 
@@ -468,24 +476,42 @@ mod tests {
 
     #[test]
     fn nested_dispatch_flushes_only_on_outer_exit() {
-        let page = Arc::new(Page { id: "nested".into(), listener: 4001,
-            window_label: "test".into(), responses: Weak::new() });
+        let (send, received) = std::sync::mpsc::channel();
+        let append = |id| {
+            let send = send.clone();
+            DEFERRED.with_borrow_mut(|tasks| tasks.push(Box::new(move || send.send(id).unwrap())));
+        };
         let outer = Dispatching::start();
-        DEFERRED.with_borrow_mut(|pages| pages.push(page.clone()));
+        append(1);
         let unwind = std::panic::catch_unwind(|| {
             let _inner = Dispatching::start();
-            DEFERRED.with_borrow_mut(|pages| pages.push(page.clone()));
+            append(2);
             panic!("nested dispatch unwinds");
         });
         assert!(unwind.is_err());
-        assert!(DISPATCHING.get());
-        DEFERRED.with_borrow_mut(|pages| {
-            assert_eq!(pages.len(), 2);
-            pages.push(page);
-        });
+        append(3);
+        assert!(received.try_recv().is_err());
         drop(outer);
-        assert!(!DISPATCHING.get());
+        assert_eq!(received.try_iter().collect::<Vec<_>>(), [1, 2, 3]);
         assert!(DEFERRED.with_borrow(Vec::is_empty));
+    }
+
+    #[test]
+    fn one_turn_flushes_two_replies_for_one_page_together() {
+        let page = Arc::new(Page { id: "same-page".into(), listener: 4002,
+            window_label: "test".into(), responses: Weak::new() });
+        let (sent, scripts) = std::sync::mpsc::channel();
+        let replies = ["[1,true,0]", "[2,false,0]"];
+        crate::ipc_dispatch::tests::run_turn(replies.map(|reply| {
+            let page = page.clone();
+            let sent = sent.clone();
+            move || enqueue(&page, |entry| entry.push_item(&page, reply.into(), None), move |page| {
+                let batch = PENDING.lock().unwrap().remove(&page.listener).unwrap();
+                sent.send(delivery_script(&page.id, &batch.items)).unwrap();
+            })
+        }));
+        let items = replies.map(String::from);
+        assert_eq!(scripts.try_iter().collect::<Vec<_>>(), [delivery_script(&page.id, &items)]);
     }
 
     #[test]
