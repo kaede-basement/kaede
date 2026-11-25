@@ -8,9 +8,11 @@ mod file_system;
 mod finalization;
 mod hashing;
 mod image;
+#[cfg(any(windows, target_os = "linux"))]
 mod ipc_batch;
 mod logging;
 mod modrinth;
+mod mod_store;
 mod processes;
 mod system;
 mod translations;
@@ -40,7 +42,18 @@ pub fn run() {
     // in one tick go as one message to 'ipc_batch'.
     // macOS keeps the default transport since it was not tested there
     #[cfg(any(windows, target_os = "linux"))]
-    let builder = builder.invoke_system(include_str!("hybrid_ipc.js"));
+    let builder = builder
+        .invoke_system(include_str!("hybrid_ipc.js"))
+        .on_page_load(|webview, load| {
+            if load.event() == tauri::webview::PageLoadEvent::Started {
+                ipc_batch::page_left(webview);
+            }
+        })
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                ipc_batch::window_destroyed(window.label());
+            }
+        });
 
     // The "notifications" feature is disabled for Windows 7 builds
     #[cfg(feature = "notifications")]
@@ -90,9 +103,12 @@ pub fn run() {
             // action that runs *while* the WebView is loading, i.e., before the frontend itself
             // can make such a call
             tauri::async_runtime::spawn(async {
-                hashing::APPLICATION_HASH.get_or_init(hashing::get_executable_hash).await;
+                if let Err(error) = hashing::APPLICATION_HASH.get_or_try_init(hashing::get_executable_hash).await {
+                    log::error!("Failed to preload executable hash: {error}");
+                }
             });
             // Besides hashing, we can also read configs ahead-of-time
+            app.manage(mod_store::ModStore::new(&base_directory));
             app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist
@@ -148,12 +164,9 @@ pub fn run() {
                     .format(|out, message, record| {
                         let now = time::OffsetDateTime::now_utc();
                         // Default tauri logging format does not include milliseconds
-                        let formatted_time = format!("{:02}:{:02}:{:02}.{:03}",
-                            now.hour(), now.minute(), now.second(), now.millisecond());
-
                         out.finish(format_args!(
-                            "{} | {} | {} | {}",
-                            formatted_time,
+                            "{:02}:{:02}:{:02}.{:03} | {} | {} | {}",
+                            now.hour(), now.minute(), now.second(), now.millisecond(),
                             record.level(),
                             record.target(),
                             message,
@@ -175,6 +188,8 @@ pub fn run() {
             application::get_initial_state,
             downloads::concurrently_download,
             downloads::cancel_downloads,
+            downloads::prepare_mrpack_install,
+            modrinth::repair_legacy_mrpack,
             extensions::read_extensions,
             file_system::verify_paths,
             file_system::verify_paths_hash,
@@ -189,11 +204,14 @@ pub fn run() {
             image::resize_image,
             // Used by 'hybrid_ipc.js'. If app commands ever get an ACL manifest
             // ('tauri_build::AppManifest'), these two must be allowed for every window
+            #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::ipc_batch,
+            #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::ipc_batch_take,
             logging::stream_logs,
             logging::stop_log_stream,
             modrinth::install_mrpack,
+            mod_store::clear_mod_cache,
             modrinth::peek_mrpack,
             processes::list_processes,
             processes::spawn_process,

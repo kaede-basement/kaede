@@ -91,26 +91,31 @@ defineExpose({
   },
 });
 
-/*
- * Assuming that 'idRoot' and '-control' won't change...
- *
- * Example: '__settings-page__ui-background-color-color'
- */
-const parts: Array<string> = idRoot.split("-");
+const parentId = computed(() => idRoot.replace(/[^-]*$/, "control"));
+const nativeColor = computed(() => {
+  const color = (value || defaultColor).trim();
+  const hex = (/^#([a-f\d]{3,4}|[a-f\d]{6}|[a-f\d]{8})$/i).exec(color)?.[1];
 
-// '__settings-page__ui-background-color'
-parts.pop();
-// 'Row.vue' in the container of '<slot />' passes '${idRoot}-control'
-parts.push("control");
+  if (hex) {
+    return "#" + (hex.length <= 4
+      ? hex.slice(0, 3).replace(/./g, "$&$&")
+      : hex.slice(0, 6));
+  }
 
-const parentId: string = parts.join("-");
+  const channels = color.split(/\s+/).slice(0, 3)
+    .map(Number);
+
+  return channels.length === 3 && channels.every(n => Number.isInteger(n) && n >= 0 && n <= 255)
+    ? "#" + channels.map(n => n.toString(16).padStart(2, "0")).join("")
+    : "#000000";
+});
 
 onClickOutside(container, event => {
   if (event.target instanceof HTMLElement) {
     const target = event.target;
 
     // If the user clicked a row
-    if (target.parentElement?.id === parentId) {
+    if (target.parentElement?.id === parentId.value) {
       return;
     }
   }
@@ -147,7 +152,7 @@ onClickOutside(container, event => {
       type="color"
       :id="`${idRoot}-native-input`"
       class="absolute bottom-0 left-0 right-0 top-0 size-full cursor-pointer opacity-0"
-      :value="value ?? defaultColor"
+      :value="nativeColor"
       @input="handleHexInput"
     />
     <MaterialRipple />

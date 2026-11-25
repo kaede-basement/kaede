@@ -19,16 +19,27 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-use md5::Md5;
-use sha1::Sha1;
-use sha2::Sha256;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::application::InitialStateParsedFiles;
-use crate::hashing::{hash_file, HashAlgorithm};
+use crate::hashing::HashAlgorithm;
 use crate::translations::extract_locale;
+
+pub(crate) fn staging_file(parent: &Path) -> io::Result<tempfile::NamedTempFile> {
+    // The renamed file keeps its creation attributes, including on Windows.
+    tempfile::Builder::new().make_in(parent, |path| {
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        options.open(path)
+    })
+}
 
 #[derive(Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
@@ -77,8 +88,12 @@ pub async fn load_config_files(base_directory: PathBuf) -> Result<InitialStatePa
 
     let locale = extract_locale(&config);
     let translations = load_json_file(
-        base_directory.join("translations").join(format!("{locale}.json")),
-    ).await.map_err(|error| error.to_string())?;
+        base_directory
+            .join("translations")
+            .join(format!("{locale}.json")),
+    )
+    .await
+    .map_err(|error| error.to_string())?;
 
     Ok(InitialStateParsedFiles {
         config,
@@ -92,58 +107,132 @@ pub async fn load_config_files(base_directory: PathBuf) -> Result<InitialStatePa
 pub struct Artifact {
     path: String,
     hash: String,
+    size: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum ExpectedPath {
+    Plain(String),
+    Sized { path: String, size: Option<u64> },
+}
+
+fn matches_size(path: &Path, size: Option<u64>) -> bool {
+    path.metadata()
+        .is_ok_and(|meta| meta.is_file() && size.map_or(true, |s| s == meta.len()))
 }
 
 #[tauri::command]
-pub async fn verify_paths(paths: Vec<String>) -> Result<Vec<String>, String> {
+pub async fn verify_paths(paths: Vec<ExpectedPath>) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
         paths
             .into_par_iter()
-            .filter(|path| !Path::new(path).exists())
+            .filter_map(|entry| {
+                let (path, size) = match entry {
+                    ExpectedPath::Plain(path) => (path, None),
+                    ExpectedPath::Sized { path, size } => (path, size),
+                };
+                (!matches_size(Path::new(&path), size)).then_some(path)
+            })
             .collect()
-    }).await.map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub async fn verify_paths_hash(artifacts: Vec<Artifact>, algorithm: HashAlgorithm) -> Result<Vec<String>, String> {
+pub async fn verify_paths_hash(
+    artifacts: Vec<Artifact>,
+    algorithm: HashAlgorithm,
+) -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(move || {
         let mismatched_paths: Vec<String> = artifacts
-            .par_iter()
+            .into_par_iter()
             .filter_map(|artifact| {
                 let path = Path::new(&artifact.path);
 
-                if !path.exists() {
-                    return Some(artifact.path.clone());
-                }
-
-                // Artifacts that did not specify SHA1 hashes have been assigned to 'ignore' in JS
-                if artifact.hash == "ignore" {
-                    return None;
-                }
-
-                match verify_file_hash(path, &algorithm, &artifact.hash) {
-                    Ok(is_valid) => {
-                        if !is_valid {
-                            Some(artifact.path.clone())
-                        } else {
-                            None
-                        }
-                    }
-                    Err(_) => Some(artifact.path.clone()),
-                }
+                let valid = matches_size(path, artifact.size)
+                    && (artifact.hash == "ignore"
+                        || verify_file_hash(path, &algorithm, &artifact.hash).unwrap_or(false));
+                (!valid).then_some(artifact.path)
             })
             .collect();
 
         Ok(mismatched_paths)
-    }).await.map_err(|error| error.to_string())?
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
-fn verify_file_hash(path: &Path, algorithm: &HashAlgorithm, expected_hash: &str) -> io::Result<bool> {
-    let hash = match algorithm {
-        HashAlgorithm::Sha256 => hash_file::<Sha256>(path),
-        HashAlgorithm::Sha1   => hash_file::<Sha1>(path),
-        HashAlgorithm::Md5    => hash_file::<Md5>(path),
-    }?;
+fn verify_file_hash(
+    path: &Path,
+    algorithm: &HashAlgorithm,
+    expected_hash: &str,
+) -> io::Result<bool> {
+    match algorithm.hash(path) {
+        Ok(hash) => Ok(hash.eq_ignore_ascii_case(expected_hash)),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e),
+    }
+}
 
-    Ok(hash == expected_hash)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn fast_verification_accepts_legacy_paths_and_checks_file_sizes() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("item");
+        std::fs::write(&file, b"ok").unwrap();
+        let paths = serde_json::from_value(
+            serde_json::json!([file,dir.path(),{"path":file,"size":2},{"path":file,"size":3}]),
+        )
+        .unwrap();
+        assert_eq!(
+            verify_paths(paths).await.unwrap(),
+            vec![dir.path().to_str().unwrap(), file.to_str().unwrap()]
+        );
+    }
+    #[cfg(windows)]
+    #[test]
+    fn published_file_has_no_temporary_attribute() {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_TEMPORARY: u32 = 0x100;
+        let dir = tempfile::tempdir().unwrap();
+        let mut staged = staging_file(dir.path()).unwrap().into_temp_path();
+        let destination = dir.path().join("published.jar");
+        std::fs::rename(&staged, &destination).unwrap();
+        staged.disable_cleanup(true);
+        assert_eq!(
+            destination.metadata().unwrap().file_attributes() & FILE_ATTRIBUTE_TEMPORARY,
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn startup_json_preserves_wire_values_locale_and_recovery_text() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        for (input, locale) in [
+            (r#"{"other":[0,true],"locale":"fr","locale":"ru"}"#, "ru"),
+            (r#"{"locale":"../accounts"}"#, "en"),
+            (r#"["ru"]"#, "en"),
+        ] {
+            std::fs::write(&path, input).unwrap();
+            let file = load_json_file(path.clone()).await.unwrap();
+            assert_eq!(extract_locale(&file), locale);
+            assert_eq!(
+                serde_json::to_value(&file).unwrap(),
+                serde_json::json!({
+                    "status": "loaded", "data": serde_json::from_str::<serde_json::Value>(input).unwrap()
+                })
+            );
+        }
+        for input in [" {broken ", "1e400", r#""\uD800""#] {
+            std::fs::write(&path, input).unwrap();
+            assert!(
+                matches!(load_json_file(path.clone()).await.unwrap(), ParsedFile::Corrupt { raw, .. } if raw == input)
+            );
+        }
+    }
 }

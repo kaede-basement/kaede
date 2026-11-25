@@ -20,81 +20,78 @@ import { writeTextFile } from "@tauri-apps/plugin-fs";
 
 import FileStructure from "@/constants/file-structure.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
-import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
-import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
-let lastWritten: string;
+type PersistedConfig = ConfigType & Partial<Record<`config/${string}`, unknown>>;
 
-function saveExtensionFields<Key extends keyof ConfigType>(configStates: ConfigType): void {
-  for (const key of Object.keys(globalStates)) {
-    // Only save config-specific (extensions may add other fields)
-    if (key.startsWith("config/")) {
-      const currentKey = key as Key;
-
-      configStates[currentKey] = globalStates[currentKey];
-    }
-  }
-}
-
-export async function sync(): Promise<void> {
-  if (lastWritten === undefined) {
-    lastWritten = JSON.stringify(GlobalInternals.initialConfig);
-  }
-
-  const startTime: number = performance.now();
-
-  const currentConfigStates: ConfigType = {
-    "development": globalStates.development,
-    "extensions" : globalStates.extensions,
-    "ui"         : globalStates.ui,
-    "selected"   : globalStates.selected,
-    "locale"     : globalStates.locale,
-    "minecraft"  : globalStates.minecraft,
-    "java"       : globalStates.java,
+export function projectConfig(states: PersistedConfig): PersistedConfig {
+  const currentConfigStates: PersistedConfig = {
+    "development": states.development,
+    "extensions" : states.extensions,
+    "ui"         : states.ui,
+    "selected"   : states.selected,
+    "locale"     : states.locale,
     "logs"       : {
-      ...globalStates.logs,
-      // Make 'logs.show' always false so that the user won't see log viewer on app launch
+      ...states.logs,
       "show": false,
+      "mode": "kaede-launcher",
     },
+    "java"     : states.java,
+    "minecraft": states.minecraft,
   };
 
-  saveExtensionFields(currentConfigStates);
+  for (const key of Object.keys(states)) {
+    if (key.startsWith("config/")) {
+      const extensionKey = key as `config/${string}`;
 
-  const currentConfigStatesStringy: string = JSON.stringify(currentConfigStates);
-
-  if (lastWritten === currentConfigStatesStringy) {
-    return log.debug(
-      __PRE_BUNDLED_FILENAME__,
-      "Seems like config didn't change. No need for config sync",
-    );
+      currentConfigStates[extensionKey] = states[extensionKey];
+    }
   }
 
-  const configPath = FileManager.join(
-    FileManager.getBaseDirectory(),
-    FileStructure.Files.Config,
-  );
-
-  try {
-    await writeTextFile(
-      configPath,
-      JSON.stringify(currentConfigStates, null, 2),
-    );
-    lastWritten = currentConfigStatesStringy;
-  } catch (error: unknown) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to sync the config file:",
-      Errors.prettify(error),
-    );
-  }
-
-  log.debug(
-    __PRE_BUNDLED_FILENAME__,
-    "Config file successfully synced in:",
-    (performance.now() - startTime).toFixed(1),
-    "ms",
-  );
+  return currentConfigStates;
 }
+
+export function createStateSync<T extends object>(
+  file: string,
+  initial: () => T,
+  current: () => T,
+  project: (state: T) => object = state => state,
+) {
+  let lastWritten: string | null | undefined;
+  let queued = Promise.resolve();
+
+  async function write(): Promise<void> {
+    if (lastWritten === undefined) {
+      lastWritten = JSON.stringify(project(initial()), null, 2);
+    }
+    const contents = JSON.stringify(project(current()), null, 2);
+
+    if (contents === lastWritten) {
+      return;
+    }
+
+    const path = FileManager.join(FileManager.getBaseDirectory(), file);
+
+    await writeTextFile(path, contents);
+    lastWritten = contents;
+  }
+
+  return (): Promise<void> => {
+    const result = queued.then(write);
+
+    queued = result.catch(() => {
+      lastWritten = null;
+    });
+
+    return result;
+  };
+}
+
+export const sync = createStateSync(
+  FileStructure.Files.Config,
+  () => GlobalInternals.initialConfig,
+  () => globalStates,
+  projectConfig,
+);

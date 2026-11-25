@@ -1,13 +1,15 @@
 import { APIEndpoints } from "@/constants/launcher.ts";
 import FileManager from "@/lib/file-manager";
-import Parsers from "@/lib/launcher/scopes/parsers/index.ts";
+import { buildUrlFromBase } from "@/lib/launcher/scopes/parsers/build-url-from-base.ts";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
 import { log } from "@/lib/logging/log.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { MappedLibraryType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchLibraryType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
+
+export const ArtifactURLs = { buildUrlFromBase } as const;
 
 export function parseLibrary({
   necessaries,
@@ -19,12 +21,13 @@ export function parseLibrary({
   "library"    : SpecificPatchLibraryType;
   "isMaven"    : boolean;
   "patchUid"   : string;
-}): Required<MappedArtifactType> | false {
+}): MappedLibraryType | false {
   const { directories, logPrefix } = necessaries;
   const descriptiveLogPrefix: string = patchUid + ":" + library?.name + ":" + logPrefix;
   const name: string | undefined = library?.name;
   const baseUrl: string | undefined = library?.url;
   const url: string | undefined = library?.downloads?.artifact?.url;
+  const size = library?.downloads?.artifact?.size;
   const hash: string | undefined = library?.downloads?.artifact?.sha1;
 
   if (name === undefined) {
@@ -51,6 +54,7 @@ export function parseLibrary({
       "url"    : "",
       // The hash is still verified though
       "hash"   : hash ?? "ignore",
+      size,
       "first"  : false,
       "exclude": library?.extract?.exclude ?? [],
       directory,
@@ -69,7 +73,7 @@ export function parseLibrary({
       APIEndpoints.Libraries.Base,
     );
 
-    const builtUrl: string | false = Parsers.buildUrlFromBase({
+    const builtUrl: string | false = ArtifactURLs.buildUrlFromBase({
       "baseUrl": APIEndpoints.Libraries.Base,
       name,
       file,
@@ -103,7 +107,7 @@ export function parseLibrary({
 
   // The 'net.fabricmc.fabric-loader' patch libraries only have the 'name' and 'url' fields
   if (baseUrl !== undefined) {
-    const builtUrl: string | false = Parsers.buildUrlFromBase({
+    const builtUrl: string | false = ArtifactURLs.buildUrlFromBase({
       baseUrl,
       name,
       file,
@@ -118,7 +122,8 @@ export function parseLibrary({
       "id"     : artifactID,
       "status" : isMaven ? "mavenFile" : "library",
       "url"    : builtUrl,
-      "hash"   : "ignore",
+      "hash"   : hash ?? "ignore",
+      size,
       "first"  : false,
       "exclude": library?.extract?.exclude ?? [],
       directory,
@@ -143,5 +148,6 @@ export function parseLibrary({
     url,
     path,
     hash,
+    size,
   };
 }

@@ -37,7 +37,13 @@ export async function resolveLaunchAccount(
   "auth"    : LaunchAuthType;
   "accounts": Array<AccountType>;
 } | undefined> {
-  const selectedIndex: number = globalStates.selected.account;
+  return resolveAccountAtIndex(accounts, globalStates.selected.account);
+}
+
+export async function resolveAccountAtIndex(
+  accounts: Array<AccountType>,
+  selectedIndex: number,
+): ReturnType<typeof resolveLaunchAccount> {
   const activeAccount: AccountType | undefined = accounts[selectedIndex];
 
   if (!activeAccount) {
@@ -71,15 +77,27 @@ export async function resolveLaunchAccount(
     };
   }
 
-  const updatedAccounts: Array<AccountType> = [
-    account,
-    ...accounts.slice(1),
-  ];
+  if (activeAccount.profile.uuid !== account.profile.uuid) {
+    throw new Error("The refreshed account does not match the selected profile");
+  }
 
-  await Configs.writeAccounts({ "accounts": updatedAccounts });
+  const updatedAccounts = await Configs.updateAccounts(current => {
+    const index = current.findIndex(({ profile }) => profile.uuid === account.profile.uuid);
 
-  return {
-    "auth"    : buildLaunchAuth(account),
-    "accounts": updatedAccounts,
-  };
+    if (index === -1) {
+      return;
+    }
+
+    const next = [...current];
+
+    next[index] = account;
+
+    return next;
+  });
+
+  if (!updatedAccounts.some(({ profile }) => profile.uuid === account.profile.uuid)) {
+    return;
+  }
+
+  return { "auth": buildLaunchAuth(account), "accounts": updatedAccounts };
 }

@@ -31,8 +31,8 @@ import type * as TauriUpload from "@tauri-apps/plugin-upload";
 import type DevelopmentMode from "src/lib/development-mode";
 import type { App, ComponentPublicInstance, ComputedRef, ShallowReactive, ShallowRef } from "vue";
 
+import type _Application from "@/bootstrap/application.ts";
 import type Composables from "@/composables";
-import type _Application from "@/constants/application.ts";
 import type _ASCIIArt from "@/constants/ascii-art.ts";
 import type _Browser from "@/constants/browser.ts";
 import type _EventListeners from "@/constants/event-listeners.ts";
@@ -68,13 +68,15 @@ import type States from "@/states";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { RouteType } from "@/types/application/route.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
-import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
-import type { PermissionType } from "@/types/extensions/permission.type.ts";
+import type { HookReturnType, SyncOrAsyncHookType } from "@/types/extensions/hook-return.type.ts";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   ArgumentAuthReplacementsType,
   ArgumentReplacementsType,
 } from "@/types/launcher/launch/argument-replacements.type.ts";
+import type {
+  LaunchResponseType, MinecraftLaunchPayloadType, MinecraftProcessType,
+} from "@/types/launcher/launch/launch-response.type.ts";
 import type {
   LauncherStatusesType,
   WrappedInstanceLauncherStatusesType,
@@ -147,11 +149,6 @@ declare global {
           "visible"  : boolean;
           "resizable": boolean;
         };
-        // Requests plugin permissions from user
-        "requestPermissions": (
-          permissions: Array<PermissionType | string> | unknown,
-          extension: string
-        ) => Promise<Array<unknown>>;
         // Platform-specific delimiter
         "joinDelimiter"      : string;
         // Launcher version
@@ -1271,98 +1268,13 @@ declare global {
          * Executed on minecraft instance launch
          */
         "onMinecraftLaunch": {
-
-          /**
-           * Executes 'async' or 'sync' functions before any actions.
-           *
-           * @param input - an object that has the 'command', 'auth',
-           * 'builtLaunchArguments', 'instanceId', 'necessaries',
-           * 'parsed', 'versionMeta', and 'javaBinary' fields
-           * is passed as the argument.
-           *
-           * If the hook returns a 'stop' status,
-           * it should also return:
-           * @param output - a 'void'
-           * in the 'response' field.
-           *
-           * If the hook returns a 'continue' status,
-           * code execution will continue as if that hook did not exist.
-           */
-          "before": HookReturnType<
-            {
-              // [javaBinary, launchCommand]
-              "command": [string, string];
-              "auth"   : {
-                "username": string;
-
-                /**
-                 * Scary!
-                 */
-                "token": string;
-                "uuid" : string;
-                "type" : string;
-                "xuid" : string;
-              };
-              "builtLaunchArguments": {
-                "toReplace" : string;
-                "classPaths": string;
-              };
-              "instanceId" : string;
-              "necessaries": PreLaunchInformationType;
-              "versionMeta": SpecificPatchMetaType;
-              "parsed"     : Array<MappedArtifactType>;
-              "javaBinary" : string;
-            },
-            void
-          >;
-
-          /**
-           * Executes 'async' or 'sync' functions after the minecraft instance was launched.
-           *
-           * @param input - an object that has the 'process', 'command', 'auth',
-           * 'builtLaunchArguments', 'instanceId', 'necessaries',
-           * 'parsed', 'versionMeta', and 'javaBinary' fields
-           * is passed as the argument.
-           *
-           * Hook should not return anything since the response will not be read.
-           */
-          "after": HookReturnType<
-            {
-              "process": {
-                "pid"  : number;
-                "kill" : () => Promise<void>;
-                "write": (data: string | Uint8Array | number[]) => Promise<void>;
-              };
-              // [javaBinary, launchCommand]
-              "command": [string, string];
-              "auth"   : {
-                "username": string;
-
-                /**
-                 * Scary!
-                 */
-                "token": string;
-                "uuid" : string;
-                "type" : string;
-                "xuid" : string;
-              };
-              "builtLaunchArguments": {
-                "toReplace" : string;
-                "classPaths": string;
-              };
-              "instanceId" : string;
-              "necessaries": PreLaunchInformationType;
-              "versionMeta": SpecificPatchMetaType;
-              "parsed"     : Array<MappedArtifactType>;
-              "javaBinary" : string;
-            },
-            "nothing"
-          >;
+          "before": SyncOrAsyncHookType<MinecraftLaunchPayloadType, LaunchResponseType>;
+          "after": SyncOrAsyncHookType<MinecraftLaunchPayloadType & {
+            "process": MinecraftProcessType;
+          }, "nothing">;
         };
 
-        /**
-         * Executed on minecraft instance kill
-         */
+        /** Executed on Minecraft instance kill. */
         "onMinecraftKill": {
 
           /**
@@ -1465,3 +1377,5 @@ declare global {
 
 /* Export the Kaede namespace type */
 export type KaedeNamespaceType = Window["__KAEDE__"];
+
+export type { SafeDocument as SandboxUIDocument } from "ark-of-atrahasis";

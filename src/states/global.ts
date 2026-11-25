@@ -21,11 +21,10 @@ import { markRaw, type Reactive, reactive } from "vue";
 import {
   ActionKeys,
   ContextMenuItems,
-  DefaultGlobalStatesPagesStates,
 } from "@/constants/application.ts";
 import { Routes, SidebarRouteGroupItems } from "@/constants/routes.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
-import Router from "@/lib/router";
+import { InitialRoute } from "@/lib/router/get-initial-page.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
@@ -39,23 +38,23 @@ export let globalStates: Reactive<GlobalStatesType>;
  * Assign the actual global states to 'globalStates'.
  * This function is called in 'main.ts'
  */
-export function declareGlobalStates(): void {
+export function declareGlobalStates(pages: GlobalStatesType["pages"]): void {
   /*
    * Since global states are deeply reactive,
    * we should copy the original config object to avoid its changes
    */
   const configFile: ConfigType = structuredClone(GlobalInternals.initialConfig);
-  const customSettings = DefaultGlobalStatesPagesStates["add-instance"].customSettings;
+  const customSettings = pages["add-instance"].customSettings;
 
   globalStates = reactive<GlobalStatesType>({
     ...configFile,
     "contextMenuItems": markRaw(ContextMenuItems),
-    "currentPage"     : Router.getInitialPage(),
+    "currentPage"     : InitialRoute.getInitialPage(),
     "translations"    : markRaw(GlobalInternals.initialTranslations),
     "pages"           : {
-      ...DefaultGlobalStatesPagesStates,
+      ...pages,
       "add-instance": {
-        ...DefaultGlobalStatesPagesStates["add-instance"],
+        ...pages["add-instance"],
         "customSettings": markRaw(customSettings ?? []),
       },
     },
@@ -77,16 +76,4 @@ export function declareGlobalStates(): void {
       },
     ]),
   });
-
-  /*
-   * I genuinely do not know why importing 'GlobalObject' leads
-   * to fucking module evaluation errors, completely breaking
-   * the whole fucking app, despite 'GlobalInternals' working normally?????????
-   * Therefore, we directly assign the new reference of global states
-   * to the 'window' by accessing the Kaede namespace
-   */
-  const states = window.__KAEDE__.states as Record<string, unknown>;
-
-  states.globalStates = globalStates;
-  // GlobalObject.states.globalStates = globalStates;
 }

@@ -17,7 +17,7 @@
  */
 
 import type { KaedeNamespaceType } from "@/declarations.ts";
-import { GlobalObject } from "@/extendable/global-object.ts";
+import { getHooks } from "@/extendable/hooks-registry.ts";
 import type { HookReturnType } from "@/types/extensions/hook-return.type.ts";
 import IsKeyInObject from "@/types/utils/is-key-in-object.ts";
 
@@ -76,11 +76,13 @@ export function parseEvent(event: unknown): {
         throw new TypeError("Invalid hook event name");
       }
 
-      if (!(IsKeyInObject(id, GlobalObject.hooks))) {
+      const hooks = getHooks();
+
+      if (!(IsKeyInObject(id, hooks))) {
         throw new TypeError("This hook ID does not exist");
       }
 
-      const hook: object = GlobalObject.hooks[id];
+      const hook: object = hooks[id];
 
       if (!(IsKeyInObject(timing, hook))) {
         throw new TypeError("Such timing does not exist");
@@ -91,7 +93,7 @@ export function parseEvent(event: unknown): {
         "id"      : id,
         "timing"  : timing,
         "position": position === "start" ? "start" : "end",
-        "hooks"   : GlobalObject.hooks[id][timing],
+        "hooks"   : hooks[id][timing],
       };
     }
     default: {

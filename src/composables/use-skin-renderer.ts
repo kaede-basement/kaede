@@ -16,15 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { createSkinViewer, type SkinViewer, use } from "@daidr/minecraft-skin-renderer";
-import { renderAvatar } from "@daidr/minecraft-skin-renderer/canvas2d";
-import { WebGLRendererPlugin } from "@daidr/minecraft-skin-renderer/webgl";
+import type { SkinViewer } from "@daidr/minecraft-skin-renderer";
 import {
-  computed, type ComputedRef, inject,
-  onMounted, onUnmounted, type Ref,
+  computed, type ComputedRef, inject, onScopeDispose,
+  type Ref,
   ref, type ShallowRef, shallowRef,
   type TemplateRef, useTemplateRef,
-  watchEffect,
+  watch,
 } from "vue";
 
 import { AuthStatesContextKey } from "@/constants/application.ts";
@@ -35,29 +33,89 @@ import FallbackSteve from "@/resources/steve_classic.png";
 import { globalStates } from "@/states/global.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
 
-function getSkinSource(account: AccountType): string | Blob {
-  if (account.skin.data.length > 0) {
-    const decoded: string = atob(account.skin.data);
-    const bytes: Uint8Array = Uint8Array.from(decoded, character => (
-      character.codePointAt(0) ?? 0
-    ));
+function configureDemandRendering(viewer: SkinViewer, resizeTarget: HTMLElement): () => void {
+  let loopRunning = false;
+  let disposed = false;
+  let frame: number | undefined;
 
-    /*
-     * We are using '@ts-ignore' instead of '@ts-expect-error' since uhm there are no errors?
-     */
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore 'dts-bundle-generator' throws an error even though there are no errors?????
-    return new Blob([bytes], { "type": "image/png" });
+  function cancelFrame(): void {
+    if (frame !== undefined) {
+      cancelAnimationFrame(frame);
+      frame = undefined;
+    }
   }
 
-  if (account.skin.url.length > 0) {
-    return account.skin.url;
+  function scheduleRender(): void {
+    if (disposed || loopRunning || frame !== undefined) {
+      return;
+    }
+    frame = requestAnimationFrame(() => {
+      frame = undefined;
+      viewer.render();
+    });
   }
 
-  return FallbackSteve;
+  const { onZoomChange, onRotationChange } = viewer;
+
+  viewer.onZoomChange = (zoom): void => {
+    scheduleRender();
+    onZoomChange?.(zoom);
+  };
+  viewer.onRotationChange = (theta, phi): void => {
+    scheduleRender();
+    onRotationChange?.(theta, phi);
+  };
+  const observer = new ResizeObserver(([{ "contentRect": { width, height } }]) => {
+    if (!disposed && width > 0 && height > 0) {
+      viewer.resize(width, height);
+      scheduleRender();
+    }
+  });
+
+  // The layout box is independent of the DPR-scaled drawing buffer.
+  observer.observe(resizeTarget);
+
+  const { setRotation, setZoom, resetCamera } = viewer;
+
+  viewer.setRotation = (theta, phi): void => {
+    setRotation(theta, phi);
+    scheduleRender();
+  };
+  viewer.setZoom = (zoom): void => {
+    setZoom(zoom);
+    scheduleRender();
+  };
+  viewer.resetCamera = (): void => {
+    resetCamera();
+    scheduleRender();
+  };
+
+  const { startRenderLoop, stopRenderLoop, dispose } = viewer;
+
+  viewer.startRenderLoop = (): void => {
+    cancelFrame();
+    loopRunning = true;
+    startRenderLoop();
+  };
+  viewer.stopRenderLoop = (): void => {
+    stopRenderLoop();
+    loopRunning = false;
+  };
+  viewer.dispose = (): void => {
+    disposed = true;
+    cancelFrame();
+    observer.disconnect();
+    dispose();
+  };
+
+  return scheduleRender;
 }
 
-let cleanPreviousViewer = (): void => {};
+type RendererState = {
+  "canvas": TemplateRef<HTMLCanvasElement>;
+  "shown" : Ref<boolean>;
+  "viewer": ShallowRef<SkinViewer | undefined>;
+};
 
 export function useSkinRenderer({
   render,
@@ -65,170 +123,167 @@ export function useSkinRenderer({
 }: {
   "render"  : "3d" | "2d-head";
   "account"?: ComputedRef<AccountType | undefined>;
-}): {
-  "canvas": TemplateRef<HTMLCanvasElement>;
-  "shown" : Ref<boolean>;
-  // 'viewer' is undefined for '2d-head'
-  "viewer": ShallowRef<SkinViewer | undefined>;
-} {
+}): RendererState {
+  return useRenderer(render, account);
+}
+
+export function useProfileSkinRenderer(resizeTarget: TemplateRef<HTMLElement>): RendererState {
+  return useRenderer("3d", undefined, resizeTarget);
+}
+
+function useRenderer(
+  render: "3d" | "2d-head", account?: ComputedRef<AccountType | undefined>,
+  resizeTarget?: TemplateRef<HTMLElement>,
+): RendererState {
   const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
-  const data = computed((): {
-    "url" : string | Blob;
-    "slim": boolean;
-  } => {
-    const index: number = globalStates.selected.account;
-    const found: AccountType | undefined = account?.value
-      ?? accounts?.value?.[index];
+  const selected = computed(() => (
+    account?.value ?? accounts?.value?.[globalStates.selected.account]
+  ));
+  const source = computed(() => {
+    const skin = selected.value?.skin;
 
-    if (!found) {
-      return {
-        "url" : FallbackSteve,
-        "slim": false,
-      };
-    }
-
-    return {
-      "url" : getSkinSource(found),
-      "slim": found.skin.variant === "slim",
-    };
+    return skin?.data ? `data:image/png;base64,${skin.data}` : skin?.url || FallbackSteve;
   });
+  const slim = computed(() => selected.value?.skin.variant === "slim");
 
   const canvas = useTemplateRef<HTMLCanvasElement>("canvas");
   const shown = ref<boolean>(false);
   const viewer = shallowRef<SkinViewer | undefined>();
 
-  onMounted(async (): Promise<void> => {
-    cleanPreviousViewer();
+  let generation = 0;
 
-    if (!canvas.value) {
-      return log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Could not find the canvas to render the skin to",
-      );
-    }
+  function report(error: unknown): void {
+    log.error(
+      __PRE_BUNDLED_FILENAME__,
+      `Error rendering the '${render}' skin:`,
+      Errors.prettify(error),
+    );
+  }
 
-    try {
-      if (render === "3d") {
-        use(WebGLRendererPlugin);
+  if (render === "2d-head") {
+    let clearCanvas: (() => void) | undefined;
 
-        viewer.value = await createSkinViewer({
-          "canvas": canvas.value,
-          "skin"  : data.value.url,
-          "slim"  : data.value.slim,
-          "zoom"  : 35,
-        });
+    watch(canvas, () => {
+      clearCanvas?.();
+      clearCanvas = undefined;
+    }, { "flush": "sync" });
+    onScopeDispose(() => clearCanvas?.());
+    watch([canvas, source], ([target, skin], _, onCleanup) => {
+      if (!target) return;
+      if (target.width !== 32) target.width = 32;
+      if (target.height !== 32) target.height = 32;
+      const context = target.getContext("2d");
 
-        viewer.value.startRenderLoop();
-      } else {
-        await renderAvatar(canvas.value, {
-          "skin" : data.value.url,
-          "scale": 4,
-        });
+      if (!context) {
+        report(new Error("Unable to draw the avatar"));
+
+        return;
       }
+      clearCanvas = (): void => {
+        context.clearRect(0, 0, 32, 32);
+        shown.value = false;
+      };
+      context.imageSmoothingEnabled = false;
+      const image = (new Image);
+      const draw = (): void => {
+        const size = image.naturalWidth / 8;
 
-      shown.value = true;
-    } catch (error: unknown) {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        `Error while rendering the '${render}' skin:`,
-        Errors.prettify(error),
-      );
-    }
-  });
-  onUnmounted(() => {
-    if (!viewer.value) {
-      return;
-    }
+        context.clearRect(0, 0, 32, 32);
+        context.drawImage(image, size, size, size, size, 0, 0, 32, 32);
+        context.drawImage(image, 5 * size, size, size, size, 0, 0, 32, 32);
+        shown.value = true;
+      };
+      const failed = (): void => {
+        context.clearRect(0, 0, 32, 32);
+        shown.value = false;
+        report(new Error("Unable to load the avatar skin"));
+      };
 
-    /*
-     * Nothing works: making canvas invisible in 'onBeforeUnmount',
-     * chaining 'nextTick' for 'viewer.value.dispose()' to run it really late,
-     * removing transitions and lowering opacity to 0, removing the element itself,
-     * or even doing everything in combination. It's always a white screen flashing.
-     *
-     * I don't want to resort to 'setTimeout' shit lol, so we simply dispose the previous
-     * viewer on the next viewer render
-     */
-    const floatingViewer = viewer.value;
+      image.addEventListener("load", draw);
+      image.addEventListener("error", failed);
+      onCleanup(() => {
+        image.removeEventListener("load", draw);
+        image.removeEventListener("error", failed);
+        image.removeAttribute("src");
+      });
+      if (!skin.startsWith("data:")) image.crossOrigin = "anonymous";
+      image.src = skin;
+    }, { "flush": "post" });
+  } else {
+    let requestRender: (() => void) | undefined;
 
-    cleanPreviousViewer = (): void => {
-      log.debug(
-        __PRE_BUNDLED_FILENAME__,
-        "Disposing the previous viewer that is currently floating with no purpose...",
-      );
-      floatingViewer.dispose();
-      log.debug(
-        __PRE_BUNDLED_FILENAME__,
-        "Successfully disposed the previous viewer",
-      );
-    };
+    const viewportElement = computed(() => resizeTarget?.value);
 
-    viewer.value = undefined;
-  });
-
-  watchEffect(async (onCleanup): Promise<void> => {
-    let stale: boolean = false;
-
-    onCleanup(() => {
-      stale = true;
-    });
-
-    if (render === "2d-head") {
-      if (!canvas.value) {
-        return log.error(
-          __PRE_BUNDLED_FILENAME__,
-          "Could not find the canvas to re-render the avatar to",
-        );
-      }
-
-      try {
-        await renderAvatar(canvas.value, {
-          "skin" : data.value.url,
-          "scale": 4,
-        });
-      } catch (error: unknown) {
-        log.error(
-          __PRE_BUNDLED_FILENAME__,
-          `Error while rendering the '${render}' skin:`,
-          Errors.prettify(error),
-        );
-      }
-
-      return;
-    }
-
-    if (!viewer.value) {
-      return;
-    }
-
-    /*
-     * I can imagine how 'SkinViewer#setSkin' may take enough time for user
-     * to be able to switch the account, leading to another 'watchEffect' re-run
-     * which will result in a clash between different 'viewer.value' reference 'setSlim' calls.
-     *
-     * I might be stupid though.
-     *
-     * UPD: wait, using 'onCleanup' and 'stale' we can mitigate that
-     */
-    const currentViewer = viewer.value;
-
-    try {
-      await currentViewer.setSkin(data.value.url);
-
-      if (stale) {
+    watch([canvas, viewportElement], async ([target, viewport], _, onCleanup) => {
+      if (!target || (resizeTarget && !viewport)) {
         return;
       }
 
-      currentViewer.setSlim(data.value.slim);
-    } catch (error: unknown) {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Error while applying the new skin to the 3D viewer",
-        Errors.prettify(error),
-      );
-    }
-  }, { "flush": "post" });
+      let closed = false;
+
+      onCleanup(() => {
+        closed = true;
+        requestRender = undefined;
+        viewer.value?.dispose();
+        viewer.value = undefined;
+        shown.value = false;
+      });
+
+      try {
+        // Initialize with the local placeholder so teardown never waits for a remote skin.
+        const { createSkinViewer } = await import("./skin-viewer.ts");
+
+        if (closed) return;
+        const created = await createSkinViewer({
+          "canvas": target, "skin": FallbackSteve, "zoom": 35,
+        });
+
+        if (closed) {
+          created.dispose();
+        } else {
+          viewer.value = created;
+          if (viewport) {
+            requestRender = configureDemandRendering(created, viewport);
+          } else {
+            created.startRenderLoop();
+          }
+          shown.value = true;
+        }
+      } catch (error) {
+        if (!closed) {
+          report(error);
+        }
+      }
+    }, { "flush": "post" });
+
+    watch([viewer, slim], ([current, isSlim]) => {
+      current?.setSlim(isSlim);
+      requestRender?.();
+    });
+    watch([viewer, source], async ([current, skin], [previous], onCleanup) => {
+      const request = ++generation;
+
+      onCleanup(() => {
+        generation++;
+      });
+
+      if (!current || (current !== previous && skin === FallbackSteve)) {
+        return;
+      }
+
+      try {
+        await current.setSkin(skin);
+        if (generation === request) {
+          requestRender?.();
+        }
+      } catch (error) {
+        if (generation === request) {
+          report(error);
+        }
+      }
+    });
+  }
 
   return { canvas, shown, viewer };
 }

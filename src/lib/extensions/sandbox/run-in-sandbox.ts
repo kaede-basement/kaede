@@ -19,27 +19,32 @@
 import "ses";
 
 import Errors from "@/lib/errors";
-import Extensions from "@/lib/extensions";
+import { lockdownEnvironment } from "@/lib/extensions/sandbox/lockdown-environment.ts";
 import { log } from "@/lib/logging/log.ts";
-import Permissions from "@/lib/permissions";
+import Permissions, { bindPermissionRequest } from "@/lib/permissions";
+import { ExtensionUI } from "@/lib/shared/ui-root.ts";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
+
+import { lifecycleHooks, type SandboxHooks } from "./lifecycle-hooks.ts";
+
+export const SandboxEnvironment = { lockdownEnvironment } as const;
 
 export function runInSandbox({
   id,
+  artifactSha256,
   code,
+  lifetime = new AbortController,
   permissions = [],
 }: {
-  "id"          : string;
-  "code"        : string;
-  "permissions"?: Array<PermissionType>;
-}): void | {
-  "enable"      : () => void | Promise<void>;
-  "disable"     : () => void | Promise<void>;
-  "afterDisable": () => void | Promise<void>;
-} {
+  "id"            : string;
+  "artifactSha256": string;
+  "code"          : string;
+  "lifetime"?     : AbortController;
+  "permissions"?  : Array<PermissionType>;
+}): void | SandboxHooks {
   try {
     // It will not lock down more than once
-    Extensions.lockdownEnvironment();
+    SandboxEnvironment.lockdownEnvironment();
   } catch (error: unknown) {
     // Do not continue executing the plugin if the lockdown failed
     return log.error(
@@ -49,27 +54,16 @@ export function runInSandbox({
     );
   }
 
-  const scopedThis = Permissions.grantStaticPermissions({ id, permissions });
-
-  /*
-   * Create a plugin-scoped handler for requesting permissions
-   * to prevent the 'ExtensionsManager#requestPermissions' tampering
-   */
-  const wrappedPermissionsRequest = async (
-    permissions: Array<PermissionType>,
-  ): Promise<Array<unknown>> => {
-    return await Extensions.requestPermissions(permissions, id);
-  };
-  const api: {
-    "enable"      : () => void | Promise<void>;
-    "disable"     : () => void | Promise<void>;
-    "afterDisable": () => void | Promise<void>;
-  } = { "enable": (): void => {}, "disable": (): void => {}, "afterDisable": (): void => {} };
+  const ui = new ExtensionUI(id, lifetime.signal);
+  const requestPermissions = bindPermissionRequest(id, artifactSha256, ui, lifetime.signal);
+  const scopedThis = Permissions.grantStaticPermissions({
+    id, artifactSha256, permissions, ui, "signal": lifetime.signal,
+  });
 
   try {
     const compartment = new Compartment({
       "globals": harden({
-        "requestPermissions": wrappedPermissionsRequest,
+        requestPermissions,
 
         /*
          * Provide a reference to the plugin-scoped 'GrantedScopes' object to make it
@@ -91,39 +85,14 @@ export function runInSandbox({
       "__options__": true,
     });
 
-    /*
-     * Compartments run using the same JavaScript interpreter as the WebView uses itself,
-     * so the performance of sandboxed plugins vs. unrestricted should equal
-     */
-    const result: unknown | {
-      "enable"      : () => void | Promise<void>;
-      "disable"     : () => void | Promise<void>;
-      "afterDisable": () => void | Promise<void>;
-    } = compartment.evaluate(code);
-
-    if (typeof result !== "object" || result === null) {
-      // Lifecycle handlers are optional, so we can safely return placeholder handlers
-      return api;
-    }
-
-    if (("enable" in result) && typeof result.enable === "function") {
-      api.enable = result.enable as () => void | Promise<void>;
-    }
-
-    if (("disable" in result) && typeof result.disable === "function") {
-      api.disable = result.disable as () => void | Promise<void>;
-    }
-
-    if (("afterDisable" in result) && typeof result.afterDisable === "function") {
-      api.afterDisable = result.afterDisable as () => void | Promise<void>;
-    }
+    return lifecycleHooks(compartment.evaluate(code));
   } catch (error: unknown) {
+    lifetime.abort();
+
     return log.error(
       __PRE_BUNDLED_FILENAME__,
       `An error occurred while running the '${id}' extension in the compartment:`,
       Errors.prettify(error),
     );
   }
-
-  return api;
 }

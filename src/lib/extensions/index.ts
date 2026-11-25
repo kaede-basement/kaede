@@ -16,28 +16,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { GlobalInternals } from "@/extendable/global-internals.ts";
-import { dirtyLifecycle } from "@/lib/extensions/dirty-lifecycle.ts";
+import { setExtensionEnabled, startExtensionSession } from "@/lib/extensions/dirty-lifecycle.ts";
 import { readExtensions } from "@/lib/extensions/read-extensions.ts";
 import { runInUnrestricted } from "@/lib/extensions/run-in-unrestricted.ts";
 import { onGlobalStateChange } from "@/lib/extensions/sandbox/events/on-global-state-change.ts";
 import { onInstanceStateChange } from "@/lib/extensions/sandbox/events/on-instance-state-change.ts";
 import { grantEventListeners } from "@/lib/extensions/sandbox/grant-event-listeners.ts";
-import { lockdownEnvironment } from "@/lib/extensions/sandbox/lockdown-environment.ts";
-import { runInSandbox } from "@/lib/extensions/sandbox/run-in-sandbox.ts";
+import { runInSandbox, SandboxEnvironment } from "@/lib/extensions/sandbox/run-in-sandbox.ts";
 import { showWebviewWindow } from "@/lib/extensions/show-webview-window.ts";
 import { updateTrustedHashes } from "@/lib/extensions/update-trusted-hashes.ts";
+import { bindPermissionRequest } from "@/lib/permissions";
 
-export default {
-  "requestPermissions": GlobalInternals.requestPermissions,
-  dirtyLifecycle,
+export default Object.assign(SandboxEnvironment, {
+  async requestPermissions(
+    input: unknown, id: string, artifactSha256: string,
+  ): Promise<Array<unknown>> {
+    return bindPermissionRequest(id, artifactSha256)(input);
+  },
+  setExtensionEnabled,
+  startExtensionSession,
   readExtensions,
   runInUnrestricted,
   onGlobalStateChange,
   onInstanceStateChange,
   grantEventListeners,
-  lockdownEnvironment,
   runInSandbox,
   showWebviewWindow,
   updateTrustedHashes,
-} as const;
+} as const);

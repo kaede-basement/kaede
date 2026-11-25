@@ -1,3 +1,3 @@
-# Placeholder directory
+# Browser preview
 
-In CI for the GitHub Pages deployment, this directory is swapped with the actual 'browser/' utils directory. For regular builds, this directory acts as an empty export to reduce bundle size.
+Regular desktop builds import the [local stub](./index.ts). The [Pages workflow](../../../.github/workflows/preview.yml) replaces it with the browser implementation from [clanker-experiments](https://github.com/kaede-basement/clanker-experiments) before building the preview.

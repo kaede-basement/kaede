@@ -154,7 +154,7 @@ Please understand that these builds are not intended for most users. There may b
 
 The development builds are available through:
 
-- [GitHub Actions](https://github.com/kaede-basement/kaede/actions) (includes builds from pull requests opened by contributors).
+- [GitHub Actions](https://github.com/kaede-basement/kaede/actions) publishes debug builds for pull requests unless all changed paths match the [build workflow’s ignore list](../.github/workflows/build.yml).
 - [nightly.link](https://nightly.link/kaede-basement/kaede/workflows/build/nightly) (this link will always point only to the latest version of the `nightly` branch).
 
 Prebuilt Development builds are provided for Linux, Windows, and macOS.
@@ -181,11 +181,7 @@ No prior Rust knowledge is needed to contribute to this project. Most of the cod
 - [MultiMC Patch System](./MULTIMC.md)
 - [Building from Source](#building-from-source)
 
-In case you want to run this launcher with [Wails](https://wails.io/) or other backends, or if you want to contribute to the Browser/Wails versions, see the following files.
-
-- [README for Browser environment](../src/lib/README.md#browser)
-- [README for Wails mocks in TypeScript](../src/lib/README.md#wails)
-- [README for Wails backend](../src-wails/README.md)
+The [Pages preview](../.github/workflows/preview.yml) and [Wails build](../.github/workflows/build-wails.yml) use backends from [clanker-experiments](https://github.com/kaede-basement/clanker-experiments). See the [frontend backend stubs](../src/lib/README.md) for how they fit into a build.
 
 I also leave comments in the code.
 
@@ -240,7 +236,7 @@ bun run build
 
 ## License
 
-[![license-badge]](https://github.com/kaede-basement/kaede/blob/main/LICENSE)
+[![license-badge]](../LICENSE)
 
 ## Credits and AI Usage
 

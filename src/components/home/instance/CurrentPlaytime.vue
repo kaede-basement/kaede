@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { useIntervalFn } from "@vueuse/core";
+import { computed, inject, ref, watch } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -8,6 +9,7 @@ import {
 } from "@/constants/application.ts";
 import Instances from "@/lib/instances";
 import { globalStates } from "@/states/global.ts";
+import { activeRun } from "@/states/instance-operation.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
@@ -18,9 +20,26 @@ const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.selected?.currentInstance)
 ));
+const runStart = computed(() => activeRun(currentInstance.value?.id ?? "")?.startedAt);
+const now = ref(performance.now());
+const { pause, resume } = useIntervalFn(() => {
+  now.value = performance.now();
+}, 1000, {
+  "immediate"        : false,
+  "immediateCallback": true,
+});
+
+watch(runStart, startedAt => {
+  if (startedAt === undefined) {
+    pause();
+  } else {
+    resume();
+  }
+}, { "immediate": true });
+
 const playTime = computed((): string => {
-  const currentMillisecondsTime: number | undefined =
-    currentInstance.value?.instance?.playTime;
+  const elapsed = runStart.value === undefined ? 0 : Math.max(0, now.value - runStart.value);
+  const currentMillisecondsTime = (currentInstance.value?.instance?.playTime ?? 0) + elapsed;
 
   if (!currentMillisecondsTime) {
     return "0 seconds";
@@ -30,20 +49,22 @@ const playTime = computed((): string => {
   const totalMinutes: number = currentTime / 60;
   const totalHours: number = totalMinutes / 60;
 
-  const milliseconds: number = currentMillisecondsTime % 1000;
+  const tenths = Math.floor((currentMillisecondsTime % 1000) / 100);
   const seconds: number = Math.floor(currentTime % 60);
   const minutes: number = Math.floor(totalMinutes % 60);
   const hours: number = Math.floor(totalHours);
 
-  if (minutes <= 0) {
-    return `${seconds}.${milliseconds} seconds`;
+  if (totalMinutes < 1) {
+    return `${seconds}.${tenths} seconds`;
   }
 
   if (hours <= 0) {
-    return `${minutes} minutes, ${seconds}.${milliseconds} seconds`;
+    return `${minutes} minutes, ${seconds}.${tenths} seconds`;
   }
 
-  return `${hours} hours, ${minutes} minutes, ${seconds}.${milliseconds} seconds`;
+  const hourLabel = hours === 1 ? "hour" : "hours";
+
+  return `${hours} ${hourLabel}, ${minutes} minutes, ${seconds}.${tenths} seconds`;
 });
 
 function handleSwitch(): void {

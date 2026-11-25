@@ -16,37 +16,283 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { type ShallowReactive, shallowReactive } from "vue";
+import { type Reactive, reactive } from "vue";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
+import { log } from "@/lib/logging/log.ts";
+import { addProcessExitListener } from "@/lib/processes/core.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
+import type { MinecraftProcessType } from "@/types/launcher/launch/launch-response.type.ts";
 
-/**
- * Contains all Minecraft instance states.
- */
-export let instanceStates: ShallowReactive<InstanceStatesType>;
+import { activeRun, finishRun, operationIds, recordRun } from "./instance-operation.ts";
 
-/**
- * Assign the actual instance states to 'instanceStates'.
- * This function is called in 'main.ts'
- */
-export function declareInstanceStates(): void {
-  /*
-   * We can avoid using 'structuredClone' here since 'GlobalInternals.initialInstances'
-   * is shallowReactive, meaning a simple one-level deep spreading will detach reactive
-   * fields, so any new changes should not touch 'GlobalInternals.initialInstances'
-   */
-  instanceStates = shallowReactive<InstanceStatesType>({ ...GlobalInternals.initialInstances });
+type ActiveCheckpoint = {
+  "token"       : string;
+  "savedAt"     : number;
+  "carriedMs"   : number;
+  "basePlayTime": number;
+  "lastLaunch"  : number;
+};
+type FinishedCheckpoint = { "token": string; "playTime": number; "lastLaunch": number };
+type RestoredRun = { "id": string; "checkpoint": ActiveCheckpoint; "startedAt": number };
 
-  /*
-   * I genuinely do not know why importing 'GlobalObject' leads
-   * to fucking module evaluation errors, completely breaking
-   * the whole fucking app?????????
-   * Therefore, we directly assign the new reference of instance states
-   * to the 'window' by accessing the Kaede namespace
-   */
-  const states = window.__KAEDE__.states as Record<string, unknown>;
+const pending = new Map<string, FinishedCheckpoint>;
+const restored = new Map<string, RestoredRun>;
 
-  states.instanceStates = instanceStates;
-  // GlobalObject.states.instanceStates = instanceStates;
+function storage<T>(action: (store: Storage) => T): T | undefined {
+  try {
+    return action(localStorage);
+  } catch (error) {
+    log.warn(__PRE_BUNDLED_FILENAME__, "Playtime checkpoint unavailable:", String(error));
+  }
+}
+
+function prefix(kind: "active" | "finished" | "helper"): string {
+  return `kaede.playtime:${encodeURIComponent(GlobalInternals.baseDirectory)}:${kind}.`;
+}
+
+export function excludedHelpers(): {
+  has(token: string): boolean;
+  exclude(token: string): void;
+  include(token: string): void;
+  prune(live: ReadonlyArray<{ "token": string }>): void;
+} {
+  const helperPrefix = prefix("helper");
+  const tokens = new Set<string>;
+
+  storage(store => {
+    for (let index = 0; index < store.length; index++) {
+      const key = store.key(index);
+
+      if (key?.startsWith(helperPrefix)) tokens.add(key.slice(helperPrefix.length));
+    }
+  });
+
+  function include(token: string): void {
+    if (tokens.delete(token)) storage(store => store.removeItem(helperPrefix + token));
+  }
+
+  function forgetExited({ token }: { "token": string }): void {
+    include(token);
+  }
+
+  return {
+    "has": (token: string): boolean => tokens.has(token),
+    exclude(token: string): void {
+      addProcessExitListener(token, forgetExited);
+      if (tokens.has(token)) return;
+      tokens.add(token);
+      storage(store => store.setItem(helperPrefix + token, "1"));
+    },
+    include,
+    prune(live: ReadonlyArray<{ "token": string }>): void {
+      if (tokens.size === 0) return;
+      const absent = new Set(tokens);
+
+      for (const { token } of live) absent.delete(token);
+      for (const token of absent) include(token);
+    },
+  };
+}
+
+export let instanceStates: Reactive<InstanceStatesType>;
+
+export function declareInstanceStates(): () => void {
+  const previous = instanceStates;
+
+  instanceStates = reactive(structuredClone(GlobalInternals.initialInstances));
+
+  return () => {
+    instanceStates = previous;
+  };
+}
+
+function applyFinished(id: string, checkpoint: FinishedCheckpoint): void {
+  const instance = instanceStates[id];
+
+  if (instance && instance.playTime <= checkpoint.playTime) {
+    instance.playTime = checkpoint.playTime;
+    instance.lastLaunch = checkpoint.lastLaunch;
+  }
+  pending.set(id, checkpoint);
+}
+
+function restoreCheckpoint(store: Storage, key: string, id: string, active: boolean): void {
+  const value = store.getItem(key);
+
+  if (value === null) {
+    return;
+  }
+  const checkpoint = JSON.parse(value);
+
+  if (typeof checkpoint?.token !== "string" || !Number.isFinite(checkpoint.lastLaunch)) {
+    throw new TypeError(`Invalid playtime checkpoint for ${id}`);
+  }
+  if (active) {
+    const { savedAt, carriedMs, basePlayTime } = checkpoint;
+
+    if (![savedAt, carriedMs, basePlayTime].every(value => Number.isFinite(value))) {
+      throw new TypeError(`Invalid active checkpoint for ${id}`);
+    }
+    const elapsed = carriedMs + Math.max(0, Date.now() - savedAt);
+
+    restored.set(checkpoint.token, { id, checkpoint, "startedAt": performance.now() - elapsed });
+  } else {
+    if (!Number.isFinite(checkpoint.playTime)) {
+      throw new TypeError(`Invalid finished checkpoint for ${id}`);
+    }
+    applyFinished(id, checkpoint);
+  }
+}
+
+export function restorePlaytime(): boolean {
+  restored.clear();
+  const activePrefix = prefix("active");
+  const finishedPrefix = prefix("finished");
+
+  storage(store => {
+    for (let index = 0; index < store.length; index++) {
+      const key = store.key(index);
+
+      if (key?.startsWith(activePrefix)) {
+        storage(store => restoreCheckpoint(store, key, key.slice(activePrefix.length), true));
+      } else if (key?.startsWith(finishedPrefix)) {
+        storage(store => restoreCheckpoint(store, key, key.slice(finishedPrefix.length), false));
+      }
+    }
+  });
+  for (const checkpoint of pending.values()) {
+    restored.delete(checkpoint.token);
+  }
+
+  return pending.size > 0;
+}
+
+function saveActive(id: string): void {
+  const run = activeRun(id);
+  const instance = instanceStates[id];
+
+  if (!run || !instance) {
+    return;
+  }
+  const checkpoint: ActiveCheckpoint = {
+    "token"       : run.process.token,
+    "savedAt"     : Date.now(),
+    "carriedMs"   : Math.max(0, performance.now() - run.startedAt),
+    "basePlayTime": instance.playTime,
+    "lastLaunch"  : instance.lastLaunch,
+  };
+
+  storage(store => store.setItem(prefix("active") + id, JSON.stringify(checkpoint)));
+}
+
+export function checkpointActivePlaytime(): void {
+  for (const id of operationIds()) {
+    saveActive(id);
+  }
+}
+
+export function startPlaytime(
+  id: string,
+  process: MinecraftProcessType,
+  rehydrated = false,
+  startedAt = performance.now(),
+  managed = rehydrated,
+  excludeSibling?: (token: string) => void,
+): boolean {
+  const previous = rehydrated ? restored.get(process.token) : undefined;
+
+  const start = previous?.startedAt ?? startedAt;
+
+  if (!recordRun(id, process, start, rehydrated, managed, excludeSibling)) return false;
+  restored.delete(process.token);
+  const instance = instanceStates[id];
+
+  if (instance && previous) {
+    instance.playTime = Math.max(instance.playTime, previous.checkpoint.basePlayTime);
+    instance.lastLaunch = previous.checkpoint.lastLaunch;
+  } else if (instance && !rehydrated) {
+    instance.lastLaunch = Date.now() - Math.max(0, Math.floor(performance.now() - startedAt));
+  }
+  saveActive(id);
+
+  return true;
+}
+
+function finish(id: string, checkpoint: FinishedCheckpoint): void {
+  applyFinished(id, checkpoint);
+  storage(store => store.setItem(prefix("finished") + id, JSON.stringify(checkpoint)));
+}
+
+export function restoredRunTokens(): Map<string, string> {
+  const tokens = new Map<string, string>;
+
+  for (const [token, { id }] of restored) tokens.set(id, token);
+
+  return tokens;
+}
+
+export function missingRunHandlers(): Map<string, (endedAt: number) => void> {
+  const handlers = new Map<string, (endedAt: number) => void>;
+
+  for (const [token, { id, checkpoint, startedAt }] of restored) {
+    handlers.set(token, endedAt => {
+      if (!restored.delete(token)) {
+        return;
+      }
+      finish(id, {
+        token,
+        "playTime"  : checkpoint.basePlayTime + Math.max(0, Math.floor(endedAt - startedAt)),
+        "lastLaunch": checkpoint.lastLaunch,
+      });
+    });
+  }
+
+  return handlers;
+}
+
+export function commitPlaytime(id: string, token: string, endedAt: number): void {
+  const run = activeRun(id);
+
+  if (run?.process.token !== token) {
+    return;
+  }
+  const instance = instanceStates[id];
+
+  finish(id, {
+    token,
+    "playTime"  : (instance?.playTime ?? 0) + Math.max(0, Math.floor(endedAt - run.startedAt)),
+    "lastLaunch": instance?.lastLaunch ?? 0,
+  });
+  finishRun(id, token);
+}
+
+export async function flushPlaytime(write: () => Promise<void>): Promise<void> {
+  if (pending.size === 0) {
+    return write();
+  }
+  const checkpoints = new Map(pending);
+
+  await write();
+  for (const [id, saved] of checkpoints) {
+    if (pending.get(id) !== saved) {
+      continue;
+    }
+    const cleaned = storage(store => {
+      for (const kind of ["active", "finished"] as const) {
+        const key = prefix(kind) + id;
+        const value = store.getItem(key);
+
+        if (value && JSON.parse(value).token === saved.token) {
+          store.removeItem(key);
+        }
+      }
+
+      return true;
+    });
+
+    if (cleaned) {
+      pending.delete(id);
+    }
+  }
 }

@@ -25,11 +25,11 @@ import "@/globals.css";
 // Material You ripple effect essentials
 import "m3ripple-vue/style.css";
 
-import { VueQueryPlugin } from "@tanstack/vue-query";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { createApp } from "vue";
 
 import App from "@/App.vue";
+import { DefaultGlobalStatesPagesStates } from "@/bootstrap/application.ts";
 import { ApplicationRootID, AuthOneTimeFetchContextKey } from "@/constants/application";
 import ASCIIArt from "@/constants/ascii-art.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
@@ -40,11 +40,11 @@ import Globals from "@/lib/globals";
 import Initialization from "@/lib/initialization";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
+import { declareServerProcesses } from "@/lib/processes/declare-server-processes.ts";
 import Wails from "@/lib/wails";
 import Watchers from "@/lib/watchers";
 import { declareGlobalStates } from "@/states/global.ts";
 import { declareInstanceStates } from "@/states/instance.ts";
-import { declareServerProcesses } from "@/states/servers.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
@@ -94,6 +94,7 @@ async function run(): Promise<void> {
     ),
   );
 
+  const loadedConfig = Configs.getSafe({ baseDirectory, "parsedFile": parsed.config });
   const [
     config,
     translations,
@@ -105,14 +106,19 @@ async function run(): Promise<void> {
     InstanceStatesType,
     Array<AccountType>,
   ] = await Promise.all([
-    Configs.getSafe({ baseDirectory, "parsedFile": parsed.config }),
-    Configs.getTranslations({ baseDirectory, "parsedFile": parsed.translations }),
+    loadedConfig,
+    loadedConfig.then(({ locale }) => Configs.getTranslations({
+      baseDirectory,
+      "selected"       : locale,
+      "preloadedConfig": parsed.config,
+      "parsedFile"     : parsed.translations,
+    })),
     Instances.readInstances({ baseDirectory, "parsedFile": parsed.instances }),
     Configs.getAccounts({ baseDirectory, "parsedFile": parsed.accounts }),
   ]);
 
   // At this point, we can make WebView visible
-  if (config.extensions.showAppAfterExtensionsLoad !== true) {
+  if (!config.extensions.enabled || config.extensions.showAppAfterExtensionsLoad !== true) {
     getCurrentWebviewWindow()
       .show()
       .then(() => {
@@ -138,7 +144,7 @@ async function run(): Promise<void> {
    * The global and instance states were declared outside the Vue instance,
    * so they require the value assigning at this point
    */
-  declareGlobalStates();
+  declareGlobalStates(DefaultGlobalStatesPagesStates);
   declareInstanceStates();
 
   /*
@@ -179,9 +185,6 @@ async function run(): Promise<void> {
 
   // Expose the app instance so that plugins can register components, etc.
   GlobalInternals.appInstance = AppInstance;
-
-  log.debug(__PRE_BUNDLED_FILENAME__, "Initializing Vue Query plugin");
-  AppInstance.use(VueQueryPlugin);
 
   log.debug(
     __PRE_BUNDLED_FILENAME__,

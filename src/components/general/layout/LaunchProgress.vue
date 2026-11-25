@@ -9,6 +9,7 @@ import {
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances";
+import { isManagedDownloadMap } from "@/lib/network/download-map.ts";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type {
@@ -34,8 +35,6 @@ const { position } = useDraggable(container, {
   "containerElement": document.getElementById("app"),
   "initialValue"    : { "x": 0, "y": 0 },
 });
-
-const currentDownloadSpeed = ref<string>("0");
 
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates.selected.currentInstance)
@@ -86,24 +85,42 @@ const progress = computed<number>((oldValue: number | undefined): number => {
   }
 });
 
-useIntervalFn(() => {
-  const currentDownloads: MapIterator<[number, number]> | undefined =
-    statuses.value?.downloads?.current?.values?.();
+const currentDownloadSpeed = ref("0.00");
+const currentDownloadCount = ref(0);
+const downloadMap = computed(() => statuses.value?.downloads?.current);
+// Extensions can retain a raw reference and mutate their Map outside Vue.
+const shouldPoll = computed(() => {
+  const map = downloadMap.value;
 
-  if (!currentDownloads) {
-    return;
+  return map !== undefined && (!isManagedDownloadMap(map) || map.size > 0);
+});
+
+function sampleDownloads(): void {
+  const current = statuses.value?.downloads?.current;
+  let speed = 0;
+
+  if (current) {
+    for (const [, bytesPerSecond] of current.values()) {
+      speed += bytesPerSecond;
+    }
   }
+  currentDownloadCount.value = current?.size ?? 0;
+  currentDownloadSpeed.value = (speed / (1024 * 1024)).toFixed(2);
+}
 
-  const divider: number = 1024 * 1024;
-  let totalSpeed: number = 0;
+const { resume, pause } = useIntervalFn(sampleDownloads, 100, { "immediate": false });
 
-  for (const [, speed] of currentDownloads) {
-    totalSpeed += speed;
+watch([shouldPoll, statuses, downloadMap], ([active], _, onCleanup) => {
+  if (active) {
+    sampleDownloads();
+    resume();
+    onCleanup(() => {
+      pause();
+      currentDownloadCount.value = 0;
+      currentDownloadSpeed.value = "0.00";
+    });
   }
-
-  currentDownloadSpeed.value = (totalSpeed / divider).toFixed(2);
-  // Updates 10 times a second
-}, 100);
+}, { "immediate": true });
 
 watch(
   () => [
@@ -153,11 +170,11 @@ watch(
       {{ currentDownloadSpeed }} MB/s
     </div>
     <div
-      v-if="statuses.downloads.current.size > 0"
+      v-if="currentDownloadCount > 0"
       id="__layout__launch-progress-current-downloads"
       class="text-sm"
     >
-      Downloading {{ statuses.downloads.current.size }} objects
+      Downloading {{ currentDownloadCount }} objects
     </div>
     <div
       v-if="statuses.downloads.total > 0"

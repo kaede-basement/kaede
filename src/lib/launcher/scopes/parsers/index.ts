@@ -16,21 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { buildUrlFromBase } from "@/lib/launcher/scopes/parsers/build-url-from-base.ts";
 import { checkIsNative } from "@/lib/launcher/scopes/parsers/check-is-native.ts";
 import { finalizePatches } from "@/lib/launcher/scopes/parsers/finalize-patches.ts";
 import { handlePlatformRule } from "@/lib/launcher/scopes/parsers/handle-platform-rule.ts";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
 import { parseLibraries } from "@/lib/launcher/scopes/parsers/parse-libraries.ts";
-import { parseLibrary } from "@/lib/launcher/scopes/parsers/parse-library.ts";
+import { ArtifactURLs, parseLibrary } from "@/lib/launcher/scopes/parsers/parse-library.ts";
 import { parseLogging } from "@/lib/launcher/scopes/parsers/parse-logging.ts";
 import { parseMainJar } from "@/lib/launcher/scopes/parsers/parse-main-jar.ts";
 import { parseNative } from "@/lib/launcher/scopes/parsers/parse-native.ts";
 import { shouldIncludeLibrary } from "@/lib/launcher/scopes/parsers/should-include-library.ts";
 import { unifyPlatformWithArch } from "@/lib/launcher/scopes/parsers/unify-platform-with-arch.ts";
 
-export default {
-  buildUrlFromBase,
+export default Object.assign(ArtifactURLs, {
   checkIsNative,
   finalizePatches,
   handlePlatformRule,
@@ -42,4 +40,4 @@ export default {
   parseNative,
   shouldIncludeLibrary,
   unifyPlatformWithArch,
-} as const;
+} as const);

@@ -26,7 +26,7 @@ export async function runInUnrestricted(
   id: string,
   code: string,
   metadata: ExtensionType["metadata"],
-  sha256: string,
+  artifactSha256: string,
 ): Promise<ExtensionAPI | void> {
   const startTime = performance.now();
   let scopedThis;
@@ -66,7 +66,7 @@ export async function runInUnrestricted(
     __PRE_BUNDLED_FILENAME__,
     log.templates.json.contents(
       `The '${id}' plugin was successfully executed in ${timeDifference} ms`,
-      { sha256, "type": metadata.type },
+      { artifactSha256, "type": metadata.type },
       true,
     ),
   );

@@ -1,7 +1,7 @@
 import { ExtraHookResponseStatus, HookResponseStatus } from "@/constants/application.ts";
 import type { KaedeNamespaceType } from "@/declarations.ts";
-import { GlobalObject } from "@/extendable/global-object.ts";
-import Errors from "@/lib/errors";
+import { getHooks } from "@/extendable/hooks-registry.ts";
+import { formatHookError } from "@/lib/hooks/format-hook-error.ts";
 import { handleHookResponse } from "@/lib/hooks/handle-hook-response.ts";
 import { log } from "@/lib/logging/log.ts";
 import type { ExtensionStatusType, HookReturnType } from "@/types/extensions/hook-return.type.ts";
@@ -16,14 +16,19 @@ export async function catchAsyncResponseHooks<T>({
   "toPass": unknown;
   "timing": "before" | "after";
 }): Promise<"continue" | T | undefined> {
-  const timeMeasurementStartBefore = performance.now();
-  const currentScopeHooks = GlobalObject.hooks[scope];
+  const currentScopeHooks = getHooks()[scope];
 
   if (!IsKeyInObject(timing, currentScopeHooks)) {
     return;
   }
 
   const hooks = currentScopeHooks[timing] as HookReturnType<unknown, unknown>;
+
+  if (hooks.length === 0) {
+    return HookResponseStatus.Continue;
+  }
+
+  const timeMeasurementStartBefore = performance.now();
 
   log.debug(__PRE_BUNDLED_FILENAME__, log.templates.hooks.iterate.start(
     scope,
@@ -53,7 +58,7 @@ export async function catchAsyncResponseHooks<T>({
       log.error(
         __PRE_BUNDLED_FILENAME__,
         `Caught an error while executing hook for '${scope}.${timing}':`,
-        Errors.prettify(error),
+        formatHookError(error),
       );
 
       continue;

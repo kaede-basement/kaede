@@ -23,21 +23,17 @@ import {
   ensurePatchDirectories,
 } from "@/lib/launcher/scopes/validators/ensure-patch-directories.ts";
 import {
-  initializeAssetsDirectories,
+  AssetDirectories, initializeAssetsDirectories,
 } from "@/lib/launcher/scopes/validators/initialize-assets-directories.ts";
-import {
-  initializeShortHashDirectories,
-} from "@/lib/launcher/scopes/validators/initialize-short-hash-directories.ts";
 import {
   shallowlyValidateLibrary,
 } from "@/lib/launcher/scopes/validators/shallowly-validate-library.ts";
 import { shallowlyValidateMeta } from "@/lib/launcher/scopes/validators/shallowly-validate-meta.ts";
 
-export default {
+export default Object.assign(AssetDirectories, {
   ensureMinecraftDirectory,
   ensurePatchDirectories,
   initializeAssetsDirectories,
-  initializeShortHashDirectories,
   shallowlyValidateLibrary,
   shallowlyValidateMeta,
-} as const;
+} as const);

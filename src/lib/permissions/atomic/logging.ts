@@ -5,10 +5,13 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import FileStructure from "@/constants/file-structure.ts";
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
+import { hardenIfAvailable } from "@/lib/permissions/harden.ts";
+import { throwIfAborted } from "@/lib/shared/abort.ts";
 
-export function handleLoggingPermission({ id, scope }: {
-  "id"   : string;
-  "scope": "write" | "read" | "stream";
+export function handleLoggingPermission({ id, scope, signal }: {
+  "signal"?: AbortSignal;
+  "id"     : string;
+  "scope"  : "write" | "read";
 }): unknown {
   switch (scope) {
     case "write": {
@@ -16,10 +19,12 @@ export function handleLoggingPermission({ id, scope }: {
         method: "debug" | "info" | "warn" | "error",
         ...input: Array<string>
       ): void => {
+        throwIfAborted(signal);
+
         return log[method](`${id}`, ...input);
       };
 
-      return harden({
+      return hardenIfAvailable({
         "debug": (...input: Array<string>): void => wrappedLog("debug", ...input),
         "info" : (...input: Array<string>): void => wrappedLog("info", ...input),
         "warn" : (...input: Array<string>): void => wrappedLog("warn", ...input),
@@ -28,6 +33,7 @@ export function handleLoggingPermission({ id, scope }: {
     }
     case "read": {
       const readLogFile = async (): Promise<string> => {
+        throwIfAborted(signal);
         const path: string = FileManager.join(
           FileManager.getBaseDirectory(),
           FileStructure.Folders.Logs.Path,
@@ -35,20 +41,13 @@ export function handleLoggingPermission({ id, scope }: {
         );
         const current: string = await readTextFile(path);
 
+        throwIfAborted(signal);
         log.debug(__PRE_BUNDLED_FILENAME__, `The '${id}' plugin has read logs`);
 
         return current;
       };
 
-      return harden(readLogFile);
-    }
-    case "stream": {
-      /*
-       * TODO: unsure how to implement this one safely
-       * maybe the extension will return a function 'onLogStream',
-       * which will be used to pass down the log lines?
-       */
-      return harden({});
+      return hardenIfAvailable(readLogFile);
     }
   }
 }

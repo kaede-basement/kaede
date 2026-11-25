@@ -17,33 +17,34 @@
   -->
 
 <script setup lang="ts">
-import { computed, inject, markRaw, ref } from "vue";
+import { message } from "@tauri-apps/plugin-dialog";
+import { computed } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
-import { LaunchStatesContextKey } from "@/constants/application.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
-import Modrinth from "@/lib/modrinth";
+import { installArchive } from "@/lib/modrinth/install-mrpack.ts";
 import { globalStates } from "@/states/global.ts";
+import { ActiveInstall, beginInstall, finishInstall } from "@/states/instance-operation.ts";
 import type {
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
-import type {
-  LauncherStatusesType,
-  WrappedInstanceLauncherStatusesType,
-} from "@/types/launcher/launch/launch-status.type.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
 const { styles } = useConfigColors();
 
-const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
-  LaunchStatesContextKey,
-);
+const buttonLabel = computed(() => {
+  const install = ActiveInstall.value;
 
-const pending = ref<boolean>(false);
+  if (!install) return "Create an Instance";
+  if (!install.cancel) return "Saving instance...";
+  const { success, total } = install.statuses.downloads;
+
+  return `Cancel installation (${success}/${total} files ready)`;
+});
 
 const currentInstance = computed(
   (): GlobalStatesType["pages"]["add-instance"]["instance"] => (
@@ -67,62 +68,43 @@ const imported = computed(
   ),
 );
 
-function trackDownloads(instanceId: string): LauncherStatusesType {
-  if (!instanceStatuses) {
-    throw new Error("'instanceStatuses' is undefined");
-  }
-
-  instanceStatuses[instanceId] = {
-    instanceId,
-    "launching": 1,
-    "current"  : undefined,
-    "downloads": {
-      "current": markRaw(new Map<string, [number, number]>),
-      "success": 0,
-      "failed" : 0,
-      "total"  : 0,
-    },
-  };
-
-  return instanceStatuses[instanceId];
-}
-
 async function handleCreate(): Promise<void> {
   const archive = imported.value;
 
-  const instanceId: string | undefined = Instances.create(
-    currentInstance.value,
-    currentPatch.value,
-    archive?.path,
-  );
+  const instance = currentInstance.value;
+  const patch = currentPatch.value;
 
-  if (instanceId === undefined || !archive) {
+  if (ActiveInstall.value) {
+    await ActiveInstall.value.cancel?.();
+
+    return;
+  }
+  if (!archive) {
+    Instances.create(instance, patch);
+
     return;
   }
 
-  pending.value = true;
-  globalStates.selected.currentInstance = instanceId;
-  globalStates.pages["add-instance"].importedModpack = undefined;
-
-  const statuses: LauncherStatusesType = trackDownloads(instanceId);
+  let install: ReturnType<typeof beginInstall> | undefined;
 
   try {
-    await Modrinth.installMrpack({
-      "archivePath": archive.path,
-      instanceId,
-      statuses,
+    await Instances.create(instance, patch, archive.path, async instanceId => {
+      install = beginInstall(instanceId);
+      await installArchive(archive.path, install);
     });
   } catch (error: unknown) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `Could not install '${archive.path}' into '${instanceId}':`,
-      Errors.prettify(error),
-    );
-  }
+    if (error === "Installation cancelled") {
+      await message(error, { "title": "Modpack installation", "kind": "info" });
 
-  globalStates.pages["add-instance"].lastCreated = undefined;
-  statuses.launching = 0;
-  pending.value = false;
+      return;
+    }
+    const detail = typeof error === "string" ? error : Errors.prettify(error);
+
+    log.error(__PRE_BUNDLED_FILENAME__, "Modpack installation failed", detail);
+    await message(detail, { "title": "Modpack installation failed", "kind": "error" });
+  } finally {
+    if (install) finishInstall(install);
+  }
 }
 </script>
 
@@ -133,12 +115,12 @@ async function handleCreate(): Promise<void> {
   >
     <button
       id="__add-instance-page__create-instance-button"
-      class="relative rounded-md px-2 py-1 transition-[opacity] bg-[theme(colors.neutral.100/.1)] disabled:opacity-70"
-      :disabled="pending"
+      class="relative rounded-md px-2 py-1 transition-[opacity] bg-[theme(colors.neutral.100/.1)]"
+      :disabled="!!ActiveInstall && !ActiveInstall.cancel"
       @click="handleCreate"
     >
-      {{ pending ? "Installing the modpack..." : "Create an Instance" }}
-      <MaterialRipple :disabled="pending" />
+      {{ buttonLabel }}
+      <MaterialRipple />
     </button>
     <div
       id="__add-instance-page__create-instance-type-display"

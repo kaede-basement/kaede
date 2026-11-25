@@ -35,8 +35,9 @@ type MetadataType = {
 }>;
 
 export type ExtensionType = {
-  "id"      : string;
-  "code"    : string;
-  "sha256"  : string;
-  "metadata": MetadataType;
+  "id"            : string;
+  "code"          : string;
+  "artifactSha256": string;
+  "codeSha256"    : string;
+  "metadata"      : MetadataType;
 };

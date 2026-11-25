@@ -1,36 +1,21 @@
 <script setup lang="ts">
 import { ask } from "@tauri-apps/plugin-dialog";
-import { useIntervalFn } from "@vueuse/core";
-import { computed, type ComputedRef, inject, provide, ref, watchEffect } from "vue";
+import { computed, type ComputedRef, inject, onUnmounted, provide, watchEffect } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import {
   CloseInstanceContextKey,
   LaunchInstanceContextKey, LaunchInstanceStatusesContextKey,
-  LaunchStatesContextKey,
 } from "@/constants/application.ts";
-import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import Fetching from "@/lib/launcher/scopes/fetching";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
-import { instanceStates } from "@/states/instance.ts";
-import type {
-  InstanceStateType,
-} from "@/types/application/instance-states.type.ts";
+import { cancelLaunch, operation } from "@/states/instance-operation.ts";
 import type { LaunchContextType } from "@/types/launcher/launch/launch-context.type.ts";
-import type {
-  LauncherStatusesType,
-  WrappedInstanceLauncherStatusesType,
-} from "@/types/launcher/launch/launch-status.type.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
-const killing = ref<boolean>(false);
-
-const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
-  LaunchStatesContextKey,
-);
 const launchInstance = inject<LaunchContextType>(
   LaunchInstanceContextKey,
 );
@@ -41,60 +26,17 @@ const closeInstance = inject<(instanceId: string) => Promise<void>>(
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.selected?.currentInstance)
 ));
-const statuses = computed((): LauncherStatusesType | undefined => {
-  const instanceId: string | undefined = currentInstance?.value?.id;
+const selectedOperation = computed(() => operation(currentInstance.value?.id ?? ""));
+const killing = computed(() => selectedOperation.value.kind === "stopping");
+const launchable = computed(() => selectedOperation.value.kind === "idle");
+const unstoppable = computed(() => {
+  const op = selectedOperation.value;
 
-  if (
-    instanceId === undefined ||
-    instanceStatuses === undefined
-  ) {
-    return undefined;
-  }
+  if (op.kind === "installing") return !op.cancel;
+  if (op.kind === "launching") return op.exited || op.statuses.downloads.total === 0;
 
-  return instanceStatuses[instanceId];
+  return op.kind !== "running";
 });
-const isDownloading = computed((): boolean => {
-  return (
-    statuses.value?.launching === 1 &&
-    (statuses.value?.downloads?.total ?? 0) > 0
-  );
-});
-
-/*
- * This state handles the launching button and acts as a 'disabled' attribute
- * not only for the launch buttons but for LaunchOptions.vue as well
- */
-const launchable = computed((): boolean => (
-  // Pretty simple: if the instance is not launching and not launched, then we can launch it
-  statuses.value === undefined || statuses.value?.launching === 0
-));
-// This state handles the stopping button and acts as a 'disabled' attribute
-const unstoppable = computed((): boolean => (
-  // If the 'killing' is already in the process, then the button is untouchable
-  killing.value ||
-
-  /*
-   * Or, if the instance is not launched and the download tasks are empty, then untouchable too:
-   * - download tasks can be cancelled;
-   * - launched instance can be killed.
-   * When the instance is launched, it implies that the download tasks are done.
-   * When the download tasks are in the process, it implies that the instance is not launched.
-   * Wait, I just repeated myself with P => Q === not(Q) => not(P), but alright??
-   *
-   * Hold on, can we simplify this?
-   * 'launching' can be in three states: none (0 | undefined), launching (1), and launched (2).
-   * 'isDownloading' can either be true or false, and it implies that the 'launching'
-   * is definitely not '2'. Wait, but it also must imply that the 'launching' is not '0 | undefined'
-   * since download tasks only happen when the instance is being launched (1).
-   * Whoa, so we can really simplify this? Also, I am a fucking dumb ass since I just could
-   * glance at the definition of 'isDownloading' and see there 'statuses.value?.launching === 1'.
-   * Hmm wait, what the fuck is going on here. So, if not downloading, then disabled?
-   * HOLD ON, if not downloading but is launched ('true && false'), then it is not disabled
-   * since WE MUST BE ABLE TO KILL THE MINECRAFT PROCESS.
-   * Ohhh, that's why I also wrote 'statuses.value?.launching !== 2' before
-   */
-  (!isDownloading.value && statuses.value?.launching !== 2)
-));
 
 function handleLaunch(): void {
   if (launchInstance === undefined) {
@@ -106,46 +48,34 @@ function handleLaunch(): void {
     return;
   }
 
-  const instanceId: string | undefined = currentInstance?.value?.id;
-  const instanceContent: InstanceStateType | undefined = currentInstance?.value?.instance;
-
-  launchInstance(instanceId)
-    .then(() => {
-      if (!instanceId || !instanceContent) {
-        return log.error(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-          "The instance ID or data is invalid. Provided contents",
-          { instanceId, instanceContent },
-        ));
-      }
-
-      instanceStates[instanceId] = {
-        ...instanceStates[instanceId],
-        "lastLaunch": Date.now(),
-      };
-    });
+  void launchInstance(currentInstance.value?.id);
 }
 async function handleClose(): Promise<void> {
-  const toClose: boolean = await ask(
-    "Do you really want to cancel the Minecraft launch?",
-    "Minecraft",
-  );
+  const instanceId = currentInstance.value?.id;
 
-  if (!toClose) {
+  if (!instanceId || unstoppable.value) return;
+  const requested = operation(instanceId);
+
+  if (requested.kind === "idle") return;
+  const confirmed = await ask("Do you really want to cancel the Minecraft launch?", "Minecraft");
+
+  const op = operation(instanceId);
+
+  if (!confirmed || op.kind === "idle" || op.statuses !== requested.statuses) return;
+  if (op.kind === "installing") {
+    if (op === requested) await op.cancel?.();
+
     return;
   }
-
-  const instanceId: string | undefined = currentInstance?.value?.id;
-
-  if (instanceId === undefined) {
-    return log.error(__PRE_BUNDLED_FILENAME__, "The current instance id is undefined");
-  }
-
-  if (isDownloading.value) {
+  if (op.kind === "launching") {
+    if (op.exited) return;
+    cancelLaunch(op.statuses);
     await Fetching.cancelAll(`${instanceId}-download`);
 
     return;
   }
 
+  if (op.kind !== "running") return;
   if (closeInstance === undefined) {
     return log.error(
       __PRE_BUNDLED_FILENAME__,
@@ -154,8 +84,6 @@ async function handleClose(): Promise<void> {
   }
 
   try {
-    killing.value = true;
-
     await closeInstance(instanceId);
   } catch (error: unknown) {
     log.error(
@@ -164,56 +92,27 @@ async function handleClose(): Promise<void> {
       Errors.prettify(error),
     );
   }
-
-  killing.value = false;
 }
 
+const originalCursor = document.body.style.cursor;
+
 watchEffect((): void => {
-  const launchingInstance: boolean = statuses.value?.launching === 1;
+  const launchingInstance = selectedOperation.value.kind === "launching";
   const killingInstance: boolean = killing.value;
 
   document.body.style.cursor = (launchingInstance || killingInstance)
     ? "progress"
-    : "";
+    : originalCursor;
 });
 
-const previousIntervalTime = ref<number>(Date.now());
-
-useIntervalFn((): void => {
-  if (statuses.value?.launching === 2) {
-    const currentId: string | undefined = currentInstance.value?.id;
-    const currentInstanceContent: InstanceStateType | undefined = currentInstance.value?.instance;
-    const currentPlayTime: number | undefined = currentInstanceContent?.playTime;
-
-    // 'currentTime' might be zero
-    if (!currentId || !currentInstanceContent || currentPlayTime === undefined) {
-      return;
-    }
-
-    const currentAbsoluteTime: number = Date.now();
-    const previousAbsoluteTime: number = previousIntervalTime.value;
-    const timeToAdd: number = currentAbsoluteTime - previousAbsoluteTime;
-
-    instanceStates[currentId] = {
-      ...instanceStates[currentId],
-      "playTime": currentPlayTime + timeToAdd,
-    };
-
-    previousIntervalTime.value = currentAbsoluteTime;
-  }
-}, 1000);
+onUnmounted(() => {
+  document.body.style.cursor = originalCursor;
+});
 
 provide<{
   "launchable" : ComputedRef<boolean>;
   "unstoppable": ComputedRef<boolean>;
 }>(LaunchInstanceStatusesContextKey, { launchable, unstoppable });
-
-// Expose the 'instanceStatuses' so that 'declare-action-registry.ts' can use it
-watchEffect(() => {
-  if (instanceStatuses) {
-    GlobalInternals.logs.instanceStatuses = instanceStatuses;
-  }
-});
 </script>
 
 <template>

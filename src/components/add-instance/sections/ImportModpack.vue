@@ -34,8 +34,8 @@ import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 
 const { styles } = useConfigColors();
 
-// 'string' is for errors
-const status = ref<"pending" | "done" | string>("done");
+type ImportStatus = { "kind": "pending" | "done" } | { "kind": "error"; "message": string };
+const status = ref<ImportStatus>({ "kind": "done" });
 
 const imported = computed(
   (): GlobalStatesType["pages"]["add-instance"]["importedModpack"] => (
@@ -54,35 +54,34 @@ const displayedName = computed((): string => {
 });
 
 async function handleImport(): Promise<void> {
-  status.value = "pending";
-
-  const selectedPath: string | null = await open({
-    "multiple" : false,
-    "directory": false,
-    "title"    : "Select a modpack archive",
-    "filters"  : [{ "name": "Modpack", "extensions": ["mrpack", "zip"] }],
-  });
-
-  if (!selectedPath) {
-    status.value = "done";
-
-    return;
-  }
-
+  status.value = { "kind": "pending" };
   try {
+    const selectedPath: string | null = await open({
+      "multiple" : false,
+      "directory": false,
+      "title"    : "Select a modpack archive",
+      "filters"  : [{ "name": "Modpack", "extensions": ["mrpack", "zip"] }],
+    });
+
+    if (!selectedPath) {
+      status.value = { "kind": "done" };
+
+      return;
+    }
+
     const manifest: MrpackManifestType | undefined =
       await Modrinth.peekMrpack(selectedPath);
 
     Modrinth.applyManifest({ manifest, "path": selectedPath });
     globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
 
-    status.value = "done";
+    status.value = { "kind": "done" };
   } catch (error: unknown) {
-    status.value = Errors.prettify(error);
+    status.value = { "kind": "error", "message": Errors.prettify(error) };
     log.error(
       __PRE_BUNDLED_FILENAME__,
-      `Could not read '${selectedPath}':`,
-      status.value,
+      "Could not import modpack:",
+      status.value.message,
     );
   }
 }
@@ -97,9 +96,9 @@ async function handleImport(): Promise<void> {
       id-root="__add-instance-page__instance-import-button"
       icon="i-lucide-file-archive"
       class="w-full"
-      :label="status === 'pending' ? 'Loading...' : 'Import a modpack'"
+      :label="status.kind === 'pending' ? 'Loading...' : 'Import a modpack'"
       tooltip="Select a Modrinth modpack archive"
-      :disabled="status === 'pending'"
+      :disabled="status.kind === 'pending'"
       :on-click="handleImport"
     />
     <div
@@ -143,11 +142,11 @@ async function handleImport(): Promise<void> {
       No Modrinth manifest inside
     </p>
     <p
-      v-if="status !== 'done' && status !== 'pending'"
+      v-if="status.kind === 'error'"
       id="__add-instance-page__instance-import-error"
       class="w-full px-1 text-sm text-red-300"
     >
-      Could not read the archive: {{ status }}
+      Could not read the archive: {{ status.message }}
     </p>
   </div>
 </template>

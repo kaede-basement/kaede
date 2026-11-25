@@ -17,17 +17,14 @@
   -->
 
 <script setup lang="ts">
-import { computed, provide } from "vue";
+import { computed, defineAsyncComponent, provide } from "vue";
 
-import DevelopmentMode from "@/components/general/development-mode/DevelopmentMode.vue";
 import ErrorBoundary from "@/components/general/errors/ErrorBoundary.vue";
 import ExtensionsError from "@/components/general/errors/ExtensionsError.vue";
 import GlobalError from "@/components/general/errors/GlobalError.vue";
 import CssThemeLoader from "@/components/general/extensions/CssThemeLoader.vue";
 import Modal from "@/components/general/layout/Modal.vue";
 import ContextProviders from "@/components/general/misc/ContextProviders.vue";
-import NonBundledClasses from "@/components/general/misc/NonBundledClasses.vue";
-import LogViewer from "@/components/logging/LogViewer.vue";
 import { useContextMenu } from "@/composables/use-context-menu.ts";
 import { ContextMenu, TranslationsContextKey } from "@/constants/application.ts";
 import { C, LazyExtensionLoader } from "@/extendable/component-registry.ts";
@@ -36,6 +33,11 @@ import type {
   TranslationsStateType,
   TranslationsType,
 } from "@/types/translations/translations.type.ts";
+
+const DevelopmentMode = defineAsyncComponent(() => (
+  import("@/components/general/development-mode/DevelopmentMode.vue")
+));
+const LogViewer = defineAsyncComponent(() => import("@/components/logging/LogViewer.vue"));
 
 const { contextMenu, showContextMenu, closeContextMenu } = useContextMenu();
 
@@ -69,8 +71,10 @@ provide<TranslationsStateType>(TranslationsContextKey, translations);
           </Transition>
 
           <Modal />
-          <DevelopmentMode />
-          <NonBundledClasses />
+          <DevelopmentMode
+            v-if="globalStates.development.showFPS || globalStates.development.showCPUUsage ||
+              globalStates.development.showMemoryUsage"
+          />
         </C.Layout>
       </ContextProviders>
     </template>

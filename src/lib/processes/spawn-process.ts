@@ -19,15 +19,54 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import {
-  ProcessHandlers,
+  addProcessExitListener, minecraftInstanceId, ProcessHandlers, recordSpawnLifetime,
   toProcessHandle,
 } from "@/lib/processes/core.ts";
+import { activeRun } from "@/states/instance-operation.ts";
 import type {
   ProcessDtoType,
   ProcessHandlersType,
   ProcessHandleType,
   ProgramSpecType,
 } from "@/types/application/server-process.type.ts";
+
+type SpawnObserver = (handle: ProcessHandleType, startedAt: number) => void;
+const origin = Symbol("Minecraft spawn");
+
+type SpawnHandlers = ProcessHandlersType & { [origin]?: symbol };
+type PendingSpawn = {
+  "instanceId": string;
+  "request"   : object;
+  "handlers"  : SpawnHandlers;
+  "observe"   : SpawnObserver;
+};
+const pendingSpawns = new Set<PendingSpawn>;
+
+export function observeMinecraftSpawn(spawn: PendingSpawn): () => void {
+  // Handler decorators commonly spread the bag and replace its callbacks.
+  spawn.handlers[origin] = Symbol();
+  pendingSpawns.add(spawn);
+
+  return () => pendingSpawns.delete(spawn);
+}
+
+function takeSpawnObserver(
+  instanceId: string, request: object, handlers: SpawnHandlers,
+): SpawnObserver | undefined {
+  for (const spawn of pendingSpawns) {
+    if (spawn.instanceId !== instanceId) continue;
+    // A helper may have an identical command and instanceId.
+    const forwarded = request === spawn.request || handlers[origin] === spawn.handlers[origin] ||
+      (handlers.onExit && handlers.onExit === spawn.handlers.onExit) ||
+      (handlers.onError && handlers.onError === spawn.handlers.onError);
+
+    if (forwarded) {
+      pendingSpawns.delete(spawn);
+
+      return spawn.observe;
+    }
+  }
+}
 
 // 'crypto.randomUUID()' is unavailable outside secure contexts on webkitgtk...
 function createToken(): string {
@@ -48,13 +87,45 @@ export async function spawnProcess<Meta>(
 ): Promise<ProcessHandleType<Meta>> {
   const token = createToken();
 
+  const instanceId = minecraftInstanceId(options);
+  const observe = instanceId && takeSpawnObserver(instanceId, options, processHandlers);
+  const ownerAtRequest = instanceId && activeRun(instanceId);
+  const requestedAt = performance.now();
+  let confirmed: ProcessHandleType<Meta> | undefined;
+
+  function confirm(dto: ProcessDtoType<Meta>, startedAt: number): ProcessHandleType<Meta> {
+    if (!confirmed) {
+      confirmed = toProcessHandle(dto);
+      recordSpawnLifetime(confirmed, startedAt);
+      if (instanceId) {
+        const owner = ownerAtRequest || activeRun(instanceId);
+
+        if (owner && owner.process.token !== dto.token) owner.excludeSibling?.(dto.token);
+      }
+      if (observe) observe(confirmed, startedAt);
+    }
+
+    return confirmed;
+  }
   ProcessHandlers.set(token, processHandlers);
+  const unsubscribe = addProcessExitListener(token, payload => {
+    const { kind, meta } = options;
+
+    confirm({ token, "pid": payload.pid, kind, meta }, requestedAt);
+  });
 
   try {
-    return toProcessHandle(await invoke<ProcessDtoType<Meta>>("spawn_process", {
+    const dto = await invoke<ProcessDtoType<Meta>>("spawn_process", {
       "spec": { token, ...options },
-    }));
+    });
+
+    const handle = confirm(dto, performance.now());
+
+    unsubscribe();
+
+    return handle;
   } catch (error) {
+    unsubscribe();
     ProcessHandlers.delete(token);
     throw error;
   }

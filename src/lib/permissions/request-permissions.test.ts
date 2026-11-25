@@ -1,0 +1,162 @@
+import { expect, test } from "bun:test";
+
+import { PermissionService } from "./request-permissions.ts";
+
+const firstHash = "a".repeat(64);
+const secondHash = "b".repeat(64);
+
+test("queued batches keep their inputs, cooldowns and grant identities", async () => {
+  let now = 0;
+  const store: Record<string, Record<string, boolean>> = { "plugin": { "log::read": true } };
+  const service = new PermissionService(store, () => now);
+  const first = service.request(["log::read", "time::date"], "plugin", firstHash);
+  const queued = ["log::read"];
+  const second = service.request(queued, "plugin", secondHash);
+
+  queued[0] = "ui::basic";
+  await Bun.sleep(0);
+  const read = service.prompt.value!;
+
+  now = 4999;
+  expect(service.answer(read.id, true)).toBe(false);
+  now++;
+  expect(service.answer(read.id, true)).toBe(true);
+  await Bun.sleep(0);
+  const date = service.prompt.value!;
+
+  expect(date.permission).toBe("time::date");
+  expect(service.answer(read.id, false)).toBe(false);
+  now += 4999;
+  expect(service.answer(date.id, true)).toBe(false);
+  now++;
+  expect(service.answer(date.id, true)).toBe(true);
+  expect(await first).toEqual(["log::read", "time::date"]);
+  await Bun.sleep(0);
+  const next = service.prompt.value!;
+
+  expect(next.permission).toBe("log::read");
+  expect(service.answer(next.id, false)).toBe(true);
+  expect(await second).toEqual([false]);
+  expect(store).toEqual({
+    "plugin"                  : { "log::read": true },
+    [`artifact/${firstHash}`] : { "log::read": true, "time::date": true },
+    [`artifact/${secondHash}`]: { "log::read": false },
+  });
+});
+
+test("disposal rejects active and queued requests without saving grants", async () => {
+  const store = {};
+  const service = new PermissionService(store);
+  const results = Promise.allSettled([firstHash, secondHash].map(hash => (
+    service.request(["time::date"], "plugin", hash)
+  )));
+
+  await Bun.sleep(0);
+  const id = service.prompt.value!.id;
+
+  service.dispose();
+  const settled = await results;
+
+  expect(settled.map(result => result.status)).toEqual(["rejected", "rejected"]);
+  expect(service.answer(id, true)).toBe(false);
+  expect(store).toEqual({});
+});
+
+test("invalid batches reject before any prompt or write", async () => {
+  const store = {};
+  const service = new PermissionService(store);
+
+  for (const invalid of ["internet::http-get::tauri://localhost", "log::write::extra"]) {
+    await expect(service.request(["time::date", invalid], "plugin", firstHash)).rejects.toThrow();
+    expect(service.prompt.value).toBeUndefined();
+    expect(store).toEqual({});
+  }
+});
+
+test("JS callers must supply an artifact digest", async () => {
+  const store = {};
+  const service = new PermissionService(store);
+
+  // @ts-expect-error Simulate a caller still using the old two-argument API.
+  await expect(service.request(["log::read"], "plugin")).rejects.toThrow("SHA-256");
+  expect(service.prompt.value).toBeUndefined();
+  expect(store).toEqual({});
+});
+
+test("closing one sandbox withdraws its prompt and leaves other sandboxes queued", async () => {
+  const service = new PermissionService({});
+  const controller = new AbortController;
+  const first = service.request(["log::read"], "first", firstHash, controller.signal);
+  const next = service.request(["ui::basic"], "second", secondHash);
+
+  await Bun.sleep(0);
+  expect(service.prompt.value?.extension).toBe("first");
+  controller.abort(new Error("Worker disposed"));
+  await expect(first).rejects.toThrow("Worker disposed");
+  expect(service.prompt.value?.extension).toBe("second");
+  service.answer(service.prompt.value!.id, false);
+  expect(await next).toEqual([false]);
+});
+
+test("cached decisions settle while another artifact's prompt stays open", async () => {
+  const service = new PermissionService({
+    [`artifact/${secondHash}`]: { "log::read": true, "time::date": false },
+  });
+  const pending = service.request(["log::read"], "first", firstHash);
+
+  await Bun.sleep(0);
+  const prompt = service.prompt.value!;
+
+  expect(prompt.extension).toBe("first");
+  const cached = service.request(["log::read", "time::date", "log::read"], "second", secondHash);
+
+  await Promise.resolve();
+  expect(await Promise.race([cached, Promise.resolve("still queued")]))
+    .toEqual(["log::read", false, "log::read"]);
+  expect(service.prompt.value).toBe(prompt);
+  service.answer(prompt.id, false);
+  expect(await pending).toEqual([false]);
+});
+
+test("queued misses share a decision and cached grants respect session lifetime", async () => {
+  const service = new PermissionService({});
+  const request = (signal?: AbortSignal): Promise<Array<string | false>> => (
+    service.request(["log::read"], "first", firstHash, signal)
+  );
+  const first = request();
+  const queued = request();
+
+  await Bun.sleep(0);
+  service.answer(service.prompt.value!.id, false);
+  expect(await Promise.all([first, queued])).toEqual([[false], [false]]);
+  expect(service.prompt.value).toBeUndefined();
+  await expect(request(AbortSignal.abort(new Error("Aborted")))).rejects.toThrow("Aborted");
+  service.dispose();
+  await expect(request()).rejects.toThrow("Permission session closed");
+});
+
+test("same-turn abort and disposal invalidate pending cached grants", async () => {
+  const service = new PermissionService({ [`artifact/${firstHash}`]: { "log::read": true } });
+  const controller = new AbortController;
+  const aborted = service.request(["log::read"], "first", firstHash, controller.signal);
+
+  controller.abort(new Error("Sandbox closed"));
+  await expect(aborted).rejects.toThrow("Sandbox closed");
+
+  const disposed = service.request(["log::read"], "first", firstHash);
+
+  service.dispose();
+  await expect(disposed).rejects.toThrow("Permission session closed");
+});
+
+test("removing a cached grant in the same turn requires a new decision", async () => {
+  const decisions: Record<string, boolean> = { "log::read": true };
+  const service = new PermissionService({ [`artifact/${firstHash}`]: decisions });
+  const pending = service.request(["log::read"], "first", firstHash);
+
+  delete decisions["log::read"];
+  await Bun.sleep(0);
+  expect(service.prompt.value?.permission).toBe("log::read");
+  service.answer(service.prompt.value!.id, false);
+  expect(await pending).toEqual([false]);
+});

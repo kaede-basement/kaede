@@ -16,18 +16,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { mkdir } from "@tauri-apps/plugin-fs";
+
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Hooks from "@/lib/hooks";
 import { log } from "@/lib/logging/log.ts";
 import Processes from "@/lib/processes";
+import { addProcessExitListener, processLifetime } from "@/lib/processes/core.ts";
+import { observeMinecraftSpawn } from "@/lib/processes/spawn-process.ts";
+import { launchCancelled, takeLaunchObserver } from "@/states/instance-operation.ts";
+import type { ProcessHandlersType } from "@/types/application/server-process.type.ts";
 import type {
   LaunchResponseType,
+  MinecraftLaunchPayloadType,
   MinecraftMetaType,
   MinecraftProcessType,
 } from "@/types/launcher/launch/launch-response.type.ts";
-import type {
-  PreLaunchInformationType,
-} from "@/types/launcher/meta/pre-launch-information.type.ts";
+
+import { notifyMinecraftExit } from "./minecraft-exit.ts";
 
 export async function spawnMinecraft({
   command,
@@ -35,72 +41,88 @@ export async function spawnMinecraft({
   necessaries,
   onClose,
   onInput,
-}: {
-  "command": {
-    "java"     : string;
-    "arguments": Array<string>;
-  };
-  "instanceId" : string;
-  "necessaries": PreLaunchInformationType;
-  "onClose"    : (instanceId: string) => void;
-  "onInput"    : (lines: Array<string>) => void;
+}: MinecraftLaunchPayloadType & {
+  "onClose": (instanceId: string) => void;
+  "onInput": (lines: Array<string>) => void;
 }): Promise<LaunchResponseType> {
+  // A nested launch from the before hook may return a different child.
+  const observe = takeLaunchObserver(instanceId, necessaries.statuses);
+
+  await mkdir(necessaries.directories.instance, { "recursive": true });
+  const payload: MinecraftLaunchPayloadType = { command, instanceId, necessaries };
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await Hooks.catchAsyncResponseHooks<LaunchResponseType>({
       "scope" : "onMinecraftLaunch",
-      "toPass": { command, instanceId, necessaries },
+      "toPass": payload,
       "timing": "before",
     });
 
-  if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
-    return beforeHooksResult;
+  if (beforeHooksResult !== "continue") {
+    return {
+      "success": beforeHooksResult?.success ?? false, "process": beforeHooksResult?.process,
+    };
   }
 
   const { directories, statuses, logPrefix } = necessaries;
+
+  if (launchCancelled(statuses)) return { "success": false, "process": undefined };
 
   log.debug(
     logPrefix,
     `Spawning a Minecraft process with the '${directories.instance}' working directory`,
   );
 
+  let exited = false;
+  let child: MinecraftProcessType | undefined;
   let process: MinecraftProcessType;
+  const onExit: NonNullable<ProcessHandlersType["onExit"]> = payload => {
+    if (exited) return;
+    exited = true;
+    if (child) void notifyMinecraftExit(child);
+    onClose(instanceId);
+    log.warn(
+      logPrefix,
+      `Minecraft exited (PID ${payload.pid}, code ${payload.code}, signal ${payload.signal})`,
+    );
+  };
+
+  function confirm(handle: MinecraftProcessType, startedAt?: number): void {
+    if (child) return;
+    child = handle;
+    const lifetime = processLifetime(handle);
+
+    observe?.(handle, startedAt ?? lifetime?.startedAt);
+    if (exited) void notifyMinecraftExit(handle);
+    else if (lifetime?.endedAt !== undefined) {
+      onExit({ "pid": handle.pid, "code": null, "signal": null });
+    } else if (lifetime) addProcessExitListener(handle.token, onExit);
+  }
+
+  const request = {
+    "program": { "type": "path", "value": command.java },
+    "args"   : command.arguments,
+    "cwd"    : directories.instance, "kind"   : "minecraft", "meta"   : { instanceId },
+  } as const;
+  const handlers: ProcessHandlersType = {
+    "onOutput": onInput,
+    onExit,
+    "onError" : payload => {
+      statuses.current = LaunchStatus.Errors.UnhandledError;
+      log.error(logPrefix, log.templates.json.contents(
+        "Something went wrong. Payload",
+        payload,
+        true,
+      ));
+    },
+  };
+  const unsubscribe = observeMinecraftSpawn({
+    instanceId, request, handlers,
+    "observe": (handle, at) => confirm(handle as MinecraftProcessType, at),
+  });
 
   try {
-    process = await Processes.spawnProcess<MinecraftMetaType>({
-      "program": { "type": "path", "value": command.java },
-      "args"   : command.arguments,
-      "cwd"    : directories.instance,
-      "kind"   : "minecraft",
-      "meta"   : { instanceId },
-    }, {
-      "onOutput": onInput,
-      "onExit"  : payload => {
-        onClose(instanceId);
-        log.warn(logPrefix, log.templates.json.contents(
-          "Successfully closed. Payload",
-          payload,
-          true,
-        ));
-        void Hooks.catchAsyncVoidHooks({
-          "scope" : "onMinecraftKill",
-          "toPass": payload.pid,
-          "timing": "after",
-        });
-      },
-      "onError": payload => {
-        statuses.current = LaunchStatus.Errors.UnhandledError;
-        log.error(logPrefix, log.templates.json.contents(
-          "Something went wrong. Payload",
-          payload,
-          true,
-        ));
-        void Hooks.catchAsyncVoidHooks({
-          "scope" : "onMinecraftKill",
-          "toPass": payload.pid,
-          "timing": "after",
-        });
-      },
-    });
+    process = await Processes.spawnProcess<MinecraftMetaType>(request, handlers);
+    confirm(process);
   } catch (error: unknown) {
     statuses.current = LaunchStatus.Errors.UnhandledError;
     log.error(logPrefix, log.templates.json.contents(
@@ -110,13 +132,23 @@ export async function spawnMinecraft({
     ));
 
     return { "success": false, "process": undefined };
+  } finally {
+    unsubscribe();
   }
 
-  await Hooks.catchAsyncVoidHooks({
-    "scope" : "onMinecraftLaunch",
-    "toPass": { process, command, instanceId, necessaries },
-    "timing": "after",
-  });
+  if (!exited && !launchCancelled(statuses)) {
+    await Hooks.catchAsyncVoidHooks({
+      "scope" : "onMinecraftLaunch",
+      "toPass": { ...payload, process },
+      "timing": "after",
+    });
+  }
+
+  if (exited) {
+    statuses.current = LaunchStatus.Errors.UnhandledError;
+
+    return { "success": false, "process": undefined };
+  }
 
   log.info(logPrefix, `Successfully launched with the ${process.pid} PID`);
   statuses.current = LaunchStatus.General.Success;

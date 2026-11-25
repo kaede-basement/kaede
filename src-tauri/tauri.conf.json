@@ -28,7 +28,13 @@
       }
     ],
     "security": {
-      "csp": "script-src 'self' 'unsafe-eval'; worker-src blob:",
+      "csp": {
+        "script-src": ["'self'", "'unsafe-eval'"],
+        "worker-src": ["'self'", "blob:"],
+        "child-src": ["blob:"],
+        "object-src": ["'none'"],
+        "base-uri": ["'none'"]
+      },
       "assetProtocol": {
         "enable": true,
         "scope": {
