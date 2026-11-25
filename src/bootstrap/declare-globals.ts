@@ -20,6 +20,7 @@ import { cancel, onInvalidUrl, onUrl, start } from "@fabianlars/tauri-plugin-oau
 import * as Vue from "vue";
 
 import _Application from "@/bootstrap/application.ts";
+import { registerComponents } from "@/bootstrap/register-components.ts";
 import Composables from "@/composables";
 import { ContextMenu } from "@/constants/application.ts";
 import _ASCIIArt from "@/constants/ascii-art.ts";
@@ -58,6 +59,7 @@ import type Txiki from "@/lib/txiki";
 import Watchers from "@/lib/watchers";
 
 export function declareGlobals(Globals: KaedeNamespaceType["libs"]["Globals"]): void {
+  registerComponents();
   window.__TAURI_PLUGINS_COMMUNITY__ = {
     "oauth2": {
       cancel,

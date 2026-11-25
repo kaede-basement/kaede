@@ -18,7 +18,7 @@
 
 import type { KaedeNamespaceType } from "@/declarations.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
-import { HooksRegistry } from "@/extendable/hooks-registry.ts";
+import { bindHookHost, getHooks } from "@/extendable/hooks-registry.ts";
 import States from "@/states";
 
 /**
@@ -32,10 +32,7 @@ export const GlobalObject: KaedeNamespaceType = {
   "packages" : {},
   "constants": {} as KaedeNamespaceType["constants"],
   "libs"     : {} as KaedeNamespaceType["libs"],
-  get "hooks"() {
-    return HooksRegistry.hooks;
-  },
-  set "hooks"(value) {
-    HooksRegistry.hooks = value;
-  },
+  "hooks"    : getHooks(),
 };
+
+bindHookHost(GlobalObject);

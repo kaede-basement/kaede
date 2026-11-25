@@ -5,8 +5,7 @@ import { expect, test } from "bun:test";
 import ts from "typescript";
 import { parse } from "vue/compiler-sfc";
 
-function eagerImports(file: string): Array<string> {
-  const source = readFileSync(file, "utf8");
+function eagerImports(file: string, source: string): Array<string> {
   let script = source;
   const imports: Array<string> = [];
 
@@ -25,11 +24,7 @@ function eagerImports(file: string): Array<string> {
 
   for (const node of tree.statements) {
     if (ts.isImportDeclaration(node)) {
-      const clause = node.importClause;
-      const names = clause?.namedBindings;
-
-      if (clause?.isTypeOnly || (!clause?.name && names && ts.isNamedImports(names) &&
-        names.elements.length > 0 && names.elements.every(item => item.isTypeOnly))) continue;
+      if (node.importClause?.isTypeOnly) continue;
     } else if (ts.isExportDeclaration(node)) {
       const names = node.exportClause;
 
@@ -85,13 +80,9 @@ function cycles(graph: Map<string, Array<string>>): Array<Array<string>> {
   return found;
 }
 
-test("production value imports have no eager cycles, including self-barrels", () => {
-  const root = path.resolve(import.meta.dir, "..");
-  const files = new Set([...new Bun.Glob("**/*.{ts,vue}").scanSync(root)]
-    .map(file => file.split(path.sep).join("/"))
-    .filter(file => (
-      !(/\.(?:test|bench|d)\.ts$/u).test(file) && !file.startsWith("__mocks__/")
-    )));
+function buildGraph(
+  files: Set<string>, read: (file: string) => string,
+): { "graph": Map<string, Array<string>>; "selfBarrels": Array<string> } {
   const graph = (new Map<string, Array<string>>);
   const selfBarrels: Array<string> = [];
 
@@ -99,10 +90,11 @@ test("production value imports have no eager cycles, including self-barrels", ()
     const directory = path.posix.dirname(file);
     const edges: Array<string> = [];
 
-    for (const specifier of eagerImports(path.join(root, file))) {
+    for (const specifier of eagerImports(file, read(file))) {
       let local: string;
 
       if (specifier.startsWith("@/")) local = specifier.slice(2);
+      else if (specifier.startsWith("/src/")) local = specifier.slice(5);
       else if (specifier.startsWith("src/")) local = specifier.slice(4);
       else if (specifier.startsWith(".")) local = path.posix.join(directory, specifier);
       else continue;
@@ -120,6 +112,31 @@ test("production value imports have no eager cycles, including self-barrels", ()
     }
     graph.set(file, edges);
   }
+
+  return { graph, selfBarrels };
+}
+
+test("inline type imports and Vite source-root paths retain eager edges", () => {
+  const sources = new Map([
+    ["a.ts", "import { type T } from \"./b.ts\";"],
+    ["b.ts", "import \"/src/a.ts\"; export type T = string;"],
+  ]);
+  const { graph } = buildGraph(new Set(sources.keys()), file => sources.get(file)!);
+
+  expect(cycles(graph)).toEqual([["a.ts", "b.ts"]]);
+});
+
+test("production value imports have no eager cycles, including self-barrels", () => {
+  const root = path.resolve(import.meta.dir, "..");
+  const files = new Set([...new Bun.Glob("**/*.{ts,vue}").scanSync(root)]
+    .map(file => file.split(path.sep).join("/"))
+    .filter(file => (
+      !(/\.(?:test|bench|d)\.ts$/u).test(file) && !file.startsWith("__mocks__/")
+    )));
+  const { graph, selfBarrels } = buildGraph(files, file => (
+    readFileSync(path.join(root, file), "utf8")
+  ));
+
   expect(selfBarrels).toEqual([]);
   expect(cycles(graph)).toEqual([]);
 });

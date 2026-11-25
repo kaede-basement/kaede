@@ -31,7 +31,6 @@ import { createApp } from "vue";
 
 import App from "@/App.vue";
 import { DefaultGlobalStatesPagesStates } from "@/bootstrap/application.ts";
-import { registerComponents } from "@/bootstrap/register-components.ts";
 import { ApplicationRootID, AuthOneTimeFetchContextKey } from "@/constants/application";
 import ASCIIArt from "@/constants/ascii-art.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
@@ -59,7 +58,6 @@ async function run(): Promise<void> {
   );
 
   // The global object is accessed not only by extensions but by the application itself
-  registerComponents();
   Globals.declareGlobals();
   Globals.declareActionRegistry();
 

@@ -66,6 +66,8 @@ export class PermissionService {
       }
       batch.push(parsed.raw);
     }
+    // Sandbox teardown can abort or revoke a request in the turn that submitted it.
+    await Promise.resolve();
     throwIfAborted(signal);
     if (this.disposed) {
       throw new Error("Permission session closed");

@@ -14,14 +14,14 @@ test("queued batches keep their inputs, cooldowns and grant identities", async (
   const second = service.request(queued, "plugin", secondHash);
 
   queued[0] = "ui::basic";
-  await Promise.resolve();
+  await Bun.sleep(0);
   const read = service.prompt.value!;
 
   now = 4999;
   expect(service.answer(read.id, true)).toBe(false);
   now++;
   expect(service.answer(read.id, true)).toBe(true);
-  await Promise.resolve();
+  await Bun.sleep(0);
   const date = service.prompt.value!;
 
   expect(date.permission).toBe("time::date");
@@ -31,7 +31,7 @@ test("queued batches keep their inputs, cooldowns and grant identities", async (
   now++;
   expect(service.answer(date.id, true)).toBe(true);
   expect(await first).toEqual(["log::read", "time::date"]);
-  await Promise.resolve();
+  await Bun.sleep(0);
   const next = service.prompt.value!;
 
   expect(next.permission).toBe("log::read");
@@ -51,7 +51,7 @@ test("disposal rejects active and queued requests without saving grants", async 
     service.request(["time::date"], "plugin", hash)
   )));
 
-  await Promise.resolve();
+  await Bun.sleep(0);
   const id = service.prompt.value!.id;
 
   service.dispose();
@@ -89,7 +89,7 @@ test("closing one sandbox withdraws its prompt and leaves other sandboxes queued
   const first = service.request(["log::read"], "first", firstHash, controller.signal);
   const next = service.request(["ui::basic"], "second", secondHash);
 
-  await Promise.resolve();
+  await Bun.sleep(0);
   expect(service.prompt.value?.extension).toBe("first");
   controller.abort(new Error("Worker disposed"));
   await expect(first).rejects.toThrow("Worker disposed");
@@ -104,12 +104,13 @@ test("cached decisions settle while another artifact's prompt stays open", async
   });
   const pending = service.request(["log::read"], "first", firstHash);
 
-  await Promise.resolve();
+  await Bun.sleep(0);
   const prompt = service.prompt.value!;
 
   expect(prompt.extension).toBe("first");
   const cached = service.request(["log::read", "time::date", "log::read"], "second", secondHash);
 
+  await Promise.resolve();
   expect(await Promise.race([cached, Promise.resolve("still queued")]))
     .toEqual(["log::read", false, "log::read"]);
   expect(service.prompt.value).toBe(prompt);
@@ -125,11 +126,37 @@ test("queued misses share a decision and cached grants respect session lifetime"
   const first = request();
   const queued = request();
 
-  await Promise.resolve();
+  await Bun.sleep(0);
   service.answer(service.prompt.value!.id, false);
   expect(await Promise.all([first, queued])).toEqual([[false], [false]]);
   expect(service.prompt.value).toBeUndefined();
   await expect(request(AbortSignal.abort(new Error("Aborted")))).rejects.toThrow("Aborted");
   service.dispose();
   await expect(request()).rejects.toThrow("Permission session closed");
+});
+
+test("same-turn abort and disposal invalidate pending cached grants", async () => {
+  const service = new PermissionService({ [`artifact/${firstHash}`]: { "log::read": true } });
+  const controller = new AbortController;
+  const aborted = service.request(["log::read"], "first", firstHash, controller.signal);
+
+  controller.abort(new Error("Sandbox closed"));
+  await expect(aborted).rejects.toThrow("Sandbox closed");
+
+  const disposed = service.request(["log::read"], "first", firstHash);
+
+  service.dispose();
+  await expect(disposed).rejects.toThrow("Permission session closed");
+});
+
+test("removing a cached grant in the same turn requires a new decision", async () => {
+  const decisions: Record<string, boolean> = { "log::read": true };
+  const service = new PermissionService({ [`artifact/${firstHash}`]: decisions });
+  const pending = service.request(["log::read"], "first", firstHash);
+
+  delete decisions["log::read"];
+  await Bun.sleep(0);
+  expect(service.prompt.value?.permission).toBe("log::read");
+  service.answer(service.prompt.value!.id, false);
+  expect(await pending).toEqual([false]);
 });

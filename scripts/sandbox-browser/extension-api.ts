@@ -1,16 +1,15 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { createApp, defineComponent, isShallow } from "vue";
 
-import { registerComponents } from "@/bootstrap/register-components.ts";
 import { C } from "@/extendable/component-registry.ts";
 import { GlobalObject } from "@/extendable/global-object.ts";
+import ExtensionAPI from "@/lib/extension-api";
 import Globals from "@/lib/globals";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 mockIPC(() => {});
-registerComponents();
 Globals.declareGlobals();
 
 async function checkExtensionAPI(): Promise<Record<string, unknown>> {
@@ -40,10 +39,27 @@ async function checkExtensionAPI(): Promise<Record<string, unknown>> {
   const hookResult = api.libs.Hooks.catchSyncResponseHooks({
     "scope": "onPreLaunchInformation", "timing": "before", "toPass": {},
   });
+
+  Object.defineProperty(api, "hooks", {
+    "value": { ...api.hooks, "onDefaultConfigGet": { "before": [] } },
+  });
+  const events = new ExtensionAPI("compatibility-test");
+  const event = "hook::onDefaultConfigGet::before";
+  const callback = async (): Promise<unknown> => ({ "status": "stop", "response": "redefined" });
+
+  events.subscribe(event, callback);
+  const subscribed = api.hooks.onDefaultConfigGet.before.length === 1;
+  const descriptorResult = await api.libs.Hooks.catchAsyncResponseHooks({
+    "scope": "onDefaultConfigGet", "timing": "before", "toPass": {},
+  });
+
+  events.unsubscribe(event, callback);
+  const unsubscribed = api.hooks.onDefaultConfigGet.before.length === 0;
   const builtin = C.Home;
   const replacement = defineComponent({});
 
   components.registerComponent("Home", replacement);
+  Globals.declareGlobals();
   const overridden = C.Home === replacement;
   const restored = components.restoreComponent("Home") && C.Home === builtin;
 
@@ -55,6 +71,9 @@ async function checkExtensionAPI(): Promise<Record<string, unknown>> {
     detected,
     "url"       : artifact && artifact.url,
     hookResult,
+    subscribed,
+    descriptorResult,
+    unsubscribed,
     "registry"  : components.Components === C && isShallow(C),
     "builtin"   : typeof builtin === "object" && "render" in builtin,
     overridden,

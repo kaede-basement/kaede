@@ -7,15 +7,18 @@ test("extensions replace live launcher methods, hooks and registered Vue compone
 
   try {
     expect(await harness.view.evaluate("checkExtensionAPI()")).toEqual({
-      "global"    : true,
-      "detected"  : true,
-      "url"       : "patched",
-      "hookResult": false,
-      "registry"  : true,
-      "builtin"   : true,
-      "overridden": true,
-      "restored"  : true,
-      "registered": true,
+      "global"          : true,
+      "detected"        : true,
+      "url"             : "patched",
+      "hookResult"      : false,
+      "subscribed"      : true,
+      "descriptorResult": "redefined",
+      "unsubscribed"    : true,
+      "registry"        : true,
+      "builtin"         : true,
+      "overridden"      : true,
+      "restored"        : true,
+      "registered"      : true,
     });
   } finally {
     harness.close();

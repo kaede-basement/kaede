@@ -1,6 +1,6 @@
 import { ExtraHookResponseStatus, HookResponseStatus } from "@/constants/application.ts";
 import type { KaedeNamespaceType } from "@/declarations.ts";
-import { HooksRegistry } from "@/extendable/hooks-registry.ts";
+import { getHooks } from "@/extendable/hooks-registry.ts";
 import { formatHookError } from "@/lib/hooks/format-hook-error.ts";
 import { handleHookResponse } from "@/lib/hooks/handle-hook-response.ts";
 import { log } from "@/lib/logging/log.ts";
@@ -16,7 +16,7 @@ export async function catchAsyncResponseHooks<T>({
   "toPass": unknown;
   "timing": "before" | "after";
 }): Promise<"continue" | T | undefined> {
-  const currentScopeHooks = HooksRegistry.hooks[scope];
+  const currentScopeHooks = getHooks()[scope];
 
   if (!IsKeyInObject(timing, currentScopeHooks)) {
     return;

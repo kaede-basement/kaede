@@ -55,6 +55,7 @@ let originals: ComponentRegistryType;
 export const C: ComponentRegistryType = shallowReactive({} as ComponentRegistryType);
 
 export function initializeComponents(builtins: ComponentRegistryType): void {
+  if (originals) return;
   originals = builtins;
   Object.assign(C, builtins);
 }
