@@ -102,7 +102,9 @@ pub fn run() {
             // action that runs *while* the WebView is loading, i.e., before the frontend itself
             // can make such a call
             tauri::async_runtime::spawn(async {
-                hashing::APPLICATION_HASH.get_or_init(hashing::get_executable_hash).await;
+                if let Err(error) = hashing::APPLICATION_HASH.get_or_try_init(hashing::get_executable_hash).await {
+                    log::error!("Failed to preload executable hash: {error}");
+                }
             });
             // Besides hashing, we can also read configs ahead-of-time
             app.manage(application::PreloadedState::new(base_directory, portable));
@@ -160,12 +162,9 @@ pub fn run() {
                     .format(|out, message, record| {
                         let now = time::OffsetDateTime::now_utc();
                         // Default tauri logging format does not include milliseconds
-                        let formatted_time = format!("{:02}:{:02}:{:02}.{:03}",
-                            now.hour(), now.minute(), now.second(), now.millisecond());
-
                         out.finish(format_args!(
-                            "{} | {} | {} | {}",
-                            formatted_time,
+                            "{:02}:{:02}:{:02}.{:03} | {} | {} | {}",
+                            now.hour(), now.minute(), now.second(), now.millisecond(),
                             record.level(),
                             record.target(),
                             message,

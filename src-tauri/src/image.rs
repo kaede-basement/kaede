@@ -81,7 +81,7 @@ pub async fn resize_image(
 ) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         let input_path = Path::new(&image_path);
-        let bytes = std::fs::read(&input_path).map_err(|error| error.to_string())?;
+        let bytes = std::fs::read(input_path).map_err(|error| error.to_string())?;
 
         if is_animated_image(&bytes) {
             return Err("Cannot resize an animated image".to_string());
