@@ -108,6 +108,16 @@ test("Validate config, extension, instance and patch metadata", () => {
   expect(CheckExtensionMetadata({ ...extension, "type": "unknown" })).toBe(false);
   expect(CheckInstanceMetadata(instance)).toBe(true);
   expect(CheckInstanceMetadata({ ...instance, "playTime": null })).toBe(false);
+  const artifact = { "url": "https://example.org/client.jar", "sha1": "abc", "size": 123 };
+
+  for (const [input, valid] of [
+    [{}, false], [{ "url": 12, "sha1": false, "size": "bad" }, false], [artifact, true],
+  ] as const) {
+    const jar = { "name": "example:client:1", "downloads": { "artifact": input } };
+
+    expect(CheckPatchMeta({ ...patch, "mainJar": jar })).toBe(valid);
+    expect(CheckPatchMeta({ ...patch, "libraries": [jar] })).toBe(valid);
+  }
   expect(CheckPatchMeta(patch)).toBe(true);
   expect(CheckPatchMeta({
     ...patch,

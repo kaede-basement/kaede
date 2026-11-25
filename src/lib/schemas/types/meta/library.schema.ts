@@ -1,6 +1,12 @@
 import { Type } from "typebox";
 
-export const ArtifactSchema = Type.Object({});
+export const ArtifactSchema = Type.Object({
+  "url" : Type.String(),
+  "sha1": Type.String(),
+  "size": Type.Number(),
+  "path": Type.Optional(Type.String()),
+  "id"  : Type.Optional(Type.String()),
+});
 export const LibraryDownloadsSchema = Type.Object({
   "artifact"   : Type.Optional(ArtifactSchema),
   "classifiers": Type.Optional(Type.Object({})),
