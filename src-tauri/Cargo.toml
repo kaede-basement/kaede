@@ -30,6 +30,11 @@ old-safari = []
 
 [dependencies]
 serde_json = "1.0"
+tempfile = "3"
+libc = "0.2"
+same-file = "1"
+futures-util = "0.3"
+shared_child = "1.1.1"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.12.5", features = ["protocol-asset", "macos-private-api", "image-ico", "image-png", "tray-icon"] }
@@ -92,3 +97,6 @@ tauri-utils = { git = "https://github.com/tauri-apps/tauri", rev = "8a97d387a3a1
 # Cap 'windows-sys' at 0.60 so that 'windows-sys' uses 'ole32.dll' instead of 'combase.dll'.
 # 'combase.dll' is unavailable on Windows 7
 dirs-sys = { path = "vendor/dirs-sys" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Threading"] }

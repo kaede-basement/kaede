@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { mkdir } from "@tauri-apps/plugin-fs";
+
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Hooks from "@/lib/hooks";
 import { log } from "@/lib/logging/log.ts";
@@ -28,6 +30,10 @@ import type {
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
+
+import { launchAttempts } from "./fetching/download-outcome.ts";
+
+type SpawnResult = LaunchResponseType & { "reason"?: "cancelled" };
 
 export async function spawnMinecraft({
   command,
@@ -44,7 +50,8 @@ export async function spawnMinecraft({
   "necessaries": PreLaunchInformationType;
   "onClose"    : (instanceId: string) => void;
   "onInput"    : (lines: Array<string>) => void;
-}): Promise<LaunchResponseType> {
+}): Promise<SpawnResult> {
+  await mkdir(necessaries.directories.instance, { "recursive": true });
   const beforeHooksResult: "continue" | LaunchResponseType | undefined =
     await Hooks.catchAsyncResponseHooks<LaunchResponseType>({
       "scope" : "onMinecraftLaunch",
@@ -63,8 +70,14 @@ export async function spawnMinecraft({
     `Spawning a Minecraft process with the '${directories.instance}' working directory`,
   );
 
+  let exited = false;
   let process: MinecraftProcessType;
 
+  const signal = launchAttempts.get(statuses)?.signal;
+
+  if (signal?.aborted) {
+    return { "success": false, "process": undefined, "reason": "cancelled" };
+  }
   try {
     process = await Processes.spawnProcess<MinecraftMetaType>({
       "program": { "type": "path", "value": command.java },
@@ -75,12 +88,12 @@ export async function spawnMinecraft({
     }, {
       "onOutput": onInput,
       "onExit"  : payload => {
+        exited = true;
         onClose(instanceId);
-        log.warn(logPrefix, log.templates.json.contents(
-          "Successfully closed. Payload",
-          payload,
-          true,
-        ));
+        log.warn(
+          logPrefix,
+          `Minecraft exited (PID ${payload.pid}, code ${payload.code}, signal ${payload.signal})`,
+        );
         void Hooks.catchAsyncVoidHooks({
           "scope" : "onMinecraftKill",
           "toPass": payload.pid,
@@ -112,11 +125,47 @@ export async function spawnMinecraft({
     return { "success": false, "process": undefined };
   }
 
-  await Hooks.catchAsyncVoidHooks({
-    "scope" : "onMinecraftLaunch",
-    "toPass": { process, command, instanceId, necessaries },
-    "timing": "after",
+  async function terminate(): Promise<SpawnResult> {
+    try {
+      if (!exited) await process.kill();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+
+      if (!exited && detail !== `no managed process with pid ${process.pid}`) {
+        log.error(logPrefix, "Could not stop Minecraft:", String(error));
+        statuses.current = LaunchStatus.Errors.Stop;
+
+        return { "success": false, process };
+      }
+    }
+
+    return { "success": false, "process": undefined, "reason": "cancelled" };
+  }
+  let stop!: () => void;
+  const stopped = new Promise<SpawnResult>(resolve => {
+    stop = (): void => resolve(terminate());
   });
+
+  signal?.addEventListener("abort", stop, { "once": true });
+  try {
+    if (signal?.aborted) {
+      stop();
+    } else if (!exited) {
+      await Promise.race([stopped, Hooks.catchAsyncVoidHooks({
+        "scope" : "onMinecraftLaunch",
+        "toPass": { process, command, instanceId, necessaries },
+        "timing": "after",
+      })]);
+    }
+    if (signal?.aborted) return await stopped;
+  } finally {
+    signal?.removeEventListener("abort", stop);
+  }
+  if (exited) {
+    statuses.current = LaunchStatus.Errors.UnhandledError;
+
+    return { "success": false, "process": undefined };
+  }
 
   log.info(logPrefix, `Successfully launched with the ${process.pid} PID`);
   statuses.current = LaunchStatus.General.Success;

@@ -23,11 +23,21 @@ import { log } from "@/lib/logging/log.ts";
 import { javaStates } from "@/states/java.ts";
 import type { JavaInstallationType } from "@/types/launcher/java-installation.type.ts";
 
-export async function detectJavaInstallations(): Promise<void> {
-  if (javaStates.status !== "idle") {
-    return;
+let scan: Promise<void> | undefined;
+
+export function detectJavaInstallations(): Promise<void> {
+  if (javaStates.status === "loaded") {
+    return Promise.resolve();
   }
 
+  scan ??= scanInstallations().finally(() => {
+    scan = undefined;
+  });
+
+  return scan;
+}
+
+async function scanInstallations(): Promise<void> {
   javaStates.status = "scanning";
 
   let installations: Array<JavaInstallationType>;

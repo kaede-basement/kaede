@@ -34,15 +34,26 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 
-export async function resolvePatch({
-  necessaries,
-  metadata,
-  patchMeta,
-}: {
+import {
+  ArtifactDownloadFailure, CancelledDownload, checkDownloadSignal,
+} from "../fetching/download-outcome.ts";
+
+export async function resolvePatch(request: {
+  "signal"?    : AbortSignal;
   "necessaries": PreLaunchInformationType;
   "metadata"   : PatchDependencyType;
   "patchMeta" ?: SpecificPatchMetaType;
 }): Promise<SpecificPatchMetaType | false> {
+  return await resolveDependency(request) || false;
+}
+
+// Undefined denotes an explicit hook skip. False denotes a resolution failure.
+export async function resolveDependency({
+  necessaries,
+  metadata,
+  patchMeta,
+  signal,
+}: Parameters<typeof resolvePatch>[0]): Promise<SpecificPatchMetaType | false | undefined> {
   const beforeHooksResult: "continue" | SpecificPatchMetaType | false | undefined =
     await Hooks.catchAsyncResponseHooks<SpecificPatchMetaType | false>({
       "scope" : "onMinecraftPatchResolve",
@@ -51,11 +62,19 @@ export async function resolvePatch({
     });
 
   if (beforeHooksResult !== "continue" && beforeHooksResult !== undefined) {
-    return beforeHooksResult;
+    return beforeHooksResult || undefined;
   }
 
   const { directories, statuses, logPrefix } = necessaries;
-  const version: string | false = await Patches.resolvePatchVersion({ necessaries, metadata });
+  const version: string | false = await Patches.resolvePatchVersion({
+    necessaries, metadata, signal,
+  });
+
+  checkDownloadSignal(signal);
+  if (version === false) {
+    return false;
+  }
+
   const fileName: string = version + ".json";
   const descriptiveLogPrefix: string = metadata.uid + ":" + fileName + ":" + logPrefix;
   let parsedPatch: unknown;
@@ -72,9 +91,7 @@ export async function resolvePatch({
         log.warn(descriptiveLogPrefix, "No cache; generating the patch metadata");
         statuses.current = LaunchStatus.PatchMetadata.Fetching;
 
-        const generated: Record<string, unknown> | false = version === false
-          ? false
-          : await OptiFine.resolveOptiFinePatch({ necessaries, version });
+        const generated = await OptiFine.resolveOptiFinePatch({ necessaries, version });
 
         if (generated !== false) {
           return generated;
@@ -94,12 +111,14 @@ export async function resolvePatch({
       );
       statuses.current = LaunchStatus.PatchMetadata.Fetching;
       const fetched: { "data": unknown } | LaunchStatusType = await Fetching.fetchMetadata({
+        signal,
         "url"   : url,
         "label" : "patch metadata",
         "scope" : "PatchMetadata",
         "prefix": descriptiveLogPrefix,
       });
 
+      checkDownloadSignal(signal);
       // Just return the patch metadata
       if (typeof fetched === "object") {
         return fetched.data;
@@ -131,6 +150,10 @@ export async function resolvePatch({
       },
     });
   } catch (error: unknown) {
+    if (error instanceof CancelledDownload || error instanceof ArtifactDownloadFailure) {
+      throw error;
+    }
+    checkDownloadSignal(signal);
     log.error(
       descriptiveLogPrefix,
       "Caught an error while getting the patch metadata:",
@@ -140,6 +163,7 @@ export async function resolvePatch({
     return false;
   }
 
+  checkDownloadSignal(signal);
   log.debug(descriptiveLogPrefix, "Validating the patch metadata");
   const validPatch: SpecificPatchMetaType | false = Schemas.validate.patchMeta({
     "value": parsedPatch,
@@ -157,7 +181,7 @@ export async function resolvePatch({
     });
 
   if (afterHooksResult !== "continue" && afterHooksResult !== undefined) {
-    return afterHooksResult;
+    return afterHooksResult || undefined;
   }
 
   if (validPatch === false) {

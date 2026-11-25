@@ -29,6 +29,8 @@ import type {
 } from "@/types/launcher/launch/launch-status.type.ts";
 import type { ParsedOptiFineVersionType } from "@/types/launcher/optifine/parsed-version.type.ts";
 
+import { downloadSucceeded } from "../fetching/download-outcome.ts";
+
 export function getOptiFineArtifactName(version: string): string {
   return `optifine:OptiFine:${version}`;
 }
@@ -84,19 +86,7 @@ export async function downloadOptiFineJar({
     cancelId,
   });
 
-  if (report.cancelled) {
-    log.warn(logPrefix, "The OptiFine download was cancelled");
-
-    return false;
-  }
-
-  if (report.failed > 0) {
-    log.error(
-      logPrefix,
-      "Failed to download the OptiFine jar:",
-      report.failures.map(({ error }) => error).join("; "),
-    );
-
+  if (!downloadSucceeded(report, statuses)) {
     return false;
   }
 

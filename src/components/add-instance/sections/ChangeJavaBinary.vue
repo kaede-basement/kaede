@@ -20,6 +20,7 @@
 import { computed, onMounted } from "vue";
 
 import CustomSelect from "@/components/general/base/CustomSelect.vue";
+import { translate } from "@/lib/general/translate.ts";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { globalStates } from "@/states/global.ts";
@@ -92,6 +93,15 @@ onMounted(() => {
     id="__add-instance-page__instance-other-java-binary"
     class="relative rounded-md p-2"
   >
+    <p v-if="javaStates.status === 'failed'" id="__instance-java-error">
+      {{ translate("java.failed") }}
+      <button id="__instance-java-retry" @click="Launcher.detectJavaInstallations()">
+        {{ translate("general.retry") }}
+      </button>
+    </p>
+    <p v-else-if="javaStates.status === 'loaded' && options.length === 0" id="__instance-java-empty">
+      {{ translate("java.empty") }}
+    </p>
     <CustomSelect
       id-root="__add-instance-page__instance-other-java-binary"
       :options="options"

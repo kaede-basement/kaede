@@ -165,7 +165,6 @@ function handleImport(): void {
         v-if="downloader"
         :id-root="`${idRoot}-version-selector`"
         :project-id="entry.project_id"
-        :project-name="entry.title"
         :project-icon="entry.icon_url"
         :close="() => downloader = false"
       />

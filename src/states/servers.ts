@@ -19,9 +19,10 @@
 import { shallowRef } from "vue";
 
 import { log } from "@/lib/logging/log.ts";
-import { rehydrateProcesses } from "@/lib/processes/core.ts";
+import { ProcessHandlers, rehydrateProcesses } from "@/lib/processes/core.ts";
 import { hydrate } from "@/lib/processes/hydrate.ts";
 import type {
+  ProcessHandlersType,
   ProcessHandleType,
   ServerMetaType,
   ServerProcessType,
@@ -29,27 +30,38 @@ import type {
 
 export const serverProcesses = shallowRef<Array<ServerProcessType>>([]);
 
-export async function declareServerProcesses(): Promise<void> {
-  const servers: Array<ServerProcessType> = [];
+export async function declareServerProcesses(
+  attach?: (handle: ProcessHandleType) => ProcessHandlersType | undefined,
+): Promise<void> {
+  const missing = new Set(serverProcesses.value.map(server => server.token));
+  const restored: Array<ServerProcessType> = [];
 
   await rehydrateProcesses(handle => {
     if (handle.kind !== "extension-server") {
-      return;
+      return attach?.(handle);
     }
 
     const meta = handle.meta as ServerMetaType;
 
-    servers.push(hydrate(handle as ProcessHandleType<ServerMetaType>));
+    missing.delete(handle.token);
+    if (ProcessHandlers.has(handle.token)) {
+      // A local spawn already owns its exit handler and publishes its own server.
+      return;
+    }
+    restored.push(hydrate(handle as ProcessHandleType<ServerMetaType>));
 
     return {
       "onExit": (): void => {
-        serverProcesses.value = serverProcesses.value.filter(item => item.name !== meta.name);
+        serverProcesses.value = serverProcesses.value.filter(item => item.token !== handle.token);
       },
       "onOutput": (lines, stream): void => (stream === "stdout" ? log.debug : log.error)(
-        __PRE_BUNDLED_FILENAME__, "txiki server output:" + "\n", lines.join("\n"),
+        __PRE_BUNDLED_FILENAME__, `${meta.name} server output:\n`, lines.join("\n"),
       ),
     };
   });
 
-  serverProcesses.value = servers;
+  serverProcesses.value = [
+    ...serverProcesses.value.filter(server => !missing.has(server.token)),
+    ...restored.filter(server => ProcessHandlers.has(server.token)),
+  ];
 }

@@ -1,0 +1,159 @@
+import "@/extendable/global-object.ts";
+
+import * as dialog from "@tauri-apps/plugin-dialog";
+import * as fs from "@tauri-apps/plugin-fs";
+import { expect, spyOn, test } from "bun:test";
+
+import { LaunchStatesContextKey } from "@/constants/application.ts";
+import { Patches } from "@/constants/meta.ts";
+import { Routes } from "@/constants/routes.ts";
+import Modrinth from "@/lib/modrinth";
+import { releaseArchive, reserveImportArchive } from "@/lib/modrinth/import-archive.ts";
+import Router from "@/lib/router";
+import { globalStates } from "@/states/global.ts";
+import { declareInstanceStates, instanceStates } from "@/states/instance.ts";
+
+import { mountComponent } from "./mount-component.ts";
+import { useUiState } from "./ui-state.ts";
+
+useUiState();
+
+test("Minecraft-only import replaces Fabric and metadata retry keeps the install and archive",
+  async () => {
+    declareInstanceStates();
+    Router.navigate(Routes.AddInstance);
+    const page = globalStates.pages["add-instance"];
+    const path = "cached.mrpack";
+    const manifest = {
+      "name"         : "Vanilla",
+      "versionId"    : "1",
+      "files"        : [],
+      "dependencies" : { "minecraft": "1.21" },
+      "formatVersion": 1,
+      "overrides"    : 0,
+      "summary"      : null,
+    };
+
+    using write = spyOn(fs, "writeTextFile").mockResolvedValue();
+    using remove = spyOn(fs, "remove").mockResolvedValue();
+    using install = spyOn(Modrinth, "installMrpack").mockResolvedValue(manifest);
+    using message = spyOn(dialog, "message").mockResolvedValue("Ok");
+    page.instanceVersionSearch = { "patch": Patches.FabricLoader, "input": "fabric" };
+    await reserveImportArchive(path);
+    Modrinth.applyManifest({ manifest, path });
+    releaseArchive(path);
+    expect(page.instanceVersionSearch).toEqual({ "patch": Patches.Minecraft, "input": "" });
+    expect(page.importedModpack?.loader).toBe(Patches.Minecraft);
+    write.mockRejectedValueOnce(new Error("disk full"));
+    using view = await mountComponent("add-instance/sections/CreateInstance", {}, app => {
+      app.provide(LaunchStatesContextKey, {});
+    });
+    const button = view.root.querySelector("button")!;
+
+    button.click();
+    await Bun.sleep(0);
+    expect(install).toHaveBeenCalledTimes(1);
+    expect(message.mock.calls[0]?.[0]).toContain("save instance metadata");
+    expect(globalStates.currentPage).toBe(Routes.AddInstance);
+    expect(globalStates.selected.currentInstance).not.toBe(install.mock.calls[0][0].instanceId);
+    expect(Object.keys(instanceStates)).toEqual([]);
+    expect(page.importedModpack?.path).toBe(path);
+    expect(remove).not.toHaveBeenCalled();
+    const previous = page.importedModpack;
+
+    Modrinth.applyManifest({ manifest, path });
+    expect(page.importedModpack === previous).toBe(false);
+    button.click();
+    await Bun.sleep(0);
+    const id = globalStates.selected.currentInstance!;
+
+    expect(install).toHaveBeenCalledTimes(1);
+    expect(id).toBe(install.mock.calls[0][0].instanceId);
+    expect(instanceStates[id].entry).toBe(Patches.Minecraft);
+    expect(JSON.parse(write.mock.lastCall![1])[id].entry).toBe(Patches.Minecraft);
+    expect(write).toHaveBeenCalledTimes(3);
+    expect(Object.keys(instanceStates)).toEqual([id]);
+    expect(page.importedModpack).toBeUndefined();
+    expect(remove).toHaveBeenCalledWith(path);
+    expect(globalStates.currentPage).toBe(Routes.Home);
+  });
+
+test("clean instance creation preserves the draft and library on a failed metadata write",
+  async () => {
+    declareInstanceStates();
+    const existing = { "name": "Existing" } as (typeof instanceStates)[string];
+
+    instanceStates.existing = existing;
+    Router.navigate(Routes.AddInstance);
+    const page = globalStates.pages["add-instance"];
+    const draft = {
+      "name": "New instance", "patchVersions": { "net.minecraft": "1.21" },
+    } as NonNullable<typeof page.instance>;
+
+    page.instance = draft;
+    const selected = globalStates.selected.currentInstance;
+
+    const writing = Promise.withResolvers<void>();
+    const save = Promise.withResolvers<void>();
+
+    using write = spyOn(fs, "writeTextFile").mockImplementationOnce(async () => {
+      writing.resolve();
+      await save.promise;
+    })
+      .mockResolvedValue();
+    using message = spyOn(dialog, "message").mockRejectedValueOnce(new Error("dialog unavailable"));
+    using view = await mountComponent("add-instance/sections/CreateInstance", {}, app => {
+      app.provide(LaunchStatesContextKey, {});
+    }, [], true);
+    const button = view.root.querySelector("button")!;
+
+    button.click();
+    await writing.promise;
+    expect(instanceStates).toEqual({ existing });
+    expect(globalStates.currentPage).toBe(Routes.AddInstance);
+    save.reject(new Error("disk full"));
+    await Bun.sleep(0);
+    expect(view.root.querySelector("[role=alert]")?.textContent)
+      .toContain("save instance metadata");
+    expect(message.mock.calls[0]?.[0]).toContain("save instance metadata");
+    expect(instanceStates).toEqual({ existing });
+    expect(page.instance).toEqual(draft);
+    expect(view.root.contains(button)).toBe(true);
+    expect(button.disabled).toBe(false);
+    expect(globalStates.selected.currentInstance).toBe(selected);
+    expect(globalStates.currentPage).toBe(Routes.AddInstance);
+    button.click();
+    await Bun.sleep(0);
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(Object.keys(instanceStates)).toHaveLength(2);
+    expect(instanceStates[globalStates.selected.currentInstance!].name).toBe(draft.name);
+    expect(JSON.parse(write.mock.lastCall![1])).toEqual(instanceStates);
+    expect(globalStates.currentPage).toBe(Routes.Home);
+  });
+
+test("missing version validation stays inline with an unavailable native dialog", async () => {
+  declareInstanceStates();
+  Router.navigate(Routes.AddInstance);
+  const page = globalStates.pages["add-instance"];
+
+  page.instance = { "patchVersions": {} } as NonNullable<typeof page.instance>;
+  page.instanceVersionSearch = { "patch": Patches.FabricLoader, "input": "" };
+
+  using message = spyOn(dialog, "message").mockRejectedValue(new Error("dialog unavailable"));
+  using view = await mountComponent("add-instance/sections/CreateInstance", {}, app => {
+    app.provide(LaunchStatesContextKey, {});
+  }, [], true);
+  const button = view.root.querySelector("button")!;
+
+  for (const label of ["Vanilla Minecraft", "Fabric MC"]) {
+    button.click();
+    await Bun.sleep(0);
+    expect(view.root.querySelector("[role=alert]")?.textContent)
+      .toContain(`Select a ${label} version`);
+    expect(button.disabled).toBe(false);
+    page.instance.patchVersions[Patches.Minecraft] = "1.20";
+  }
+  expect(message).not.toHaveBeenCalled();
+  expect(Object.keys(instanceStates)).toEqual([]);
+  expect(globalStates.currentPage).toBe(Routes.AddInstance);
+});

@@ -16,15 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-use std::fmt::Write;
 use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::path::Path;
-use log::error;
 
-use serde::Deserialize;
 use md5::Md5;
+use serde::Deserialize;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use tauri::ipc::{InvokeBody, Request};
@@ -37,65 +35,100 @@ fn get_raw_bytes<'a>(request: &'a Request<'_>) -> Result<&'a [u8], String> {
     }
 }
 
-fn to_hex(digest: &[u8]) -> String {
+pub(crate) fn to_hex(digest: &[u8]) -> String {
     let mut hex = String::with_capacity(digest.len() * 2);
 
     for byte in digest {
-        let _ = write!(hex, "{:02x}", byte);
+        const DIGITS: &[u8; 16] = b"0123456789abcdef";
+        hex.push(DIGITS[(byte >> 4) as usize] as char);
+        hex.push(DIGITS[(byte & 15) as usize] as char);
     }
 
     hex
 }
 
-// 'HashAlgorithm' can be SHA1, SHA256, or MD5
-pub fn hash_file<HashAlgorithm: Digest>(path: &Path) -> io::Result<String> {
+fn read_chunks(path: &Path, mut update: impl FnMut(&[u8])) -> io::Result<()> {
     let mut file = File::open(path)?;
-    let mut hasher = HashAlgorithm::new();
     let mut buffer = [0u8; 64 * 1024];
-
     loop {
-        let bytes_read = file.read(&mut buffer)?;
-
-        if bytes_read == 0 { break }
-
-        hasher.update(&buffer[..bytes_read]);
+        let len = file.read(&mut buffer)?;
+        if len == 0 {
+            return Ok(());
+        }
+        update(&buffer[..len]);
     }
-
-    Ok(to_hex(&hasher.finalize()))
 }
 
-// 'HashAlgorithm' can be SHA1, SHA256, or MD5
+pub fn hash_file<D: Digest>(path: &Path) -> io::Result<String> {
+    let mut digest = D::new();
+    read_chunks(path, |chunk| digest.update(chunk))?;
+    Ok(to_hex(&digest.finalize()))
+}
+
+pub fn modpack_hashes(path: &Path) -> io::Result<(String, String)> {
+    let mut sha512 = sha2::Sha512::new();
+    let mut sha1 = Sha1::new();
+    read_chunks(path, |chunk| {
+        sha512.update(chunk);
+        sha1.update(chunk);
+    })?;
+    Ok((to_hex(&sha512.finalize()), to_hex(&sha1.finalize())))
+}
+
 pub fn hash_bytes<HashAlgorithm: Digest>(bytes: &[u8]) -> String {
     to_hex(&HashAlgorithm::digest(bytes))
 }
 
 pub(crate) static APPLICATION_HASH: OnceCell<String> = OnceCell::const_new();
 
-pub async fn get_executable_hash() -> String {
-    if let Some(executable_path) = std::env::current_exe().ok() {
-        let hash_join_handle = tokio::task::spawn_blocking(move || {
-            hash_file::<Sha256>(&executable_path)
-        }).await;
-
-        return match hash_join_handle {
-            Ok(Ok(hash)) => hash,
-            _ => {
-                error!("Failed to calculate the executable hash");
-                "no_hash".to_string()
-            },
-        };
-    }
-
-    error!("Failed to get the executable path");
-    "no_executable_path_for_hash".to_string()
+pub async fn get_executable_hash() -> Result<String, String> {
+    tokio::task::spawn_blocking(|| hash_file::<Sha256>(&std::env::current_exe()?))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum HashAlgorithm {
+    Sha512,
     Sha256,
     Sha1,
-    Md5
+    Md5,
+}
+
+impl HashAlgorithm {
+    pub fn hasher(self) -> Box<dyn sha2::digest::DynDigest + Send> {
+        match self {
+            Self::Sha1 => Box::new(Sha1::new()),
+            Self::Sha512 => Box::new(sha2::Sha512::new()),
+            Self::Sha256 => Box::new(Sha256::new()),
+            Self::Md5 => Box::new(Md5::new()),
+        }
+    }
+
+    pub fn validate(self, hash: &str) -> Result<(), String> {
+        let length = match self {
+            Self::Sha1 => 40,
+            Self::Sha512 => 128,
+            Self::Sha256 => 64,
+            Self::Md5 => 32,
+        };
+        if hash.len() == length && hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+            Ok(())
+        } else {
+            Err(format!("Invalid {self:?} digest"))
+        }
+    }
+
+    pub fn hash(&self, path: &Path) -> io::Result<String> {
+        match self {
+            Self::Sha512 => hash_file::<sha2::Sha512>(path),
+            Self::Sha256 => hash_file::<Sha256>(path),
+            Self::Sha1 => hash_file::<Sha1>(path),
+            Self::Md5 => hash_file::<Md5>(path),
+        }
+    }
 }
 
 #[tauri::command]
@@ -103,12 +136,11 @@ pub async fn hash_path(path: String, kind: HashAlgorithm) -> Result<String, Stri
     tokio::task::spawn_blocking(move || {
         let file_path = Path::new(&path);
 
-        match kind {
-            HashAlgorithm::Sha256 => { hash_file::<Sha256>(file_path) }
-            HashAlgorithm::Sha1   => { hash_file::<Sha1>(file_path) }
-            HashAlgorithm::Md5    => { hash_file::<Md5>(file_path) }
-        }.map_err(|error| format!("Failed to hash {path}: {error}"))
-    }).await.map_err(|error| error.to_string())?
+        kind.hash(file_path)
+            .map_err(|error| format!("Failed to hash {path}: {error}"))
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -124,4 +156,17 @@ pub async fn hash_request_sha1(request: Request<'_>) -> Result<String, String> {
 #[tauri::command]
 pub async fn hash_request_md5(request: Request<'_>) -> Result<String, String> {
     Ok(hash_bytes::<Md5>(get_raw_bytes(&request)?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn hex_preserves_leading_zeroes() {
+        assert_eq!(to_hex(&[0, 1, 15, 16, 254, 255]), "00010f10feff");
+        assert_eq!(
+            hash_bytes::<Md5>(b"abc"),
+            "900150983cd24fb0d6963f7d28e17f72"
+        );
+    }
 }

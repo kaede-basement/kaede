@@ -20,66 +20,60 @@ import { confirm } from "@tauri-apps/plugin-dialog";
 
 import { buildLaunchAuth } from "@/lib/auth/scopes/build-launch-auth.ts";
 import { ensureFreshAccount } from "@/lib/auth/scopes/ensure-fresh-account.ts";
-import Configs from "@/lib/configs";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 import type { LaunchAuthType } from "@/types/auth/microsoft-auth.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
-/**
- * Returning undefined means no instance will be launched
- *
- * @param accounts - an array of accounts to resolve the account from
- */
+import { commitAccountRefresh, snapshotAccount } from "./commit-account-refresh.ts";
+
+export type AccountResolution =
+  | { "status": "ready"; "account": AccountType; "accounts": Array<AccountType> }
+  | { "status": "missing" }
+  | { "status": "cancelled" };
+
 export async function resolveLaunchAccount(
-  accounts: Array<AccountType>,
-): Promise<{
-  "auth"    : LaunchAuthType;
-  "accounts": Array<AccountType>;
-} | undefined> {
-  const selectedIndex: number = globalStates.selected.account;
-  const activeAccount: AccountType | undefined = accounts[selectedIndex];
+  accounts: Array<AccountType>, signal?: AbortSignal,
+): Promise<{ "auth": LaunchAuthType; "accounts": Array<AccountType> } | undefined> {
+  const result = await resolveLaunchAccountOutcome(accounts, signal);
+
+  if (result.status === "ready") {
+    return { "auth": buildLaunchAuth(result.account), "accounts": result.accounts };
+  }
+}
+
+export async function resolveLaunchAccountOutcome(
+  accounts: Array<AccountType>, signal?: AbortSignal, selectedIndex = globalStates.selected.account,
+): Promise<AccountResolution> {
+  const activeAccount = accounts[selectedIndex];
 
   if (!activeAccount) {
-    log.info(
-      __PRE_BUNDLED_FILENAME__,
-      "No accounts are present",
-    );
+    log.info(__PRE_BUNDLED_FILENAME__, "No accounts are present");
 
-    return undefined;
+    return { "status": "missing" };
   }
+  const snapshot = snapshotAccount(activeAccount);
+  const result = await ensureFreshAccount(activeAccount);
 
-  const { account, status } = await ensureFreshAccount(activeAccount);
+  if (signal?.aborted) return { "status": "cancelled" };
+  if (result.status === "fresh") return { "status": "ready", "account": result.account, accounts };
 
-  if (status === "failed") {
-    const toContinue: boolean = await confirm(
+  const committed = await commitAccountRefresh(snapshot, result, signal);
+
+  if (signal?.aborted) return { "status": "cancelled" };
+  if (committed.status === "missing") return { "status": "missing" };
+  if (committed.status === "failed") {
+    const toContinue = await confirm(
       "An error happened while refreshing a token for the selected account." +
-      "\n" +
-      "Do you want to continue launching Minecraft? You won't be able to play on premium servers.",
+      "\nDo you want to continue launching Minecraft? " +
+      "You won't be able to play on premium servers.",
       "Account refreshing",
     );
 
-    if (!toContinue) {
-      return undefined;
-    }
+    if (!toContinue || signal?.aborted) return { "status": "cancelled" };
+
+    return { "status": "ready", "account": committed.account, accounts };
   }
 
-  if (status !== "refreshed") {
-    return {
-      "auth": buildLaunchAuth(account),
-      accounts,
-    };
-  }
-
-  const updatedAccounts: Array<AccountType> = [
-    account,
-    ...accounts.slice(1),
-  ];
-
-  await Configs.writeAccounts({ "accounts": updatedAccounts });
-
-  return {
-    "auth"    : buildLaunchAuth(account),
-    "accounts": updatedAccounts,
-  };
+  return { "status": "ready", "account": committed.account, "accounts": committed.accounts };
 }

@@ -21,7 +21,7 @@ export const DefaultInstanceSettings: Omit<
 export const JVMArguments = {
   "Default": {
     "Log4J"                      : "-Dlog4j2.formatMsgNoLookups=true",
-    "SystemProxies"              : "-Djava.net.useSystemProxiestrue",
+    "SystemProxies"              : "-Djava.net.useSystemProxies=true",
     "FMLIgnoreCertificates"      : "-Dfml.ignoreInvalidMinecraftCertificates=true",
     "FMLIgnorePatchDiscrepancies": "-Dfml.ignorePatchDiscrepancies=true",
     "LibrariesDirectory"         : "-DlibraryDirectory=${libraries_directory}",
@@ -95,6 +95,11 @@ export const LaunchStatus = {
     "Success"      : "client-success",
   },
   "Errors": {
+    "Stop"                : "stop-error",
+    "Native"              : "native-error",
+    "Artifact"            : "artifact-error",
+    "Repair"              : "repair-error",
+    "MissingAccount"      : "missing-account",
     "UnhandledError"      : "errors-unhandled-error",
     "IncompatiblePlatform": "errors-incompatible-platform",
     "IncompatibleArch"    : "errors-incompatible-arch",

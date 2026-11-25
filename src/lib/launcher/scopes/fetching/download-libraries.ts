@@ -1,24 +1,32 @@
-import { mkdir } from "@tauri-apps/plugin-fs";
-
 import { GeneralSettings, LaunchStatus } from "@/constants/launcher.ts";
 import FileManager from "@/lib/file-manager";
 import { Algorithms } from "@/lib/hashing.ts";
 import Hooks from "@/lib/hooks";
+import { extractLaunchWrapper } from "@/lib/launcher/scopes/optifine/extract-launchwrapper.ts";
+import { inspectOptiFineJar } from "@/lib/launcher/scopes/optifine/inspect-optifine-jar.ts";
 import { log } from "@/lib/logging/log.ts";
-import Network from "@/lib/network";
 import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
+import { downloadEntries, findMissingEntries } from "./download-missing.ts";
+import { downloadSucceeded, interruptedDownload } from "./download-outcome.ts";
+
 export async function downloadLibraries({
   necessaries,
   finalizedPatch,
+  signal,
 }: {
+  "signal"?       : AbortSignal;
   "necessaries"   : PreLaunchInformationType;
   "finalizedPatch": FinalizedPatchType;
 }): Promise<boolean> {
+  if (signal?.aborted) {
+    return interruptedDownload(necessaries.statuses);
+  }
+
   const beforeHooksResult: "continue" | boolean | undefined =
     await Hooks.catchAsyncResponseHooks<boolean>({
       "scope" : "onMinecraftLibrariesGet",
@@ -35,51 +43,61 @@ export async function downloadLibraries({
     .artifacts
     .filter(({ status }) => status !== "empty");
 
-  log.debug(
-    logPrefix,
-    `Verifying ${artifacts.length} libraries for their existence.`,
-    `SHA1 checks enabled: ${instance.checksum}`,
-  );
-  const startTime: number = performance.now();
-  const missing: Set<string> = new Set(
-    await FileManager.verifyPaths({
-      "paths"    : artifacts,
-      "algorithm": instance.checksum ? Algorithms.SHA1 : undefined,
-    }),
-  );
-  const endTime: number = performance.now();
-  const totalTime: string = (endTime - startTime).toFixed(2);
-
-  log.info(
-    logPrefix,
-    `Successfully verified ${artifacts.length} libraries in ${totalTime} ms.`,
-    `Total mismatches: ${missing.size}.`,
-    `SHA1 checks enabled: ${instance.checksum}`,
-  );
-
-  const missingArtifacts: Array<MappedArtifactType> = artifacts
-    .filter(({ path }) => {
-      return missing.has(path);
-    });
-
-  log.debug(logPrefix, "Initializing missing library and native directories");
-  await Promise.all(
-    missingArtifacts.map(({ directory }) => mkdir(
-      directory,
-      { "recursive": true },
-    )),
-  );
-
-  const report = await Network.concurrentlyDownload({
+  const missing = await findMissingEntries(artifacts, instance.checksum, signal);
+  const report = await downloadEntries({
     statuses,
     cancelId,
+    "entries"    : missing.filter(({ url }) => url !== ""),
     "concurrency": GeneralSettings.ConcurrentDownloads.Libraries,
-    "entries"    : missingArtifacts,
     "label"      : "libraries",
-  });
+  }, signal);
 
-  if (report.cancelled) {
+  if (!downloadSucceeded(report, statuses)) {
     return false;
+  }
+  if (signal?.aborted) {
+    return interruptedDownload(statuses);
+  }
+
+  const local = missing.filter(({ url }) => url === "");
+
+  if (local.length > 0) {
+    const algorithm = instance.checksum ? Algorithms.SHA1 : undefined;
+    const source = artifacts.find(({ id }) => id === "optifine:OptiFine");
+    const bundled = source && await inspectOptiFineJar({
+      "jarPath": source.path,
+      "label"  : logPrefix,
+    });
+    const wrapper = local.find(({ id, file }) => {
+      return bundled && id === "net.minecraft:launchwrapper" && file === bundled.entryPath;
+    });
+
+    if (!source || !bundled || !wrapper || local.length !== 1) {
+      const paths = local.map(({ path }) => path).join(", ");
+
+      throw new Error(`Unable to restore missing local libraries: ${paths}`);
+    }
+
+    if (signal?.aborted) {
+      return interruptedDownload(statuses);
+    }
+
+    const restored = await extractLaunchWrapper({
+      "jarPath"           : source.path,
+      "librariesDirectory": necessaries.directories.libraries,
+      bundled,
+      "label"             : logPrefix,
+    });
+
+    if (restored !== wrapper.path) {
+      return false;
+    }
+
+    const invalid = await FileManager.verifyPaths({ "paths": [wrapper], algorithm });
+
+    if (invalid.length > 0) {
+      return false;
+    }
   }
 
   await Hooks.catchAsyncVoidHooks({
@@ -91,7 +109,6 @@ export async function downloadLibraries({
   log.info(
     logPrefix,
     `Successfully handled ${artifacts.length} libraries`,
-    `and re-downloaded ${missing.size} of them`,
   );
   statuses.current = LaunchStatus.Libraries.Success;
 

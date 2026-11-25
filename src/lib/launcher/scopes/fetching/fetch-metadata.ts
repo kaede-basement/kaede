@@ -20,7 +20,9 @@ import { fetch } from "@tauri-apps/plugin-http";
 
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
+import { checkDownloadSignal } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { log } from "@/lib/logging/log.ts";
+import { discardResponseBody } from "@/lib/network/discard-response-body.ts";
 import type {
   LaunchKeyType,
   LaunchStatusType,
@@ -31,20 +33,24 @@ export async function fetchMetadata({
   label,
   scope,
   prefix,
+  signal,
 }: {
-  "url"   : string;
-  "label" : string;
-  "scope" : Extract<LaunchKeyType, "PatchIndex" | "PatchMetadata" | "AssetIndex">;
-  "prefix": string;
+  "signal"?: AbortSignal;
+  "url"    : string;
+  "label"  : string;
+  "scope"  : Extract<LaunchKeyType, "PatchIndex" | "PatchMetadata" | "AssetIndex">;
+  "prefix" : string;
 }): Promise<{ "data": unknown } | LaunchStatusType> {
   let response: Response;
   let data: unknown;
 
+  checkDownloadSignal(signal);
   try {
     log.debug(`${prefix}:${__PRE_BUNDLED_FILENAME__}`, `Fetching the ${label} from '${url}'`);
 
-    response = await fetch(url);
+    response = await fetch(url, { signal });
   } catch (error: unknown) {
+    checkDownloadSignal(signal);
     log.error(
       `${prefix}:${__PRE_BUNDLED_FILENAME__}`,
       `Could not fetch '${url}':`,
@@ -54,9 +60,16 @@ export async function fetchMetadata({
     return LaunchStatus[scope].FailedToFetch;
   }
 
+  if (signal?.aborted || !response.ok) {
+    await discardResponseBody(response);
+    checkDownloadSignal(signal);
+
+    return LaunchStatus[scope].FailedToFetch;
+  }
   try {
     data = await response.json();
   } catch (error: unknown) {
+    checkDownloadSignal(signal);
     log.error(
       `${prefix}:${__PRE_BUNDLED_FILENAME__}`,
       `Could not parse the ${label} from '${url}':`,
@@ -65,6 +78,8 @@ export async function fetchMetadata({
 
     return LaunchStatus[scope].FailedToParse;
   }
+
+  checkDownloadSignal(signal);
 
   return { data };
 }

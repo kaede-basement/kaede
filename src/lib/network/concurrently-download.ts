@@ -16,10 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { Channel } from "@tauri-apps/api/core";
 
+import { retryCancellationOnProgress } from "@/lib/launcher/scopes/fetching/cancel-all.ts";
+import { launchAttempts } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { log } from "@/lib/logging/log.ts";
+import { invokeDownload } from "@/lib/network/native-download.ts";
 import type {
+  DownloadEntryType,
   DownloadReportType,
   DownloadSnapshotType,
 } from "@/types/launcher/artifacts/download.type.ts";
@@ -32,28 +36,41 @@ export async function concurrentlyDownload({
   entries,
   statuses,
   label,
-  cancelId = `${Math.random()}`,
+  "cancelId": requestedId,
   debug = false,
 }: {
   "concurrency": number;
-  "entries"    : Array<{ "url": string; "path": string }>;
+  "entries"    : Array<DownloadEntryType>;
   "statuses"   : LauncherStatusesType;
   "label"      : string;
   "cancelId"  ?: string;
   "debug"     ?: boolean;
 }): Promise<DownloadReportType> {
+  const attempt = launchAttempts.get(statuses);
+  const signal = attempt?.signal;
+  const cancelId = attempt?.cancelId ?? requestedId ?? `${Math.random()}`;
+
+  if (signal?.aborted) {
+    return { "cancelled": true, "success": 0, "failed": 0, "failures": [] };
+  }
   const logPrefix: string = `${label}:${__PRE_BUNDLED_FILENAME__}`;
 
   log.debug(logPrefix, `Removing duplicates for ${entries.length} objects`);
-  const uniqueMap: Map<string, string> = new Map(
-    // It is probably better to filter by unique paths rather than unique URLs...
-    entries.map(({ url, path }) => [path, url]),
-  );
-  const uniqueArtifacts: Array<{ "url": string; "path": string }> = [];
+  const uniqueMap = (new Map<string, DownloadEntryType>);
 
-  for (const [path, url] of uniqueMap.entries()) {
-    uniqueArtifacts.push({ url, path });
+  for (const entry of entries) {
+    const previous = uniqueMap.get(entry.path);
+
+    if (previous && (
+      previous.url !== entry.url || previous.size !== entry.size ||
+      previous.algorithm !== entry.algorithm ||
+      previous.hash?.toLowerCase() !== entry.hash?.toLowerCase()
+    )) {
+      throw new Error(`Conflicting download expectations for ${entry.path}`);
+    }
+    uniqueMap.set(entry.path, entry);
   }
+  const uniqueArtifacts = [...uniqueMap.values()];
 
   log.debug(
     logPrefix,
@@ -88,8 +105,13 @@ export async function concurrentlyDownload({
     previousFailed  = failed;
   };
 
+  const retryCancellation = retryCancellationOnProgress(signal, cancelId);
+  let active = true;
+
   // eslint-disable-next-line unicorn/prefer-add-event-listener
   onProgress.onmessage = (snapshot: DownloadSnapshotType): void => {
+    if (!active) return;
+    retryCancellation();
     const current = statuses.downloads.current;
 
     for (const path of previousPaths) {
@@ -113,13 +135,15 @@ export async function concurrentlyDownload({
     applySnapshotData(snapshot.success, snapshot.failed);
   };
 
-  const report = await invoke<DownloadReportType>("concurrently_download", {
+  const report = await invokeDownload<DownloadReportType>("concurrently_download", {
     "entries": uniqueArtifacts,
     concurrency,
     label,
     onProgress,
     cancelId,
     debug,
+  }).finally(() => {
+    active = false;
   });
 
   applySnapshotData(report.success, report.failed);

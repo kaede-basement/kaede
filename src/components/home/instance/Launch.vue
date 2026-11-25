@@ -12,8 +12,11 @@ import {
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
-import Fetching from "@/lib/launcher/scopes/fetching";
+import { launchAttempts } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
+import { cancelLaunchDownloads } from "@/lib/launcher/scopes/handle-launch.ts";
 import { log } from "@/lib/logging/log.ts";
+import { cancelWithFeedback } from "@/lib/network/cancel-with-feedback.ts";
+import { hasActiveDownloads } from "@/lib/network/native-download.ts";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type {
@@ -53,48 +56,8 @@ const statuses = computed((): LauncherStatusesType | undefined => {
 
   return instanceStatuses[instanceId];
 });
-const isDownloading = computed((): boolean => {
-  return (
-    statuses.value?.launching === 1 &&
-    (statuses.value?.downloads?.total ?? 0) > 0
-  );
-});
-
-/*
- * This state handles the launching button and acts as a 'disabled' attribute
- * not only for the launch buttons but for LaunchOptions.vue as well
- */
-const launchable = computed((): boolean => (
-  // Pretty simple: if the instance is not launching and not launched, then we can launch it
-  statuses.value === undefined || statuses.value?.launching === 0
-));
-// This state handles the stopping button and acts as a 'disabled' attribute
-const unstoppable = computed((): boolean => (
-  // If the 'killing' is already in the process, then the button is untouchable
-  killing.value ||
-
-  /*
-   * Or, if the instance is not launched and the download tasks are empty, then untouchable too:
-   * - download tasks can be cancelled;
-   * - launched instance can be killed.
-   * When the instance is launched, it implies that the download tasks are done.
-   * When the download tasks are in the process, it implies that the instance is not launched.
-   * Wait, I just repeated myself with P => Q === not(Q) => not(P), but alright??
-   *
-   * Hold on, can we simplify this?
-   * 'launching' can be in three states: none (0 | undefined), launching (1), and launched (2).
-   * 'isDownloading' can either be true or false, and it implies that the 'launching'
-   * is definitely not '2'. Wait, but it also must imply that the 'launching' is not '0 | undefined'
-   * since download tasks only happen when the instance is being launched (1).
-   * Whoa, so we can really simplify this? Also, I am a fucking dumb ass since I just could
-   * glance at the definition of 'isDownloading' and see there 'statuses.value?.launching === 1'.
-   * Hmm wait, what the fuck is going on here. So, if not downloading, then disabled?
-   * HOLD ON, if not downloading but is launched ('true && false'), then it is not disabled
-   * since WE MUST BE ABLE TO KILL THE MINECRAFT PROCESS.
-   * Ohhh, that's why I also wrote 'statuses.value?.launching !== 2' before
-   */
-  (!isDownloading.value && statuses.value?.launching !== 2)
-));
+const launchable = computed(() => !statuses.value?.launching);
+const unstoppable = computed(() => killing.value || launchable.value);
 
 function handleLaunch(): void {
   if (launchInstance === undefined) {
@@ -106,42 +69,38 @@ function handleLaunch(): void {
     return;
   }
 
-  const instanceId: string | undefined = currentInstance?.value?.id;
-  const instanceContent: InstanceStateType | undefined = currentInstance?.value?.instance;
-
-  launchInstance(instanceId)
-    .then(() => {
-      if (!instanceId || !instanceContent) {
-        return log.error(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-          "The instance ID or data is invalid. Provided contents",
-          { instanceId, instanceContent },
-        ));
-      }
-
-      instanceStates[instanceId] = {
-        ...instanceStates[instanceId],
-        "lastLaunch": Date.now(),
-      };
-    });
+  void launchInstance(currentInstance.value?.id);
 }
 async function handleClose(): Promise<void> {
+  const attempt = statuses.value;
+  const instanceId = currentInstance.value?.id;
   const toClose: boolean = await ask(
     "Do you really want to cancel the Minecraft launch?",
     "Minecraft",
-  );
+  ).catch(error => {
+    log.error(__PRE_BUNDLED_FILENAME__, "Could not confirm Stop:", String(error));
+
+    return false;
+  });
 
   if (!toClose) {
     return;
   }
 
-  const instanceId: string | undefined = currentInstance?.value?.id;
-
+  if (statuses.value !== attempt || !attempt?.launching) {
+    return;
+  }
   if (instanceId === undefined) {
     return log.error(__PRE_BUNDLED_FILENAME__, "The current instance id is undefined");
   }
 
-  if (isDownloading.value) {
-    await Fetching.cancelAll(`${instanceId}-download`);
+  if (attempt.launching === 1) {
+    const launch = launchAttempts.get(attempt);
+
+    await cancelWithFeedback(
+      () => cancelLaunchDownloads(attempt),
+      () => !!launch && statuses.value === attempt && hasActiveDownloads(launch.cancelId),
+    );
 
     return;
   }

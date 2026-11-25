@@ -17,8 +17,8 @@
   -->
 
 <script setup lang="ts">
-import { onClickOutside } from "@vueuse/core";
-import { computed, ref, useTemplateRef } from "vue";
+import { onClickOutside, useDebounceFn } from "@vueuse/core";
+import { computed, nextTick, onScopeDispose, ref, useTemplateRef, watch } from "vue";
 
 import ChangeInstanceVersionDropdown
   from "@/components/add-instance/sections/ChangeInstanceVersionDropdown.vue";
@@ -38,6 +38,8 @@ const { styles } = useConfigColors();
 const target = useTemplateRef("target");
 
 const currentFilter = ref<"release" | "all">("release");
+const search = useTemplateRef("search");
+let restoreSearchFocus = false;
 const selector = ref<boolean>(false);
 
 const currentInstance = computed(
@@ -64,6 +66,25 @@ function toggleTypeFilter(): void {
     ? "all"
     : "release";
 }
+async function openFromKeyboard(event: KeyboardEvent): Promise<void> {
+  if (event.key !== "ArrowDown" && event.key !== "Enter") {
+    return;
+  }
+  event.preventDefault();
+  const input = event.target as HTMLInputElement;
+
+  queueSearch.cancel();
+  handleVersionSearch(input.value);
+  restoreSearchFocus = true;
+  handleDropdown(true);
+  await nextTick();
+  const menu = target.value?.querySelector<HTMLElement>(
+    "#__add-instance-page__instance-version-dropdown-wrapper",
+  );
+
+  (menu?.querySelector<HTMLElement>("button") ?? menu)?.focus();
+}
+
 function handleDropdown(state: boolean, event?: PointerEvent): void {
   const target = event?.target as HTMLButtonElement | undefined;
 
@@ -71,6 +92,12 @@ function handleDropdown(state: boolean, event?: PointerEvent): void {
     return;
   }
 
+  if (!state && restoreSearchFocus) {
+    restoreSearchFocus = false;
+    if (!event) {
+      search.value?.focus();
+    }
+  }
   selector.value = state;
   temporaryPatch.value = undefined;
 }
@@ -89,7 +116,19 @@ function temporaryDropdown(type?: ExtendedPatchUIDType): void {
     : Patches.Minecraft;
 }
 
-onClickOutside(target, () => handleDropdown(false));
+const queueSearch = useDebounceFn(handleVersionSearch, 300);
+
+const displayedPatch = computed(() => temporaryPatch.value ?? currentPatch.value);
+
+watch(displayedPatch, queueSearch.cancel, { "flush": "sync" });
+watch([
+  currentVersionSearch, (): string | undefined => currentVersionSearch.value?.input,
+], ([search]) => {
+  if (!search?.input) queueSearch.cancel();
+}, { "flush": "sync" });
+onScopeDispose(queueSearch.cancel);
+
+onClickOutside(target, event => handleDropdown(false, event));
 </script>
 
 <template>
@@ -121,14 +160,16 @@ onClickOutside(target, () => handleDropdown(false));
       <MaterialRipple />
     </button>
     <CustomInput
+      ref="search"
+      :on-key-down="openFromKeyboard"
       icon="i-lucide-search"
       id-root="__add-instance-page__instance-version"
       type="text"
       :placeholder="`Version of '${currentPatch}'`"
       :tooltip="`Searching for this version of '${currentPatch}'...`"
-      :debounce-time="300"
+      :debounce-time="0"
       :default-value="currentVersionSearch?.input"
-      :on-input="handleVersionSearch"
+      :on-input="queueSearch"
       :on-escape="() => handleDropdown(false)"
       @click="() => handleDropdown(true)"
       :class-names="{ 'wrapper': 'h-8 flex-1' }"
@@ -147,7 +188,7 @@ onClickOutside(target, () => handleDropdown(false));
         v-if="selector"
         :handle-dropdown="handleDropdown"
         :current-filter="currentFilter"
-        :current-patch="temporaryPatch ?? currentPatch"
+        :current-patch="displayedPatch"
       />
     </Transition>
   </div>

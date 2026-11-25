@@ -19,6 +19,7 @@
 import { log } from "@/lib/logging/log.ts";
 import { hydrate } from "@/lib/processes/hydrate.ts";
 import { spawnProcess } from "@/lib/processes/spawn-process.ts";
+import { watchProcesses } from "@/lib/watchers/watch-processes.ts";
 import { serverProcesses } from "@/states/servers.ts";
 import type {
   ProgramSpecType,
@@ -32,21 +33,29 @@ export async function spawnServer({ name, program, args, port }: {
   "args"   : Array<string>;
   "port"   : number;
 }): Promise<ServerProcessType> {
+  await watchProcesses();
+  let exited = false;
   const handle = await spawnProcess<ServerMetaType>({
     program, args,
     "kind": "extension-server",
     "meta": { name, port },
   }, {
     "onOutput": (lines, stream) => (stream === "stdout" ? log.debug : log.error)(
-      __PRE_BUNDLED_FILENAME__, "txiki server output:" + "\n", lines.join("\n"),
+      __PRE_BUNDLED_FILENAME__, `${name} server output:\n`, lines.join("\n"),
     ),
-    "onExit": () => {
-      serverProcesses.value = serverProcesses.value.filter(item => item.name !== name);
+    "onExit": ({ token }) => {
+      exited = true;
+      serverProcesses.value = serverProcesses.value.filter(item => item.token !== token);
     },
   });
-  const process = hydrate(handle);
 
-  serverProcesses.value = [...serverProcesses.value, process];
+  if (exited) {
+    throw new Error(`Server '${name}' exited during startup (PID ${handle.pid})`);
+  }
 
-  return process;
+  const server = hydrate(handle);
+
+  serverProcesses.value = [...serverProcesses.value, server];
+
+  return server;
 }

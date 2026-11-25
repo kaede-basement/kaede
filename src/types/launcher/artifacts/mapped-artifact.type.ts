@@ -4,6 +4,7 @@ export type MappedArtifactType = {
   "file"     : string;
   "directory": string;
   "url"      : string;
+  "size"    ?: number;
   // 'ignore' is used only when the hash is unknown
   "hash"     : string | "ignore";
 
@@ -37,3 +38,7 @@ export type MappedArtifactType = {
    */
   "exclude"?: Array<string>;
 };
+
+export type MappedLibraryType = MappedArtifactType & Required<
+  Pick<MappedArtifactType, "status" | "first" | "exclude">
+>;

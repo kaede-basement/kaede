@@ -17,7 +17,7 @@
  */
 
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { confirm, message } from "@tauri-apps/plugin-dialog";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 
@@ -26,9 +26,11 @@ import FileStructure from "@/constants/file-structure.ts";
 import { ActionRegistry } from "@/extendable/action-registry.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Auth from "@/lib/auth";
+import { commitAccountRefresh, snapshotAccount } from "@/lib/auth/scopes/commit-account-refresh.ts";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
+import { translate } from "@/lib/general/translate.ts";
 import Initialization from "@/lib/initialization";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
@@ -46,30 +48,27 @@ export function declareActionRegistry(): void {
     async ({ account, accounts, handlers }: AccountActionPropertiesType) => {
       // We use 'pending' only for time-consuming tasks
       handlers.pending();
+      const snapshot = snapshotAccount(account);
       const result: EnsureFreshResultType = await Auth.ensureFreshAccount(account, true);
-
-      if (result.status === "failed") {
-        return handlers.error("Failed to refresh the account");
-      }
-
-      if (result.status === "fresh") {
-        return handlers.success();
-      }
 
       if (!accounts?.value) {
         return handlers
           .error("Failed to update stored accounts as received 'accounts' is undefined");
       }
 
-      accounts.value = accounts.value.map(current => (
-        current.profile.uuid === account.profile.uuid
-          ? result.account
-          : current
-      ));
+      try {
+        const committed = await commitAccountRefresh(snapshot, result);
 
-      await Configs.writeAccounts({
-        "accounts": accounts.value,
-      });
+        accounts.value = committed.accounts;
+        if (committed.status === "missing") {
+          return handlers.error(translate("profile.accounts.removed"));
+        }
+        if (committed.status === "failed") {
+          return handlers.error(translate("profile.accounts.refresh-error"));
+        }
+      } catch (error) {
+        return handlers.error(translate("profile.accounts.save-error"), error);
+      }
 
       handlers.success();
     },
@@ -100,13 +99,13 @@ export function declareActionRegistry(): void {
         return handlers.reset();
       }
 
-      accounts.value = accounts.value.filter(({ profile }) => (
-        profile.uuid !== account.profile.uuid
-      ));
-
-      await Configs.writeAccounts({
-        "accounts": accounts.value,
-      });
+      try {
+        accounts.value = await Configs.updateAccounts(stored => stored.filter(({ profile }) => (
+          profile.uuid !== account.profile.uuid
+        )));
+      } catch (error) {
+        return handlers.error(translate("profile.accounts.save-error"), error);
+      }
 
       handlers.success();
     },
@@ -145,17 +144,13 @@ export function declareActionRegistry(): void {
   );
   ActionRegistry.register(
     ActionKeys.ContextMenuMinecraftLogs,
-    (): void => {
-      const instanceStatuses = GlobalInternals.logs?.instanceStatuses;
-
-      if (!instanceStatuses) {
-        return void message(GlobalInternals.logs + "No Minecraft logs were found");
-      }
-
-      const key: string | undefined = Object.keys(instanceStatuses)[0];
+    async (): Promise<void> => {
+      const key = Object.keys(GlobalInternals.logs?.instanceStatuses ?? {})[0];
 
       if (!key) {
-        return void message("No Minecraft logs were found");
+        await Errors.showError(translate("logs.missing"));
+
+        return;
       }
 
       globalStates.logs.show = true;

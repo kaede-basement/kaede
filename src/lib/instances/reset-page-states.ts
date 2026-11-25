@@ -18,10 +18,11 @@
 
 import { DefaultInstanceIcon, DefaultInstanceSettings } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances/index.ts";
+import { setImportedModpack } from "@/lib/modrinth/import-archive.ts";
 import { globalStates } from "@/states/global.ts";
 
 export function resetPageStates(): void {
-  globalStates.pages["add-instance"].importedModpack = undefined;
+  setImportedModpack();
 
   const currentInstance = Instances.extractSavedFromPages(
     globalStates.pages?.["add-instance"]?.instance,
@@ -33,7 +34,7 @@ export function resetPageStates(): void {
   }
 
   globalStates.pages["add-instance"].instanceVersionSearch = {
-    "input": globalStates.pages["add-instance"].instanceVersionSearch?.input ?? "",
+    "input": "",
     "patch": "net.minecraft",
   };
   globalStates.pages["add-instance"].instance = {

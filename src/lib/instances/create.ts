@@ -16,65 +16,47 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { message } from "@tauri-apps/plugin-dialog";
-
 import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
+import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
+import { sanitizeFileOrFolderName } from "@/lib/file-manager/path.ts";
+import { translate } from "@/lib/general/translate.ts";
+import { registerInstance } from "@/lib/instances/sync.ts";
 import { log } from "@/lib/logging/log.ts";
+import {
+  archiveIdentity, hashLocalArchive, persistImportArchive, setImportedModpack,
+} from "@/lib/modrinth/import-archive.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
+import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
 
-export function create(
-  currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
-  uid: ExtendedPatchUIDType,
-  modpackPath?: string,
-): string | undefined {
+type Page = GlobalStatesType["pages"]["add-instance"];
+type Import = { "path": string; "install": (id: string) => Promise<void> };
+const awaitingMetadata = new Map<string, string>;
+
+export class InstanceDraftError extends Error {}
+
+function prepare(
+  currentInstance: Page["instance"], uid: ExtendedPatchUIDType,
+): InstanceStateType | InstanceDraftError {
   if (!currentInstance) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Could not create an instance since the instance is undefined",
-    );
-
-    return undefined;
+    return new InstanceDraftError(translate("instance.no-draft"));
   }
 
-  if (currentInstance.patchVersions[Patches.Minecraft] === undefined) {
-    void message(
-      "Please, select the Minecraft version.",
-      {
-        "title": "Instance creation",
-        "kind" : "error",
-      },
-    );
+  const patch = currentInstance.patchVersions[Patches.Minecraft] === undefined
+    ? Patches.Minecraft
+    : uid;
 
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Could not create an instance since the Minecraft patch version is undefined",
-    );
+  if (currentInstance.patchVersions[patch] === undefined) {
+    const message = translate("instance.select-version")
+      .replace("{patch}", PrettyPatchLabels[patch]);
 
-    return undefined;
-  }
-
-  if (currentInstance.patchVersions[uid] === undefined) {
-    void message(
-      `Please, specify the ${PrettyPatchLabels[uid]} version.`,
-      {
-        "title": "Instance creation",
-        "kind" : "error",
-      },
-    );
-
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Could not create an instance since the entry patch version is undefined",
-    );
-
-    return undefined;
+    return new InstanceDraftError(message);
   }
 
   const toAdd: Partial<Record<ExtendedPatchUIDType, string>> = {};
@@ -84,14 +66,9 @@ export function create(
     toAdd[Patches.FabricIntermediary] = currentInstance.patchVersions[Patches.Minecraft];
   }
 
-  const randomDigits: number = Math.floor(Math.random() * 1000);
-  const id: string = FileManager.sanitizeFileOrFolderName(
-    currentInstance.name + " " + randomDigits,
-  );
-
   log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
 
-  instanceStates[id] = {
+  return {
     ...DefaultInstanceSettings,
     ...globalStates.minecraft,
     ...currentInstance,
@@ -101,19 +78,118 @@ export function create(
     },
     "entry": uid,
   };
+}
 
-  if (modpackPath) {
-    instanceStates[id].modpackPath = modpackPath;
+export async function createFromDraft(
+  draft: Page["instance"], uid: ExtendedPatchUIDType, pack?: Import,
+): Promise<string> {
+  const instance = prepare(draft, uid);
+
+  if (instance instanceof InstanceDraftError) {
+    throw instance;
   }
 
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    "Successfully created an instance with the entry patch:",
-    uid,
+  return saveDraft(instance, pack);
+}
+
+async function saveDraft(instance: InstanceStateType, pack?: Import): Promise<string> {
+  const page = globalStates.pages["add-instance"];
+  const draft = page.instance;
+  const archive = page.importedModpack;
+  const draftValues = (): string => JSON.stringify([
+    page.instance, page.importedModpack, page.instanceVersionSearch?.patch ?? Patches.Minecraft,
+  ]);
+  const initialValues = draftValues();
+  const directory = FileManager.getBaseDirectory();
+  let registrationKey: string | undefined;
+
+  if (pack) {
+    let identity: string | undefined;
+    const expected = archive?.path === pack.path ? archive.sha256 : undefined;
+
+    if (expected === undefined) {
+      identity = await archiveIdentity(pack.path);
+    } else {
+      try {
+        identity = await hashLocalArchive(pack.path);
+      } catch (error) {
+        log.error(__PRE_BUNDLED_FILENAME__, "Could not verify selected archive:", String(error));
+      }
+      if (identity !== expected) {
+        throw new InstanceDraftError(translate("import.reselect-archive"));
+      }
+    }
+    registrationKey = JSON.stringify([directory, identity]);
+  }
+  const retryId = registrationKey && awaitingMetadata.get(registrationKey);
+  const id = retryId ?? sanitizeFileOrFolderName(
+    crypto.getRandomValues(new Uint8Array(16)).join("-") + " " + instance.name,
   );
 
-  globalStates.pages["add-instance"].instance = undefined;
+  if (pack && !retryId) {
+    await pack.install(id);
+  }
+  if (!await registerInstance(id, instance)) {
+    if (registrationKey) {
+      awaitingMetadata.set(registrationKey, id);
+    }
+    const key = pack ? "import.metadata-save-error" : "instance.metadata-save-error";
 
+    throw new Error(translate(key));
+  }
+
+  if (registrationKey && awaitingMetadata.get(registrationKey) === id) {
+    awaitingMetadata.delete(registrationKey);
+  }
+
+  if (globalStates.pages["add-instance"] === page && page.instance === draft &&
+    page.importedModpack === archive && draftValues() === initialValues) {
+    if (pack) {
+      setImportedModpack();
+      page.lastCreated = undefined;
+    }
+    page.instance = undefined;
+    page.instanceVersionSearch = undefined;
+    if (globalStates.currentPage === Routes.AddInstance &&
+      (page.tab ?? "clean-minecraft") === "clean-minecraft") {
+      globalStates.selected.currentInstance = id;
+      Router.navigate(Routes.Home);
+    }
+  }
+
+  return id;
+}
+
+export function create(
+  currentInstance: Page["instance"], uid: ExtendedPatchUIDType, modpackPath?: string,
+): string | undefined;
+export function create(
+  currentInstance: Page["instance"], uid: ExtendedPatchUIDType, modpackPath: string,
+  beforeRegister: (id: string) => Promise<void>,
+): Promise<string> | undefined;
+export function create(
+  currentInstance: Page["instance"], uid: ExtendedPatchUIDType, modpackPath?: string,
+  beforeRegister?: (id: string) => Promise<void>,
+): string | Promise<string> | undefined {
+  const instance = prepare(currentInstance, uid);
+
+  if (instance instanceof InstanceDraftError) {
+    void Errors.showError(instance.message);
+
+    return;
+  }
+
+  if (beforeRegister && modpackPath !== undefined) {
+    return saveDraft(instance, { "path": modpackPath, "install": beforeRegister });
+  }
+  const id = sanitizeFileOrFolderName(instance.name + " " + Math.floor(Math.random() * 1000));
+
+  if (modpackPath) {
+    instance.modpackPath = modpackPath;
+    persistImportArchive(modpackPath);
+  }
+  instanceStates[id] = instance;
+  globalStates.pages["add-instance"].instance = undefined;
   Router.navigate(Routes.Library);
 
   return id;

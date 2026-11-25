@@ -21,29 +21,37 @@ import { useQuery } from "@tanstack/vue-query";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { fetch } from "@tauri-apps/plugin-http";
 import { onClickOutside } from "@vueuse/core";
-import { markRaw, ref, useTemplateRef } from "vue";
+import { computed, markRaw, nextTick, ref, useTemplateRef } from "vue";
 
+import { useModpackImport } from "@/composables/use-modpack-import.ts";
+import { useVersionViewport } from "@/composables/use-version-viewport.ts";
 import { InstanceCreationSections } from "@/constants/application.ts";
 import FileStructure from "@/constants/file-structure.ts";
 import { ModrinthAPI } from "@/constants/modrinth.ts";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
-import { log } from "@/lib/logging/log.ts";
+import { translate } from "@/lib/general/translate.ts";
 import Modrinth from "@/lib/modrinth";
+import { releaseArchive, reserveImportArchive } from "@/lib/modrinth/import-archive.ts";
+import { discardResponseBody } from "@/lib/network/discard-response-body.ts";
 import { globalStates } from "@/states/global.ts";
-import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 
-const { idRoot, projectId, projectName, projectIcon, close } = defineProps<{
-  "idRoot"     : string;
-  "projectId"  : string;
-  "projectName": string;
+
+const beginImport = useModpackImport();
+
+const { idRoot, projectId, projectIcon, close } = defineProps<{
+  "idRoot"   : string;
+  "projectId": string;
+
   "projectIcon": string | null;
   "close"      : () => void;
 }>();
 
 const container = useTemplateRef("container");
 
-const pending = ref<boolean>(false);
+const active = ref<() => boolean>();
+const pending = computed(() => active.value?.() ?? false);
+const importError = ref("");
 
 const { data, status, error } = useQuery({
   "queryKey": [
@@ -56,119 +64,91 @@ const { data, status, error } = useQuery({
   "queryFn": async () => markRaw(await Modrinth.fetchVersion(projectId)),
 });
 
-async function handleClick(event: MouseEvent): Promise<void> {
-  if (!data.value) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "The version was clicked, yet the version data is undefined. How did you do it?",
-    );
-  }
+const releases = computed(() => data.value ?? []);
+const rowHeight = 40;
+const {
+  list, containerProps, wrapperProps, focusFirstVisible,
+} = useVersionViewport(releases, rowHeight);
 
-  let index: number = Number.NaN;
+async function handleClick(
+  entry: (typeof releases.value)[number], event: MouseEvent,
+): Promise<void> {
+  const button = event.currentTarget as HTMLButtonElement;
+  const document = button.ownerDocument;
+  const wasFocused = document.activeElement === button;
+  let written: string | undefined;
+  const { current, signal, finish } = beginImport();
 
-  if (event.target instanceof HTMLElement) {
-    index = Number(event.target.dataset.entry);
-  }
+  active.value = current;
+  importError.value = "";
+  try {
+    const url = (entry.files.find(file => file.primary) ?? entry.files[0])?.url;
 
-  if (Number.isNaN(index)) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `The extracted version index of '${projectName}' is not a number`,
-    );
-  }
+    if (!url) {
+      throw new Error(translate("import.no-url"));
+    }
+    const response = await fetch(url, { signal });
 
-  pending.value = true;
-  const currentEntry = data.value[index];
-  const packURL: string | undefined = currentEntry.files[0].url;
+    if (!current() || !response.ok) {
+      await discardResponseBody(response);
+      if (!current()) return;
+      throw new Error("HTTP " + response.status);
+    }
+    const bytes = await response.bytes();
 
-  if (!packURL) {
-    pending.value = false;
+    if (!current()) {
+      return;
+    }
+    const hex = (bytes: Uint8Array): string => Array.from(
+      bytes, byte => byte.toString(16).padStart(2, "0"),
+    ).join("");
+    const release = hex((new TextEncoder).encode(entry.id));
+    const attempt = hex(crypto.getRandomValues(new Uint8Array(16)));
+    const archive = release + "-" + attempt + ".mrpack";
+    const directory = FileManager.getBaseDirectory();
+    const path = FileManager.join(directory, FileStructure.Folders.Cache.Path, archive);
 
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `No '.mrpack' file URL was found in the metadata for '${currentEntry.version_number}'`,
-    );
-  }
+    await reserveImportArchive(path);
+    written = path;
+    if (!current()) {
+      return;
+    }
+    await writeFile(path, bytes, { "create": false });
+    if (!current()) {
+      return;
+    }
+    const manifest = await Modrinth.peekMrpack(path);
 
-  const response: Response | {
-    "status": string;
-    "ok"    : false;
-    // I don't want to wrap it in 'try {} catch {}'
-  } = await fetch(packURL).catch(error => {
-    // Lol
-    return { "status": Errors.prettify(error), "ok": false as const };
-  });
+    if (!current()) {
+      return;
+    }
+    if (!manifest) {
+      throw new Error(translate("import.no-manifest"));
+    }
+    Modrinth.applyManifest({ manifest, path });
+    const page = globalStates.pages["add-instance"];
 
-  if (!response.ok) {
-    pending.value = false;
+    if (projectIcon && page.instance) {
+      page.instance.icon = projectIcon;
+    }
+    close();
+    page.select?.(InstanceCreationSections[0]);
+  } catch (error) {
+    if (current()) {
+      const detail = typeof error === "string" ? error : Errors.extract(error).message;
 
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `Fetch failed with '${response.status}'`,
-    );
-  }
-
-  const bytes: Uint8Array | false = await response.bytes().catch(error => {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to get bytes:",
-      Errors.prettify(error),
-    );
-
-    return false;
-  });
-
-  if (bytes === false) {
-    pending.value = false;
-
-    return;
-  }
-
-  const cachePath: string = FileManager.join(
-    FileManager.getBaseDirectory(),
-    FileStructure.Folders.Cache.Path,
-    projectName + currentEntry.version_number + currentEntry.game_versions[0] + ".mrpack",
-  );
-
-  const written: void | false = await writeFile(cachePath, bytes)
-    .catch(error => {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Failed to write file:",
-        Errors.prettify(error),
-      );
-
-      return false;
-    });
-
-  if (written === false) {
-    pending.value = false;
-
-    return;
-  }
-
-  const manifest: MrpackManifestType | undefined | void =
-    await Modrinth.peekMrpack(cachePath)
-      .catch(error => {
-        return log.error(
-          __PRE_BUNDLED_FILENAME__,
-          "Error while peeking the '.mrpack' manifest:",
-          Errors.prettify(error),
-        );
-      });
-
-  pending.value = false;
-
-  if (!manifest) {
-    return;
-  }
-  close();
-
-  Modrinth.applyManifest({ manifest, "path": cachePath });
-  globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
-
-  if (projectIcon && globalStates.pages["add-instance"]?.instance) {
-    globalStates.pages["add-instance"].instance.icon = projectIcon;
+      importError.value = translate("import.read-error") + ": " + detail;
+    }
+  } finally {
+    releaseArchive(written);
+    if (active.value === current) active.value = undefined;
+    if (current() && importError.value && wasFocused) {
+      await nextTick();
+      if (current() && document.activeElement === document.body) {
+        focusFirstVisible();
+      }
+    }
+    finish();
   }
 }
 
@@ -181,40 +161,26 @@ onClickOutside(container, close);
     ref="container"
     class="absolute right-4 top-16 z-100 max-h-120 w-80 overflow-y-auto rounded-md bg-neutral-900 text-white"
   >
-    <button
-      v-if="data"
-      :disabled="pending"
-      @click="handleClick"
-      :id="`${idRoot}-data`"
-      class="w-full flex flex-col break-all text-wrap text-sm disabled:opacity-70"
-    >
-      <span
-        v-for="(entry, index) in data"
-        :key="entry.id"
-        :id="`${idRoot}-${entry.id}`"
-        :data-entry="index"
-        class="flex flex-nowrap border-b border-neutral-600 p-2 hover:bg-[theme(colors.neutral.100/.1)]"
-      >
-        <span
-          :id="`${idRoot}-${entry.id}-star`"
-          class="pointer-events-none w-6 shrink-0"
+    <p :id="`${idRoot}-import-error`" v-if="importError" role="alert" class="p-2">{{ importError }}</p>
+    <div :id="`${idRoot}-viewport`" v-if="data?.length" v-bind="containerProps" tabindex="-1" class="max-h-96 overflow-y-auto">
+      <div :id="`${idRoot}-rows`" v-bind="wrapperProps">
+        <button
+          v-for="{ data: entry } in list"
+          :key="entry.id"
+          :id="`${idRoot}-${entry.id}`"
+          :title="entry.name"
+          :disabled="pending"
+          :style="{ height: rowHeight + 'px' }"
+          class="w-full flex items-center gap-2 border-b border-neutral-600 p-2 text-left hover:bg-white/5 disabled:opacity-70"
+          @click="handleClick(entry, $event)"
         >
-          {{ entry.featured ? "⭐" : "" }}
-        </span>
-        <span
-          :id="`${idRoot}-${entry.id}-label`"
-          class="pointer-events-none w-full"
-        >
-          {{ entry.name }}
-        </span>
-        <span
-          :id="`${idRoot}-${entry.id}-loader`"
-          class="pointer-events-none shrink-0 text-neutral-300"
-        >
-          {{ entry.loaders[0] }}
-        </span>
-      </span>
-    </button>
+          <span :id="`${idRoot}-${entry.id}-star`" class="w-6 shrink-0">{{ entry.featured ? "⭐" : "" }}</span>
+          <span :id="`${idRoot}-${entry.id}-name`" class="flex-1 truncate">{{ entry.name }}</span>
+          <span :id="`${idRoot}-${entry.id}-loader`" class="shrink-0 text-neutral-300">{{ entry.loaders[0] }}</span>
+        </button>
+      </div>
+    </div>
+    <p :id="`${idRoot}-empty`" v-else-if="data" class="p-2">{{ translate("versions.empty") }}</p>
     <div
       v-else-if="status !== 'error'"
       :id="`${idRoot}-pending`"

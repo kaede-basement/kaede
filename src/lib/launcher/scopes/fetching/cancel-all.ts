@@ -18,6 +18,23 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
+import { cancelWithFeedback } from "@/lib/network/cancel-with-feedback.ts";
+import { hasActiveDownloads } from "@/lib/network/native-download.ts";
+
 export function cancelAll(cancelId: string): Promise<boolean> {
   return invoke<boolean>("cancel_downloads", { cancelId });
+}
+
+// The first cancellation IPC can reach Rust before the batch registers.
+export function retryCancellationOnProgress(
+  signal: AbortSignal | undefined, cancelId: string,
+): () => void {
+  let retried = false;
+
+  return (): void => {
+    if (signal?.aborted && !retried) {
+      retried = true;
+      void cancelWithFeedback(() => cancelAll(cancelId), () => hasActiveDownloads(cancelId));
+    }
+  };
 }

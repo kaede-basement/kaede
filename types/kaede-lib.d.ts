@@ -424,6 +424,7 @@ export type PagesType = {
 			"path": string;
 			"name": string | undefined;
 			"loader": string;
+			"sha256"?: string;
 		};
 		"instance": {
 			"name": string;
@@ -571,6 +572,7 @@ declare const _default$4: {
 				"path": string;
 				"name": string | undefined;
 				"loader": string;
+				"sha256"?: string;
 			};
 			"instance": {
 				"name": string;
@@ -785,6 +787,11 @@ declare const LaunchStatus: {
 		readonly Success: "client-success";
 	};
 	readonly Errors: {
+		readonly Stop: "stop-error";
+		readonly Native: "native-error";
+		readonly Artifact: "artifact-error";
+		readonly Repair: "repair-error";
+		readonly MissingAccount: "missing-account";
 		readonly UnhandledError: "errors-unhandled-error";
 		readonly IncompatiblePlatform: "errors-incompatible-platform";
 		readonly IncompatibleArch: "errors-incompatible-arch";
@@ -810,7 +817,7 @@ declare const _default$9: {
 	readonly JVMArguments: {
 		readonly Default: {
 			readonly Log4J: "-Dlog4j2.formatMsgNoLookups=true";
-			readonly SystemProxies: "-Djava.net.useSystemProxiestrue";
+			readonly SystemProxies: "-Djava.net.useSystemProxies=true";
 			readonly FMLIgnoreCertificates: "-Dfml.ignoreInvalidMinecraftCertificates=true";
 			readonly FMLIgnorePatchDiscrepancies: "-Dfml.ignorePatchDiscrepancies=true";
 			readonly LibrariesDirectory: "-DlibraryDirectory=${libraries_directory}";
@@ -882,6 +889,11 @@ declare const _default$9: {
 			readonly Success: "client-success";
 		};
 		readonly Errors: {
+			readonly Stop: "stop-error";
+			readonly Native: "native-error";
+			readonly Artifact: "artifact-error";
+			readonly Repair: "repair-error";
+			readonly MissingAccount: "missing-account";
 			readonly UnhandledError: "errors-unhandled-error";
 			readonly IncompatiblePlatform: "errors-incompatible-platform";
 			readonly IncompatibleArch: "errors-incompatible-arch";
@@ -1091,7 +1103,7 @@ declare const _default$11: {
 };
 declare function buildLaunchAuth(account: AccountType): LaunchAuthType;
 declare function ensureFreshAccount(account: AccountType, forceRefresh?: boolean): Promise<EnsureFreshResultType>;
-declare function resolveLaunchAccount(accounts: Array<AccountType>): Promise<{
+declare function resolveLaunchAccount(accounts: Array<AccountType>, signal?: AbortSignal): Promise<{
 	"auth": LaunchAuthType;
 	"accounts": Array<AccountType>;
 } | undefined>;
@@ -1110,6 +1122,7 @@ declare const _default$13: {
 	readonly readStoragePath: (path: string) => Promise<string>;
 	readonly writeToStoragePath: (path: string, value: string) => Promise<void>;
 };
+export type ParsedAccountFile = ParsedFile | { "status": "unreadable" };
 export type ParsedFile = {
 	"status": "loaded";
 	"data": unknown;
@@ -1268,7 +1281,7 @@ declare function getMain(properties?: Partial<{
 }>): Promise<ConfigType>;
 declare function getAccounts(properties?: Partial<{
 	"baseDirectory": string;
-	"parsedFile": ParsedFile;
+	"parsedFile": ParsedAccountFile;
 }>): Promise<Array<AccountType>>;
 declare function getDefaultConfig(): Promise<ConfigType>;
 declare function getSafeConfigFile(properties?: Partial<{
@@ -1286,10 +1299,12 @@ declare function regenerateConfigFile({ baseDirectory, configFileDirectory, }: {
 	"baseDirectory": string;
 	"configFileDirectory": string;
 }): Promise<ConfigType>;
-declare function writeAccounts({ accounts, baseDirectory, }: {
+export type AccountWrite = {
 	"accounts": Array<AccountType>;
 	"baseDirectory"?: string;
-}): Promise<boolean>;
+};
+declare function writeAccounts(input: AccountWrite): Promise<boolean>;
+declare function updateAccounts(mutate: (current: ReadonlyArray<AccountType>) => Array<AccountType> | undefined): Promise<Array<AccountType>>;
 declare function sync(): Promise<void>;
 declare const _default$14: {
 	readonly getMain: typeof getMain;
@@ -1302,6 +1317,7 @@ declare const _default$14: {
 	readonly getAccounts: typeof getAccounts;
 	readonly getTranslations: typeof getTranslations;
 	readonly writeAccounts: typeof writeAccounts;
+	readonly updateAccounts: typeof updateAccounts;
 };
 export type NativeErrorType = {
 	"name": string;
@@ -1315,6 +1331,7 @@ declare function stringify(error: unknown): string;
 declare const _default$15: {
 	readonly extract: typeof extract;
 	readonly handleCapture: typeof handleCapture;
+	readonly showError: (description: string) => Promise<void>;
 	readonly prettify: typeof prettify;
 	readonly stringify: typeof stringify;
 };
@@ -1435,8 +1452,16 @@ declare function verifyPaths({ paths, algorithm, }: {
 	"paths": Array<{
 		"path": string;
 		"hash": string;
+		"size"?: number;
 	}>;
-	"algorithm"?: HashAlgorithmType;
+	"algorithm": HashAlgorithmType;
+} | {
+	"paths": Array<string | {
+		"path": string;
+		"hash"?: string;
+		"size"?: number;
+	}>;
+	"algorithm"?: undefined;
 }): Promise<Array<string>>;
 declare function unzip({ from, to, }: {
 	"from": Array<{
@@ -1582,7 +1607,7 @@ export type InitialStateType = {
 	};
 	"parsed": {
 		"config": ParsedFile;
-		"accounts": ParsedFile;
+		"accounts": ParsedAccountFile;
 		"instances": ParsedFile;
 		"translations": ParsedFile;
 	};
@@ -1613,7 +1638,7 @@ declare function readInstances(properties?: Partial<{
 	"parsedFile": ParsedFile;
 }>): Promise<InstanceStatesType>;
 declare function resetPageStates(): void;
-declare function sync$1(): Promise<void>;
+declare function sync$1(): Promise<boolean>;
 declare const _default$23: {
 	readonly create: typeof create;
 	readonly extractSavedFromPages: typeof extractSavedFromPages;
@@ -1846,6 +1871,7 @@ declare function createCommand({ necessaries, finalizedPatch, }: {
 	"arguments": Array<string>;
 }>;
 export type ServerProcessType = {
+	"token": string;
 	"name": string;
 	"port": number;
 	"value": {
@@ -1868,6 +1894,7 @@ export type ProgramSpecType = {
 export type ProcessHandlersType = {
 	"onOutput"?: (lines: Array<string>, stream: "stdout" | "stderr") => void;
 	"onExit"?: (payload: {
+		"token": string;
 		"pid": number;
 		"code": number | null;
 		"signal": number | null;
@@ -1976,19 +2003,23 @@ declare function extractPreLaunchInformation({ statuses, instance, instanceId, u
 	"logPrefix": string;
 }): PreLaunchInformationType | false;
 declare function cancelAll(cancelId: string): Promise<boolean>;
-declare function downloadAssets({ necessaries, finalizedPatch, }: {
+declare function downloadAssets({ necessaries, finalizedPatch, signal, }: {
+	"signal"?: AbortSignal;
 	"necessaries": PreLaunchInformationType;
 	"finalizedPatch": FinalizedPatchType;
 }): Promise<boolean>;
-declare function downloadClient({ necessaries, finalizedPatch, }: {
+declare function downloadClient({ necessaries, finalizedPatch, signal, }: {
+	"signal"?: AbortSignal;
 	"necessaries": PreLaunchInformationType;
 	"finalizedPatch": FinalizedPatchType;
 }): Promise<boolean>;
-declare function downloadLibraries({ necessaries, finalizedPatch, }: {
+declare function downloadLibraries({ necessaries, finalizedPatch, signal, }: {
+	"signal"?: AbortSignal;
 	"necessaries": PreLaunchInformationType;
 	"finalizedPatch": FinalizedPatchType;
 }): Promise<boolean>;
-declare function downloadLogging({ necessaries, finalizedPatch, }: {
+declare function downloadLogging({ necessaries, finalizedPatch, signal, }: {
+	"signal"?: AbortSignal;
 	"necessaries": PreLaunchInformationType;
 	"finalizedPatch": FinalizedPatchType;
 }): Promise<boolean>;
@@ -2062,7 +2093,7 @@ declare function unifyPlatformWithArch(name: SpecificPatchLibraryOSNameType | Sp
 	"platform": PreLaunchInformationType["platform"];
 	"arch": PreLaunchInformationType["arch"] | "any";
 };
-declare function resolvePatch({ necessaries, metadata, patchMeta, }: {
+declare function resolvePatch(request: {
 	"necessaries": PreLaunchInformationType;
 	"metadata": PatchDependencyType;
 	"patchMeta"?: SpecificPatchMetaType;
@@ -2094,7 +2125,6 @@ declare function shallowlyValidateMeta({ meta }: {
 	"meta": unknown;
 }): AssetObjectsType | false;
 declare const _default$24: {
-	readonly __unused: {};
 	readonly detectJavaInstallations: typeof detectJavaInstallations;
 	readonly fetchJavaMajor: typeof fetchJavaMajor;
 	readonly Arguments: {
@@ -2729,6 +2759,7 @@ declare const _default$32: {
 					path: string;
 					name: string | undefined;
 					loader: string;
+					sha256?: string;
 				} | undefined;
 				instance?: {
 					name: string;

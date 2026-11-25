@@ -21,6 +21,7 @@ import { APIEndpoints, LaunchStatus } from "@/constants/launcher.ts";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
 import Fetching from "@/lib/launcher/scopes/fetching";
+import { checkDownloadSignal } from "@/lib/launcher/scopes/fetching/download-outcome.ts";
 import { log } from "@/lib/logging/log.ts";
 import type { LaunchStatusType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { PatchDependencyType } from "@/types/launcher/meta/patch-index.type.ts";
@@ -31,7 +32,9 @@ import type {
 export async function resolvePatchVersion({
   necessaries,
   metadata,
+  signal,
 }: {
+  "signal"?    : AbortSignal;
   "necessaries": PreLaunchInformationType;
   "metadata"   : PatchDependencyType;
 }): Promise<string | false> {
@@ -65,12 +68,14 @@ export async function resolvePatchVersion({
       );
       statuses.current = LaunchStatus.PatchIndex.Fetching;
       const fetched: { "data": unknown } | LaunchStatusType = await Fetching.fetchMetadata({
+        signal,
         "url"   : APIEndpoints.Meta.Base + metadata.uid,
         "label" : "index manifest",
         "scope" : "PatchIndex",
         "prefix": metadata.uid,
       });
 
+      checkDownloadSignal(signal);
       // Just return the patch index manifest
       if (typeof fetched === "object") {
         return fetched.data;
@@ -102,6 +107,7 @@ export async function resolvePatchVersion({
       },
     });
   } catch (error: unknown) {
+    checkDownloadSignal(signal);
     log.error(
       logPrefix,
       "Caught an error while getting the index manifest:",
@@ -111,6 +117,7 @@ export async function resolvePatchVersion({
     return false;
   }
 
+  checkDownloadSignal(signal);
   log.debug(logPrefix, "Validating the index manifest");
 
   if (

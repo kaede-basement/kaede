@@ -35,6 +35,7 @@ import ASCIIArt from "@/constants/ascii-art.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Browser from "@/lib/browser";
 import Configs from "@/lib/configs";
+import { useBridgeAccountStorage } from "@/lib/configs/scopes/account-store.ts";
 import Errors from "@/lib/errors";
 import Globals from "@/lib/globals";
 import Initialization from "@/lib/initialization";
@@ -44,7 +45,6 @@ import Wails from "@/lib/wails";
 import Watchers from "@/lib/watchers";
 import { declareGlobalStates } from "@/states/global.ts";
 import { declareInstanceStates } from "@/states/instance.ts";
-import { declareServerProcesses } from "@/states/servers.ts";
 import type { InstanceStatesType } from "@/types/application/instance-states.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
@@ -63,12 +63,14 @@ async function run(): Promise<void> {
   // Used in Wails v3 builds
   if (await Wails.detectIsWails()) {
     // Replaces the Tauri API with a Wails v3 API
+    useBridgeAccountStorage();
     await Wails.handleTauriEnvironment();
   }
 
   // For a live preview: https://kaede-basement.github.io/kaede/
   if (Browser.detectIsBrowser()) {
     // Handle Tauri API placeholders
+    useBridgeAccountStorage();
     await Browser.handleTauriEnvironment();
   }
 
@@ -150,19 +152,6 @@ async function run(): Promise<void> {
   Watchers.watchDevelopmentStates();
   Watchers.watchLocaleStates();
   Watchers.watchCustomFont();
-  Watchers.watchProcesses()
-    .then(() => declareServerProcesses())
-    .then(() => {
-      log.info(__PRE_BUNDLED_FILENAME__, "Successfully hydrated server processes state");
-    })
-    .catch((error: unknown) => {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Failed to attach a listener to server processes:",
-        Errors.prettify(error),
-      );
-    });
-
   log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
     "Config contents",
     config,

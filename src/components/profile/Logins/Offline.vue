@@ -24,6 +24,7 @@ import CustomInput from "@/components/general/base/CustomInput.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { AuthStatesContextKey, TranslationsContextKey } from "@/constants/application.ts";
 import Configs from "@/lib/configs";
+import { translate } from "@/lib/general/translate.ts";
 import Hashing from "@/lib/hashing";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
 import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
@@ -34,6 +35,9 @@ const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 const opened = ref<boolean>(false);
 const nickname = ref<string>("");
 
+const failed = ref(false);
+const pending = ref(false);
+
 const placeholder = computed((): string => (
   Translations?.value?.Messages?.["profile.accounts.offline-nickname"] ?? "Nickname"
 ));
@@ -41,37 +45,45 @@ const placeholder = computed((): string => (
 async function createOfflineAccount(): Promise<void> {
   const current: string = nickname.value.trim();
 
-  if (accounts === undefined || current.length === 0) {
+  if (pending.value || accounts === undefined || current.length === 0) {
     return;
   }
 
-  const account: AccountType = {
-    "msa"    : null,
-    "profile": {
-      "uuid": await Hashing.hashOfflineNickname(current),
-      "name": current,
-      "type": "offline",
-    },
-    "skin": {
-      "id"     : "",
-      "data"   : "",
-      "url"    : "",
-      "variant": "classic",
-    },
-  };
+  pending.value = true;
+  failed.value = false;
 
-  accounts.value = [
-    account,
-    // Just to avoid duplicates
-    ...accounts.value.filter(({ profile }) => profile.uuid !== account.profile.uuid),
-  ];
+  try {
+    const account: AccountType = {
+      "msa"    : null,
+      "profile": {
+        "uuid": await Hashing.hashOfflineNickname(current),
+        "name": current,
+        "type": "offline",
+      },
+      "skin": {
+        "id"     : "",
+        "data"   : "",
+        "url"    : "",
+        "variant": "classic",
+      },
+    };
 
-  await Configs.writeAccounts({ "accounts": accounts.value });
+    accounts.value = await Configs.updateAccounts(stored => [
+      account,
+      // Just to avoid duplicates
+      ...stored.filter(({ profile }) => profile.uuid !== account.profile.uuid),
+    ]);
 
-  cancel();
+    cancel();
+  } catch {
+    failed.value = true;
+  } finally {
+    pending.value = false;
+  }
 }
 
 function cancel(): void {
+  failed.value = false;
   nickname.value = "";
   opened.value = false;
 }
@@ -102,6 +114,9 @@ function cancel(): void {
         :default-value="nickname"
         :on-input="value => nickname = value"
       />
+      <p v-if="failed" id="__offline-save-error" role="alert" class="text-sm text-red-300">
+        {{ translate("profile.accounts.save-error") }}
+      </p>
       <div
         id="__profile-page__sign-in-offline-form-actions"
         class="flex flex-nowrap items-center gap-2"
@@ -109,7 +124,7 @@ function cancel(): void {
         <button
           id="__profile-page__sign-in-offline-confirm"
           @click="createOfflineAccount"
-          :disabled="nickname.trim().length === 0"
+          :disabled="pending || nickname.trim().length === 0"
           class="relative w-full flex flex-nowrap items-center justify-center gap-2 rounded-md p-2 transition-[filter] bg-[theme(colors.neutral.100/.1)] disabled:opacity-50"
         >
         <span
@@ -121,6 +136,7 @@ function cancel(): void {
         <button
           id="__profile-page__sign-in-offline-cancel"
           @click="cancel"
+          :disabled="pending"
           class="relative w-full flex flex-nowrap items-center justify-center gap-2 rounded-md p-2 transition-[filter] bg-[theme(colors.neutral.100/.1)]"
         >
         <span

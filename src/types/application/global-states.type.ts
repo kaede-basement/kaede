@@ -119,9 +119,10 @@ type PagesType = {
     };
     // A modpack archive (only '.mrpack' for now)
     "importedModpack": {
-      "path"  : string;
-      "name"  : string | undefined;
-      "loader": string;
+      "path"   : string;
+      "name"   : string | undefined;
+      "loader" : string;
+      "sha256"?: string;
     };
     "instance": {
       "name"         : string;

@@ -20,6 +20,7 @@ import { fetch } from "@tauri-apps/plugin-http";
 
 import { APIEndpoints } from "@/constants/launcher.ts";
 import { CustomPatches, Patches } from "@/constants/meta.ts";
+import { discardResponseBody } from "@/lib/network/discard-response-body.ts";
 import type {
   ExtendedPatchUIDType,
   PatchDependencyType,
@@ -36,6 +37,17 @@ type BMCLAPIOptiFineType = Partial<{
   "forge"    : string;
 }>;
 
+async function fetchCatalog(url: string): Promise<unknown> {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    await discardResponseBody(response);
+    throw new Error(`Version catalog request failed (HTTP ${response.status})`);
+  }
+
+  return response.json();
+}
+
 export async function fetchAllVersions(
   uid: ExtendedPatchUIDType,
   minecraftPatchVersion?: string,
@@ -47,15 +59,19 @@ export async function fetchAllVersions(
       APIEndpoints.BMCLAPI.Paths.OptiFine.Base +
       minecraftPatchVersion;
 
-    const response: Response = await fetch(versionEndpoint);
-    const data: unknown = await response.json();
+    const data = await fetchCatalog(versionEndpoint);
 
     /*
      * BMCLAPI answers with '{ "msg": "no such optifine" }' when it knows nothing
      * about a Minecraft version, so this cannot be assumed to be an array
      */
-    if (!Array.isArray(data)) {
-      throw new TypeError(`No OptiFine versions for Minecraft ${minecraftPatchVersion}`);
+    if (data && typeof data === "object" && "msg" in data && data.msg === "no such optifine") {
+      return [];
+    }
+    if (!Array.isArray(data) || !data.every(entry => (
+      typeof entry?.type === "string" && typeof entry?.patch === "string"
+    ))) {
+      throw new TypeError(`Invalid OptiFine catalog for Minecraft ${minecraftPatchVersion}`);
     }
 
     // Reverse as it seems like first entries are the oldest ones
@@ -74,8 +90,7 @@ export async function fetchAllVersions(
   }
 
   const url: string = APIEndpoints.Meta.Base + uid;
-  const response: Response = await fetch(url);
-  const parsed: unknown = await response.json();
+  const parsed = await fetchCatalog(url);
 
   if (typeof parsed !== "object" || parsed === null) {
     throw new Error("The provided metadata is invalid");
@@ -85,14 +100,8 @@ export async function fetchAllVersions(
     throw new Error("No versions in the provided metadata");
   }
 
-  const entry: unknown = parsed.versions?.[0];
-
-  if (typeof entry !== "object" || entry === null) {
-    throw new Error("The parsed versions are invalid");
-  }
-
-  if (!("version" in entry)) {
-    throw new Error("No version field in the parsed versions");
+  if (!parsed.versions.every(entry => typeof entry?.version === "string")) {
+    throw new TypeError("The parsed versions are invalid");
   }
 
   if (uid !== Patches.Minecraft && minecraftPatchVersion) {

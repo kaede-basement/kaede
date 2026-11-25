@@ -36,12 +36,6 @@ const selected = computed((): boolean => {
 function handleLeftClick(): void {
   globalStates.pages.library.selected = instanceId;
 }
-function handleDoubleClick(event: MouseEvent): void {
-  console.log(event);
-}
-function handleRightClick(event: MouseEvent): void {
-  console.log(event);
-}
 </script>
 
 <template>
@@ -49,8 +43,7 @@ function handleRightClick(event: MouseEvent): void {
     :id="`${idRoot}-button`"
     class="flex flex-col gap-2"
     @click="handleLeftClick"
-    @dblclick="handleDoubleClick"
-    @contextmenu.prevent.stop="handleRightClick"
+    @contextmenu.prevent.stop
   >
     <Image
       class-names="shrink-0 object-cover size-16"
