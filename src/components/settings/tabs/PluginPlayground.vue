@@ -16,27 +16,6 @@
   - along with this program.  If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<script lang="ts">
-import { completeFromList, registerCompletions } from "prism-code-editor/autocomplete";
-import {
-  completeKeywords,
-  jsCompletion,
-  jsContext,
-  jsDocCompletion,
-  jsSnipets,
-} from "prism-code-editor/autocomplete/javascript";
-
-registerCompletions(["javascript", "js"], {
-  "context": jsContext,
-  "sources": [
-    jsCompletion(window),
-    completeKeywords,
-    jsDocCompletion,
-    completeFromList(jsSnipets),
-  ],
-});
-</script>
-
 <script setup lang="ts">
 import "prism-code-editor/prism/languages/javascript";
 import "prism-code-editor/layout.css";
@@ -47,11 +26,20 @@ import "prism-code-editor/autocomplete-icons.css";
 import { createEditor } from "prism-code-editor";
 import {
   autoComplete,
+  completeFromList,
   fuzzyFilter,
+  registerCompletions,
 } from "prism-code-editor/autocomplete";
+import {
+  completeKeywords,
+  jsCompletion,
+  jsContext,
+  jsDocCompletion,
+  jsSnipets,
+} from "prism-code-editor/autocomplete/javascript";
 import { cursorPosition } from "prism-code-editor/cursor";
 import { indentGuides } from "prism-code-editor/guides";
-import { onMounted, onUnmounted, useTemplateRef } from "vue";
+import { onBeforeUnmount, onMounted, useTemplateRef } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -83,11 +71,24 @@ async function handleCode(): Promise<void> {
 const editorRoot = useTemplateRef<HTMLDivElement>("editorRoot");
 let editor: ReturnType<typeof createEditor> | undefined;
 
-onUnmounted(() => editor?.remove());
+onBeforeUnmount(() => {
+  editor?.textarea.blur();
+  editor?.remove();
+});
 onMounted(() => {
   if (!editorRoot.value) {
     return;
   }
+
+  registerCompletions(["javascript", "js"], {
+    "context": jsContext,
+    "sources": [
+      jsCompletion(window),
+      completeKeywords,
+      jsDocCompletion,
+      completeFromList(jsSnipets),
+    ],
+  });
 
   editor = createEditor(
     editorRoot.value,

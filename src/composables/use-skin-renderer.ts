@@ -128,12 +128,16 @@ export function useSkinRenderer({
 
       try {
         // Initialize with the local placeholder so teardown never waits for a remote skin.
-        const created = await createSkinViewer({ "canvas": target, "zoom": 35 });
+        const created = await createSkinViewer({
+          "canvas": target, "skin": FallbackSteve, "zoom": 35,
+        });
 
         if (closed) {
           created.dispose();
         } else {
           viewer.value = created;
+          created.startRenderLoop();
+          shown.value = true;
         }
       } catch (error) {
         if (!closed) {
@@ -143,24 +147,19 @@ export function useSkinRenderer({
     }, { "flush": "post" });
 
     watch([viewer, slim], ([current, isSlim]) => current?.setSlim(isSlim));
-    watch([viewer, source], async ([current, skin], _, onCleanup) => {
+    watch([viewer, source], async ([current, skin], [previous], onCleanup) => {
       const request = ++generation;
 
       onCleanup(() => {
         generation++;
       });
 
-      if (!current) {
+      if (!current || (current !== previous && skin === FallbackSteve)) {
         return;
       }
 
       try {
         await current.setSkin(skin);
-
-        if (generation === request && !shown.value) {
-          current.startRenderLoop();
-          shown.value = true;
-        }
       } catch (error) {
         if (generation === request) {
           report(error);

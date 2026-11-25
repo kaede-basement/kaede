@@ -48,7 +48,12 @@ const { "height": innerHeight } = useWindowSize();
 
 const scrollBarSize = 17;
 
-const lineHeight = computed(() => Math.max(1, Number(globalStates.logs.lineHeight) || 1));
+const defaultLineHeight = 20;
+const lineHeight = computed(() => {
+  const value = Number(globalStates.logs.lineHeight);
+
+  return Number.isFinite(value) && value >= 1 ? value : defaultLineHeight;
+});
 const scrollRow = ref(0);
 const displayed = shallowRef<SearchRows>({ "list": [] });
 const filtered = computed(() => displayed.value);
@@ -144,29 +149,37 @@ function updateView(event: Event): void {
   scrollRow.value = Math.round(target.scrollTop / lineHeight.value);
 }
 
-// Stick to the bottom of the log viewer
-watch(
-  () => [
-    filtered.value.list.length,
-    elements.value.length,
-  ],
-  async () => {
-    if (!container.value) {
+watch([filtered, boundary], async ([current], [previous]) => {
+  const viewer = container.value;
+
+  if (!viewer) {
+    return;
+  }
+
+  const top = viewer.scrollTop;
+  const followsTail = viewer.scrollHeight - viewer.clientHeight <= top + (lineHeight.value * 2) + 1;
+
+  if (followsTail) {
+    await nextTick();
+    viewer.scrollTop = viewer.scrollHeight - viewer.clientHeight;
+  } else {
+    if (
+      current.source !== previous.source || current.filter !== previous.filter ||
+      current.dropped === undefined || previous.dropped === undefined ||
+      current.dropped <= previous.dropped
+    ) {
       return;
     }
 
-    const viewer = container.value;
-    const twoLinesHeight = lineHeight.value * 2;
-    const toCatchRange = viewer.scrollTop + twoLinesHeight + 1;
-    const isAtTheBottom = viewer.scrollHeight - viewer.clientHeight <= toCatchRange;
+    const dropped = current.dropped - previous.dropped;
+    const firstRetained = previous.list.findIndex(row => row.index >= dropped);
+    const removed = firstRetained === -1 ? previous.list.length : firstRetained;
 
-    await nextTick();
+    viewer.scrollTop = Math.max(0, top - (removed * lineHeight.value));
+  }
 
-    if (isAtTheBottom) {
-      viewer.scrollTo({ "top": viewer.scrollHeight - viewer.clientHeight });
-    }
-  },
-);
+  scrollRow.value = Math.round(viewer.scrollTop / lineHeight.value);
+});
 
 function scrollToMatch(match: { "lineIndex": number } | undefined): void {
   if (!match || !container.value) {
@@ -181,13 +194,7 @@ function scrollToMatch(match: { "lineIndex": number } | undefined): void {
   container.value.scrollTo({ "top": Math.max(0, targetTop), "behavior": "instant" });
 }
 
-const searcher: {
-  "back"  : () => void;
-  "next"  : () => void;
-  "to"    : (index: number) => void;
-  "reset" : () => void;
-  "search": (input: string) => void;
-} = {
+const searcher = {
   "back"  : (): void => scrollToMatch(utils.previous()),
   "next"  : (): void => scrollToMatch(utils.next()),
   "to"    : (index: number): void => scrollToMatch(utils.goTo(index)),

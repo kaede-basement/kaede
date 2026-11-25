@@ -64,10 +64,6 @@ export function useLogResizer(
 
       const delta: number = childEvent.clientX - start;
 
-      if (delta === 0) {
-        return;
-      }
-
       const absolute: number = Math.abs(delta);
       // I do not think cutting tab section titles is worth it
       const minimum: number = section.length;

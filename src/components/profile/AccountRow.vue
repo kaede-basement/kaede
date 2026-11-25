@@ -44,11 +44,11 @@ const { idRoot, account, index } = defineProps<{
   "index"  : number;
 }>();
 
-let mounted = true;
+const invocations = new Map<string, number>;
 const timers = new Map<string, ReturnType<typeof setTimeout>>;
 
 onBeforeUnmount(() => {
-  mounted = false;
+  invocations.clear();
 
   for (const timer of timers.values()) {
     clearTimeout(timer);
@@ -95,19 +95,27 @@ function handleSelection(): void {
 }
 
 async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<void> {
+  const invocation = (invocations.get(entry.label) ?? 0) + 1;
+  const isCurrent = (): boolean => invocations.get(entry.label) === invocation;
+
+  invocations.set(entry.label, invocation);
   clearTimeout(timers.get(entry.label));
   timers.delete(entry.label);
   statuses.value[entry.label] = undefined;
 
   const handlers: AccountActionHandlersType = {
     "reset": () => {
-      statuses.value[entry.label] = undefined;
+      if (isCurrent()) {
+        statuses.value[entry.label] = undefined;
+      }
     },
     "pending": () => {
-      statuses.value[entry.label] = "pending";
+      if (isCurrent()) {
+        statuses.value[entry.label] = "pending";
+      }
     },
     "success": () => {
-      if (!mounted) {
+      if (!isCurrent()) {
         return;
       }
 
@@ -115,8 +123,10 @@ async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<
       clearTimeout(timers.get(entry.label));
 
       timers.set(entry.label, setTimeout(() => {
-        timers.delete(entry.label);
-        handlers.reset();
+        if (isCurrent()) {
+          timers.delete(entry.label);
+          handlers.reset();
+        }
       }, 1000));
     },
     "error": (message, error) => {
