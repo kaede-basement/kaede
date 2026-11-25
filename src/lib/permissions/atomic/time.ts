@@ -18,6 +18,8 @@
 
 import "ses";
 
+import { hardenIfAvailable } from "@/lib/permissions/request-permissions.ts";
+
 const wrappedPerformance = {
   "timeOrigin": performance.timeOrigin,
   "now"       : (): number => performance.now(),
@@ -80,7 +82,7 @@ class wrappedDate {
 
   constructor(input: unknown) {
     if (input === undefined) {
-      dateReferences.set(this, harden(new Date));
+      dateReferences.set(this, new Date);
 
       return;
     }
@@ -89,7 +91,7 @@ class wrappedDate {
       (typeof input === "number" && !Number.isNaN(input)) ||
       typeof input === "string"
     ) {
-      dateReferences.set(this, harden(new Date(input)));
+      dateReferences.set(this, new Date(input));
 
       return;
     }
@@ -97,125 +99,49 @@ class wrappedDate {
     if (input instanceof wrappedDate) {
       const absolute: number = getDateReference(input).valueOf();
 
-      dateReferences.set(this, harden(new Date(absolute)));
+      dateReferences.set(this, new Date(absolute));
 
       return;
     }
 
     throw new TypeError("The input for the 'Date' constructor is invalid");
   }
-
-  public valueOf(): number {
-    return getDateReference(this).valueOf();
-  }
-
-  public getDate(): number {
-    return getDateReference(this).getDate();
-  }
-
-  public getDay(): number {
-    return getDateReference(this).getDay();
-  }
-
-  public getFullYear(): number {
-    return getDateReference(this).getFullYear();
-  }
-
-  public getHours(): number {
-    return getDateReference(this).getHours();
-  }
-
-  public getMilliseconds(): number {
-    return getDateReference(this).getMilliseconds();
-  }
-
-  public getMinutes(): number {
-    return getDateReference(this).getMinutes();
-  }
-
-  public getMonth(): number {
-    return getDateReference(this).getMonth();
-  }
-
-  public getSeconds(): number {
-    return getDateReference(this).getSeconds();
-  }
-
-  public getTime(): number {
-    return getDateReference(this).getTime();
-  }
-
-  public getTimezoneOffset(): number {
-    return getDateReference(this).getTimezoneOffset();
-  }
-
-  public getUTCDate(): number {
-    return getDateReference(this).getUTCDate();
-  }
-
-  public getUTCDay(): number {
-    return getDateReference(this).getUTCDay();
-  }
-
-  public getUTCFullYear(): number {
-    return getDateReference(this).getUTCFullYear();
-  }
-
-  public getUTCHours(): number {
-    return getDateReference(this).getUTCHours();
-  }
-
-  public getUTCMilliseconds(): number {
-    return getDateReference(this).getUTCMilliseconds();
-  }
-
-  public getUTCMinutes(): number {
-    return getDateReference(this).getUTCMinutes();
-  }
-
-  public getUTCMonth(): number {
-    return getDateReference(this).getUTCMonth();
-  }
-
-  public getUTCSeconds(): number {
-    return getDateReference(this).getUTCSeconds();
-  }
-
-  public toString(): string {
-    return getDateReference(this).toString();
-  }
-
-  public toTimeString(): string {
-    return getDateReference(this).toTimeString();
-  }
-
-  public toUTCString(): string {
-    return getDateReference(this).toUTCString();
-  }
-
-  public toJSON(): string {
-    return getDateReference(this).toJSON();
-  }
-
-  public toDateString(): string {
-    return getDateReference(this).toDateString();
-  }
-
-  public toISOString(): string {
-    return getDateReference(this).toISOString();
-  }
-
-  public toLocaleString(): string {
-    return getDateReference(this).toLocaleString();
-  }
-
-  public toLocaleDateString(): string {
-    return getDateReference(this).toLocaleDateString();
-  }
-
-  public toLocaleTimeString(): string {
-    return getDateReference(this).toLocaleTimeString();
-  }
+}
+for (const method of [
+  "valueOf",
+  "getDate",
+  "getDay",
+  "getFullYear",
+  "getHours",
+  "getMilliseconds",
+  "getMinutes",
+  "getMonth",
+  "getSeconds",
+  "getTime",
+  "getTimezoneOffset",
+  "getUTCDate",
+  "getUTCDay",
+  "getUTCFullYear",
+  "getUTCHours",
+  "getUTCMilliseconds",
+  "getUTCMinutes",
+  "getUTCMonth",
+  "getUTCSeconds",
+  "toString",
+  "toTimeString",
+  "toUTCString",
+  "toJSON",
+  "toDateString",
+  "toISOString",
+  "toLocaleString",
+  "toLocaleDateString",
+  "toLocaleTimeString",
+] as const) {
+  Object.defineProperty(wrappedDate.prototype, method, {
+    value(this: wrappedDate) {
+      return getDateReference(this)[method]();
+    },
+  });
 }
 
 export function handleTimePermission({
@@ -226,12 +152,12 @@ export function handleTimePermission({
 }): unknown {
   switch (scope) {
     case "performance": {
-      return harden({
+      return hardenIfAvailable({
         "performance": wrappedPerformance,
       });
     }
     case "date": {
-      return harden({
+      return hardenIfAvailable({
         "Date": wrappedDate,
       });
     }

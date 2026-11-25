@@ -19,44 +19,27 @@
 import { handleInternetPermission } from "@/lib/permissions/atomic/internet.ts";
 import { handleLoggingPermission } from "@/lib/permissions/atomic/logging.ts";
 import { handleTimePermission } from "@/lib/permissions/atomic/time.ts";
-import {
-  handleUIPermission,
-} from "@/lib/permissions/atomic/ui.ts";
-import type { PermissionType } from "@/types/extensions/permission.type.ts";
+import { handleUIPermission } from "@/lib/permissions/atomic/ui.ts";
+import { parsePermission } from "@/lib/permissions/parse-permission.ts";
 
-type SplitPermission<T extends PermissionType> =
-  T extends `${infer Base}::${infer Scope}`
-    // The third argument is a dynamic value, e.g., 'internet::http-get::https://github.com'
-    ? [Base, Scope, string]
-    : never;
+export function handlePermission(raw: string, id: string): unknown {
+  const parsed = parsePermission(raw);
 
-function split<Key extends PermissionType>(key: Key): SplitPermission<Key> {
-  return key.split("::") as SplitPermission<Key>;
-}
-
-export function handlePermission<Key extends PermissionType>(permission: Key, id: string): unknown {
-  const [base, scope, argument] = split(permission);
-
-  if (!base || !scope) {
-    throw new Error("The requested permission is invalid");
+  if (!parsed) {
+    throw new TypeError("Invalid permission");
   }
-
-  switch (base) {
+  switch (parsed.base) {
     case "time": {
-      // The 'scope' variable belongs to the correct 'base', gladly
-      return handleTimePermission({ id, scope });
+      return handleTimePermission({ id, "scope": parsed.scope });
     }
     case "ui": {
-      return handleUIPermission({ id, scope });
-    }
-    case "internet": {
-      return handleInternetPermission({ id, scope, argument });
+      return handleUIPermission({ id, "scope": parsed.scope });
     }
     case "log": {
-      return handleLoggingPermission({ id, scope });
+      return handleLoggingPermission({ id, "scope": parsed.scope });
     }
-    default: {
-      return undefined;
+    case "internet": {
+      return handleInternetPermission({ id, "scope": parsed.scope, "argument": parsed.url });
     }
   }
 }

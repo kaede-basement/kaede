@@ -21,17 +21,19 @@ import "ses";
 import Errors from "@/lib/errors";
 import Extensions from "@/lib/extensions";
 import { log } from "@/lib/logging/log.ts";
-import Permissions from "@/lib/permissions";
+import Permissions, { bindPermissionRequest } from "@/lib/permissions";
 import type { PermissionType } from "@/types/extensions/permission.type.ts";
 
 export function runInSandbox({
   id,
+  artifactSha256,
   code,
   permissions = [],
 }: {
-  "id"          : string;
-  "code"        : string;
-  "permissions"?: Array<PermissionType>;
+  "id"            : string;
+  "artifactSha256": string;
+  "code"          : string;
+  "permissions"?  : Array<PermissionType>;
 }): void | {
   "enable"      : () => void | Promise<void>;
   "disable"     : () => void | Promise<void>;
@@ -49,17 +51,8 @@ export function runInSandbox({
     );
   }
 
-  const scopedThis = Permissions.grantStaticPermissions({ id, permissions });
-
-  /*
-   * Create a plugin-scoped handler for requesting permissions
-   * to prevent the 'ExtensionsManager#requestPermissions' tampering
-   */
-  const wrappedPermissionsRequest = async (
-    permissions: Array<PermissionType>,
-  ): Promise<Array<unknown>> => {
-    return await Extensions.requestPermissions(permissions, id);
-  };
+  const requestPermissions = bindPermissionRequest(id, artifactSha256);
+  const scopedThis = Permissions.grantStaticPermissions({ id, artifactSha256, permissions });
   const api: {
     "enable"      : () => void | Promise<void>;
     "disable"     : () => void | Promise<void>;
@@ -69,7 +62,7 @@ export function runInSandbox({
   try {
     const compartment = new Compartment({
       "globals": harden({
-        "requestPermissions": wrappedPermissionsRequest,
+        requestPermissions,
 
         /*
          * Provide a reference to the plugin-scoped 'GrantedScopes' object to make it

@@ -943,11 +943,6 @@ declare const _default$9: {
 		readonly ExpirationMargin: 300000;
 	};
 };
-export type PermissionsObjectType = typeof Permissions$1;
-export type PermissionsKeyType = keyof PermissionsObjectType;
-export type PermissionType = {
-	[Key in PermissionsKeyType]: PermissionsObjectType[Key][keyof PermissionsObjectType[Key]];
-}[PermissionsKeyType];
 declare const Permissions$1: {
 	readonly Time: {
 		readonly Performance: "time::performance";
@@ -957,10 +952,6 @@ declare const Permissions$1: {
 		readonly Basic: "ui::basic";
 		readonly Interactivity: "ui::interactivity";
 	};
-	readonly Events: {
-		readonly Page: "events::page";
-		readonly InstanceSelection: "events::instance-selection";
-	};
 	readonly Internet: {
 		readonly HTTPGet: "internet::http-get";
 		readonly HTTPPost: "internet::http-post";
@@ -968,15 +959,6 @@ declare const Permissions$1: {
 	readonly Log: {
 		readonly Write: "log::write";
 		readonly Read: "log::read";
-		readonly Stream: "log::stream";
-	};
-	readonly InternalStorage: {
-		readonly Read: "internal-storage::read";
-		readonly Write: "internal-storage::write";
-	};
-	readonly ExternalStorage: {
-		readonly Read: "external-storage::read";
-		readonly Write: "external-storage::write";
 	};
 };
 declare const _default$10: {
@@ -989,10 +971,6 @@ declare const _default$10: {
 			readonly Basic: "ui::basic";
 			readonly Interactivity: "ui::interactivity";
 		};
-		readonly Events: {
-			readonly Page: "events::page";
-			readonly InstanceSelection: "events::instance-selection";
-		};
 		readonly Internet: {
 			readonly HTTPGet: "internet::http-get";
 			readonly HTTPPost: "internet::http-post";
@@ -1000,19 +978,11 @@ declare const _default$10: {
 		readonly Log: {
 			readonly Write: "log::write";
 			readonly Read: "log::read";
-			readonly Stream: "log::stream";
-		};
-		readonly InternalStorage: {
-			readonly Read: "internal-storage::read";
-			readonly Write: "internal-storage::write";
-		};
-		readonly ExternalStorage: {
-			readonly Read: "external-storage::read";
-			readonly Write: "external-storage::write";
 		};
 	};
-	readonly PermissionsList: PermissionType[];
+	readonly PermissionsList: ("time::performance" | "time::date" | "ui::basic" | "ui::interactivity" | "internet::http-get" | "internet::http-post" | "log::write" | "log::read")[];
 	readonly getPermissionDisplayData: (id: string | undefined) => {
+		"permission": string;
 		"label": string;
 		"icon": string;
 		"description": string;
@@ -1329,6 +1299,13 @@ declare class ExtensionAPI {
 	subscribe(event: unknown, callback: (data: unknown) => Promise<unknown>): ExtensionAPI;
 	unsubscribe(event: unknown, callback: (data: unknown) => Promise<unknown>): ExtensionAPI;
 }
+export type PermissionsObjectType = typeof Permissions$1;
+export type PermissionsKeyType = keyof PermissionsObjectType;
+type PermissionName$1 = {
+	[Key in PermissionsKeyType]: PermissionsObjectType[Key][keyof PermissionsObjectType[Key]];
+}[PermissionsKeyType];
+export type InternetPermission = typeof Permissions$1.Internet[keyof typeof Permissions$1.Internet];
+export type PermissionType = Exclude<PermissionName$1, InternetPermission> | `${InternetPermission}::${"http" | "https"}://${string}`;
 export type MetadataType = {
 	"logo": string;
 	"name": string;
@@ -1346,37 +1323,30 @@ export type MetadataType = {
 export type ExtensionType = {
 	"id": string;
 	"code": string;
-	"sha256": string;
+	"artifactSha256": string;
+	"codeSha256": string;
 	"metadata": MetadataType;
 };
-export type SandboxedAPI = {
-	"enable": () => void | Promise<void>;
-	"disable": () => void | Promise<void>;
-	"afterDisable": () => void | Promise<void>;
+export type Setting = {
+	"enabled": boolean;
 };
-declare const extensionStates: ShallowReactive<{
-	"valid": Array<ExtensionType>;
-	"invalid": Array<DeepPartial<ExtensionType>>;
-	"executed": Array<{
-		"extension": ExtensionType;
-		"api": ExtensionAPI | SandboxedAPI;
-	}>;
-}>;
-export type ExecutedListType = (typeof extensionStates)["executed"];
-declare function dirtyLifecycle(executedList: ExecutedListType, { id, sha256, metadata }: ExtensionType, enable: boolean): Promise<boolean>;
+export type ActivationResult = "policy-skipped" | void;
+declare function startExtensionSession(): () => void;
+declare function setExtensionEnabled(extension: ExtensionType, enabled: boolean | "restore", setting?: Setting): Promise<ActivationResult>;
 declare function readExtensions(): Promise<{
 	"valid": Array<ExtensionType>;
 	"invalid": Array<DeepPartial<ExtensionType>>;
 }>;
-declare function runInUnrestricted(id: string, code: string, metadata: ExtensionType["metadata"], sha256: string): Promise<ExtensionAPI | void>;
+declare function runInUnrestricted(id: string, code: string, metadata: ExtensionType["metadata"], artifactSha256: string): Promise<ExtensionAPI | void>;
 declare function onGlobalStateChange<Key extends keyof GlobalStatesType>(key: Key, value: unknown): void;
 declare function onInstanceStateChange<Key extends keyof InstanceStatesType>(key: Key, value: InstanceStatesType[Key]): void;
 declare function grantEventListeners({ id, }: {
 	"id": string;
 }): void;
 declare function lockdownEnvironment(): void;
-declare function runInSandbox({ id, code, permissions, }: {
+declare function runInSandbox({ id, artifactSha256, code, permissions, }: {
 	"id": string;
+	"artifactSha256": string;
 	"code": string;
 	"permissions"?: Array<PermissionType>;
 }): void | {
@@ -1387,8 +1357,9 @@ declare function runInSandbox({ id, code, permissions, }: {
 declare function showWebviewWindow(): Promise<void>;
 declare function updateTrustedHashes(): Promise<void>;
 declare const _default$16: {
-	readonly requestPermissions: (permissions: Array<PermissionType | string> | unknown, extension: string) => Promise<Array<unknown>>;
-	readonly dirtyLifecycle: typeof dirtyLifecycle;
+	readonly requestPermissions: (input: unknown, id: string, artifactSha256: string) => Promise<Array<unknown>>;
+	readonly setExtensionEnabled: typeof setExtensionEnabled;
+	readonly startExtensionSession: typeof startExtensionSession;
 	readonly readExtensions: typeof readExtensions;
 	readonly runInUnrestricted: typeof runInUnrestricted;
 	readonly onGlobalStateChange: typeof onGlobalStateChange;
@@ -2225,11 +2196,12 @@ declare function concurrentlyDownload({ concurrency, entries, statuses, label, c
 declare const _default$26: {
 	readonly concurrentlyDownload: typeof concurrentlyDownload;
 };
-declare function grantStaticPermissions({ id, permissions, }: {
+declare function grantStaticPermissions({ id, artifactSha256, permissions, }: {
 	"id": string;
+	"artifactSha256": string;
 	"permissions"?: Array<PermissionType>;
 }): Record<string, unknown>;
-declare function handlePermission<Key extends PermissionType>(permission: Key, id: string): unknown;
+declare function handlePermission(raw: string, id: string): unknown;
 declare const _default$27: {
 	readonly grantStaticPermissions: typeof grantStaticPermissions;
 	readonly handlePermission: typeof handlePermission;
@@ -2865,7 +2837,6 @@ declare global {
 					"visible": boolean;
 					"resizable": boolean;
 				};
-				"requestPermissions": (permissions: Array<PermissionType | string> | unknown, extension: string) => Promise<Array<unknown>>;
 				"joinDelimiter": string;
 				"launcherVersion": string;
 				"executableHash": string;
