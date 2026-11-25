@@ -35,7 +35,6 @@ impl ModStore {
     pub async fn ensure(
         &self,
         file: &ManifestFile,
-        checksum: bool,
         cancel: &mut watch::Receiver<bool>,
     ) -> Result<PathBuf, String> {
         let prefix = &file.sha512[..2];
@@ -56,38 +55,50 @@ impl ModStore {
             Ok(meta) if !meta.is_file() => {
                 return Err(format!("Invalid object: {}", path.display()))
             }
-            Ok(meta) if meta.len() == file.file_size => {
-                if !checksum {
-                    return Ok(path);
-                }
+            Ok(meta) => {
                 let source = path.clone();
                 let actual = tokio::task::spawn_blocking(move || modpack_hashes(&source))
                     .await
                     .map_err(|e| e.to_string())?
                     .map_err(|e| e.to_string())?;
-                if actual.0 == file.sha512 && actual.1 == file.sha1 {
+                if actual.0 == file.sha512 {
+                    if actual.1 != file.sha1 || meta.len() != file.file_size {
+                        return Err(format!(
+                            "Contradictory manifest integrity for {}",
+                            file.path
+                        ));
+                    }
                     return Ok(path);
                 }
+                fs::remove_file(&path).map_err(|e| e.to_string())?;
             }
-            Ok(_) => {}
             Err(e) if e.kind() == io::ErrorKind::NotFound => {}
             Err(e) => return Err(e.to_string()),
         }
-        stream_file(
-            client().await?,
-            &file.url,
-            &path,
-            Some(file.file_size),
-            &hashes,
-            &Progress::default(),
-            cancel,
-        )
-        .await
-        .map_err(|e| match e {
-            DownloadError::Cancelled => "Installation cancelled".into(),
-            DownloadError::Other(e) => e,
-        })?;
-        Ok(path)
+        let client = client().await?;
+        let mut failures = Vec::new();
+        for url in std::iter::once(&file.url).chain(&file.mirrors) {
+            match stream_file(
+                client,
+                url,
+                &path,
+                Some(file.file_size),
+                &hashes,
+                &Progress::default(),
+                cancel,
+            )
+            .await
+            {
+                Ok(()) => return Ok(path),
+                Err(DownloadError::Cancelled) => return Err("Installation cancelled".into()),
+                Err(DownloadError::Other(error)) => failures.push(error),
+            }
+        }
+        Err(format!(
+            "All mirrors failed for {}: {}",
+            file.path,
+            failures.join(", ")
+        ))
     }
 
     async fn clear(&self) -> Result<(), String> {
@@ -160,7 +171,9 @@ pub fn materialize_blob(src: &Path, dst: &Path) -> io::Result<()> {
         let to = CString::new(copy.as_os_str().as_bytes())?;
         // Both strings live for the call and clonefile creates a new file.
         if unsafe { libc::clonefile(from.as_ptr(), to.as_ptr(), 0) } == 0 {
-            return fs::rename(copy, dst);
+            return tempfile::TempPath::from_path(copy)
+                .persist_noclobber(dst)
+                .map_err(|error| error.error);
         }
     }
     let stage = crate::file_system::staging_file(parent)?;
@@ -177,7 +190,10 @@ pub fn materialize_blob(src: &Path, dst: &Path) -> io::Result<()> {
     if !cloned {
         fs::copy(src, stage.path())?;
     }
-    stage.persist(dst).map(|_| ()).map_err(|e| e.error)
+    stage
+        .persist_noclobber(dst)
+        .map(|_| ())
+        .map_err(|e| e.error)
 }
 
 #[cfg(test)]

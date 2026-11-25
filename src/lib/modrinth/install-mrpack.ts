@@ -17,10 +17,12 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { shallowRef } from "vue";
 
 import { MrpackDependencies } from "@/constants/modrinth.ts";
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
+import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
@@ -57,17 +59,20 @@ export async function peekMrpack(archivePath: string): Promise<MrpackManifestTyp
   return manifest ?? undefined;
 }
 
+export const ActiveInstall = shallowRef<{ "instanceId": string; "cancel": () => Promise<void> }>();
+
 export async function installMrpack({
   archivePath,
   instanceId,
   statuses,
-  checksum,
 }: {
   "archivePath": string;
   "instanceId" : string;
   "statuses"   : LauncherStatusesType;
-  "checksum"   : boolean;
 }): Promise<MrpackManifestType> {
+  if (ActiveInstall.value) {
+    throw new Error("Another modpack installation is active");
+  }
   const { instanceRootDirectory } = Instances.getMinecraftDirectory({
     "baseDirectory": FileManager.getBaseDirectory(),
     instanceId,
@@ -80,11 +85,48 @@ export async function installMrpack({
     statuses.downloads.total = total;
   };
 
-  return invoke("install_mrpack", {
-    archivePath,
-    checksum,
-    onProgress,
-    "cancelId"     : `${instanceId}-download`,
-    "targetDirPath": instanceRootDirectory,
-  });
+  const cancelId = `${instanceId}-download`;
+  let ready = false;
+  let requested = false;
+  const cancel = async (): Promise<void> => {
+    requested = true;
+    if (ready) {
+      await invoke("cancel_downloads", { cancelId });
+    }
+  };
+
+  ActiveInstall.value = { instanceId, cancel };
+  try {
+    await invoke("prepare_mrpack_install", { cancelId });
+    ready = true;
+    if (requested) {
+      await cancel();
+    }
+
+    return await invoke("install_mrpack", {
+      archivePath, onProgress, cancelId, "targetDirPath": instanceRootDirectory,
+    });
+  } finally {
+    ActiveInstall.value = undefined;
+  }
+}
+
+export async function repairLegacyMrpack(
+  instance: InstanceStateType, instanceId: string, minecraftDirectory: string,
+): Promise<void> {
+  const archivePath = instance.modpackPath;
+
+  if (archivePath) {
+    await invoke("repair_legacy_mrpack", {
+      archivePath, "targetDirPath": minecraftDirectory, "cancelId": `${instanceId}-download`,
+    });
+    const saved = instanceStates[instanceId];
+
+    if (saved?.modpackPath === archivePath) {
+      const updated = { ...saved };
+
+      delete updated.modpackPath;
+      instanceStates[instanceId] = updated;
+    }
+  }
 }

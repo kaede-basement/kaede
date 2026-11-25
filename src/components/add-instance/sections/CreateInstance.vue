@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { message } from "@tauri-apps/plugin-dialog";
-import { computed, inject, markRaw, ref } from "vue";
+import { computed, inject, markRaw } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -26,9 +26,9 @@ import { LaunchStatesContextKey } from "@/constants/application.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
-import { cancelAll } from "@/lib/launcher/scopes/fetching/cancel-all.ts";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
+import { ActiveInstall } from "@/lib/modrinth/install-mrpack.ts";
 import { globalStates } from "@/states/global.ts";
 import type {
   GlobalStatesType,
@@ -45,9 +45,9 @@ const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );
 
-const pending = ref<boolean>(false);
-const installingId = ref<string>();
-const progress = computed(() => installingId.value && instanceStatuses?.[installingId.value]);
+const progress = computed(() => (
+  ActiveInstall.value && instanceStatuses?.[ActiveInstall.value.instanceId]
+));
 const buttonLabel = computed(() => {
   const status = progress.value;
 
@@ -104,10 +104,8 @@ async function handleCreate(): Promise<void> {
   const instance = currentInstance.value;
   const patch = currentPatch.value;
 
-  if (pending.value) {
-    if (installingId.value) {
-      await cancelAll(`${installingId.value}-download`);
-    }
+  if (ActiveInstall.value) {
+    await ActiveInstall.value.cancel();
 
     return;
   }
@@ -117,17 +115,13 @@ async function handleCreate(): Promise<void> {
     return;
   }
 
-  pending.value = true;
   try {
-    const id = await Instances.create(instance, patch, archive.path, async instanceId => {
+    await Instances.create(instance, patch, archive.path, async instanceId => {
       const statuses = trackDownloads(instanceId);
-
-      installingId.value = instanceId;
 
       try {
         await Modrinth.installMrpack({
           "archivePath": archive.path,
-          "checksum"   : instance?.checksum ?? false,
           instanceId,
           statuses,
         });
@@ -137,20 +131,16 @@ async function handleCreate(): Promise<void> {
         }
       }
     });
-
-    if (id) {
-      globalStates.selected.currentInstance = id;
-      globalStates.pages["add-instance"].importedModpack = undefined;
-      globalStates.pages["add-instance"].lastCreated = undefined;
-    }
   } catch (error: unknown) {
+    if (error === "Installation cancelled") {
+      await message(error, { "title": "Modpack installation", "kind": "info" });
+
+      return;
+    }
     const detail = typeof error === "string" ? error : Errors.prettify(error);
 
     log.error(__PRE_BUNDLED_FILENAME__, "Modpack installation failed", detail);
     await message(detail, { "title": "Modpack installation failed", "kind": "error" });
-  } finally {
-    installingId.value = undefined;
-    pending.value = false;
   }
 }
 </script>
@@ -162,12 +152,11 @@ async function handleCreate(): Promise<void> {
   >
     <button
       id="__add-instance-page__create-instance-button"
-      class="relative rounded-md px-2 py-1 transition-[opacity] bg-[theme(colors.neutral.100/.1)] disabled:opacity-70"
-      :disabled="pending && !installingId"
+      class="relative rounded-md px-2 py-1 transition-[opacity] bg-[theme(colors.neutral.100/.1)]"
       @click="handleCreate"
     >
       {{ buttonLabel }}
-      <MaterialRipple :disabled="pending && !installingId" />
+      <MaterialRipple />
     </button>
     <div
       id="__add-instance-page__create-instance-type-display"

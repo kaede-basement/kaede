@@ -1,6 +1,6 @@
 use crate::zip::{open_archive, read_limited, relative_name, Extraction};
 use crate::{
-    downloads::CancelFlags,
+    downloads::{CancelFlags, InstallDecision},
     hashing::HashAlgorithm,
     mod_store::{materialize_blob, ModStore},
 };
@@ -76,6 +76,8 @@ pub struct ManifestFile {
     // Relative to the Minecraft directory, e.g., "mods/sodium.jar"
     pub path: String,
     pub url: String,
+    #[serde(skip)]
+    pub mirrors: Vec<String>,
     pub file_size: u64,
     pub sha1: String,
     pub sha512: String,
@@ -100,18 +102,17 @@ pub struct MrpackManifest {
 pub async fn install_mrpack(
     archive_path: PathBuf,
     target_dir_path: PathBuf,
-    checksum: bool,
     cancel_id: String,
     on_progress: Channel<(usize, usize)>,
     store: State<'_, ModStore>,
     flags: State<'_, CancelFlags>,
 ) -> Result<MrpackManifest, String> {
-    let mut cancel = flags.register(&cancel_id);
+    let (mut cancel, decision) = flags.start_install(&cancel_id)?;
     let result = install(
         archive_path,
         target_dir_path,
         &store,
-        checksum,
+        decision,
         &mut cancel,
         |ok, total| {
             let _ = on_progress.send((ok, total));
@@ -119,6 +120,7 @@ pub async fn install_mrpack(
     )
     .await;
     flags.deregister(&cancel_id);
+    check_cancel(&cancel)?;
     result
 }
 
@@ -137,10 +139,11 @@ async fn install(
     archive_path: PathBuf,
     target: PathBuf,
     store: &ModStore,
-    checksum: bool,
+    decision: InstallDecision,
     cancel: &mut watch::Receiver<bool>,
     progress: impl Fn(usize, usize),
 ) -> Result<MrpackManifest, String> {
+    check_cancel(cancel)?;
     let (archive, manifest) = tokio::task::spawn_blocking(move || {
         let mut archive = open_archive(&archive_path)?;
         let manifest = read_manifest(&mut archive)?.ok_or("Missing modrinth.index.json")?;
@@ -148,7 +151,7 @@ async fn install(
     })
     .await
     .map_err(|e| e.to_string())??;
-    install_manifest(archive, manifest, target, store, checksum, cancel, progress).await
+    install_manifest(archive, manifest, target, store, decision, cancel, progress).await
 }
 
 async fn install_manifest(
@@ -156,7 +159,7 @@ async fn install_manifest(
     mut manifest: MrpackManifest,
     target: PathBuf,
     store: &ModStore,
-    checksum: bool,
+    decision: InstallDecision,
     cancel: &mut watch::Receiver<bool>,
     progress: impl Fn(usize, usize),
 ) -> Result<MrpackManifest, String> {
@@ -184,7 +187,7 @@ async fn install_manifest(
                 let mut cancel = cancel.clone();
                 pending.push(async move {
                     store
-                        .ensure(file, checksum, &mut cancel)
+                        .ensure(file, &mut cancel)
                         .await
                         .map(|blob| (index, blob))
                 });
@@ -229,11 +232,73 @@ async fn install_manifest(
             .collect();
         manifest.overrides = extract_overrides(&mut archive, &mut extraction, names, &cancel)?;
         check_cancel(&cancel)?;
-        std::fs::rename(stage.path(), target).map_err(|e| e.to_string())?;
+        decision.publish(stage.path(), &target)?;
         Ok(manifest)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn repair_legacy_mrpack(
+    archive_path: PathBuf,
+    target_dir_path: PathBuf,
+    store: State<'_, ModStore>,
+    flags: State<'_, CancelFlags>,
+    cancel_id: String,
+) -> Result<(), String> {
+    let mut cancel = flags.register(&cancel_id);
+    let result = repair(archive_path, target_dir_path, &store, &mut cancel).await;
+    flags.deregister(&cancel_id);
+    result
+}
+
+async fn repair(
+    archive: PathBuf,
+    root: PathBuf,
+    store: &ModStore,
+    cancel: &mut watch::Receiver<bool>,
+) -> Result<(), String> {
+    let manifest = tokio::task::spawn_blocking(move || peek(&archive))
+        .await
+        .map_err(|e| e.to_string())??
+        .ok_or("Missing modrinth.index.json")?;
+    let _guard = store.installs.read().await;
+    let mut extraction = Extraction::new(&root)?;
+    for file in &manifest.files {
+        check_cancel(cancel)?;
+        let dest = extraction.prepare_file(&file.path)?;
+        match dest.symlink_metadata() {
+            Ok(meta) if meta.is_file() => continue,
+            Ok(_) => return Err(format!("Unexpected legacy destination: {}", dest.display())),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+            Err(e) => return Err(e.to_string()),
+        }
+        if file.path.starts_with("mods/")
+            && file.path.ends_with(".jar")
+            && dest
+                .with_extension("jar.disabled")
+                .try_exists()
+                .map_err(|e| e.to_string())?
+        {
+            continue;
+        }
+        store.prepare().map_err(|e| e.to_string())?;
+        let blob = store.ensure(file, cancel).await?;
+        tokio::task::spawn_blocking(move || match materialize_blob(&blob, &dest) {
+            Err(e)
+                if e.kind() == std::io::ErrorKind::AlreadyExists
+                    && dest.symlink_metadata()?.is_file() =>
+            {
+                Ok(())
+            }
+            result => result,
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 fn check_cancel(cancel: &watch::Receiver<bool>) -> Result<(), String> {
@@ -269,9 +334,10 @@ fn map_file(raw: RawFile) -> Result<Option<ManifestFile>, String> {
         return Err(format!("Expected manifest file: {}", raw.path));
     }
     relative_name(&raw.path)?;
-    let Some(url) = raw.downloads.into_iter().find(|url| {
+    let mut urls = raw.downloads.into_iter().filter(|url| {
         reqwest::Url::parse(url).is_ok_and(|u| u.scheme() == "https" && u.host_str().is_some())
-    }) else {
+    });
+    let Some(url) = urls.next() else {
         return if support == Some(ClientSupport::Optional) {
             Ok(None)
         } else {
@@ -281,8 +347,11 @@ fn map_file(raw: RawFile) -> Result<Option<ManifestFile>, String> {
     HashAlgorithm::Sha1.validate(&raw.hashes.sha1)?;
     HashAlgorithm::Sha512.validate(&raw.hashes.sha512)?;
 
+    let mirrors: Vec<_> = urls.collect();
     Ok(Some(ManifestFile {
-        external: !url.starts_with(TRUSTED_PREFIX),
+        external: !url.starts_with(TRUSTED_PREFIX)
+            || mirrors.iter().any(|u| !u.starts_with(TRUSTED_PREFIX)),
+        mirrors,
         path: raw.path,
         url,
         file_size: raw.file_size,
@@ -432,6 +501,7 @@ mod tests {
             path: format!("mods/{name}.jar"),
             url: format!("http://{addr}/{route}"),
             external: false,
+            mirrors: Vec::new(),
             file_size: 3,
             sha512: crate::hashing::hash_bytes::<sha2::Sha512>(name.as_bytes()),
             sha1: crate::hashing::hash_bytes::<sha1::Sha1>(name.as_bytes()),
@@ -452,7 +522,7 @@ mod tests {
             manifest("stall"),
             failed.clone(),
             &store,
-            false,
+            InstallDecision::default(),
             &mut cancel,
             |count, _| {
                 if count == 1 {
@@ -482,7 +552,7 @@ mod tests {
                 manifest("two"),
                 target.clone(),
                 &store,
-                true,
+                InstallDecision::default(),
                 &mut cancel,
                 |_, _| {},
             )
@@ -517,10 +587,12 @@ mod tests {
     fn validate_client_manifest() {
         let raw = serde_json::json!({
             "path":"safe.jar","hashes":{"sha512":"A".repeat(128),"sha1":"B".repeat(40)},
-            "fileSize":0,"downloads":["https://example.org"]
+            "fileSize":0,"downloads":["https://example.org","http://unsafe.invalid","https://mirror.invalid"]
         });
         let map = |value| map_file(serde_json::from_value(value).unwrap());
-        assert_eq!(map(raw.clone()).unwrap().unwrap().sha1, "b".repeat(40));
+        let file = map(raw.clone()).unwrap().unwrap();
+        assert_eq!(file.sha1, "b".repeat(40));
+        assert_eq!(file.mirrors, vec!["https://mirror.invalid"]);
         for (field, value) in [
             ("downloads", serde_json::json!(["http://example.org"])),
             ("path", serde_json::json!("../bad")),
@@ -558,13 +630,155 @@ mod tests {
             let store = ModStore::new(root.path());
             let (_send, mut cancel) = watch::channel(false);
             let target = root.path().join("instances/id");
-            assert!(
-                install(pack, target.clone(), &store, false, &mut cancel, |_, _| {})
-                    .await
-                    .is_err()
-            );
+            assert!(install(
+                pack,
+                target.clone(),
+                &store,
+                InstallDecision::default(),
+                &mut cancel,
+                |_, _| {}
+            )
+            .await
+            .is_err());
             assert!(!target.exists());
             assert_eq!(target.parent().unwrap().read_dir().unwrap().count(), 0);
         }
+    }
+
+    fn seed_blob(store_root: &Path, bytes: &[u8]) -> (ManifestFile, PathBuf) {
+        let sha512 = crate::hashing::hash_bytes::<sha2::Sha512>(bytes);
+        let path = store_root
+            .join("cache/objects/sha512")
+            .join(&sha512[..2])
+            .join(&sha512);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, bytes).unwrap();
+        (
+            ManifestFile {
+                path: "mods/item.jar".into(),
+                url: "https://example.invalid/item".into(),
+                mirrors: Vec::new(),
+                external: true,
+                file_size: bytes.len() as u64,
+                sha512,
+                sha1: crate::hashing::hash_bytes::<sha1::Sha1>(bytes),
+            },
+            path,
+        )
+    }
+
+    #[tokio::test]
+    async fn installs_reject_contradictions_and_evict_same_size_corruption() {
+        use tokio::io::AsyncWriteExt;
+        for corrupt in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let store = ModStore::new(root.path());
+            let (mut file, path) = seed_blob(root.path(), b"good");
+            let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+                .await
+                .unwrap();
+            file.url = format!("http://{}", listener.local_addr().unwrap());
+            if corrupt {
+                std::fs::write(&path, b"evil").unwrap();
+            } else {
+                file.sha1 = "0".repeat(40);
+            }
+            let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
+            manifest.files.push(file);
+            let (_stop, mut cancel) = watch::channel(false);
+            let target = root.path().join("instance");
+            let attempt = install_manifest(
+                archive(&[]),
+                manifest,
+                target.clone(),
+                &store,
+                InstallDecision::default(),
+                &mut cancel,
+                |_, _| {},
+            );
+            if corrupt {
+                let (result, ()) = tokio::join!(attempt, async {
+                    let (mut socket, _) = listener.accept().await.unwrap();
+                    socket
+                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nevil")
+                        .await
+                        .unwrap();
+                });
+                assert!(matches!(result,Err(e) if e.contains("Hash mismatch")));
+                assert!(!path.exists());
+            } else {
+                assert!(matches!(attempt.await,Err(e) if e.contains("Contradictory")));
+                assert_eq!(std::fs::read(path).unwrap(), b"good");
+            }
+            assert!(!target.exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn fallback_mirror_admits_verified_bytes_after_404() {
+        use tokio::io::AsyncWriteExt;
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let (mut file, path) = seed_blob(root.path(), b"good");
+        std::fs::remove_file(&path).unwrap();
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        file.url = format!("{url}/first");
+        file.mirrors = vec![format!("{url}/second")];
+        let (_stop, mut cancel) = watch::channel(false);
+        let (result, ()) = tokio::join!(store.ensure(&file, &mut cancel), async {
+            for response in [
+                b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".as_slice(),
+                b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ngood",
+            ] {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                socket.write_all(response).await.unwrap();
+            }
+        });
+        assert_eq!(result.unwrap(), path);
+        assert_eq!(std::fs::read(path).unwrap(), b"good");
+    }
+
+    #[tokio::test]
+    async fn legacy_repair_only_restores_missing_indexed_files() {
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let (file, _) = seed_blob(root.path(), b"good");
+        let indexed = serde_json::json!({"path":file.path,"hashes":{"sha1":file.sha1,"sha512":file.sha512},"downloads":[file.url],"fileSize":file.file_size});
+        let mut existing = indexed.clone();
+        existing["path"] = "options.txt".into();
+        let mut disabled = indexed.clone();
+        disabled["path"] = "mods/disabled.jar".into();
+        let index = serde_json::json!({"files":[indexed,existing,disabled]}).to_string();
+        let mut zip = archive(&[
+            (MANIFEST_ENTRY, &index),
+            ("overrides/options.txt", "default"),
+            ("client-overrides/new.cfg", "new"),
+        ])
+        .into_inner();
+        use std::io::Seek;
+        zip.rewind().unwrap();
+        let pack = root.path().join("legacy.mrpack");
+        std::io::copy(&mut zip, &mut File::create(&pack).unwrap()).unwrap();
+        let minecraft = root.path().join("instance/minecraft");
+        std::fs::create_dir_all(minecraft.join("mods")).unwrap();
+        std::fs::write(minecraft.join("mods/disabled.jar.disabled"), "edited").unwrap();
+        std::fs::write(minecraft.join("options.txt"), "edited").unwrap();
+        let (_stop, mut cancel) = watch::channel(false);
+        repair(pack, minecraft.clone(), &store, &mut cancel)
+            .await
+            .unwrap();
+        assert_eq!(
+            std::fs::read(minecraft.join("mods/item.jar")).unwrap(),
+            b"good"
+        );
+        assert_eq!(
+            std::fs::read(minecraft.join("options.txt")).unwrap(),
+            b"edited"
+        );
+        assert!(!minecraft.join("new.cfg").exists());
+        assert!(!minecraft.join("mods/disabled.jar").exists());
     }
 }

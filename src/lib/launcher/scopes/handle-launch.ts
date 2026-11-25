@@ -26,6 +26,7 @@ import Fetching from "@/lib/launcher/scopes/fetching";
 import Parsers from "@/lib/launcher/scopes/parsers";
 import Patches from "@/lib/launcher/scopes/patches";
 import { log } from "@/lib/logging/log.ts";
+import { repairLegacyMrpack } from "@/lib/modrinth/install-mrpack.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -100,6 +101,16 @@ export async function handleLaunch({
     log.error(__PRE_BUNDLED_FILENAME__, "You cannot launch Minecraft without an account");
 
     return failed;
+  }
+
+  if (instance.modpackPath) {
+    try {
+      await repairLegacyMrpack(instance, instanceId, instanceDirectory);
+    } catch (error) {
+      log.error(logPrefix, "Could not repair legacy modpack", String(error));
+
+      return failed;
+    }
   }
 
   const entryPatch: SpecificPatchMetaType | false = await Patches.resolvePatch({

@@ -1435,9 +1435,10 @@ declare function getBaseDirectory(): string;
 declare function join(...paths: Array<string>): string;
 declare function sanitizeFileOrFolderName(input: string): string;
 declare function verifyPaths({ paths, algorithm, }: {
-	"paths": Array<{
+	"paths": Array<string | {
 		"path": string;
-		"hash": string;
+		"hash"?: string;
+		"size"?: number;
 	}>;
 	"algorithm"?: HashAlgorithmType;
 }): Promise<Array<string>>;

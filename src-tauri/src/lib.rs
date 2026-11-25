@@ -176,6 +176,8 @@ pub fn run() {
             application::get_initial_state,
             downloads::concurrently_download,
             downloads::cancel_downloads,
+            downloads::prepare_mrpack_install,
+            modrinth::repair_legacy_mrpack,
             extensions::read_extensions,
             file_system::verify_paths,
             file_system::verify_paths_hash,

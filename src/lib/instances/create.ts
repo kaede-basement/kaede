@@ -21,7 +21,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
-import FileManager from "@/lib/file-manager";
+import { sanitizeFileOrFolderName } from "@/lib/file-manager/path.ts";
 import { log } from "@/lib/logging/log.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
@@ -96,8 +96,8 @@ export function create(
     toAdd[Patches.FabricIntermediary] = currentInstance.patchVersions[Patches.Minecraft];
   }
 
-  const id = FileManager.sanitizeFileOrFolderName(beforeRegister
-    ? crypto.randomUUID() + " " + currentInstance.name
+  const id = sanitizeFileOrFolderName(beforeRegister
+    ? crypto.getRandomValues(new Uint8Array(16)).join("-") + " " + currentInstance.name
     : currentInstance.name + " " + Math.floor(Math.random() * 1000));
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
@@ -113,10 +113,30 @@ export function create(
     "entry": uid,
   };
 
+  const page = globalStates.pages["add-instance"];
+  const draft = page.instance;
+  const archive = page.importedModpack;
+  const draftValues = (): string => JSON.stringify([
+    page.instance, page.importedModpack, page.instanceVersionSearch?.patch,
+  ]);
+  const initialValues = beforeRegister && draftValues();
+
   function register(): string {
-    instanceStates[id] = { ...instance, ...(modpackPath ? { modpackPath } : {}) };
+    instanceStates[id] = {
+      ...instance,
+      ...(modpackPath && !beforeRegister ? { modpackPath } : {}),
+    };
     log.info(__PRE_BUNDLED_FILENAME__, "Created an instance with the entry patch:", uid);
-    globalStates.pages["add-instance"].instance = undefined;
+    if (beforeRegister) {
+      if (globalStates.pages["add-instance"] !== page || page.instance !== draft ||
+        page.importedModpack !== archive || draftValues() !== initialValues) {
+        return id;
+      }
+      globalStates.selected.currentInstance = id;
+      page.importedModpack = undefined;
+      page.lastCreated = undefined;
+    }
+    page.instance = undefined;
     Router.navigate(Routes.Library);
 
     return id;

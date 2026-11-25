@@ -6,7 +6,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc, Mutex, OnceLock,
     },
     time::Duration,
@@ -209,14 +209,82 @@ pub struct CancelFlags(Mutex<HashMap<String, CancelEntry>>);
 struct CancelEntry {
     flag: watch::Sender<bool>,
     batches: usize,
+    decision: Option<InstallDecision>,
+    started: bool,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct InstallDecision(Arc<AtomicBool>);
+
+impl InstallDecision {
+    fn claim(&self) -> bool {
+        !self.0.swap(true, Ordering::AcqRel)
+    }
+
+    pub fn publish(&self, stage: &Path, target: &Path) -> Result<(), String> {
+        if !self.claim() {
+            return Err("Installation cancelled".into());
+        }
+        std::fs::rename(stage, target).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+pub fn prepare_mrpack_install(flags: State<CancelFlags>, cancel_id: String) -> Result<(), String> {
+    flags.reserve_install(cancel_id)
 }
 
 impl CancelFlags {
+    fn reserve_install(&self, id: String) -> Result<(), String> {
+        let mut entries = self.0.lock().unwrap();
+        if entries.contains_key(&id) {
+            return Err("Install ID already active".into());
+        }
+        entries.insert(
+            id,
+            CancelEntry {
+                flag: watch::channel(false).0,
+                batches: 1,
+                decision: Some(InstallDecision::default()),
+                started: false,
+            },
+        );
+        Ok(())
+    }
+
+    pub(crate) fn start_install(
+        &self,
+        id: &str,
+    ) -> Result<(watch::Receiver<bool>, InstallDecision), String> {
+        let mut entries = self.0.lock().unwrap();
+        let entry = entries.get_mut(id).ok_or("Unknown install ID")?;
+        let decision = entry.decision.clone().ok_or("Not an install ID")?;
+        if entry.started {
+            return Err("Install already started".into());
+        }
+        entry.started = true;
+        Ok((entry.flag.subscribe(), decision))
+    }
+
+    fn cancel(&self, id: &str) -> bool {
+        let entries = self.0.lock().unwrap();
+        let Some(entry) = entries.get(id) else {
+            return false;
+        };
+        if entry.decision.as_ref().is_some_and(|d| !d.claim()) {
+            return false;
+        }
+        entry.flag.send_replace(true);
+        true
+    }
+
     pub(crate) fn register(&self, id: &str) -> watch::Receiver<bool> {
         let mut map = self.0.lock().unwrap();
         let entry = map.entry(id.to_string()).or_insert_with(|| CancelEntry {
             flag: watch::channel(false).0,
             batches: 0,
+            decision: None,
+            started: false,
         });
 
         entry.batches += 1;
@@ -253,13 +321,7 @@ pub(crate) type Progress = Arc<Mutex<HashMap<String, FileProgress>>>;
 
 #[tauri::command]
 pub fn cancel_downloads(state: State<CancelFlags>, cancel_id: String) -> bool {
-    match state.0.lock().unwrap().get(&cancel_id) {
-        Some(entry) => {
-            entry.flag.send_replace(true);
-            true
-        }
-        None => false,
-    }
+    state.cancel(&cancel_id)
 }
 
 #[tauri::command]
@@ -570,6 +632,33 @@ pub(crate) async fn stream_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cancellation_and_publication_have_one_winner() {
+        let root = tempfile::tempdir().unwrap();
+        let flags = CancelFlags::default();
+        for _ in 0..16 {
+            let stage = tempfile::tempdir_in(root.path()).unwrap();
+            let target = root.path().join("instance");
+            flags.reserve_install("install".into()).unwrap();
+            let (_, decision) = flags.start_install("install").unwrap();
+            let barrier = std::sync::Barrier::new(2);
+            std::thread::scope(|scope| {
+                let cancel = scope.spawn(|| {
+                    barrier.wait();
+                    flags.cancel("install")
+                });
+                barrier.wait();
+                let published = decision.publish(stage.path(), &target).is_ok();
+                assert_eq!(cancel.join().unwrap(), !published);
+                assert_eq!(target.exists(), published);
+            });
+            flags.deregister("install");
+            if target.exists() {
+                std::fs::remove_dir(target).unwrap();
+            }
+        }
+    }
+
     #[tokio::test]
     async fn corrupt_download_never_replaces_good_destination() {
         let dir = tempfile::tempdir().unwrap();

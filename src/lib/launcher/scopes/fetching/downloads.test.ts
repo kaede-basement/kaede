@@ -59,7 +59,9 @@ test("download stages fail on incomplete reports and skip warm downloads", async
       { "failed": 1, "cancelled": false },
       { "failed": 0, "cancelled": true },
     ]) {
-      verify.mockImplementation(async ({ paths }) => paths.map(({ path }) => path));
+      verify.mockImplementation(async ({ paths }) => {
+        return paths.map(entry => (typeof entry === "string" ? entry : entry.path));
+      });
       concurrentlyDownload.mockResolvedValue({ ...report, "success": 0, "failures": [] });
       expect(await download({ necessaries, finalizedPatch })).toBe(false);
     }
