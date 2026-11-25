@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/vue-query";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { fetch } from "@tauri-apps/plugin-http";
 import { onClickOutside } from "@vueuse/core";
-import { markRaw, ref, useTemplateRef } from "vue";
+import { markRaw, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 
 import { InstanceCreationSections } from "@/constants/application.ts";
 import FileStructure from "@/constants/file-structure.ts";
@@ -31,7 +31,6 @@ import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
 import { globalStates } from "@/states/global.ts";
-import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 
 const { idRoot, projectId, projectName, projectIcon, close } = defineProps<{
   "idRoot"     : string;
@@ -46,7 +45,7 @@ const container = useTemplateRef("container");
 const pending = ref<boolean>(false);
 
 const { data, status, error } = useQuery({
-  "queryKey": [
+  "queryKey": () => [
     "modrinth",
     ModrinthAPI.ProjectType,
     projectId,
@@ -56,119 +55,79 @@ const { data, status, error } = useQuery({
   "queryFn": async () => markRaw(await Modrinth.fetchVersion(projectId)),
 });
 
-async function handleClick(event: MouseEvent): Promise<void> {
-  if (!data.value) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "The version was clicked, yet the version data is undefined. How did you do it?",
-    );
+let generation = 0;
+
+function invalidate(): void {
+  generation++;
+  pending.value = false;
+}
+
+watch(() => projectId, invalidate, { "flush": "sync" });
+onBeforeUnmount(invalidate);
+
+async function handleClick(currentEntry: NonNullable<typeof data.value>[number]): Promise<void> {
+  const packURL = currentEntry?.files?.[0]?.url;
+
+  const gameVersions = currentEntry?.game_versions;
+
+  if (
+    typeof packURL !== "string" || !packURL.trim() ||
+    !Array.isArray(gameVersions) ||
+    typeof gameVersions[0] !== "string" || !gameVersions[0].trim() ||
+    typeof currentEntry.id !== "string" || !currentEntry.id.trim()
+  ) {
+    return log.error(__PRE_BUNDLED_FILENAME__, `Missing version metadata for '${projectName}'`);
   }
 
-  let index: number = Number.NaN;
-
-  if (event.target instanceof HTMLElement) {
-    index = Number(event.target.dataset.entry);
-  }
-
-  if (Number.isNaN(index)) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `The extracted version index of '${projectName}' is not a number`,
-    );
-  }
+  const request = ++generation;
 
   pending.value = true;
-  const currentEntry = data.value[index];
-  const packURL: string | undefined = currentEntry.files[0].url;
 
-  if (!packURL) {
-    pending.value = false;
+  try {
+    const response = await fetch(packURL);
 
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `No '.mrpack' file URL was found in the metadata for '${currentEntry.version_number}'`,
-    );
-  }
+    if (!response.ok) {
+      throw new Error(`Fetch failed with '${response.status}'`);
+    }
 
-  const response: Response | {
-    "status": string;
-    "ok"    : false;
-    // I don't want to wrap it in 'try {} catch {}'
-  } = await fetch(packURL).catch(error => {
-    // Lol
-    return { "status": Errors.prettify(error), "ok": false as const };
-  });
+    const bytes = await response.bytes();
 
-  if (!response.ok) {
-    pending.value = false;
+    if (request !== generation) {
+      return;
+    }
 
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `Fetch failed with '${response.status}'`,
-    );
-  }
-
-  const bytes: Uint8Array | false = await response.bytes().catch(error => {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "Failed to get bytes:",
-      Errors.prettify(error),
+    const cachePath = FileManager.join(
+      FileManager.getBaseDirectory(),
+      FileStructure.Folders.Cache.Path,
+      `modrinth-${FileManager.sanitizeFileOrFolderName(currentEntry.id)}.mrpack`,
     );
 
-    return false;
-  });
+    await writeFile(cachePath, bytes);
 
-  if (bytes === false) {
-    pending.value = false;
+    if (request !== generation) {
+      return;
+    }
 
-    return;
-  }
+    const manifest = await Modrinth.peekMrpack(cachePath);
 
-  const cachePath: string = FileManager.join(
-    FileManager.getBaseDirectory(),
-    FileStructure.Folders.Cache.Path,
-    projectName + currentEntry.version_number + currentEntry.game_versions[0] + ".mrpack",
-  );
+    if (!manifest || request !== generation) {
+      return;
+    }
 
-  const written: void | false = await writeFile(cachePath, bytes)
-    .catch(error => {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Failed to write file:",
-        Errors.prettify(error),
-      );
+    Modrinth.applyManifest({ manifest, "path": cachePath });
+    globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
 
-      return false;
-    });
+    if (projectIcon && globalStates.pages["add-instance"]?.instance) {
+      globalStates.pages["add-instance"].instance.icon = projectIcon;
+    }
 
-  if (written === false) {
-    pending.value = false;
-
-    return;
-  }
-
-  const manifest: MrpackManifestType | undefined | void =
-    await Modrinth.peekMrpack(cachePath)
-      .catch(error => {
-        return log.error(
-          __PRE_BUNDLED_FILENAME__,
-          "Error while peeking the '.mrpack' manifest:",
-          Errors.prettify(error),
-        );
-      });
-
-  pending.value = false;
-
-  if (!manifest) {
-    return;
-  }
-  close();
-
-  Modrinth.applyManifest({ manifest, "path": cachePath });
-  globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
-
-  if (projectIcon && globalStates.pages["add-instance"]?.instance) {
-    globalStates.pages["add-instance"].instance.icon = projectIcon;
+    close();
+  } catch (error: unknown) {
+    log.error(__PRE_BUNDLED_FILENAME__, "Failed to open modpack:", Errors.prettify(error));
+  } finally {
+    if (request === generation) {
+      pending.value = false;
+    }
   }
 }
 
@@ -181,19 +140,18 @@ onClickOutside(container, close);
     ref="container"
     class="absolute right-4 top-16 z-100 max-h-120 w-80 overflow-y-auto rounded-md bg-neutral-900 text-white"
   >
-    <button
+    <div
       v-if="data"
-      :disabled="pending"
-      @click="handleClick"
       :id="`${idRoot}-data`"
-      class="w-full flex flex-col break-all text-wrap text-sm disabled:opacity-70"
+      class="w-full flex flex-col break-all text-wrap text-sm"
     >
-      <span
-        v-for="(entry, index) in data"
+      <button
+        v-for="entry in data"
         :key="entry.id"
         :id="`${idRoot}-${entry.id}`"
-        :data-entry="index"
-        class="flex flex-nowrap border-b border-neutral-600 p-2 hover:bg-[theme(colors.neutral.100/.1)]"
+        :disabled="pending"
+        @click="handleClick(entry)"
+        class="w-full flex flex-nowrap border-b border-neutral-600 p-2 disabled:opacity-70 hover:bg-[theme(colors.neutral.100/.1)]"
       >
         <span
           :id="`${idRoot}-${entry.id}-star`"
@@ -213,8 +171,8 @@ onClickOutside(container, close);
         >
           {{ entry.loaders[0] }}
         </span>
-      </span>
-    </button>
+      </button>
+    </div>
     <div
       v-else-if="status !== 'error'"
       :id="`${idRoot}-pending`"
