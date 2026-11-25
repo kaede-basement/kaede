@@ -35,13 +35,26 @@ import type {
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
+import type { TranslationKey } from "@/types/translations/translations.type.ts";
 
 import { settleDownloadStages } from "./fetching/settle-download-stages.ts";
+
+type LaunchResult = LaunchResponseType & { "reason"?: TranslationKey | "cancelled" };
 
 const failed: LaunchResponseType = {
   "success": false,
   "process": undefined,
 };
+
+const cancellations = new WeakMap<LauncherStatusesType, Promise<boolean>>;
+
+export function cancelLaunchDownloads(statuses: LauncherStatusesType): Promise<boolean> {
+  const requested = Fetching.cancelAll(`${statuses.instanceId}-download`);
+
+  cancellations.set(statuses, requested);
+
+  return requested;
+}
 
 export async function handleLaunch({
   instanceId,
@@ -57,7 +70,7 @@ export async function handleLaunch({
   "userPreferences": PreLaunchInformationType["user"];
   "onClose"        : (instanceId: string) => void;
   "onInput"        : (lines: Array<string>) => void;
-}): Promise<LaunchResponseType> {
+}): Promise<LaunchResult> {
   const logPrefix: string = `${instanceId}:${__PRE_BUNDLED_FILENAME__}`;
   const { instanceDirectory } = Instances.getMinecraftDirectory({
     "baseDirectory": FileManager.getBaseDirectory(),
@@ -98,9 +111,7 @@ export async function handleLaunch({
   ));
 
   if (!necessaries.user.account) {
-    log.error(__PRE_BUNDLED_FILENAME__, "You cannot launch Minecraft without an account");
-
-    return failed;
+    return { ...failed, "reason": "general.launch-status.missing-account" };
   }
 
   if (instance.modpackPath) {
@@ -108,12 +119,12 @@ export async function handleLaunch({
       await repairLegacyMrpack(instance, instanceId, instanceDirectory, statuses);
     } catch (error) {
       if (error === "Installation cancelled") {
-        log.info(logPrefix, "Legacy modpack repair cancelled");
-      } else {
-        log.error(logPrefix, "Could not repair legacy modpack", String(error));
+        return { ...failed, "reason": "cancelled" };
       }
 
-      return failed;
+      log.error(logPrefix, "Could not repair legacy modpack", String(error));
+
+      return { ...failed, "reason": "general.launch-status.repair-error" };
     }
   }
 
@@ -170,12 +181,20 @@ export async function handleLaunch({
 
       return true;
     },
-  ]);
+  ]).catch(error => {
+    log.error(necessaries.logPrefix, "Artifact preparation failed:", String(error));
+
+    return false;
+  });
 
   if (!downloaded) {
+    if (await cancellations.get(statuses)) {
+      return { ...failed, "reason": "cancelled" };
+    }
+
     log.warn(necessaries.logPrefix, "Aborting the launch after an artifact download failed");
 
-    return failed;
+    return { ...failed, "reason": "general.launch-status.artifact-error" };
   }
 
   const command: {

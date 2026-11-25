@@ -18,11 +18,13 @@
 
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
-import { computed, markRaw } from "vue";
+import { computed, markRaw, nextTick } from "vue";
 
 import { useConfigColors } from "@/composables/use-config-colors.ts";
+import { useVersionViewport } from "@/composables/use-version-viewport.ts";
 import { APIEndpoints } from "@/constants/launcher.ts";
 import { Patches } from "@/constants/meta.ts";
+import { translate } from "@/lib/general/translate.ts";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
 import { globalStates } from "@/states/global.ts";
@@ -30,8 +32,8 @@ import type {
   GlobalStatesType,
 } from "@/types/application/global-states.type.ts";
 import type {
-  ExtendedPatchUIDType, PatchDependencyType,
-  PatchIndexType, PatchVariantType,
+  ExtendedPatchUIDType,
+  PatchIndexType,
 } from "@/types/launcher/meta/patch-index.type.ts";
 
 const { handleDropdown, currentFilter, currentPatch } = defineProps<{
@@ -66,13 +68,7 @@ const queryKey = computed((): Array<unknown> => [
   currentPatch,
 ]);
 
-const noMatches = {
-  "version"    : "No matches",
-  "recommended": false,
-  "releaseTime": "",
-} as const;
-
-const { data, status } = useQuery({
+const { data, status, refetch } = useQuery({
   "queryKey": queryKey,
   "queryFn" : async (): Promise<PatchIndexType["versions"]> => (
     // For some reason, 'useQuery' makes 'data' deeply reactive...
@@ -83,112 +79,29 @@ const { data, status } = useQuery({
   ),
 });
 
-const filteredVersions = computed((): Array<{
-  "recommended": boolean;
-  "releaseTime": string;
-  "version"    : string;
-  "type"      ?: PatchVariantType;
-  "requires"  ?: Array<PatchDependencyType>;
-  "conflicts" ?: Array<PatchDependencyType>;
-}> => {
-  if (status.value !== "success" || !data.value) {
-    return [{
-      "version": status.value === "success"
-        ? "No data?.."
-        : "Loading...",
-      "recommended": false,
-      "releaseTime": "",
-    }];
+const filteredVersions = computed(() => (data.value ?? []).filter(({ version, type }) => (
+  version.includes(currentVersionSearch.value?.input ?? "") &&
+  (currentFilter === "all" || type === currentFilter || currentPatch !== Patches.Minecraft)
+)));
+const rowHeight = 36;
+const { list, containerProps, wrapperProps, scrollTo } = useVersionViewport(
+  filteredVersions, rowHeight,
+);
+
+async function focusRow(index: number): Promise<void> {
+  const next = Math.max(0, Math.min(index, filteredVersions.value.length - 1));
+
+  const selector = `[data-index="${next}"]`;
+
+  if (!containerProps.ref.value?.querySelector(selector)) {
+    scrollTo(next);
+    await nextTick();
   }
+  containerProps.ref.value?.querySelector<HTMLButtonElement>(selector)?.focus();
+}
 
-  const filteringValue: string | undefined = currentVersionSearch.value?.input;
-
-  /*
-   * Format the release time ahead-of-time and
-   * re-create the array to avoid changing the Vue Query cache
-   */
-  const mappedData: Array<{
-    "recommended": boolean;
-    "releaseTime": string;
-    "version"    : string;
-    "type"      ?: PatchVariantType;
-    "requires"  ?: Array<PatchDependencyType>;
-    "conflicts" ?: Array<PatchDependencyType>;
-  }> = data
-    .value
-    .map(entry => ({
-      "recommended": entry.recommended,
-      "version"    : entry.version,
-      "type"       : entry.type,
-      "releaseTime": entry.releaseTime,
-      "requires"   : entry.requires,
-      "conflicts"  : entry.conflicts,
-    }));
-
-  if (!filteringValue) {
-    const filteredData = mappedData
-      .filter(({ type }) => (
-
-        /*
-         * If user needs all versions, then the first condition holds.
-         * Otherwise, they only need 'release' ones.
-         * Note that the type filter only applies to Minecraft patches
-         */
-        currentFilter === "all" ||
-        type === currentFilter ||
-        currentPatch !== Patches.Minecraft
-      ));
-
-    if (filteredData.length === 0) {
-      return [noMatches];
-    }
-
-    return filteredData;
-  }
-
-  const filteredData = mappedData
-    .filter(({ version, type }) => (
-      version.includes(filteringValue) &&
-
-      /*
-       * If user needs all versions, then the first condition holds.
-       * Otherwise, they only need 'release' ones.
-       * Note that the type filter only applies to Minecraft patches
-       */
-      (
-        currentFilter === "all" ||
-        type === currentFilter ||
-        currentPatch !== Patches.Minecraft
-      )
-    ));
-
-  if (filteredData.length === 0) {
-    return [noMatches];
-  }
-
-  return filteredData;
-});
-
-function selectVersion(event: MouseEvent): void {
-  const target = event?.target as HTMLSpanElement | undefined;
-
-  if (!target) {
-    return;
-  }
-
-  // ["__add", "instance", "page__instance", "version", "dropdown", "item", element_type, version]
-  const splitId: Array<string> = target?.id?.split?.("-");
-  const extractedVersion: string = splitId.slice(7).join("-");
-
-  if (
-    !extractedVersion ||
-    !currentInstance.value ||
-    !currentPatch ||
-    // Sometimes it may happen...
-    extractedVersion === "Loading..." ||
-    // This can happen as well if the user click "No Matches"
-    extractedVersion === noMatches.version
-  ) {
+function selectVersion(extractedVersion: string): void {
+  if (!currentInstance.value) {
     return;
   }
 
@@ -205,58 +118,67 @@ function selectVersion(event: MouseEvent): void {
     "patchVersions": handledPatchVersions,
   };
 }
-function slideOverVersions(event: MouseEvent): void {
-  const pressed: number = event.buttons;
-
-  // '1' means that the user has clicked the primary mouse button
-  if (pressed !== 1) {
-    return;
-  }
-
-  selectVersion(event);
-}
 </script>
 
 <template>
-  <button
+  <div
+    v-bind="containerProps"
     id="__add-instance-page__instance-version-dropdown-wrapper"
-    class="absolute left-0 top-14 z-50 max-h-73 w-full flex flex-col overflow-y-auto break-all rounded-md text-start text-sm"
+    class="absolute left-0 top-14 z-50 max-h-73 w-full overflow-y-auto break-all rounded-md text-start text-sm"
     :style="styles.widget"
-    @pointerdown="selectVersion"
-    @pointerover="slideOverVersions"
-    @pointerup="event => handleDropdown(false, event)"
+    @keydown.esc="handleDropdown(false)"
   >
-    <span
-      v-for="entry in filteredVersions"
-      :id="`__add-instance-page__instance-version-dropdown-item-wrapper-${entry.version}`"
-      :key="entry.version"
-      class="__add-instance-page__instance-version-dropdown-item flex flex-nowrap border-b border-neutral-600 p-2 hover:bg-[theme(colors.neutral.100/.1)]"
-      :style="styles.widgetSecondary"
-    >
-      <span
-        :id="`__add-instance-page__instance-version-dropdown-item-star-${entry.version}`"
-        class="w-6 shrink-0"
+    <p v-if="status === 'error'" id="__version-dropdown-error">
+      {{ translate("versions.failed") }}
+      <button id="__version-dropdown-retry" @click="refetch()">{{ translate("general.retry") }}</button>
+    </p>
+    <p v-else-if="filteredVersions.length === 0" id="__version-dropdown-status">
+      {{ translate(status === "pending" ? "general.loading" : "versions.empty") }}
+    </p>
+    <div v-else id="__version-dropdown-rows" v-bind="wrapperProps">
+      <button
+        v-for="{ data: entry, index } in list"
+        :data-index="index"
+        :title="entry.version"
+        :aria-label="entry.version"
+        @keydown.down.prevent="focusRow(index + 1)"
+        @keydown.up.prevent="focusRow(index - 1)"
+        @keydown.home.prevent="focusRow(0)"
+        @keydown.end.prevent="focusRow(filteredVersions.length - 1)"
+        @pointerdown.left="selectVersion(entry.version)"
+        @pointerover="event => event.buttons === 1 && selectVersion(entry.version)"
+        @pointerup.left="event => { selectVersion(entry.version); handleDropdown(false, event) }"
+        @click="selectVersion(entry.version); handleDropdown(false)"
+        :id="`__add-instance-page__instance-version-dropdown-item-wrapper-${entry.version}`"
+        :key="entry.version"
+        class="__add-instance-page__instance-version-dropdown-item w-full flex shrink-0 flex-nowrap overflow-hidden border-b border-neutral-600 p-2 text-start hover:bg-[theme(colors.neutral.100/.1)]"
+        :style="[styles.widgetSecondary, { height: rowHeight + 'px' }]"
       >
-        {{ entry.recommended ? "⭐" : "" }}
-      </span>
-      <span
-        :id="`__add-instance-page__instance-version-dropdown-item-version-${entry.version}`"
-        class="flex-1"
-      >
-        {{ entry.version }}
-      </span>
-      <span
-        :id="`__add-instance-page__instance-version-dropdown-item-type-${entry.version}`"
-        class="flex-1"
-      >
-        {{ entry?.type }}
-      </span>
-      <span
-        :id="`__add-instance-page__instance-version-dropdown-item-time-${entry.version}`"
-        class="flex-1"
-      >
-        {{ entry.releaseTime }}
-      </span>
-    </span>
-  </button>
+        <span
+          :id="`__add-instance-page__instance-version-dropdown-item-star-${entry.version}`"
+          class="w-6 shrink-0"
+        >
+          {{ entry.recommended ? "⭐" : "" }}
+        </span>
+        <span
+          :id="`__add-instance-page__instance-version-dropdown-item-version-${entry.version}`"
+          class="flex-1 truncate"
+        >
+          {{ entry.version }}
+        </span>
+        <span
+          :id="`__add-instance-page__instance-version-dropdown-item-type-${entry.version}`"
+          class="flex-1 truncate"
+        >
+          {{ entry?.type }}
+        </span>
+        <span
+          :id="`__add-instance-page__instance-version-dropdown-item-time-${entry.version}`"
+          class="flex-1 truncate"
+        >
+          {{ entry.releaseTime }}
+        </span>
+      </button>
+    </div>
+  </div>
 </template>

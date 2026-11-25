@@ -25,6 +25,7 @@ import Permissions from "@/constants/permissions.ts";
 import { GlobalObject } from "@/extendable/global-object.ts";
 import Errors from "@/lib/errors";
 import General from "@/lib/general";
+import { translate } from "@/lib/general/translate.ts";
 import Launcher from "@/lib/launcher";
 import { log } from "@/lib/logging/log.ts";
 import Modals from "@/lib/modals";
@@ -33,7 +34,7 @@ import { globalStates } from "@/states/global.ts";
 import { javaStates } from "@/states/java.ts";
 import type { ExtensionType } from "@/types/extensions/extension.type.ts";
 import type { JavaInstallationType } from "@/types/launcher/java-installation.type.ts";
-import type { SettingsRowCollectionType } from "@/types/ui/settings-row.type.ts";
+import type { SettingsRowCollectionType, SettingsRowType } from "@/types/ui/settings-row.type.ts";
 
 const emptyPermissions = [
   {
@@ -1094,7 +1095,7 @@ function formatJavaTitle(installation: JavaInstallationType): string {
 
 export const JavaSettingsRows: SettingsRowCollectionType = [
   computed(() => {
-    const available = javaStates
+    const available: Array<SettingsRowType> = javaStates
       .installations
       .map(installation => ({
         "idRoot"  : `__settings-page__java-detected-entry-${installation.path}`,
@@ -1127,6 +1128,20 @@ export const JavaSettingsRows: SettingsRowCollectionType = [
       });
     }
 
+    if (javaStates.status === "failed") {
+      available.push({
+        "idRoot" : "__settings-page__java-retry",
+        "title"  : translate("java.failed"),
+        "inner"  : { "kind": "button", "label": translate("general.retry") },
+        "onClick": Launcher.detectJavaInstallations,
+      });
+    } else if (available.length === 0) {
+      available.push({
+        "idRoot"  : "__settings-page__java-detected-empty",
+        "subtitle": translate(javaStates.status === "loaded" ? "java.empty" : "general.loading"),
+      });
+    }
+
     for (const [index, custom] of globalStates.java.entries()) {
       available.push({
         "idRoot"  : `__settings-page__java-custom-entry-${index}`,
@@ -1149,11 +1164,6 @@ export const JavaSettingsRows: SettingsRowCollectionType = [
       "title"   : "Java paths",
       "subtitle": "All runtimes found in the system",
       "inner"   : available,
-      "empty"   : {
-        "idRoot"  : "__settings-page__java-detected-empty",
-        "icon"    : "__kaede-do-not-render",
-        "subtitle": "No Java runtimes found",
-      },
     };
   }),
 ];

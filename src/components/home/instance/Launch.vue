@@ -12,7 +12,7 @@ import {
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
-import Fetching from "@/lib/launcher/scopes/fetching";
+import { cancelLaunchDownloads } from "@/lib/launcher/scopes/handle-launch.ts";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
@@ -106,23 +106,7 @@ function handleLaunch(): void {
     return;
   }
 
-  const instanceId: string | undefined = currentInstance?.value?.id;
-  const instanceContent: InstanceStateType | undefined = currentInstance?.value?.instance;
-
-  launchInstance(instanceId)
-    .then(() => {
-      if (!instanceId || !instanceContent) {
-        return log.error(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-          "The instance ID or data is invalid. Provided contents",
-          { instanceId, instanceContent },
-        ));
-      }
-
-      instanceStates[instanceId] = {
-        ...instanceStates[instanceId],
-        "lastLaunch": Date.now(),
-      };
-    });
+  void launchInstance(currentInstance.value?.id);
 }
 async function handleClose(): Promise<void> {
   const toClose: boolean = await ask(
@@ -140,8 +124,8 @@ async function handleClose(): Promise<void> {
     return log.error(__PRE_BUNDLED_FILENAME__, "The current instance id is undefined");
   }
 
-  if (isDownloading.value) {
-    await Fetching.cancelAll(`${instanceId}-download`);
+  if (isDownloading.value && statuses.value) {
+    await cancelLaunchDownloads(statuses.value);
 
     return;
   }

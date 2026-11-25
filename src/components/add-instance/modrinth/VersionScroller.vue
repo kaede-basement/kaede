@@ -18,12 +18,14 @@
 
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
-import { computed, markRaw, onMounted, onUnmounted, ref, useTemplateRef } from "vue";
+import { computed, markRaw, ref } from "vue";
 
 import Checkbox from "@/components/general/base/Checkbox.vue";
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
+import { useVersionViewport } from "@/composables/use-version-viewport.ts";
 import { APIEndpoints } from "@/constants/launcher.ts";
 import { Patches } from "@/constants/meta.ts";
+import { translate } from "@/lib/general/translate.ts";
 import Launcher from "@/lib/launcher";
 import type { PatchIndexType } from "@/types/launcher/meta/patch-index.type.ts";
 
@@ -33,14 +35,9 @@ const { selected, onToggle } = defineProps<{
 }>();
 
 const rowSize: number = 32;
-const rowsAmount: number = 8;
-
-const container = useTemplateRef("container");
-
-const position = ref<number>(0);
 const filter = ref<"release" | "all">("release");
 
-const { data, status } = useQuery({
+const { data, status, refetch } = useQuery({
   // The same query key as in 'ChangeInstanceVersionDropdown.vue'
   "queryKey": [
     "meta",
@@ -65,27 +62,12 @@ const versions = computed((): Array<string> => {
     .filter(({ type }) => filter.value === "all" || type === filter.value)
     .map(({ version }) => version);
 });
-const elements = computed((): Array<number> => {
-  return Array.from({ "length": rowsAmount }, (_, index) => index);
-});
+const { list, wrapperProps, containerProps } = useVersionViewport(versions, rowSize);
 
 function toggleFilter(): void {
   filter.value = filter.value === "release" ? "all" : "release";
 }
 
-// Update the versions array index (called on scroll)
-function updateView(event: Event): void {
-  const target = event.target as HTMLDivElement | null;
-
-  if (!target) {
-    return;
-  }
-
-  position.value = Math.round(target.scrollTop / rowSize);
-}
-
-onMounted(() => container?.value?.addEventListener?.("scroll", updateView, { "passive": true }));
-onUnmounted(() => container?.value?.removeEventListener?.("scroll", updateView));
 </script>
 
 <template>
@@ -116,40 +98,38 @@ onUnmounted(() => container?.value?.removeEventListener?.("scroll", updateView))
     <div
       id="__add-instance-page__modrinth-versions-bound"
       class="relative w-full overflow-y-auto"
-      ref="container"
-      :style="{ 'height': elements.length * rowSize + 'px' }"
+      v-bind="containerProps"
+      style="height: 256px"
     >
-      <div
-        id="__add-instance-page__modrinth-versions-placeholder"
-        :style="{ 'height': versions.length * rowSize + 'px' }"
-      >
-        <!--
-          -- We are once again falling back to our own virtualizing technique
-          -- to avoid enormous RAM usage (up to 30 MBs) created by rendering
-          -- lots of buttons with event listeners for all versions. The other
-          -- way to avoid that RAM increase is to use one button with spans inside,
-          -- just like the Minecraft version dropdown is working in the CleanInstance.vue,
-          -- but I like the virtualization method more
-          -->
+      <p v-if="status === 'error'" id="__modrinth-versions-error">
+        {{ translate("versions.failed") }}
+        <button id="__modrinth-versions-retry" @click="refetch()">{{ translate("general.retry") }}</button>
+      </p>
+      <p v-else-if="versions.length === 0" id="__modrinth-versions-status">
+        {{ translate(status === "pending" ? "general.loading" : "versions.empty") }}
+      </p>
+      <div v-else id="__add-instance-page__modrinth-versions-placeholder" v-bind="wrapperProps">
         <label
-          v-for="index in elements"
+          v-for="{ data: version, index } in list"
           :id="`__add-instance-page__modrinth-versions-row-${index}`"
-          :key="index"
-          class="__add-instance-page__modrinth-versions-item sticky h-8 flex flex-nowrap cursor-pointer items-center gap-2 rounded-md p-1 text-sm hover:bg-[theme(colors.neutral.100/.05)]"
-          :style="{ 'top': index * rowSize + 'px' }"
+          :key="version"
+          :style="{ height: rowSize + 'px' }"
+          class="__add-instance-page__modrinth-versions-item flex shrink-0 flex-nowrap cursor-pointer items-center gap-2 rounded-md p-1 text-sm hover:bg-[theme(colors.neutral.100/.05)]"
         >
           <Checkbox
             transitionless
             :id="`__add-instance-page__modrinth-versions-checkbox-${index}`"
-            :value="selected.includes(versions[position + index])"
-            :on-toggle="() => onToggle(versions[position + index], status)"
+            :aria-label="version"
+            :value="selected.includes(version)"
+            :on-toggle="() => onToggle(version, status)"
           />
           <span
             :id="`__add-instance-page__modrinth-versions-item-label-${index}`"
-            class="break-all"
+            class="truncate"
+            :title="version"
           >
-          {{ versions[position + index] ?? (status === "pending" ? "Loading..." : "Error...") }}
-        </span>
+            {{ version }}
+          </span>
         </label>
       </div>
     </div>

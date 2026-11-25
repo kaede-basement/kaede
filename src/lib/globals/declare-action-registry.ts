@@ -29,6 +29,7 @@ import Auth from "@/lib/auth";
 import Configs from "@/lib/configs";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
+import { translate } from "@/lib/general/translate.ts";
 import Initialization from "@/lib/initialization";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
@@ -61,15 +62,15 @@ export function declareActionRegistry(): void {
           .error("Failed to update stored accounts as received 'accounts' is undefined");
       }
 
-      accounts.value = accounts.value.map(current => (
-        current.profile.uuid === account.profile.uuid
-          ? result.account
-          : current
-      ));
+      try {
+        accounts.value = await Configs.updateAccounts(stored => stored.map(current => (
+          current.profile.uuid === account.profile.uuid ? result.account : current
+        )));
+      } catch (error) {
+        handlers.reset();
 
-      await Configs.writeAccounts({
-        "accounts": accounts.value,
-      });
+        return handlers.error(translate("profile.accounts.save-error"), error);
+      }
 
       handlers.success();
     },
@@ -100,13 +101,15 @@ export function declareActionRegistry(): void {
         return handlers.reset();
       }
 
-      accounts.value = accounts.value.filter(({ profile }) => (
-        profile.uuid !== account.profile.uuid
-      ));
+      try {
+        accounts.value = await Configs.updateAccounts(stored => stored.filter(({ profile }) => (
+          profile.uuid !== account.profile.uuid
+        )));
+      } catch (error) {
+        handlers.reset();
 
-      await Configs.writeAccounts({
-        "accounts": accounts.value,
-      });
+        return handlers.error(translate("profile.accounts.save-error"), error);
+      }
 
       handlers.success();
     },

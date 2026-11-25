@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { message } from "@tauri-apps/plugin-dialog";
 import { onClickOutside } from "@vueuse/core";
 import { computed, type ComputedRef, inject, ref, useTemplateRef } from "vue";
 
@@ -9,7 +10,7 @@ import {
   LaunchOptionItems,
 } from "@/constants/application.ts";
 import { ActionRegistry } from "@/extendable/action-registry.ts";
-import Errors from "@/lib/errors";
+import { translate } from "@/lib/general/translate.ts";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
@@ -50,10 +51,9 @@ function wrapAction(item: (typeof LaunchOptionItems)[number], event: MouseEvent)
   const instance = Instances.findCurrent(globalStates?.selected?.currentInstance);
 
   if (instance === undefined) {
-    return log.error(
-      __PRE_BUNDLED_FILENAME__,
-      "The found 'instance' is undefined. What happened lol",
-    );
+    void message(translate("general.launch-status.instance-error"), { "kind": "error" });
+
+    return;
   }
 
   disabled.value.add(item.label);
@@ -61,17 +61,11 @@ function wrapAction(item: (typeof LaunchOptionItems)[number], event: MouseEvent)
 
   void ActionRegistry
     .execute(item.action, { event, item, instance, "launch": launchInstance })
-    .then(() => {
-      disabled.value.delete(item.label);
+    .catch(async error => {
+      log.error(__PRE_BUNDLED_FILENAME__, `Could not execute '${item.action}':`, String(error));
+      await message(translate("general.launch-status.errors-unhandled-error"), { "kind": "error" });
     })
-    .catch(error => {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        `An error occurred with '${item.action}':`,
-        Errors.prettify(error),
-      );
-      disabled.value.delete(item.label);
-    });
+    .finally(() => disabled.value.delete(item.label));
 }
 
 onClickOutside(container, () => opened.value = false);

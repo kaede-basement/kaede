@@ -33,7 +33,7 @@ export function applyManifest({
 }): void {
   globalStates.pages["add-instance"].importedModpack = {
     "path"  : path,
-    "name"  : manifest?.name ?? "Unknown",
+    "name"  : manifest?.name,
     // We will fill in this field properly later (possibly)
     "loader": "net.minecraft" satisfies ExtendedPatchUIDType,
   };
