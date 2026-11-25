@@ -5,7 +5,7 @@ import type { DownloadReportType } from "@/types/launcher/artifacts/download.typ
 
 type DownloadOptions = Parameters<typeof Network.concurrentlyDownload>[0];
 
-type Artifact = { "path": string; "url": string; "hash": string };
+type Artifact = { "path": string; "url": string; "hash": string; "size"?: number };
 
 export async function findMissingEntries<T extends Artifact>(
   entries: Array<T>, checksum?: boolean, signal?: AbortSignal,
@@ -29,7 +29,7 @@ export async function findMissingEntries<T extends Artifact>(
 }
 
 export function downloadEntries(
-  options: DownloadOptions, signal?: AbortSignal,
+  options: Omit<DownloadOptions, "entries"> & { "entries": Array<Artifact> }, signal?: AbortSignal,
 ): Promise<DownloadReportType> {
   if (signal?.aborted || options.entries.length === 0) {
     return Promise.resolve({
@@ -37,7 +37,13 @@ export function downloadEntries(
     });
   }
 
-  return Network.concurrentlyDownload(options);
+  return Network.concurrentlyDownload({
+    ...options,
+    "entries": options.entries.map(({ url, path, hash, size }) => ({
+      url, path, size,
+      ...(hash === "ignore" ? {} : { hash, "algorithm": Algorithms.SHA1 }),
+    })),
+  });
 }
 
 export async function downloadMissing({

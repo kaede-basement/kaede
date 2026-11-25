@@ -16,11 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { confirm } from "@tauri-apps/plugin-dialog";
 import { mkdir } from "@tauri-apps/plugin-fs";
 
-import { LaunchStatus } from "@/constants/launcher.ts";
-import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
 import Instances from "@/lib/instances";
 import Launcher from "@/lib/launcher";
@@ -29,7 +26,7 @@ import Fetching from "@/lib/launcher/scopes/fetching";
 import Parsers from "@/lib/launcher/scopes/parsers";
 import Patches from "@/lib/launcher/scopes/patches";
 import { log } from "@/lib/logging/log.ts";
-import Modrinth from "@/lib/modrinth";
+import { repairLegacyMrpack } from "@/lib/modrinth/install-mrpack.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LaunchResponseType } from "@/types/launcher/launch/launch-response.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -107,51 +104,16 @@ export async function handleLaunch({
   }
 
   if (instance.modpackPath) {
-    const installation: { "status": boolean; "failed"?: number } = await Modrinth
-      .installMrpack({
-        "archivePath": instance.modpackPath,
-        "sha1"       : instance.checksum,
-        instanceId,
-        statuses,
-      })
-      .then(({ report }) => {
-        if (report.failed > 0 || report.cancelled) {
-          return { "status": false, "failed": report.failed };
-        }
-
-        return { "status": true, "failed": report.failed };
-      })
-      .catch(error => {
-        log.error(
-          __PRE_BUNDLED_FILENAME__,
-          "Could not ensure the modpack is downloaded:",
-          Errors.prettify(error),
-        );
-
-        return { "status": false };
-      });
-
-    if (!installation.status) {
-      const additionalMessage: string = "\nDo you still want to continue launching?";
-      const toContinue: boolean = await confirm(
-        installation.failed
-          ? `Failed to download ${installation.failed} files of the modpack.${additionalMessage}`
-          : `Failed to ensure the modpack is fully is installed.${additionalMessage}`,
-        "Modpack installation",
-      );
-
-      log.warn(
-        __PRE_BUNDLED_FILENAME__,
-        toContinue
-          ? "User continued the launching even with an error in modpack installation"
-          : "User aborted the launching due to an error in modpack installation",
-      );
-
-      if (!toContinue) {
-        statuses.current = LaunchStatus.General.Aborted;
-
-        return failed;
+    try {
+      await repairLegacyMrpack(instance, instanceId, instanceDirectory, statuses);
+    } catch (error) {
+      if (error === "Installation cancelled") {
+        log.info(logPrefix, "Legacy modpack repair cancelled");
+      } else {
+        log.error(logPrefix, "Could not repair legacy modpack", String(error));
       }
+
+      return failed;
     }
   }
 

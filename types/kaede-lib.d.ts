@@ -1419,8 +1419,16 @@ declare function verifyPaths({ paths, algorithm, }: {
 	"paths": Array<{
 		"path": string;
 		"hash": string;
+		"size"?: number;
 	}>;
-	"algorithm"?: HashAlgorithmType;
+	"algorithm": HashAlgorithmType;
+} | {
+	"paths": Array<string | {
+		"path": string;
+		"hash"?: string;
+		"size"?: number;
+	}>;
+	"algorithm"?: undefined;
 }): Promise<Array<string>>;
 declare function unzip({ from, to, }: {
 	"from": Array<{

@@ -51,11 +51,12 @@ export function parseMainJar({
   log.debug(descriptiveLogPrefix, "Parsed the main jar metadata");
 
   return {
-    "id": name,
+    "id"  : name,
     url,
     file,
     path,
     hash,
+    "size": client.downloads.artifact.size,
     directory,
   };
 }

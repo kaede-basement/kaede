@@ -12,6 +12,7 @@ mod image;
 mod ipc_batch;
 mod logging;
 mod modrinth;
+mod mod_store;
 mod processes;
 mod system;
 mod translations;
@@ -107,6 +108,7 @@ pub fn run() {
                 }
             });
             // Besides hashing, we can also read configs ahead-of-time
+            app.manage(mod_store::ModStore::new(&base_directory));
             app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist
@@ -186,6 +188,8 @@ pub fn run() {
             application::get_initial_state,
             downloads::concurrently_download,
             downloads::cancel_downloads,
+            downloads::prepare_mrpack_install,
+            modrinth::repair_legacy_mrpack,
             extensions::read_extensions,
             file_system::verify_paths,
             file_system::verify_paths_hash,
@@ -207,6 +211,7 @@ pub fn run() {
             logging::stream_logs,
             logging::stop_log_stream,
             modrinth::install_mrpack,
+            mod_store::clear_mod_cache,
             modrinth::peek_mrpack,
             processes::list_processes,
             processes::spawn_process,

@@ -6,12 +6,13 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc, Mutex, OnceLock,
     },
     time::Duration,
 };
 
+use crate::hashing::{to_hex, HashAlgorithm};
 use serde::{Deserialize, Serialize};
 use tauri::{ipc::Channel, State};
 use tokio::{
@@ -29,7 +30,7 @@ struct Staging {
 }
 
 struct Transfer {
-    url: String,
+    entry: DownloadEntry,
     done: watch::Sender<bool>,
 }
 
@@ -37,7 +38,7 @@ enum Claim {
     Owner(Owner),
     Waiting {
         done: watch::Receiver<bool>,
-        same_url: bool,
+        matches: bool,
     },
 }
 
@@ -86,7 +87,7 @@ impl StagingDirectory {
     }
 
     // create_new lets the destination filesystem decide whether two names alias.
-    fn claim(&self, name: &std::ffi::OsStr, url: &str) -> std::io::Result<Claim> {
+    fn claim(&self, name: &std::ffi::OsStr, entry: &DownloadEntry) -> std::io::Result<Claim> {
         let stage = &self.directory;
         let path = stage.directory.path().join(name);
         let mut transfers = stage.transfers.lock().unwrap();
@@ -102,7 +103,7 @@ impl StagingDirectory {
                 transfers.insert(
                     identity.clone(),
                     Transfer {
-                        url: url.to_owned(),
+                        entry: entry.clone(),
                         done: watch::channel(false).0,
                     },
                 );
@@ -118,8 +119,8 @@ impl StagingDirectory {
                     .get(&identity)
                     .ok_or_else(|| std::io::Error::other("Missing download owner"))?;
                 Ok(Claim::Waiting {
+                    matches: transfer.entry.same_transfer(entry),
                     done: transfer.done.subscribe(),
-                    same_url: transfer.url == url,
                 })
             }
             Err(e) => Err(e),
@@ -137,13 +138,29 @@ impl Drop for StagingDirectory {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Default, Deserialize)]
 pub struct DownloadEntry {
     pub url: String,
     pub path: String,
+    pub hash: Option<String>,
+    pub algorithm: Option<HashAlgorithm>,
+    pub size: Option<u64>,
 }
 
-struct FileProgress {
+impl DownloadEntry {
+    fn same_transfer(&self, other: &Self) -> bool {
+        self.url == other.url
+            && self.algorithm == other.algorithm
+            && self.size == other.size
+            && match (&self.hash, &other.hash) {
+                (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
+                (None, None) => true,
+                _ => false,
+            }
+    }
+}
+
+pub(crate) struct FileProgress {
     downloaded: Arc<AtomicU64>,
     total: u64,
     last_downloaded: u64,
@@ -172,7 +189,8 @@ pub struct DownloadReport {
     failures: Vec<FailedDownload>,
 }
 
-enum DownloadError {
+#[derive(Debug)]
+pub(crate) enum DownloadError {
     Cancelled,
     Other(String),
 }
@@ -189,14 +207,82 @@ pub struct CancelFlags(Mutex<HashMap<String, CancelEntry>>);
 struct CancelEntry {
     flag: watch::Sender<bool>,
     batches: usize,
+    decision: Option<InstallDecision>,
+    started: bool,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct InstallDecision(Arc<AtomicBool>);
+
+impl InstallDecision {
+    fn claim(&self) -> bool {
+        !self.0.swap(true, Ordering::AcqRel)
+    }
+
+    pub fn publish(&self, stage: &Path, target: &Path) -> Result<(), String> {
+        if !self.claim() {
+            return Err("Installation cancelled".into());
+        }
+        std::fs::rename(stage, target).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+pub fn prepare_mrpack_install(flags: State<CancelFlags>, cancel_id: String) -> Result<(), String> {
+    flags.reserve_install(cancel_id)
 }
 
 impl CancelFlags {
-    fn register(&self, id: &str) -> watch::Receiver<bool> {
+    fn reserve_install(&self, id: String) -> Result<(), String> {
+        let mut entries = self.0.lock().unwrap();
+        if entries.contains_key(&id) {
+            return Err("Install ID already active".into());
+        }
+        entries.insert(
+            id,
+            CancelEntry {
+                flag: watch::channel(false).0,
+                batches: 1,
+                decision: Some(InstallDecision::default()),
+                started: false,
+            },
+        );
+        Ok(())
+    }
+
+    pub(crate) fn start_install(
+        &self,
+        id: &str,
+    ) -> Result<(watch::Receiver<bool>, InstallDecision), String> {
+        let mut entries = self.0.lock().unwrap();
+        let entry = entries.get_mut(id).ok_or("Unknown install ID")?;
+        let decision = entry.decision.clone().ok_or("Not an install ID")?;
+        if entry.started {
+            return Err("Install already started".into());
+        }
+        entry.started = true;
+        Ok((entry.flag.subscribe(), decision))
+    }
+
+    fn cancel(&self, id: &str) -> bool {
+        let entries = self.0.lock().unwrap();
+        let Some(entry) = entries.get(id) else {
+            return false;
+        };
+        if entry.decision.as_ref().is_some_and(|d| !d.claim()) {
+            return false;
+        }
+        entry.flag.send_replace(true);
+        true
+    }
+
+    pub(crate) fn register(&self, id: &str) -> watch::Receiver<bool> {
         let mut map = self.0.lock().unwrap();
         let entry = map.entry(id.to_string()).or_insert_with(|| CancelEntry {
             flag: watch::channel(false).0,
             batches: 0,
+            decision: None,
+            started: false,
         });
 
         entry.batches += 1;
@@ -204,7 +290,7 @@ impl CancelFlags {
         entry.flag.subscribe()
     }
 
-    fn deregister(&self, id: &str) {
+    pub(crate) fn deregister(&self, id: &str) {
         let mut map = self.0.lock().unwrap();
 
         if let Some(entry) = map.get_mut(id) {
@@ -217,17 +303,23 @@ impl CancelFlags {
     }
 }
 
-type Progress = Arc<Mutex<HashMap<String, FileProgress>>>;
+pub(crate) async fn client() -> Result<&'static reqwest::Client, String> {
+    CLIENT
+        .get_or_try_init(|| async {
+            reqwest::Client::builder()
+                .connect_timeout(Duration::from_secs(30))
+                .read_timeout(Duration::from_secs(30))
+                .build()
+        })
+        .await
+        .map_err(|error| error.to_string())
+}
+
+pub(crate) type Progress = Arc<Mutex<HashMap<String, FileProgress>>>;
 
 #[tauri::command]
 pub fn cancel_downloads(state: State<CancelFlags>, cancel_id: String) -> bool {
-    match state.0.lock().unwrap().get(&cancel_id) {
-        Some(entry) => {
-            entry.flag.send_replace(true);
-            true
-        }
-        None => false,
-    }
+    state.cancel(&cancel_id)
 }
 
 #[tauri::command]
@@ -242,17 +334,8 @@ pub async fn concurrently_download(
 ) -> Result<DownloadReport, String> {
     let concurrency = concurrency.max(1).min(entries.len());
 
-    let client = CLIENT
-        .get_or_try_init(|| async {
-            reqwest::Client::builder()
-                .connect_timeout(Duration::from_secs(30))
-                .read_timeout(Duration::from_secs(30))
-                .build()
-        })
-        .await
-        .map_err(|error| error.to_string())?;
+    let client = client().await?;
     let cancel = state.register(&cancel_id);
-
     let entries = Arc::new(entries);
     let next_index = Arc::new(AtomicUsize::new(0));
     let progress: Progress = Arc::default();
@@ -421,35 +504,63 @@ async fn download_one(
     .map_err(DownloadError::other)?
     .map_err(DownloadError::other)?;
     let mut owner = loop {
-        match staging
-            .claim(name, &entry.url)
-            .map_err(DownloadError::other)?
-        {
+        match staging.claim(name, entry).map_err(DownloadError::other)? {
             Claim::Owner(owner) => break owner,
-            Claim::Waiting { mut done, same_url } => tokio::select! {
+            Claim::Waiting { mut done, matches } => tokio::select! {
                 biased;
                 _ = cancel.wait_for(|value| *value) => return Err(DownloadError::Cancelled),
                 _ = done.changed() => {
                     if *done.borrow() {
-                        if same_url { return Ok(()); }
-                        return Err(DownloadError::other(format!("A different URL was downloaded to {}", path.display())));
+                        if matches {return Ok(());}
+                        return Err(DownloadError::other(format!("A different URL or integrity expectation was published for {}",entry.path)));
                     }
                 }
             },
         }
     };
+    let hashes = match (entry.algorithm, entry.hash.as_deref()) {
+        (Some(kind), Some(hash)) => vec![(kind, hash)],
+        (None, None) => Vec::new(),
+        _ => return Err(DownloadError::other("Expected both algorithm and hash")),
+    };
+    stream_file(
+        client, &entry.url, &path, entry.size, &hashes, progress, cancel,
+    )
+    .await?;
+    owner.published = true;
+    Ok(())
+}
+
+pub(crate) async fn stream_file(
+    client: &reqwest::Client,
+    url: &str,
+    path: &Path,
+    size: Option<u64>,
+    hashes: &[(HashAlgorithm, &str)],
+    progress: &Progress,
+    cancel: &mut watch::Receiver<bool>,
+) -> Result<(), DownloadError> {
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let mut hashers = Vec::new();
+    for &(kind, hash) in hashes {
+        kind.validate(hash).map_err(DownloadError::other)?;
+        hashers.push((hash, kind.hasher()));
+    }
     let mut response = tokio::select! {
         biased;
         _ = cancel.wait_for(|value| *value) => return Err(DownloadError::Cancelled),
-        result = client.get(&entry.url).send() => result.and_then(|r| r.error_for_status()).map_err(DownloadError::other)?,
+        result = client.get(url).send() => result.and_then(|r| r.error_for_status()).map_err(DownloadError::other)?,
     };
-    let (file, mut partial) = crate::file_system::staging_file(&parent)
+    let (file, mut partial) = crate::file_system::staging_file(parent)
         .map_err(DownloadError::other)?
         .into_parts();
     let mut writer = tokio::io::BufWriter::new(tokio::fs::File::from_std(file));
     let downloaded = Arc::new(AtomicU64::new(0));
     progress.lock().unwrap().insert(
-        entry.path.clone(),
+        path.to_string_lossy().into_owned(),
         FileProgress {
             downloaded: downloaded.clone(),
             total: response.content_length().unwrap_or(0),
@@ -464,6 +575,20 @@ async fn download_one(
                 result = response.chunk() => result.map_err(DownloadError::other)?,
             };
             let Some(chunk) = chunk else { break };
+            if size.is_some_and(|limit| {
+                downloaded
+                    .load(Ordering::Relaxed)
+                    .saturating_add(chunk.len() as u64)
+                    > limit
+            }) {
+                return Err(DownloadError::other(format!(
+                    "Size mismatch for {}",
+                    path.display()
+                )));
+            }
+            for (_, hasher) in &mut hashers {
+                hasher.update(&chunk);
+            }
             writer
                 .write_all(&chunk)
                 .await
@@ -475,9 +600,26 @@ async fn download_one(
     .await;
     let shutdown = writer.shutdown().await;
     drop(writer.into_inner().into_std().await);
-    progress.lock().unwrap().remove(&entry.path);
+    progress
+        .lock()
+        .unwrap()
+        .remove(path.to_string_lossy().as_ref());
     result?;
     shutdown.map_err(DownloadError::other)?;
+    if size.is_some_and(|size| size != downloaded.load(Ordering::Relaxed)) {
+        return Err(DownloadError::other(format!(
+            "Size mismatch for {}",
+            path.display()
+        )));
+    }
+    for (expected, hasher) in hashers {
+        if !to_hex(&hasher.finalize()).eq_ignore_ascii_case(expected) {
+            return Err(DownloadError::other(format!(
+                "Hash mismatch for {}",
+                path.display()
+            )));
+        }
+    }
     if *cancel.borrow() {
         return Err(DownloadError::Cancelled);
     }
@@ -485,29 +627,97 @@ async fn download_one(
         .await
         .map_err(DownloadError::other)?;
     partial.disable_cleanup(true);
-    owner.published = true;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn cancellation_and_publication_have_one_winner() {
+        let root = tempfile::tempdir().unwrap();
+        let flags = CancelFlags::default();
+        for _ in 0..16 {
+            let stage = tempfile::tempdir_in(root.path()).unwrap();
+            let target = root.path().join("instance");
+            flags.reserve_install("install".into()).unwrap();
+            let (_, decision) = flags.start_install("install").unwrap();
+            let barrier = std::sync::Barrier::new(2);
+            std::thread::scope(|scope| {
+                let cancel = scope.spawn(|| {
+                    barrier.wait();
+                    flags.cancel("install")
+                });
+                barrier.wait();
+                let published = decision.publish(stage.path(), &target).is_ok();
+                assert_eq!(cancel.join().unwrap(), !published);
+                assert_eq!(target.exists(), published);
+            });
+            flags.deregister("install");
+            if target.exists() {
+                std::fs::remove_dir(target).unwrap();
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn corrupt_download_never_replaces_good_destination() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("item");
+        std::fs::write(&path, b"original").unwrap();
+        for (algorithm, hash, size) in [
+            (Some(HashAlgorithm::Sha1), Some("0".repeat(40)), None),
+            (Some(HashAlgorithm::Sha512), Some("0".repeat(128)), None),
+            (None, None, Some(2)),
+            (None, None, Some(4)),
+        ] {
+            let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+                .await
+                .unwrap();
+            let entry = DownloadEntry {
+                url: format!("http://{}/", listener.local_addr().unwrap()),
+                path: path.to_str().unwrap().into(),
+                algorithm,
+                hash,
+                size,
+            };
+            let (_tx, mut cancel) = watch::channel(false);
+            let progress = Progress::default();
+            let client = reqwest::Client::builder().no_proxy().build().unwrap();
+            let (result, ()) = tokio::join!(
+                download_one(&client, &entry, &progress, &mut cancel),
+                async {
+                    let (mut socket, _) = listener.accept().await.unwrap();
+                    socket
+                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nbad")
+                        .await
+                        .unwrap();
+                }
+            );
+            assert!(matches!(result,Err(DownloadError::Other(e)) if e.contains("mismatch")));
+            assert_eq!(std::fs::read(&path).unwrap(), b"original");
+            assert_eq!(dir.path().read_dir().unwrap().count(), 1);
+        }
+    }
+
     #[tokio::test]
     async fn owner_failure_releases_waiters_for_retry() {
         let root = tempfile::tempdir().unwrap();
         let directory = StagingDirectory::open(root.path()).unwrap();
         let name = std::ffi::OsStr::new("item");
-        let Claim::Owner(owner) = directory.claim(name, "source").unwrap() else {
+        let Claim::Owner(owner) = directory.claim(name, &DownloadEntry::default()).unwrap() else {
             panic!()
         };
-        let Claim::Waiting { mut done, .. } = directory.claim(name, "source").unwrap() else {
+        let Claim::Waiting { mut done, .. } =
+            directory.claim(name, &DownloadEntry::default()).unwrap()
+        else {
             panic!()
         };
         drop(owner);
         done.changed().await.unwrap();
         assert!(!*done.borrow());
         assert!(matches!(
-            directory.claim(name, "source").unwrap(),
+            directory.claim(name, &DownloadEntry::default()).unwrap(),
             Claim::Owner(_)
         ));
     }
@@ -535,6 +745,7 @@ mod tests {
             let entry = DownloadEntry {
                 path: path.to_str().unwrap().to_owned(),
                 url: format!("http://{}/", listener.local_addr().unwrap()),
+                ..Default::default()
             };
             let flags = CancelFlags::default();
             let mut cancel = flags.register("one");
@@ -592,16 +803,14 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("item");
         let stage = StagingDirectory::open(root.path()).unwrap();
-        let Claim::Owner(owner) = stage
-            .claim(path.file_name().unwrap(), "failed-source")
-            .unwrap()
-        else {
-            panic!()
-        };
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
         let entry = DownloadEntry {
             path: path.to_str().unwrap().into(),
             url: format!("http://{}/", listener.local_addr().unwrap()),
+            ..Default::default()
+        };
+        let Claim::Owner(owner) = stage.claim(path.file_name().unwrap(), &entry).unwrap() else {
+            panic!()
         };
         let client = reqwest::Client::builder().no_proxy().build().unwrap();
         let flags = CancelFlags::default();
@@ -639,16 +848,20 @@ mod tests {
     #[tokio::test]
     async fn competing_download_uses_published_file() {
         use tokio::net::TcpListener;
-        for same_url in [true, false] {
+        for (same_url, owner_fails) in [(true, false), (false, false), (false, true)] {
             let root = tempfile::tempdir().unwrap();
             let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
             let path = root.path().join("item");
             let owner = DownloadEntry {
                 path: path.to_str().unwrap().into(),
                 url: format!("http://{}/", listener.local_addr().unwrap()),
+                ..Default::default()
             };
             let waiter = DownloadEntry {
                 path: owner.path.clone(),
+                size: if owner_fails { Some(2) } else { None },
+                hash: owner_fails.then(|| crate::hashing::hash_bytes::<sha1::Sha1>(b"ok")),
+                algorithm: owner_fails.then_some(HashAlgorithm::Sha1),
                 url: if same_url {
                     owner.url.clone()
                 } else {
@@ -664,15 +877,18 @@ mod tests {
                 let (mut socket, _) = listener.accept().await.unwrap();
                 let wait = download_one(&client, &waiter, &progress, &mut b);
                 tokio::pin!(wait);
+                let response = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
                 let observer = StagingDirectory::open(root.path()).unwrap();
-                let published = async {
+                let (result, ()) = tokio::join!(wait, async {
                     wait_for_competitor(&observer).await;
-                    socket
-                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
-                        .await
-                        .unwrap();
-                };
-                let (result, ()) = tokio::join!(wait, published);
+                    if owner_fails {
+                        socket.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await.unwrap();
+                        let (mut retry, _) = listener.accept().await.unwrap();
+                        retry.write_all(response).await.unwrap();
+                    } else {
+                        socket.write_all(response).await.unwrap();
+                    }
+                });
                 result
             };
             let (a, b) = tokio::time::timeout(Duration::from_secs(5), async {
@@ -680,8 +896,8 @@ mod tests {
             })
             .await
             .unwrap();
-            assert!(a.is_ok());
-            if same_url {
+            assert_eq!(a.is_err(), owner_fails);
+            if same_url || owner_fails {
                 assert!(b.is_ok());
             } else {
                 assert!(

@@ -16,6 +16,7 @@ import { downloadAssets } from "./download-assets.ts";
 import { downloadClient } from "./download-client.ts";
 import { downloadLibraries } from "./download-libraries.ts";
 import { downloadLogging } from "./download-logging.ts";
+import { downloadMissing } from "./download-missing.ts";
 import * as metadata from "./fetch-metadata.ts";
 import { settleDownloadStages } from "./settle-download-stages.ts";
 
@@ -66,7 +67,9 @@ test("download stages fail on incomplete reports and skip warm downloads", async
       { "failed": 1, "cancelled": false },
       { "failed": 0, "cancelled": true },
     ]) {
-      verify.mockImplementation(async ({ paths }) => paths.map(({ path }) => path));
+      verify.mockImplementation(async ({ paths }) => {
+        return paths.map(entry => (typeof entry === "string" ? entry : entry.path));
+      });
       concurrentlyDownload.mockResolvedValue({ ...report, "success": 0, "failures": [] });
       expect(await download({ necessaries, finalizedPatch })).toBe(false);
     }
@@ -184,4 +187,25 @@ test("invalid asset index sizes fail before reading or publishing", async () => 
   }
   expect(read).not.toHaveBeenCalled();
   expect(publish).not.toHaveBeenCalled();
+});
+
+test("first downloads carry hashes and sizes even with warm-path checksums disabled", async () => {
+  const entries = [
+    { "path": "one", "url": "first", "hash": "A".repeat(40), "size": 42 },
+    { "path": "two", "url": "second", "hash": "ignore", "size": 0 },
+  ];
+
+  using overrides = new DisposableStack;
+  overrides.use(override(FileManager, "verifyPaths", async () => ["one", "two"]));
+  using download = spyOn(Network, "concurrentlyDownload").mockResolvedValue({
+    "failed": 0, "success": 2, "cancelled": false, "failures": [],
+  });
+  await downloadMissing({
+    entries, "checksum"   : false, "concurrency": 2, "label"      : "test",
+    "statuses"   : {} as PreLaunchInformationType["statuses"],
+  });
+  expect(download.mock.calls[0][0].entries).toEqual([
+    { ...entries[0], "algorithm": "sha1" },
+    { "path": "two", "url": "second", "size": 0 },
+  ]);
 });

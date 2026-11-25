@@ -62,6 +62,7 @@ export function parseLogging({
     "path"     : path,
     "url"      : url,
     "hash"     : hash,
+    "size"     : logging.file.size,
     "argument" : logging.argument,
     "directory": directories.logging,
   };
