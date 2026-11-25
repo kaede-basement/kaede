@@ -18,8 +18,10 @@
 
 import { expect, test } from "bun:test";
 
+import { DefaultInstanceSettings } from "@/constants/launcher.ts";
+import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import {
-  CheckAccount,
+  CheckAccount, CheckConfig, CheckExtensionMetadata, CheckInstanceMetadata, CheckPatchMeta,
 } from "@/lib/schemas/generated/validators.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
@@ -78,10 +80,64 @@ for (const [input, output] of testData) {
   const testName = `Generated Validators (Account): ${JSON.stringify(input, oneLevelDeep)}`;
 
   test(testName, () => {
-    /*
-     * Checking only one exported function is enough since if one validator uses
-     * non-clean boolean chains, the whole file should fail because of reference errors
-     */
     expect(CheckAccount(input)).toBe(output);
+  });
+}
+
+const config = await getDefaultConfig();
+const patch = { "name": "Custom", "uid": "custom", "version": "1", "formatVersion": 1 };
+
+test("Validate config, extension, instance and patch metadata", () => {
+  const extension = {
+    "name"      : "Test",
+    "logo"      : "",
+    "source"    : "",
+    "version"   : "1",
+    "type"      : "sandbox",
+    "authors"   : [],
+    "languages" : [],
+    "categories": [],
+  };
+  const instance = {
+    ...config.minecraft, ...DefaultInstanceSettings, "patchVersions": { "net.minecraft": "1" },
+  };
+
+  expect(CheckConfig(config)).toBe(true);
+  expect(CheckConfig({ ...config, "java": null })).toBe(false);
+  expect(CheckExtensionMetadata(extension)).toBe(true);
+  expect(CheckExtensionMetadata({ ...extension, "type": "unknown" })).toBe(false);
+  expect(CheckInstanceMetadata(instance)).toBe(true);
+  expect(CheckInstanceMetadata({ ...instance, "playTime": null })).toBe(false);
+  expect(CheckPatchMeta(patch)).toBe(true);
+  expect(CheckPatchMeta({
+    ...patch,
+    "libraries": [{ "name": "custom:library:1", "rules": [{ "action": "allow" }] }],
+  })).toBe(true);
+  expect(CheckPatchMeta({ ...patch, "uid": null })).toBe(false);
+});
+
+for (const field of [
+  "releaseTime",
+  "+libraries",
+  "+traits",
+  "+tweakers",
+  "assetIndex",
+  "compatibleJavaMajors",
+  "compatibleJavaName",
+  "conflicts",
+  "libraries",
+  "logging",
+  "mainClass",
+  "mainJar",
+  "mavenFiles",
+  "minecraftArguments",
+  "order",
+  "requires",
+  "runtimes",
+  "type",
+  "volatile",
+]) {
+  test(`Patch metadata rejects null ${field}`, () => {
+    expect(CheckPatchMeta({ ...patch, [field]: null })).toBe(false);
   });
 }

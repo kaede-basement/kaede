@@ -6,9 +6,9 @@ export const LibraryExtractSchema = Type.Object({});
 export const LibraryNativesSchema = Type.Object({});
 export const LibraryRuleSchema = Type.Object({
   "action": Type.String(),
-  "os"    : Type.Object({
+  "os"    : Type.Optional(Type.Object({
     "name": Type.String(),
-  }),
+  })),
 });
 
 export const LibrarySchema = Type.Intersect([
