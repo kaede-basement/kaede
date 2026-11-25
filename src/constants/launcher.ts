@@ -21,7 +21,7 @@ export const DefaultInstanceSettings: Omit<
 export const JVMArguments = {
   "Default": {
     "Log4J"                      : "-Dlog4j2.formatMsgNoLookups=true",
-    "SystemProxies"              : "-Djava.net.useSystemProxiestrue",
+    "SystemProxies"              : "-Djava.net.useSystemProxies=true",
     "FMLIgnoreCertificates"      : "-Dfml.ignoreInvalidMinecraftCertificates=true",
     "FMLIgnorePatchDiscrepancies": "-Dfml.ignorePatchDiscrepancies=true",
     "LibrariesDirectory"         : "-DlibraryDirectory=${libraries_directory}",
