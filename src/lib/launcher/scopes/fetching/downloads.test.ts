@@ -1,5 +1,6 @@
 import { expect, mock, spyOn, test } from "bun:test";
 
+import * as storage from "@/lib/cache/storage.ts";
 import FileManager from "@/lib/file-manager";
 import Hooks from "@/lib/hooks";
 import Network from "@/lib/network";
@@ -14,6 +15,7 @@ import { downloadAssets } from "./download-assets.ts";
 import { downloadClient } from "./download-client.ts";
 import { downloadLibraries } from "./download-libraries.ts";
 import { downloadLogging } from "./download-logging.ts";
+import * as metadata from "./fetch-metadata.ts";
 import { settleDownloadStages } from "./settle-download-stages.ts";
 
 // Other tests may have already replaced a public library with a partial implementation.
@@ -35,11 +37,13 @@ test("download stages fail on incomplete reports and skip warm downloads", async
   const path = "artifact";
   const artifact = { path, "url": "url", "hash": "sha1", "status": "library" };
   const finalizedPatch = {
-    "assetIndex": { "id": "index", "url": "index" },
+    "assetIndex": { "id": "index", "url": "index", "size": 28, "sha1": "0".repeat(40) },
     "artifacts" : [artifact], "client"    : artifact, "logging"   : artifact,
   } as unknown as FinalizedPatchType;
   const necessaries = {
-    "statuses": {}, "directories": { "assetObjects": "assets" }, "instance": { "checksum": true },
+    "statuses"   : {},
+    "directories": { "assetObjects": "assets", "assetIndexes": "indexes" },
+    "instance"   : { "checksum": true },
   } as PreLaunchInformationType;
 
   const verify = mock<typeof FileManager.verifyPaths>();
@@ -47,9 +51,12 @@ test("download stages fail on incomplete reports and skip warm downloads", async
   using overrides = new DisposableStack;
   overrides.use(override(FileManager, "verifyPaths", verify));
   overrides.use(spyOn(FileManager, "join").mockImplementation((...parts) => parts.join("/")));
-  overrides.use(spyOn(FileManager, "handleJsonFile").mockResolvedValue({
-    "objects": { "asset": { "hash": "sha1" } },
+  const bytes = new Uint8Array([1, 2]);
+  const read = overrides.use(spyOn(metadata, "readLaunchMetadata").mockResolvedValue({
+    "data": { "objects": { "asset": { "hash": "sha1", "size": 12 } } }, bytes,
   }));
+  const publish = overrides.use(spyOn(storage, "publish").mockResolvedValue());
+
   overrides.use(override(Hooks, "catchAsyncVoidHooks", async () => {}));
   using concurrentlyDownload = spyOn(Network, "concurrentlyDownload");
 
@@ -65,10 +72,14 @@ test("download stages fail on incomplete reports and skip warm downloads", async
     if (download === downloadAssets) {
       const expected = {
         "path"         : "assets/sh/sha1", "hash"         : "sha1", "shortHashPath": "assets/sh",
+        "size"         : 12,
         "url"          : "https://resources.download.minecraft.net/sh/sha1",
       };
 
       expect(verify.mock.lastCall?.[0].paths[0]).toEqual(expected);
+      expect(read.mock.lastCall?.[2]).toMatchObject({ "expectedSize": 28,
+        "expectedHash": { "kind": "sha1", "sum": "0".repeat(40) } });
+      expect(publish).toHaveBeenCalledWith("indexes", "index.json", bytes);
     } else {
       expect(verify.mock.lastCall?.[0].paths[0]).toBe(artifact);
     }
