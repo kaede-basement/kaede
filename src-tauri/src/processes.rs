@@ -460,11 +460,7 @@ mod pipes {
 
     pub struct Reader(NamedPipeServer);
 
-    pub struct Writer {
-        server: NamedPipeServer,
-        #[cfg(test)]
-        pub(super) on_pending: Option<oneshot::Sender<()>>,
-    }
+    pub type Writer = NamedPipeServer;
 
     impl tokio::io::AsyncRead for Reader {
         fn poll_read(
@@ -573,14 +569,7 @@ mod pipes {
 
     pub fn input() -> io::Result<(Writer, Stdio)> {
         let (server, client) = pair(false)?;
-        Ok((
-            Writer {
-                server,
-                #[cfg(test)]
-                on_pending: None,
-            },
-            client.into(),
-        ))
+        Ok((server, client.into()))
     }
     pub fn output() -> io::Result<(Reader, Stdio)> {
         pair(true).map(|(server, client)| (Reader(server), client.into()))
@@ -616,7 +605,7 @@ mod pipes {
     }
 
     fn write_blocking(
-        writer: &mut Writer,
+        writer: &Writer,
         mut bytes: &[u8],
         exited: &OwnedHandle,
         cancel: &OwnedHandle,
@@ -627,7 +616,7 @@ mod pipes {
             exited.as_raw_handle(),
             cancel.as_raw_handle(),
         ];
-        let pipe = writer.server.as_raw_handle();
+        let pipe = writer.as_raw_handle();
         while !bytes.is_empty() {
             match unsafe { WaitForMultipleObjects(2, handles[1..].as_ptr(), 0, 0) } {
                 WAIT_TIMEOUT => (),
@@ -646,10 +635,6 @@ mod pipes {
                 let err = io::Error::last_os_error();
                 if err.raw_os_error() != Some(ERROR_IO_PENDING as i32) {
                     return Err(err);
-                }
-                #[cfg(test)]
-                if let Some(pending) = writer.on_pending.take() {
-                    let _ = pending.send(());
                 }
                 // Win32 chooses the first signaled handle, so completion wins ties.
                 let wake = unsafe {
@@ -682,13 +667,13 @@ mod pipes {
     }
 
     pub async fn write_all(
-        mut pipe: tokio::sync::OwnedMutexGuard<Writer>,
+        pipe: tokio::sync::OwnedMutexGuard<Writer>,
         bytes: Vec<u8>,
         exited: Exit,
     ) -> io::Result<()> {
         let cancel = Arc::new(manual_event()?);
         let _signal_on_drop = CancelWrite(cancel.clone());
-        tokio::task::spawn_blocking(move || write_blocking(&mut pipe, &bytes, &exited, &cancel))
+        tokio::task::spawn_blocking(move || write_blocking(&pipe, &bytes, &exited, &cancel))
             .await
             .map_err(io::Error::other)?
     }
@@ -716,7 +701,7 @@ mod pipes {
             let mut capacity = 0;
             checked(unsafe {
                 windows_sys::Win32::System::Pipes::GetNamedPipeInfo(
-                    server.as_raw_handle(),
+                    reader.as_raw_handle(),
                     null_mut(),
                     &mut capacity,
                     null_mut(),
@@ -725,30 +710,38 @@ mod pipes {
             })
             .unwrap();
             assert!(capacity > 0);
-            let writer = Arc::new(AsyncMutex::new(Writer {
-                server,
-                on_pending: None,
-            }));
+            let writer = Arc::new(AsyncMutex::new(server));
             let (exited, signal_exit) = exit_signal().unwrap();
-            write_all(
-                writer.clone().lock_owned().await,
-                vec![0; capacity as usize],
-                exited.clone(),
-            )
-            .await
-            .unwrap();
-            let (submitted, pending) = oneshot::channel();
-            writer.lock().await.on_pending = Some(submitted);
+            let submitted = async {
+                loop {
+                    let mut available = 0;
+                    checked(unsafe {
+                        windows_sys::Win32::System::Pipes::PeekNamedPipe(
+                            reader.as_raw_handle(),
+                            null_mut(),
+                            0,
+                            null_mut(),
+                            &mut available,
+                            null_mut(),
+                        )
+                    })
+                    .unwrap();
+                    if available >= capacity {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(1)).await;
+                }
+            };
             let mut write = Box::pin(
                 ProcessInput {
                     pipe: writer.clone(),
                     exited,
                 }
-                .write(vec![1]),
+                .write(vec![1; capacity as usize + 1]),
             );
             tokio::select! {
                 result = &mut write => panic!("full pipe write completed before wake: {result:?}"),
-                result = timeout(Duration::from_secs(5), pending) => result.unwrap().unwrap(),
+                result = timeout(Duration::from_secs(5), submitted) => result.unwrap(),
             }
             match wake {
                 Wake::Completed => {
@@ -1175,11 +1168,14 @@ mod tests {
                     .unwrap();
                 let mut request = [0];
                 if control.read_exact(&mut request).is_ok() {
-                    if request[0] == b'i' {
-                        io::stdin().read_exact(&mut request).unwrap();
-                        control.write_all(&request).unwrap();
-                        let _ = control.read(&mut request);
-                        std::process::exit(0);
+                    if request == *b"i" || request == *b"m" {
+                        let mut byte = [0];
+                        io::stdin().read_exact(&mut byte).unwrap();
+                        control.write_all(&byte).unwrap();
+                        if request == *b"i" {
+                            let _ = control.read(&mut request);
+                            std::process::exit(0);
+                        }
                     }
                     let out = io::stdout().write_all(b"probe\n");
                     let err = io::stderr().write_all(b"probe\n");
@@ -1222,6 +1218,8 @@ mod tests {
             listener.local_addr().unwrap().to_string(),
         );
         let (launch, stdin, output) = start_process(cmd, Drain::Managed).await.unwrap();
+        stdin.clone().write(vec![42]).await.unwrap();
+        let writer = Arc::downgrade(&stdin.pipe);
         let child = launch.transfer();
         let pid = child.id();
         let registry = ProcessRegistry::default();
@@ -1269,7 +1267,9 @@ mod tests {
             )
             .await;
             assert!(exited);
-            control.write_all(&[1]).await.unwrap();
+            assert!(writer.upgrade().is_none());
+            control.write_all(b"m").await.unwrap();
+            assert_eq!(control.read_u8().await.unwrap(), 42);
             let mut errors = [0; 2];
             control.read_exact(&mut errors).await.unwrap();
             assert_eq!(errors, [1, 1]);
@@ -1344,11 +1344,29 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn abandoning_launch_terminates_and_reaps_child() {
-        let (cmd, listener) = abandoned_fixture().await;
-        let launch = tokio::spawn(start_process(cmd, Drain::Managed));
-        assert_child_reaped(listener, || drop(launch)).await;
+    #[test]
+    fn abandoning_launch_terminates_and_reaps_child() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .max_blocking_threads(1)
+            .build()
+            .unwrap()
+            .block_on(async {
+                let (cmd, listener) = abandoned_fixture().await;
+                // Queue creation behind a gate so its first poll cannot transfer ownership.
+                let (release, gate) = oneshot::channel::<()>();
+                let blocker = tokio::task::spawn_blocking(move || gate.blocking_recv());
+                let mut launch = Box::pin(start_process(cmd, Drain::Managed));
+                tokio::select! {
+                    biased;
+                    _ = &mut launch => panic!("launch returned before spawn was released"),
+                    _ = std::future::ready(()) => (),
+                }
+                release.send(()).unwrap();
+                blocker.await.unwrap().unwrap();
+                // The PID handshake proves spawn ran. The launch future has not been repolled.
+                assert_child_reaped(listener, || drop(launch)).await;
+            });
     }
 
     #[tokio::test]
@@ -1445,8 +1463,8 @@ mod tests {
         })
         .await
         .unwrap();
-        stdin.clone().write(vec![42]).await.unwrap();
-        let bytes = vec![0; 8 << 20];
+        let mut bytes = vec![0; 8 << 20];
+        bytes[0] = 73;
         let child = launch.transfer();
         let pid = child.id();
         let registry = ProcessRegistry::default();
@@ -1461,31 +1479,12 @@ mod tests {
             },
         );
         let writer = Arc::downgrade(&stdin.pipe);
-        #[cfg(windows)]
-        let pending = {
-            let (submitted, pending) = oneshot::channel();
-            stdin.pipe.lock().await.on_pending = Some(submitted);
-            pending
-        };
-        #[cfg(unix)]
-        {
-            let pipe = stdin.pipe.lock().await;
-            loop {
-                match pipe.try_write(&[0; 4096]) {
-                    Ok(n) => assert!(n > 0),
-                    Err(e) if e.kind() == io::ErrorKind::WouldBlock => break,
-                    Err(e) => panic!("filling stdin: {e}"),
-                }
-            }
-        }
+        grandchild.write_all(b"i").await.unwrap();
         let mut write = Box::pin(stdin.write(bytes));
         tokio::select! {
             biased;
-            result = &mut write => panic!("full pipe write completed before kill: {result:?}"),
-            _ = async {
-                #[cfg(windows)]
-                timeout(Duration::from_secs(5), pending).await.unwrap().unwrap();
-            } => (),
+            result = &mut write => panic!("write completed before kill: {result:?}"),
+            result = timeout(Duration::from_secs(5), grandchild.read_u8()) => assert_eq!(result.unwrap().unwrap(), 73),
         }
         registry.kill(pid).unwrap();
         timeout(Duration::from_secs(5), async {
@@ -1503,8 +1502,6 @@ mod tests {
                 writer.upgrade().is_none(),
                 "stdin owner survived registry cleanup"
             );
-            grandchild.write_all(b"i").await.unwrap();
-            assert_eq!(grandchild.read_u8().await.unwrap(), 42);
             grandchild.shutdown().await.unwrap();
             assert_eq!(grandchild.read(&mut [0]).await.unwrap(), 0);
         })
