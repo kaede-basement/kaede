@@ -21,10 +21,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { GeneralSettings } from "@/constants/launcher.ts";
 import { MrpackDependencies } from "@/constants/modrinth.ts";
 import FileManager from "@/lib/file-manager";
-import { Algorithms } from "@/lib/hashing.ts";
 import Instances from "@/lib/instances";
+import { downloadMissing } from "@/lib/launcher/scopes/fetching/download-missing.ts";
 import { log } from "@/lib/logging/log.ts";
-import Network from "@/lib/network";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { DownloadReportType } from "@/types/launcher/artifacts/download.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
@@ -97,41 +96,17 @@ export async function installMrpack({
       "path": FileManager.join(instanceDirectory, path),
     }));
 
-  const startTime: number = performance.now();
-  const hashesToReDownload: Set<string> = new Set(
-    await FileManager.verifyPaths({
-      "paths"    : entries,
-      "algorithm": sha1 ? Algorithms.SHA1 : undefined,
-    }),
-  );
-  const endTime: number = performance.now();
-  const totalTime: string = (endTime - startTime).toFixed(2);
-
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    `Successfully verified ${entries.length} modpack files in ${totalTime} ms.`,
-    `Total mismatches: ${hashesToReDownload.size}.`,
-    `SHA1 checks enabled: ${sha1}`,
-  );
-
-  const missingModpackObjects: Array<{
-    "url" : string;
-    "path": string;
-    "hash": string;
-  }> = entries.filter(({ path }) => {
-    return hashesToReDownload.has(path);
-  });
-
-  const report = await Network.concurrentlyDownload({
+  const report = await downloadMissing({
     statuses,
-    "entries"    : missingModpackObjects,
+    entries,
+    "checksum"   : sha1,
     "concurrency": GeneralSettings.ConcurrentDownloads.Libraries,
     "label"      : "modrinth modpack",
     "cancelId"   : `${instanceId}-download`,
   });
 
-  if (report.cancelled) {
-    log.info(__PRE_BUNDLED_FILENAME__, `Cancelled installing '${manifest.name}'`);
+  if (report.cancelled || report.failed > 0) {
+    log.info(__PRE_BUNDLED_FILENAME__, `Could not finish installing '${manifest.name}'`);
 
     return { "manifest": undefined, report };
   }

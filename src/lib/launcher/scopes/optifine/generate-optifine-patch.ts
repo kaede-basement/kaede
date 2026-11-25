@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { invoke } from "@tauri-apps/api/core";
 import { stat } from "@tauri-apps/plugin-fs";
 
 import { CustomPatches, Patches } from "@/constants/meta.ts";
+import Hashing, { Algorithms } from "@/lib/hashing.ts";
 import { log } from "@/lib/logging/log.ts";
 import type {
   SpecificPatchLibraryType,
@@ -39,7 +39,7 @@ async function describeArtifact({
   try {
     // No one gives us hashes for these files so we get them ourselves
     const [hash, metadata] = await Promise.all([
-      invoke<string>("hash_sha1_file", { path }),
+      Hashing.hashPath(path, Algorithms.SHA1),
       stat(path),
     ]);
 

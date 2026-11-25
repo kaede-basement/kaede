@@ -17,62 +17,46 @@
  */
 
 export function splitArguments(input: string | undefined): Array<string> {
-  if (!input) {
-    return [];
-  }
-
   const parts: Array<string> = [];
-  const currentSimpleArgument: Array<string> = [];
-  const currentQuotedArgument: Array<string> = [];
-  let isInQuotes: boolean = false;
+  let current = "";
+  let quoted = false;
+  let started = false;
+  let slashes = 0;
 
-  for (const character of input) {
-    // We have stumbled upon a double-quoted argument
+  for (const character of input ?? "") {
+    if (character === "\\") {
+      slashes++;
+      started = true;
+      continue;
+    }
+
     if (character === "\"") {
-      // The end of the argument
-      if (isInQuotes) {
-        const resultedArgument: string = currentQuotedArgument.join("");
-
-        currentQuotedArgument.length = 0;
-        parts.push(resultedArgument);
-
-        continue;
+      current += "\\".repeat(Math.floor(slashes / 2));
+      if (slashes % 2 === 1) {
+        current += "\"";
+      } else {
+        quoted = !quoted;
       }
-
-      // The start of the argument
-      isInQuotes = true;
-
-      continue;
+      started = true;
+    } else {
+      current += "\\".repeat(slashes);
+      if (!quoted && (/\s/).test(character)) {
+        if (started) {
+          parts.push(current);
+        }
+        current = "";
+        started = false;
+      } else {
+        current += character;
+        started = true;
+      }
     }
-
-    // Keep pushing even the spaces
-    if (isInQuotes) {
-      currentQuotedArgument.push(character);
-
-      continue;
-    }
-
-    // Non-double-quoted arguments
-    if (character === " ") {
-      const resultedArgument: string = currentSimpleArgument.join("");
-
-      currentSimpleArgument.length = 0;
-      parts.push(resultedArgument);
-
-      continue;
-    }
-
-    currentSimpleArgument.push(character);
+    slashes = 0;
   }
 
-  // The final argument have not been added yet
-  if (currentSimpleArgument.length > 0) {
-    const resultedArgument: string = currentSimpleArgument.join("");
-
-    parts.push(resultedArgument);
+  if (started) {
+    parts.push(current + "\\".repeat(slashes));
   }
 
-  return parts
-    // Filter out empty strings
-    .filter(part => part !== "");
+  return parts;
 }
