@@ -42,19 +42,66 @@ export function toProcessHandle<Meta>({
   };
 }
 
+type ExitPayload = Parameters<NonNullable<ProcessHandlersType["onExit"]>>[0] & { "token": string };
+type BufferedExit = { "payload": ExitPayload; "endedAt": number; "handled": boolean };
+const maxBufferedExits = 256;
+const pendingLists = new Set<Map<string, BufferedExit>>;
+
+export function dispatchProcessExit(payload: ExitPayload): void {
+  const handlers = ProcessHandlers.get(payload.token);
+
+  ProcessHandlers.delete(payload.token);
+  if (pendingLists.size > 0) {
+    const exit = { payload, "endedAt": performance.now(), "handled": handlers !== undefined };
+
+    for (const exits of pendingLists) {
+      if (exits.size <= maxBufferedExits) {
+        exits.set(payload.token, exit);
+      }
+    }
+  }
+  handlers?.onExit?.(payload);
+}
+
 export async function rehydrateProcesses(
   attach: (handle: ProcessHandleType) => ProcessHandlersType | undefined,
+  onExited?: (handle: ProcessHandleType, exit: BufferedExit) => void,
 ): Promise<Array<ProcessHandleType>> {
-  const DTOs = await invoke<Array<ProcessDtoType>>("list_processes");
+  const exits = new Map<string, BufferedExit>;
 
-  return DTOs.map(DTO => {
-    const handle = toProcessHandle(DTO);
-    const set = attach(handle);
+  pendingLists.add(exits);
+  try {
+    let overflow: boolean;
+    const running = [];
 
-    if (set !== undefined) {
-      ProcessHandlers.set(DTO.token, set);
-    }
+    do {
+      exits.clear();
+      const processes = await invoke<Array<ProcessDtoType>>("list_processes");
 
-    return handle;
-  });
+      overflow = exits.size > maxBufferedExits;
+
+      for (const dto of processes) {
+        const exit = exits.get(dto.token);
+
+        if (exit) {
+          if (!exit.handled) {
+            onExited?.(toProcessHandle(dto), exit);
+          }
+        } else if (!overflow) {
+          const handle = toProcessHandle(dto);
+          const handlers = attach(handle);
+
+          if (handlers !== undefined) {
+            ProcessHandlers.set(dto.token, handlers);
+          }
+          running.push(handle);
+        }
+      }
+      // On overflow, re-list before attaching any potentially stale handles.
+    } while (overflow);
+
+    return running;
+  } finally {
+    pendingLists.delete(exits);
+  }
 }

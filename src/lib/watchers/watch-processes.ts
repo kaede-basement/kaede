@@ -18,12 +18,15 @@
 
 import { listen } from "@tauri-apps/api/event";
 
-import { ProcessHandlers } from "@/lib/processes/core.ts";
+import { log } from "@/lib/logging/log.ts";
+import { dispatchProcessExit, ProcessHandlers } from "@/lib/processes/core.ts";
 
-let watchingPromise: Promise<() => void> | undefined;
+type StopWatching = () => Promise<void>;
+let watchingPromise: Promise<StopWatching> | undefined;
+let detached = Promise.resolve();
 
-export function watchProcesses(): Promise<() => void> {
-  watchingPromise ??= attachListeners().catch(error => {
+export function watchProcesses(): Promise<StopWatching> {
+  watchingPromise ??= detached.then(attachListeners).catch(error => {
     watchingPromise = undefined;
     throw error;
   });
@@ -31,7 +34,7 @@ export function watchProcesses(): Promise<() => void> {
   return watchingPromise;
 }
 
-async function attachListeners(): Promise<() => void> {
+async function attachListeners(): Promise<StopWatching> {
   const listeners = await Promise.allSettled([
     listen<
       { "token": string; "pid": number; "stream": "stdout" | "stderr"; "lines": Array<string> }
@@ -50,10 +53,7 @@ async function attachListeners(): Promise<() => void> {
     }>(
       "process-exited",
       ({ payload }) => {
-        const set = ProcessHandlers.get(payload.token);
-
-        ProcessHandlers.delete(payload.token);
-        set?.onExit?.(payload);
+        dispatchProcessExit(payload);
       },
     ),
     listen<{ "token": string; "pid": number; "message": string }>(
@@ -62,24 +62,35 @@ async function attachListeners(): Promise<() => void> {
     ),
   ]);
 
-  function cleanup(): void {
-    for (const listener of listeners.splice(0)) {
+  async function cleanup(): Promise<void> {
+    const results = await Promise.allSettled(listeners.splice(0).map(async listener => {
       if (listener.status === "fulfilled") {
-        listener.value();
+        await listener.value();
+      }
+    }));
+
+    for (const result of results) {
+      if (result.status === "rejected") {
+        log.error(__PRE_BUNDLED_FILENAME__, "Failed to detach process listener:", result.reason);
       }
     }
   }
   const failed = listeners.find(listener => listener.status === "rejected");
 
   if (failed) {
-    cleanup();
+    await cleanup();
     throw failed.reason;
   }
 
+  let stopping: Promise<void> | undefined;
+
   return () => {
-    if (listeners.length > 0) {
+    if (!stopping) {
       watchingPromise = undefined;
-      cleanup();
+      stopping = cleanup();
+      detached = stopping;
     }
+
+    return stopping;
   };
 }
