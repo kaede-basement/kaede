@@ -113,7 +113,10 @@ export function declareActionRegistry(): void {
   );
   ActionRegistry.register(
     ActionKeys.ContextMenuSoftReload,
-    (): void => window.location.reload(),
+    async (): Promise<void> => {
+      await Instances.sync();
+      window.location.reload();
+    },
   );
   ActionRegistry.register(
     ActionKeys.ContextMenuHardReload,
@@ -125,13 +128,10 @@ export function declareActionRegistry(): void {
   );
   ActionRegistry.register(
     ActionKeys.ContextMenuSafeMode,
-    (): void => {
+    async (): Promise<void> => {
       globalStates.extensions.enabled = false;
-      Configs
-        .sync()
-        .then(() => {
-          window.location.reload();
-        });
+      await Configs.sync();
+      window.location.reload();
     },
   );
   ActionRegistry.register(

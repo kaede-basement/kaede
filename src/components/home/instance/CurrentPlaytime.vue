@@ -9,7 +9,7 @@ import {
 } from "@/constants/application.ts";
 import Instances from "@/lib/instances";
 import { globalStates } from "@/states/global.ts";
-import { RunStartedAt } from "@/states/instance.ts";
+import { ActiveRuns } from "@/states/instance.ts";
 import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 import type { TranslationsStateType } from "@/types/translations/translations.type.ts";
 
@@ -20,10 +20,10 @@ const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 const currentInstance = computed((): CurrentInstanceType => (
   Instances.findCurrent(globalStates?.selected?.currentInstance)
 ));
-const runStart = computed(() => RunStartedAt.get(currentInstance.value?.id ?? ""));
-const now = ref(Date.now());
+const runStart = computed(() => ActiveRuns.get(currentInstance.value?.id ?? "")?.startedAt);
+const now = ref(performance.now());
 const { pause, resume } = useIntervalFn(() => {
-  now.value = Date.now();
+  now.value = performance.now();
 }, 1000, {
   "immediate"        : false,
   "immediateCallback": true,
@@ -49,20 +49,22 @@ const playTime = computed((): string => {
   const totalMinutes: number = currentTime / 60;
   const totalHours: number = totalMinutes / 60;
 
-  const milliseconds: number = currentMillisecondsTime % 1000;
+  const tenths = Math.floor((currentMillisecondsTime % 1000) / 100);
   const seconds: number = Math.floor(currentTime % 60);
   const minutes: number = Math.floor(totalMinutes % 60);
   const hours: number = Math.floor(totalHours);
 
-  if (minutes <= 0) {
-    return `${seconds}.${milliseconds} seconds`;
+  if (totalMinutes < 1) {
+    return `${seconds}.${tenths} seconds`;
   }
 
   if (hours <= 0) {
-    return `${minutes} minutes, ${seconds}.${milliseconds} seconds`;
+    return `${minutes} minutes, ${seconds}.${tenths} seconds`;
   }
 
-  return `${hours} hours, ${minutes} minutes, ${seconds}.${milliseconds} seconds`;
+  const hourLabel = hours === 1 ? "hour" : "hours";
+
+  return `${hours} ${hourLabel}, ${minutes} minutes, ${seconds}.${tenths} seconds`;
 });
 
 function handleSwitch(): void {

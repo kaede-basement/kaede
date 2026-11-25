@@ -18,6 +18,7 @@
 
 import { markRaw, type ShallowReactive, watch, watchEffect } from "vue";
 
+import { GlobalInternals } from "@/extendable/global-internals.ts";
 import Configs from "@/lib/configs";
 import DevelopmentMode from "@/lib/development-mode";
 import FileManager from "@/lib/file-manager";
@@ -92,7 +93,7 @@ export function watchLocaleStates(): () => void {
       globalStates.translations = markRaw(translations);
       log.info(__PRE_BUNDLED_FILENAME__, `Successfully set translations to '${locale}'`);
     }
-  }, { "immediate": globalStates.locale !== globalStates.translations.Info?.Code });
+  }, { "immediate": globalStates.locale !== GlobalInternals.initialConfig.locale });
 }
 
 export function watchLogModeStates(logs: ShallowReactive<Record<string, {

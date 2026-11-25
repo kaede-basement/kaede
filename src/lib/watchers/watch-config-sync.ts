@@ -21,13 +21,16 @@ import { watch } from "vue";
 
 import Configs from "@/lib/configs";
 import { projectConfig } from "@/lib/configs/sync.ts";
+import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 
 /**
  * Updates config file on any config-related global states changes.
  */
 export function watchConfigSync(): () => void {
-  const debouncedWrite = useDebounceFn(Configs.sync, 300);
+  const debouncedWrite = useDebounceFn(() => Configs.sync().catch(error => {
+    log.error(__PRE_BUNDLED_FILENAME__, "Failed to sync config:", error);
+  }), 300);
 
   return watch(
     () => projectConfig(globalStates),

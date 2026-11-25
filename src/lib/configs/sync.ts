@@ -20,9 +20,7 @@ import { writeTextFile } from "@tauri-apps/plugin-fs";
 
 import FileStructure from "@/constants/file-structure.ts";
 import { GlobalInternals } from "@/extendable/global-internals.ts";
-import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
-import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 import type { ConfigType } from "@/types/configs/config.type.ts";
 
@@ -38,6 +36,7 @@ export function projectConfig(states: PersistedConfig, showLogs = false): Persis
     "logs"       : {
       ...states.logs,
       "show": showLogs,
+      "mode": "kaede-launcher",
     },
     "java"     : states.java,
     "minecraft": states.minecraft,
@@ -55,11 +54,13 @@ export function projectConfig(states: PersistedConfig, showLogs = false): Persis
 }
 
 export function createStateSync(file: string, initial: () => object, current: () => object) {
-  let lastWritten: string;
+  let lastWritten: string | null | undefined;
   let queued = Promise.resolve();
 
   async function write(): Promise<void> {
-    lastWritten ??= JSON.stringify(initial(), null, 2);
+    if (lastWritten === undefined) {
+      lastWritten = JSON.stringify(initial(), null, 2);
+    }
     const contents = JSON.stringify(current(), null, 2);
 
     if (contents === lastWritten) {
@@ -73,11 +74,13 @@ export function createStateSync(file: string, initial: () => object, current: ()
   }
 
   return (): Promise<void> => {
-    queued = queued.then(write).catch(error => {
-      log.error(__PRE_BUNDLED_FILENAME__, `Failed to sync ${file}:`, Errors.prettify(error));
+    const result = queued.then(write);
+
+    queued = result.catch(() => {
+      lastWritten = null;
     });
 
-    return queued;
+    return result;
   };
 }
 

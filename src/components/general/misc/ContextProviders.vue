@@ -5,7 +5,6 @@ import {
   onUnmounted,
   provide,
   reactive,
-  type ShallowReactive,
   shallowReactive,
   shallowRef,
 } from "vue";
@@ -30,7 +29,11 @@ import { log } from "@/lib/logging/log.ts";
 import { rehydrateProcesses } from "@/lib/processes/core.ts";
 import Watchers from "@/lib/watchers";
 import { globalStates } from "@/states/global.ts";
-import { commitPlaytime, instanceStates, startPlaytime } from "@/states/instance.ts";
+import { ActiveRuns, commitPlaytime, instanceStates, startPlaytime } from "@/states/instance.ts";
+import type {
+  ProcessHandlersType,
+  ProcessHandleType,
+} from "@/types/application/server-process.type.ts";
 import type { LaunchAuthType } from "@/types/auth/microsoft-auth.type.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
 import type { LaunchContextType } from "@/types/launcher/launch/launch-context.type.ts";
@@ -39,20 +42,12 @@ import type {
   LauncherStatusesType,
   WrappedInstanceLauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
-import type { CurrentInstanceType } from "@/types/launcher/meta/current-instance.type.ts";
 
 const accounts = shallowRef(inject<Array<AccountType>>(AuthOneTimeFetchContextKey) ?? []);
 const launches = reactive<Record<string, LauncherStatusesType>>({});
-const logs = shallowReactive<Record<string, { "list": Array<string> }>>({});
-
-const childProcesses: Record<string, MinecraftProcessType> = {};
+const logs = shallowReactive<Record<string, { "list": Array<string>; "dropped": number }>>({});
 
 const pendingLaunches = new Map<string, (process: MinecraftProcessType) => void>;
-
-function startRun(instanceId: string, process: MinecraftProcessType, rehydrated = false): void {
-  childProcesses[instanceId] = process;
-  startPlaytime(instanceId, process.token, rehydrated);
-}
 
 const afterLaunch = GlobalObject.hooks.onMinecraftLaunch.after;
 const recordSpawn: typeof afterLaunch[number] = async ({ instanceId, process }) => {
@@ -68,9 +63,16 @@ onUnmounted(() => {
   }
 });
 
-function onClose(instanceId: string): void {
-  commitPlaytime(instanceId);
-  delete childProcesses[instanceId];
+function onClose(instanceId: string, endedAt = performance.now()): void {
+  const process = ActiveRuns.get(instanceId)?.process;
+
+  if (process) {
+    commitPlaytime(instanceId, process.token, endedAt);
+  } else if (instanceStates[instanceId]) {
+    // The native exit event can arrive before spawn returns its handle.
+    instanceStates[instanceId].lastLaunch = Date.now();
+  }
+  void Instances.sync().catch(error => log.error(__PRE_BUNDLED_FILENAME__, "Exit sync:", error));
 
   launches[instanceId].launching = 0;
   launches[instanceId].current = LaunchStatus.General.Aborted;
@@ -81,10 +83,12 @@ function onClose(instanceId: string): void {
 function createLogSink(instanceId: string): (lines: Array<string>) => void {
   const stored: Array<string> = [];
 
-  // Overwrite the previous launch logs
-  logs[instanceId] = { "list": stored };
+  let dropped = 0;
 
-  const lineLimit: number = GeneralSettings.Logs.LineLimit;
+  // Overwrite the previous launch logs
+  logs[instanceId] = { "list": stored, dropped };
+
+  const lineLimit = GeneralSettings.Logs.LineLimit;
 
   return (lines: Array<string>): void => {
     if (logs[instanceId]?.list !== stored) {
@@ -97,10 +101,13 @@ function createLogSink(instanceId: string): (lines: Array<string>) => void {
 
     // Keeps the newest half of logs
     if (stored.length > lineLimit) {
-      stored.splice(0, stored.length - Math.ceil(lineLimit / 2));
+      const trim = stored.length - Math.ceil(lineLimit / 2);
+
+      dropped += trim;
+      stored.splice(0, trim);
     }
 
-    logs[instanceId] = { "list": stored };
+    logs[instanceId] = { "list": stored, dropped };
   };
 }
 
@@ -113,12 +120,6 @@ async function resolveLaunchAccount(): Promise<LaunchAuthType | undefined> {
 
   return resolved?.auth;
 }
-
-const getJavaMajor = (javaPath?: string): number | Promise<number> => (
-  !javaPath && GlobalInternals.javaMajor
-    ? GlobalInternals.javaMajor
-    : Launcher.fetchJavaMajor(javaPath)
-);
 
 function launchStatus(instanceId: string, running: boolean): LauncherStatusesType {
   return {
@@ -134,42 +135,37 @@ function launchStatus(instanceId: string, running: boolean): LauncherStatusesTyp
   };
 }
 
-async function launchInstance(instanceId?: string, options?: Partial<{
-  "javaPath"  : string;
-  "overridden": CurrentInstanceType;
-}>): Promise<void> {
+const launchInstance: LaunchContextType = async (instanceId, options) => {
   if (!instanceId) {
     return log.error(__PRE_BUNDLED_FILENAME__, "No instance selected for launch");
   }
 
-  if (!await ensureHydrated() || pendingLaunches.has(instanceId) || childProcesses[instanceId]) {
+  if (!await ensureHydrated() || pendingLaunches.has(instanceId) || ActiveRuns.has(instanceId)) {
     return;
   }
 
   const currentInstance = options?.overridden ?? Instances.findCurrent(instanceId);
 
-  if (!currentInstance || !currentInstance.instance) {
+  if (!currentInstance?.instance) {
     return log.error(__PRE_BUNDLED_FILENAME__, "No current instance found");
   }
 
   launches[instanceId] = launchStatus(instanceId, false);
-  let exitedAt: number | undefined;
+  const statuses = launches[instanceId];
   const recordProcess = (process: MinecraftProcessType): void => {
-    if (exitedAt === undefined) {
-      startRun(instanceId, process);
-    } else if (instanceStates[instanceId]) {
-      instanceStates[instanceId].lastLaunch = exitedAt;
+    if (statuses.launching !== 0) {
+      startPlaytime(instanceId, process);
     }
   };
 
   pendingLaunches.set(instanceId, recordProcess);
-  const statuses = launches[instanceId];
 
   try {
     const onInput = createLogSink(instanceId);
 
+    const cachedMajor = options?.javaPath ? undefined : GlobalInternals.javaMajor;
     const [javaMajor, account] = await Promise.all([
-      getJavaMajor(options?.javaPath), resolveLaunchAccount(),
+      cachedMajor || Launcher.fetchJavaMajor(options?.javaPath), resolveLaunchAccount(),
     ]);
 
     const { success, process } = await Launcher.handleLaunch({
@@ -183,21 +179,20 @@ async function launchInstance(instanceId?: string, options?: Partial<{
       instanceId,
       statuses,
       "onClose": () => {
-        if (exitedAt === undefined) {
-          exitedAt = Date.now();
+        if (launches[instanceId] === statuses && statuses.launching !== 0) {
           onClose(instanceId);
         }
       },
       onInput,
     });
 
-    if (exitedAt === undefined) {
+    if (statuses.launching === 0) {
+      statuses.current = LaunchStatus.General.Aborted;
+    } else {
       statuses.launching = success ? 2 : 0;
-      if (success && process && !childProcesses[instanceId]) {
+      if (success && process && !ActiveRuns.has(instanceId)) {
         recordProcess(process);
       }
-    } else {
-      statuses.current = LaunchStatus.General.Aborted;
     }
   } catch (error: unknown) {
     statuses.launching = 0;
@@ -211,19 +206,17 @@ async function launchInstance(instanceId?: string, options?: Partial<{
   }
 
   pendingLaunches.delete(instanceId);
-}
+};
 
 async function closeInstance(instanceId: string): Promise<void> {
-  const process = childProcesses[instanceId];
+  const process = ActiveRuns.get(instanceId)?.process;
 
   if (!process) {
     return log.error(__PRE_BUNDLED_FILENAME__, `No running process to kill for ${instanceId}`);
   }
 
   const beforeHooksResult = await Hooks.catchAsyncResponseHooks<void>({
-    "scope" : "onMinecraftKill",
-    "toPass": process,
-    "timing": "before",
+    "scope": "onMinecraftKill", "toPass": process, "timing": "before",
   });
 
   if (beforeHooksResult !== "continue") {
@@ -232,46 +225,46 @@ async function closeInstance(instanceId: string): Promise<void> {
 
   try {
     await process.kill();
+    if (ActiveRuns.get(instanceId)?.process.token === process.token) {
+      onClose(instanceId);
+    }
   } catch (error: unknown) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `Could not kill the '${instanceId}' instance:`,
-      Errors.prettify(error),
-    );
+    log.error(__PRE_BUNDLED_FILENAME__, `Failed to kill ${instanceId}:`, Errors.prettify(error));
   }
+}
+
+function attach(handle: ProcessHandleType, endedAt?: number): ProcessHandlersType | undefined {
+  if (handle.kind !== "minecraft") {
+    return;
+  }
+
+  const process = handle as MinecraftProcessType;
+  const { instanceId } = process.meta;
+
+  startPlaytime(instanceId, process, true);
+  launches[instanceId] = launchStatus(instanceId, true);
+
+  return {
+    "onOutput": createLogSink(instanceId),
+    "onExit"  : (payload): void => {
+      if (ActiveRuns.get(instanceId)?.process.token === handle.token) {
+        onClose(instanceId, endedAt);
+      }
+      Hooks.catchAsyncVoidHooks({
+        "scope" : "onMinecraftKill",
+        "toPass": payload.pid,
+        "timing": "after",
+      });
+    },
+  };
 }
 
 async function rehydrateLaunchedInstances(): Promise<void> {
   await Watchers.watchProcesses();
-
-  await rehydrateProcesses(handle => {
-    if (handle.kind !== "minecraft") {
-      return;
-    }
-
-    const process = handle as MinecraftProcessType;
-    const { instanceId } = process.meta;
-
-    startRun(instanceId, process, true);
-    launches[instanceId] = launchStatus(instanceId, true);
-
-    return {
-      "onOutput": createLogSink(instanceId),
-      "onExit"  : (payload): void => {
-        if (childProcesses[instanceId]?.token !== handle.token) {
-          return;
-        }
-        onClose(instanceId);
-        Hooks.catchAsyncVoidHooks({
-          "scope" : "onMinecraftKill",
-          "toPass": payload.pid,
-          "timing": "after",
-        });
-      },
-    };
+  await rehydrateProcesses(attach, (handle, { payload, endedAt }) => {
+    attach(handle, endedAt)?.onExit?.(payload);
   });
 }
-
 let hydration: Promise<boolean> | undefined;
 
 function ensureHydrated(): Promise<boolean> {
@@ -307,7 +300,7 @@ provide<WrappedAccountsType>(AuthStatesContextKey, accounts);
  */
 provide<WrappedInstanceLauncherStatusesType>(LaunchStatesContextKey, launches);
 
-provide<ShallowReactive<Record<string, { "list": Array<string> }>>>(InstanceLogsContextKey, logs);
+provide(InstanceLogsContextKey, logs);
 provide<LaunchContextType>(LaunchInstanceContextKey, launchInstance);
 provide<(instanceId: string) => Promise<void>>(CloseInstanceContextKey, closeInstance);
 
