@@ -26,7 +26,7 @@ import type { ConfigType } from "@/types/configs/config.type.ts";
 
 type PersistedConfig = ConfigType & Partial<Record<`config/${string}`, unknown>>;
 
-export function projectConfig(states: PersistedConfig, showLogs = false): PersistedConfig {
+export function projectConfig(states: PersistedConfig): PersistedConfig {
   const currentConfigStates: PersistedConfig = {
     "development": states.development,
     "extensions" : states.extensions,
@@ -35,7 +35,7 @@ export function projectConfig(states: PersistedConfig, showLogs = false): Persis
     "locale"     : states.locale,
     "logs"       : {
       ...states.logs,
-      "show": showLogs,
+      "show": false,
       "mode": "kaede-launcher",
     },
     "java"     : states.java,
@@ -53,15 +53,20 @@ export function projectConfig(states: PersistedConfig, showLogs = false): Persis
   return currentConfigStates;
 }
 
-export function createStateSync(file: string, initial: () => object, current: () => object) {
+export function createStateSync<T extends object>(
+  file: string,
+  initial: () => T,
+  current: () => T,
+  project: (state: T) => object = state => state,
+) {
   let lastWritten: string | null | undefined;
   let queued = Promise.resolve();
 
   async function write(): Promise<void> {
     if (lastWritten === undefined) {
-      lastWritten = JSON.stringify(initial(), null, 2);
+      lastWritten = JSON.stringify(project(initial()), null, 2);
     }
-    const contents = JSON.stringify(current(), null, 2);
+    const contents = JSON.stringify(project(current()), null, 2);
 
     if (contents === lastWritten) {
       return;
@@ -86,6 +91,7 @@ export function createStateSync(file: string, initial: () => object, current: ()
 
 export const sync = createStateSync(
   FileStructure.Files.Config,
-  () => projectConfig(GlobalInternals.initialConfig, GlobalInternals.initialConfig.logs.show),
-  () => projectConfig(globalStates),
+  () => GlobalInternals.initialConfig,
+  () => globalStates,
+  projectConfig,
 );

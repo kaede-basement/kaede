@@ -22,10 +22,23 @@ const writeableThis = globalThis as unknown as Record<string, unknown>;
 
 writeableThis.__PRE_BUNDLED_FILENAME__ = "bun-test:0";
 
-// @ts-expect-error '.ts' imports work properly, but the error persists because no tsconfig is used
-const { "default": logging } = await import("../src/__mocks__/log.ts");
-// @ts-expect-error '.ts' imports work properly, but the error persists because no tsconfig is used
-const { "default": windowApi } = await import("../src/__mocks__/api/window.ts");
+const { "default": logging } = await import("../src/__mocks__/log");
+const { "default": windowApi } = await import("../src/__mocks__/api/window");
 
 mock.module("@/lib/logging/log.ts", () => logging);
 mock.module("@tauri-apps/api/window", () => windowApi);
+
+export function withTestWindow<T>(run: () => Promise<T>): Promise<T> {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+
+  Object.defineProperty(globalThis, "window", { "configurable": true, "value": { crypto } });
+
+  return Promise.resolve().then(run)
+    .finally(() => {
+      if (previous) {
+        Object.defineProperty(globalThis, "window", previous);
+      } else {
+        Reflect.deleteProperty(globalThis, "window");
+      }
+    });
+}
