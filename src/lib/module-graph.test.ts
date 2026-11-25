@@ -1,43 +1,9 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempDisposableSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { expect, test } from "bun:test";
-import ts from "typescript";
-import { parse } from "vue/compiler-sfc";
-
-function eagerImports(file: string, source: string): Array<string> {
-  let script = source;
-  const imports: Array<string> = [];
-
-  if (file.endsWith(".vue")) {
-    const { descriptor, errors } = parse(source, { "filename": file });
-
-    expect(errors).toEqual([]);
-    const blocks = [descriptor.script, descriptor.scriptSetup];
-
-    for (const block of blocks) {
-      if (block?.src) imports.push(block.src);
-    }
-    script = blocks.map(block => block?.content ?? "").join("\n");
-  }
-  const tree = ts.createSourceFile(file, script, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
-
-  for (const node of tree.statements) {
-    if (ts.isImportDeclaration(node)) {
-      if (node.importClause?.isTypeOnly) continue;
-    } else if (ts.isExportDeclaration(node)) {
-      const names = node.exportClause;
-
-      if (node.isTypeOnly || (names && ts.isNamedExports(names) &&
-        names.elements.length > 0 && names.elements.every(item => item.isTypeOnly))) continue;
-    } else continue;
-    if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
-      imports.push(node.moduleSpecifier.text);
-    }
-  }
-
-  return imports;
-}
+import { build, normalizePath } from "vite";
 
 function cycles(graph: Map<string, Array<string>>): Array<Array<string>> {
   const indices = (new Map<string, number>);
@@ -80,63 +46,92 @@ function cycles(graph: Map<string, Array<string>>): Array<Array<string>> {
   return found;
 }
 
-function buildGraph(
-  files: Set<string>, read: (file: string) => string,
-): { "graph": Map<string, Array<string>>; "selfBarrels": Array<string> } {
+async function buildGraph(root: string): Promise<Map<string, Array<string>>> {
+  const source = path.join(root, "src");
+  const files = (new Map<string, string>);
+
+  for (const file of new Bun.Glob("**/*.{ts,tsx,js,jsx,vue}").scanSync(source)) {
+    const relative = normalizePath(file);
+
+    if ((/\.(?:test|bench|d)\.[jt]sx?$/u).test(relative) || relative.startsWith("__mocks__/")) {
+      continue;
+    }
+    files.set(normalizePath(path.resolve(source, file)), relative);
+  }
   const graph = (new Map<string, Array<string>>);
+
+  await build({
+    root,
+    "logLevel": "error",
+    "build"   : {
+      "write"               : false,
+      "minify"              : false,
+      "reportCompressedSize": false,
+      "rolldownOptions"     : { "input": [...files.keys()] },
+    },
+    "plugins": [{
+      "name": "collect-source-imports",
+      buildEnd(error): void {
+        if (error) return;
+        for (const id of this.getModuleIds()) {
+          const file = files.get(normalizePath(id));
+
+          if (file === undefined) continue;
+          const { importedIds } = this.getModuleInfo(id)!;
+
+          graph.set(file, importedIds.flatMap(target => files.get(normalizePath(target)) ?? []));
+        }
+      },
+    }],
+  });
+
+  expect(graph.size).toBe(files.size);
+
+  return graph;
+}
+
+test("Vite resolves eager globs, TSX, JSX and inline type imports", async () => {
+  using directory = mkdtempDisposableSync(path.join(tmpdir(), "kaede-module-graph-"));
+  const sourceDirectory = path.join(directory.path, "src");
+
+  mkdirSync(sourceDirectory);
+  writeFileSync(path.join(directory.path, "tsconfig.json"), JSON.stringify({
+    "compilerOptions": { "verbatimModuleSyntax": true, "jsx": "react", "jsxFactory": "h" },
+  }));
+  const sources = {
+    "eager.tsx": "export const matches = import.meta.glob(\"./*.jsx\", { eager: true });",
+    "lazy.tsx" : "export const matches = import.meta.glob(\"./*.jsx\");",
+    "match.jsx": "import \"./eager\"; import \"./lazy\";",
+    "a.tsx"    : `/** @jsxRuntime classic */
+      import { type T } from "./b.ts";
+      export const render = (h: T) => <main/>;
+    `,
+    "b.ts": "import \"/src/a.tsx\"; export type T = (tag: string) => unknown;",
+  };
+
+  for (const [file, source] of Object.entries(sources)) {
+    writeFileSync(path.join(sourceDirectory, file), source);
+  }
+  const graph = await buildGraph(directory.path);
+
+  expect(graph.get("lazy.tsx")).toEqual([]);
+  expect(cycles(graph).sort()).toEqual([["a.tsx", "b.ts"], ["eager.tsx", "match.jsx"]]);
+});
+
+test("production value imports have no eager cycles, including self-barrels", async () => {
+  const graph = await buildGraph(path.resolve(import.meta.dir, "../.."));
   const selfBarrels: Array<string> = [];
 
-  for (const file of files) {
-    const directory = path.posix.dirname(file);
-    const edges: Array<string> = [];
+  for (const [file, edges] of graph) {
+    for (const target of edges) {
+      const directory = path.posix.dirname(target);
 
-    for (const specifier of eagerImports(file, read(file))) {
-      let local: string;
-
-      if (specifier.startsWith("@/")) local = specifier.slice(2);
-      else if (specifier.startsWith("/src/")) local = specifier.slice(5);
-      else if (specifier.startsWith("src/")) local = specifier.slice(4);
-      else if (specifier.startsWith(".")) local = path.posix.join(directory, specifier);
-      else continue;
-      const target = [local, local + ".ts", local + ".vue", path.posix.join(local, "index.ts")]
-        .find(candidate => files.has(candidate));
-
-      if (!target) {
-        if ((/\.(?:css|json|png|svg|webp)$/u).test(local)) continue;
-        throw new Error(`Unresolved local import in ${file}: ${specifier}`);
-      }
-      edges.push(target);
-      if (target.endsWith("/index.ts") && file.startsWith(path.posix.dirname(target) + "/")) {
+      if ((/(?:^|\/)index\.[jt]sx?$/u).test(target) &&
+        (directory === "." || file.startsWith(directory + "/"))) {
         selfBarrels.push(`${file} -> ${target}`);
       }
     }
-    graph.set(file, edges);
   }
-
-  return { graph, selfBarrels };
-}
-
-test("inline type imports and Vite source-root paths retain eager edges", () => {
-  const sources = new Map([
-    ["a.ts", "import { type T } from \"./b.ts\";"],
-    ["b.ts", "import \"/src/a.ts\"; export type T = string;"],
-  ]);
-  const { graph } = buildGraph(new Set(sources.keys()), file => sources.get(file)!);
-
-  expect(cycles(graph)).toEqual([["a.ts", "b.ts"]]);
-});
-
-test("production value imports have no eager cycles, including self-barrels", () => {
-  const root = path.resolve(import.meta.dir, "..");
-  const files = new Set([...new Bun.Glob("**/*.{ts,vue}").scanSync(root)]
-    .map(file => file.split(path.sep).join("/"))
-    .filter(file => (
-      !(/\.(?:test|bench|d)\.ts$/u).test(file) && !file.startsWith("__mocks__/")
-    )));
-  const { graph, selfBarrels } = buildGraph(files, file => (
-    readFileSync(path.join(root, file), "utf8")
-  ));
-
   expect(selfBarrels).toEqual([]);
   expect(cycles(graph)).toEqual([]);
 });

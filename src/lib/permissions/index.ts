@@ -20,6 +20,7 @@ import { grantStaticPermissions } from "@/lib/permissions/grant-static-permissio
 import { handlePermission } from "@/lib/permissions/handle-permission.ts";
 import { hardenIfAvailable } from "@/lib/permissions/harden.ts";
 import { permissionSession } from "@/lib/permissions/request-permissions.ts";
+import { throwIfAborted } from "@/lib/shared/abort.ts";
 import type { ExtensionUI } from "@/lib/shared/ui-root.ts";
 
 export function bindPermissionRequest(
@@ -34,6 +35,7 @@ export function bindPermissionRequest(
   return async (input: unknown): Promise<Array<unknown>> => {
     const grants = await service.request(input, id, artifactSha256, signal);
 
+    throwIfAborted(signal);
     const results = grants.map(permission => (
       permission && handlePermission(permission, id, ui, signal)
     ));
