@@ -389,11 +389,16 @@ impl ProcessOutput {
             );
             self.deadline = tokio::time::Instant::now() + PIPE_DRAIN;
         }
-        tokio::select! {
-            biased;
-            _ = tokio::time::sleep_until(self.deadline) => None,
-            line = self.lines.recv() => line,
+        if tokio::time::Instant::now() < self.deadline {
+            tokio::select! {
+                biased;
+                line = self.lines.recv() => return line,
+                _ = tokio::time::sleep_until(self.deadline) => {}
+            }
         }
+        // Freeze the queue so a surviving descendant cannot extend the drain.
+        self.lines.close();
+        self.lines.try_recv().ok()
     }
 }
 
@@ -435,9 +440,33 @@ impl ProcessRegistry {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn expired_drain_delivers_all_queued_lines() {
+        let (tx, lines) = mpsc::channel(2);
+        let mut output = ProcessOutput {
+            lines,
+            exit: oneshot::channel().1,
+            status: Some(Err("child wait failed".into())),
+            deadline: tokio::time::Instant::now() - PIPE_DRAIN,
+        };
+        tx.try_send(("stdout", Ok("last message".into()))).unwrap();
+        tx.try_send(("stderr", Ok("crash details".into()))).unwrap();
+        assert_eq!(
+            output.next().await.unwrap(),
+            ("stdout", Ok("last message".into()))
+        );
+        assert!(tx.is_closed());
+        assert_eq!(
+            output.next().await.unwrap(),
+            ("stderr", Ok("crash details".into()))
+        );
+        assert!(output.next().await.is_none());
+    }
+
+    #[cfg(unix)]
     #[tokio::test]
     async fn inherited_pipe_does_not_hold_direct_child_exit() {
         use std::process::Stdio;
@@ -468,6 +497,7 @@ mod tests {
         assert_eq!(output.status.unwrap().unwrap().code(), Some(7));
     }
 
+    #[cfg(unix)]
     #[test]
     fn only_matching_exit_removes_process() {
         let mut cmd = std::process::Command::new("sh");

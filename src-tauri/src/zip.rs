@@ -166,7 +166,7 @@ impl Extraction {
         }
         let path = self.prepare_file(name)?;
         let mut output =
-            tempfile::NamedTempFile::new_in(path.parent().unwrap()).map_err(|e| e.to_string())?;
+            crate::file_system::staging_file(path.parent().unwrap()).map_err(|e| e.to_string())?;
         io::copy(&mut reader, &mut output).map_err(|e| e.to_string())?;
         #[cfg(unix)]
         if let Some(mode) = mode {

@@ -27,6 +27,20 @@ use crate::application::InitialStateParsedFiles;
 use crate::hashing::HashAlgorithm;
 use crate::translations::extract_locale;
 
+pub(crate) fn staging_file(parent: &Path) -> io::Result<tempfile::NamedTempFile> {
+    // The renamed file keeps its creation attributes, including on Windows.
+    tempfile::Builder::new().make_in(parent, |path| {
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        options.open(path)
+    })
+}
+
 #[derive(Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ParsedFile {
@@ -148,6 +162,22 @@ fn verify_file_hash(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    #[test]
+    fn published_file_has_no_temporary_attribute() {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_TEMPORARY: u32 = 0x100;
+        let dir = tempfile::tempdir().unwrap();
+        let mut staged = staging_file(dir.path()).unwrap().into_temp_path();
+        let destination = dir.path().join("published.jar");
+        std::fs::rename(&staged, &destination).unwrap();
+        staged.disable_cleanup(true);
+        assert_eq!(
+            destination.metadata().unwrap().file_attributes() & FILE_ATTRIBUTE_TEMPORARY,
+            0
+        );
+    }
+
     #[tokio::test]
     async fn startup_json_preserves_wire_values_locale_and_recovery_text() {
         let dir = tempfile::tempdir().unwrap();

@@ -25,12 +25,20 @@ static STAGING: OnceLock<StagingDirectories> = OnceLock::new();
 
 struct Staging {
     directory: tempfile::TempDir,
-    transfers: Mutex<HashMap<Arc<same_file::Handle>, watch::Sender<bool>>>,
+    transfers: Mutex<HashMap<Arc<same_file::Handle>, Transfer>>,
+}
+
+struct Transfer {
+    url: String,
+    done: watch::Sender<bool>,
 }
 
 enum Claim {
     Owner(Owner),
-    Waiting(watch::Receiver<bool>),
+    Waiting {
+        done: watch::Receiver<bool>,
+        same_url: bool,
+    },
 }
 
 struct Owner {
@@ -43,10 +51,10 @@ impl Drop for Owner {
     fn drop(&mut self) {
         let mut transfers = self.stage.transfers.lock().unwrap();
         let (identity, marker) = self.marker.take().unwrap();
-        let done = transfers.remove(&identity).unwrap();
+        let transfer = transfers.remove(&identity).unwrap();
         drop(identity);
         drop(marker);
-        done.send_replace(self.published);
+        transfer.done.send_replace(self.published);
     }
 }
 
@@ -78,7 +86,7 @@ impl StagingDirectory {
     }
 
     // create_new lets the destination filesystem decide whether two names alias.
-    fn claim(&self, name: &std::ffi::OsStr) -> std::io::Result<Claim> {
+    fn claim(&self, name: &std::ffi::OsStr, url: &str) -> std::io::Result<Claim> {
         let stage = &self.directory;
         let path = stage.directory.path().join(name);
         let mut transfers = stage.transfers.lock().unwrap();
@@ -91,7 +99,13 @@ impl StagingDirectory {
             Ok(file) => {
                 let marker = tempfile::TempPath::from_path(path);
                 let identity = Arc::new(same_file::Handle::from_file(file)?);
-                transfers.insert(identity.clone(), watch::channel(false).0);
+                transfers.insert(
+                    identity.clone(),
+                    Transfer {
+                        url: url.to_owned(),
+                        done: watch::channel(false).0,
+                    },
+                );
                 Ok(Claim::Owner(Owner {
                     stage: stage.clone(),
                     marker: Some((identity, marker)),
@@ -100,10 +114,13 @@ impl StagingDirectory {
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
                 let identity = same_file::Handle::from_path(path)?;
-                let done = transfers
+                let transfer = transfers
                     .get(&identity)
                     .ok_or_else(|| std::io::Error::other("Missing download owner"))?;
-                Ok(Claim::Waiting(done.subscribe()))
+                Ok(Claim::Waiting {
+                    done: transfer.done.subscribe(),
+                    same_url: transfer.url == url,
+                })
             }
             Err(e) => Err(e),
         }
@@ -404,12 +421,20 @@ async fn download_one(
     .map_err(DownloadError::other)?
     .map_err(DownloadError::other)?;
     let mut owner = loop {
-        match staging.claim(name).map_err(DownloadError::other)? {
+        match staging
+            .claim(name, &entry.url)
+            .map_err(DownloadError::other)?
+        {
             Claim::Owner(owner) => break owner,
-            Claim::Waiting(mut done) => tokio::select! {
+            Claim::Waiting { mut done, same_url } => tokio::select! {
                 biased;
                 _ = cancel.wait_for(|value| *value) => return Err(DownloadError::Cancelled),
-                _ = done.changed() => { if *done.borrow() { return Ok(()); } }
+                _ = done.changed() => {
+                    if *done.borrow() {
+                        if same_url { return Ok(()); }
+                        return Err(DownloadError::other(format!("A different URL was downloaded to {}", path.display())));
+                    }
+                }
             },
         }
     };
@@ -418,7 +443,7 @@ async fn download_one(
         _ = cancel.wait_for(|value| *value) => return Err(DownloadError::Cancelled),
         result = client.get(&entry.url).send() => result.and_then(|r| r.error_for_status()).map_err(DownloadError::other)?,
     };
-    let (file, mut partial) = tempfile::NamedTempFile::new_in(parent)
+    let (file, mut partial) = crate::file_system::staging_file(&parent)
         .map_err(DownloadError::other)?
         .into_parts();
     let mut writer = tokio::io::BufWriter::new(tokio::fs::File::from_std(file));
@@ -472,16 +497,19 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let directory = StagingDirectory::open(root.path()).unwrap();
         let name = std::ffi::OsStr::new("item");
-        let Claim::Owner(owner) = directory.claim(name).unwrap() else {
+        let Claim::Owner(owner) = directory.claim(name, "source").unwrap() else {
             panic!()
         };
-        let Claim::Waiting(mut done) = directory.claim(name).unwrap() else {
+        let Claim::Waiting { mut done, .. } = directory.claim(name, "source").unwrap() else {
             panic!()
         };
         drop(owner);
         done.changed().await.unwrap();
         assert!(!*done.borrow());
-        assert!(matches!(directory.claim(name).unwrap(), Claim::Owner(_)));
+        assert!(matches!(
+            directory.claim(name, "source").unwrap(),
+            Claim::Owner(_)
+        ));
     }
     #[tokio::test]
     async fn cancellation_wakes_all_registered_batches_and_resets() {
@@ -552,7 +580,7 @@ mod tests {
             .lock()
             .unwrap()
             .values()
-            .any(|done| done.receiver_count() > 0)
+            .any(|transfer| transfer.done.receiver_count() > 0)
         {
             tokio::task::yield_now().await;
         }
@@ -564,7 +592,10 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("item");
         let stage = StagingDirectory::open(root.path()).unwrap();
-        let Claim::Owner(owner) = stage.claim(path.file_name().unwrap()).unwrap() else {
+        let Claim::Owner(owner) = stage
+            .claim(path.file_name().unwrap(), "failed-source")
+            .unwrap()
+        else {
             panic!()
         };
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
@@ -608,43 +639,56 @@ mod tests {
     #[tokio::test]
     async fn competing_download_uses_published_file() {
         use tokio::net::TcpListener;
-        let root = tempfile::tempdir().unwrap();
-        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
-        let path = root.path().join("item");
-        let owner = DownloadEntry {
-            path: path.to_str().unwrap().into(),
-            url: format!("http://{}/", listener.local_addr().unwrap()),
-        };
-        let waiter = DownloadEntry {
-            path: owner.path.clone(),
-            url: "invalid-url".into(),
-        };
-        let client = reqwest::Client::builder().no_proxy().build().unwrap();
-        let flags = CancelFlags::default();
-        let mut a = flags.register("a");
-        let mut b = flags.register("b");
-        let progress = Progress::default();
-        let exercise = async {
-            let (mut socket, _) = listener.accept().await.unwrap();
-            let wait = download_one(&client, &waiter, &progress, &mut b);
-            tokio::pin!(wait);
-            let observer = StagingDirectory::open(root.path()).unwrap();
-            let published = async {
-                wait_for_competitor(&observer).await;
-                socket
-                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
-                    .await
-                    .unwrap();
+        for same_url in [true, false] {
+            let root = tempfile::tempdir().unwrap();
+            let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+            let path = root.path().join("item");
+            let owner = DownloadEntry {
+                path: path.to_str().unwrap().into(),
+                url: format!("http://{}/", listener.local_addr().unwrap()),
             };
-            let (result, ()) = tokio::join!(wait, published);
-            result
-        };
-        let (a, b) = tokio::time::timeout(Duration::from_secs(5), async {
-            tokio::join!(download_one(&client, &owner, &progress, &mut a), exercise)
-        })
-        .await
-        .unwrap();
-        assert!(a.is_ok() && b.is_ok());
-        assert_eq!(std::fs::read(path).unwrap(), b"ok");
+            let waiter = DownloadEntry {
+                path: owner.path.clone(),
+                url: if same_url {
+                    owner.url.clone()
+                } else {
+                    format!("{}other", owner.url)
+                },
+            };
+            let client = reqwest::Client::builder().no_proxy().build().unwrap();
+            let flags = CancelFlags::default();
+            let mut a = flags.register("a");
+            let mut b = flags.register("b");
+            let progress = Progress::default();
+            let exercise = async {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let wait = download_one(&client, &waiter, &progress, &mut b);
+                tokio::pin!(wait);
+                let observer = StagingDirectory::open(root.path()).unwrap();
+                let published = async {
+                    wait_for_competitor(&observer).await;
+                    socket
+                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+                        .await
+                        .unwrap();
+                };
+                let (result, ()) = tokio::join!(wait, published);
+                result
+            };
+            let (a, b) = tokio::time::timeout(Duration::from_secs(5), async {
+                tokio::join!(download_one(&client, &owner, &progress, &mut a), exercise)
+            })
+            .await
+            .unwrap();
+            assert!(a.is_ok());
+            if same_url {
+                assert!(b.is_ok());
+            } else {
+                assert!(
+                    matches!(b, Err(DownloadError::Other(error)) if error.contains("different URL"))
+                );
+            }
+            assert_eq!(std::fs::read(path).unwrap(), b"ok");
+        }
     }
 }
