@@ -11,7 +11,7 @@
 
 ## Used parts of code
 
-- [UUID generator like in Java](https://stackoverflow.com/a/51732778), by Mahesh Bongani (CC BY-SA 4.0) / [Usage](../src/lib/hashing/hash-offline-nickname.ts)
+- [UUID generator like in Java](https://stackoverflow.com/a/51732778), by Mahesh Bongani (CC BY-SA 4.0) / [Usage](../src/lib/hashing.ts)
 - [Greatest Common Divisor](https://stackoverflow.com/a/17445322), by Yannis (CC BY-SA 3.0) / [Usage](../src/lib/general/scopes/gcd.ts)
 - [Process ID of very own process](https://stackoverflow.com/a/7690178), by Martin (CC BY-SA 3.0) / [Usage](../src/lib/launcher/scopes/__applet/src/Main.java)
 
