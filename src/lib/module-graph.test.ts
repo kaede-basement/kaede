@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempDisposableSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempDisposableSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -48,8 +48,9 @@ function cycles(graph: Map<string, Array<string>>): Array<Array<string>> {
 }
 
 async function buildGraph(
-  root: string, config: InlineConfig = {},
+  inputRoot: string, config: InlineConfig = {},
 ): Promise<Map<string, Array<string>>> {
+  const root = realpathSync.native(inputRoot);
   const source = path.join(root, "src");
   const entries: Array<string> = [];
 

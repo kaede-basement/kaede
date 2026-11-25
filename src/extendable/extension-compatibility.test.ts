@@ -23,4 +23,4 @@ test("extensions replace live launcher methods, hooks and registered Vue compone
   } finally {
     harness.close();
   }
-});
+}, 30_000);

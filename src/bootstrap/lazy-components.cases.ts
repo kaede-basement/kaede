@@ -10,7 +10,7 @@ Bun.plugin({
   "name": "page-query-consumers",
   setup(build) {
     build.onLoad({ "filter": /\.vue$/u }, ({ path }) => ({
-      "contents": path.endsWith("/AddInstance.vue") || path.endsWith("/ExtensionLoader.vue")
+      "contents": (/[/\\](?:AddInstance|ExtensionLoader)\.vue$/u).test(path)
         ? `import {useQueryClient} from "@tanstack/vue-query";
            export default {setup(){useQueryClient();return () => "ready"}}`
         : "export default {}",
