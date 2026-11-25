@@ -103,7 +103,7 @@ pub async fn resize_image(
                 .map_err(|error| error.to_string())?;
             stage.flush().map_err(|e| e.to_string())?;
             stage.as_file().sync_all().map_err(|e| e.to_string())?;
-            stage.persist(&output_path).map_err(|e| e.to_string())?;
+            publish_resize(stage, &output_path, format, to_width, to_height)?;
         }
 
         Ok(output_path.to_string_lossy().into_owned())
@@ -112,9 +112,64 @@ pub async fn resize_image(
     .map_err(|error| error.to_string())?
 }
 
+fn publish_resize(
+    stage: tempfile::NamedTempFile,
+    path: &Path,
+    format: image::ImageFormat,
+    width: u32,
+    height: u32,
+) -> Result<(), String> {
+    if let Err(error) = stage.persist_noclobber(path) {
+        // Windows may report a sharing violation when a reader holds the winner open.
+        let winner = std::fs::File::open(path).ok().and_then(|file| {
+            image::ImageReader::with_format(std::io::BufReader::new(file), format)
+                .decode()
+                .ok()
+        });
+        if !winner.is_some_and(|img| img.width() == width && img.height() == height) {
+            return Err(error.to_string());
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn duplicate_publication_preserves_readers_file_and_rejects_corruption() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("winner.png");
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::new_rgb8(4, 4)
+            .write_to(&mut bytes, image::ImageFormat::Png)
+            .unwrap();
+        std::fs::write(&path, bytes.get_ref()).unwrap();
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            options.share_mode(1);
+        }
+        let held = options.open(&path).unwrap();
+        let publish = || {
+            publish_resize(
+                crate::file_system::staging_file(root.path()).unwrap(),
+                &path,
+                image::ImageFormat::Png,
+                4,
+                4,
+            )
+        };
+        publish().unwrap();
+        drop(held);
+        assert_eq!(std::fs::read(&path).unwrap(), *bytes.get_ref());
+        std::fs::write(&path, b"broken").unwrap();
+        assert!(publish().is_err());
+        assert_eq!(root.path().read_dir().unwrap().count(), 1);
+    }
 
     #[tokio::test]
     async fn concurrent_resizes_publish_decodable_images_in_new_directory() {

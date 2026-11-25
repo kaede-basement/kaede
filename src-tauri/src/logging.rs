@@ -186,6 +186,13 @@ impl Cursor {
 }
 
 #[tauri::command]
+pub fn next_log_subscription_id() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
+#[tauri::command]
 pub async fn stop_log_stream(
     state: State<'_, LogTail>,
     subscription_id: Option<u64>,
@@ -352,6 +359,38 @@ mod tests {
         );
         assert!(tail.stop(Some(2)).await);
         replacement.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn delayed_stop_leaves_reopened_viewer_receiving_lines() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let tail = LogTail::new(file.path().into());
+        let a = next_log_subscription_id();
+        let b = next_log_subscription_id();
+        let original = tail.stream(Channel::new(|_| Ok(())), Some(a));
+        tokio::pin!(original);
+        assert!(futures_util::poll!(&mut original).is_pending());
+        let delayed_stop = tail.stop(Some(a));
+        let (events, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let replacement = tail.stream(
+            Channel::new(move |event| {
+                events.send(event).unwrap();
+                Ok(())
+            }),
+            Some(b),
+        );
+        tokio::pin!(replacement);
+        tokio::time::timeout(Duration::from_secs(5), async {
+            tokio::select! { _ = &mut replacement => panic!("viewer exited"), _ = rx.recv() => {} }
+            assert!(!delayed_stop.await);
+            std::fs::write(file.path(), "new line\n").unwrap();
+            let event = tokio::select! { _ = &mut replacement => panic!("viewer exited"), e = rx.recv() => e.unwrap() };
+            let tauri::ipc::InvokeResponseBody::Json(json) = event else { panic!() };
+            assert_eq!(serde_json::from_str::<serde_json::Value>(&json).unwrap(), serde_json::json!({"type":"lines","data":["new line"]}));
+            assert!(tail.stop(Some(b)).await);
+            replacement.await.unwrap();
+            original.await.unwrap();
+        }).await.unwrap();
     }
 
     #[test]

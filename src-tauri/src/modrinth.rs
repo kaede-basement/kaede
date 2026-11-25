@@ -100,18 +100,15 @@ pub struct MrpackManifest {
 
 #[tauri::command]
 pub async fn install_mrpack(
-    app: tauri::AppHandle,
-    reservation: u64,
+    flags: State<'_, CancelFlags>,
+    reservation: Option<u64>,
     archive_path: PathBuf,
     target_dir_path: PathBuf,
     cancel_id: String,
     on_progress: Channel<(usize, usize)>,
     store: State<'_, ModStore>,
 ) -> Result<MrpackManifest, String> {
-    use tauri::{Listener, Manager};
-    let flags = app.state::<CancelFlags>();
-    let (mut cancel, decision, listener) = flags.start_install(&cancel_id, reservation)?;
-    app.unlisten(listener);
+    let (mut cancel, decision) = flags.start_install(&cancel_id, reservation)?;
     install(
         archive_path,
         target_dir_path,
@@ -164,13 +161,13 @@ async fn install_manifest(
     cancel: &mut watch::Receiver<bool>,
     progress: impl Fn(usize, usize),
 ) -> Result<MrpackManifest, String> {
-    let store = store.lease().await?;
     let mut blobs = Vec::with_capacity(manifest.files.len());
     progress(0, manifest.files.len());
-    if !manifest.files.is_empty() {
+    let lease = if manifest.files.is_empty() {
+        None
+    } else {
+        let store = store.lease().await?;
         store.prepare().await?;
-    }
-    {
         use futures_util::{stream::FuturesUnordered, StreamExt};
         // Keep completed objects on any failure, and let already-started writes finish safely.
         const CONCURRENT_OBJECTS: usize = 8;
@@ -194,12 +191,12 @@ async fn install_manifest(
             }
             let next = tokio::select! {
                 biased;
+                next = pending.next() => next,
                 _ = cancel.wait_for(|x| *x), if error.is_none() => {
                     stop.send_replace(true);
-                    error = Some("Installation cancelled".into());
+                    error = Some("Installation cancelled".to_owned());
                     continue;
                 }
-                next = pending.next() => next,
             };
             match next {
                 Some(Ok(blob)) => {
@@ -208,7 +205,9 @@ async fn install_manifest(
                 }
                 Some(Err(reason)) => {
                     stop.send_replace(true);
-                    error.get_or_insert(reason);
+                    if error.is_none() || error.as_deref() == Some("Installation cancelled") {
+                        error = Some(reason);
+                    }
                 }
                 None => break,
             }
@@ -216,10 +215,11 @@ async fn install_manifest(
         if let Some(reason) = error {
             return Err(reason);
         }
-    }
+        Some(store)
+    };
     let cancel = cancel.clone();
     tokio::task::spawn_blocking(move || {
-        let _lease = store;
+        let _lease = lease;
         let parent = target.parent().ok_or("Missing instance parent")?;
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         if target.try_exists().map_err(|e| e.to_string())? {
@@ -401,8 +401,7 @@ async fn repair(
     let Some((manifest, mut extraction, overrides, total)) = prepared else {
         return Ok(RepairOutcome::ArchiveUnavailable);
     };
-    let store = store.lease().await?;
-    let mut store_ready = false;
+    let mut objects = None;
     for (index, file) in manifest.files.iter().enumerate() {
         check_cancel(cancel)?;
         let name = file.path.clone();
@@ -414,10 +413,14 @@ async fn repair(
         .map_err(|e| e.to_string())?;
         extraction = next;
         if let Some(dest) = dest? {
-            if !store_ready {
-                store.prepare().await?;
-                store_ready = true;
-            }
+            let store = match &mut objects {
+                Some(tree) => tree,
+                None => {
+                    let tree = store.lease().await?;
+                    tree.prepare().await?;
+                    objects.insert(tree)
+                }
+            };
             let blob = store.ensure(file, cancel).await?;
             check_cancel(cancel)?;
             let lease = store.clone();
@@ -810,6 +813,89 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn completed_integrity_error_wins_over_concurrent_user_cancel() {
+        use std::{
+            future::Future,
+            sync::Arc,
+            task::{Context, Wake, Waker},
+        };
+        struct WorkerReady(tokio::sync::Notify);
+        impl Wake for WorkerReady {
+            fn wake(self: Arc<Self>) {
+                self.0.notify_one();
+            }
+        }
+        let root = tempfile::tempdir().unwrap();
+        let store = ModStore::new(root.path());
+        let target = root.path().join("instance");
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let (mut entry, path) = seed_blob(root.path(), b"good");
+        std::fs::remove_file(path).unwrap();
+        entry.url = format!("http://{}", listener.local_addr().unwrap());
+        let mut manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
+        manifest.files.push(entry);
+        let (stop, mut cancel) = watch::channel(false);
+        let install = install_manifest(
+            archive(&[]),
+            manifest,
+            target.clone(),
+            &store,
+            InstallDecision::default(),
+            &mut cancel,
+            |_, _| {},
+        );
+        tokio::pin!(install);
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            let socket = tokio::select! {
+                _ = &mut install => panic!("install returned before response"),
+                (socket, _) = accept_request(&listener) => socket,
+            };
+            // Pause the install coordinator after admission. Its only worker will
+            // wake this waker when it has the result of the mismatched download.
+            let ready = Arc::new(WorkerReady(tokio::sync::Notify::new()));
+            let waker = Waker::from(ready.clone());
+            assert!(install
+                .as_mut()
+                .poll(&mut Context::from_waker(&waker))
+                .is_pending());
+            respond(socket, b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nxxxx").await;
+            ready.0.notified().await;
+            stop.send_replace(true);
+            assert!(install.await.err().unwrap().contains("Hash mismatch"));
+        })
+        .await
+        .unwrap();
+        assert!(!target.exists());
+    }
+
+    #[tokio::test]
+    async fn override_only_install_does_not_open_object_cache() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("cache"), b"occupied").unwrap();
+        let store = ModStore::new(root.path());
+        let target = root.path().join("instance");
+        let (_tx, mut cancel) = watch::channel(false);
+        let manifest = build_manifest(serde_json::from_str("{}").unwrap()).unwrap();
+        let result = install_manifest(
+            archive(&[("overrides/options.txt", "content")]),
+            manifest,
+            target.clone(),
+            &store,
+            InstallDecision::default(),
+            &mut cancel,
+            |_, _| {},
+        )
+        .await;
+        assert!(result.is_ok());
+        assert_eq!(
+            std::fs::read(target.join("minecraft/options.txt")).unwrap(),
+            b"content"
+        );
+    }
+
+    #[tokio::test]
     async fn terminal_integrity_failure_drains_stalled_sibling() {
         use tokio::io::AsyncWriteExt;
         let root = tempfile::tempdir().unwrap();
@@ -1102,9 +1188,15 @@ mod tests {
         assert!(!minecraft.join("mods/item.jar").exists());
         stop.send_replace(false);
         assert_eq!(
-            repair(pack, minecraft.clone(), &store, &mut cancel, |_, _| {})
-                .await
-                .unwrap(),
+            repair(
+                pack.clone(),
+                minecraft.clone(),
+                &store,
+                &mut cancel,
+                |_, _| {}
+            )
+            .await
+            .unwrap(),
             RepairOutcome::Repaired
         );
         assert_eq!(
@@ -1121,5 +1213,29 @@ mod tests {
             b"bundled"
         );
         assert!(!minecraft.join("Mods/disabled.jar").exists());
+
+        let other = tempfile::tempdir().unwrap();
+        std::fs::write(other.path().join("cache"), b"occupied").unwrap();
+        let unusable = ModStore::new(other.path());
+        assert_eq!(
+            repair(
+                pack.clone(),
+                minecraft.clone(),
+                &unusable,
+                &mut cancel,
+                |_, _| {}
+            )
+            .await
+            .unwrap(),
+            RepairOutcome::Repaired
+        );
+        std::fs::remove_file(minecraft.join("mods/item.jar")).unwrap();
+        let cache_error = unusable.lease().await.err().unwrap();
+        assert_eq!(
+            repair(pack, minecraft, &unusable, &mut cancel, |_, _| {})
+                .await
+                .unwrap_err(),
+            cache_error
+        );
     }
 }

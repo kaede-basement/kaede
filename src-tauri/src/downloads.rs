@@ -14,7 +14,7 @@ use std::{
 
 use crate::hashing::{to_hex, HashAlgorithm};
 use serde::{Deserialize, Serialize};
-use tauri::{ipc::Channel, Listener, State};
+use tauri::{ipc::Channel, Manager, ResourceTable, State};
 use tokio::{
     io::AsyncWriteExt,
     sync::{watch, OnceCell},
@@ -268,8 +268,8 @@ enum InstallPhase {
     Absent,
     Prepared {
         token: u64,
-        page: String,
-        listener: tauri::EventId,
+        page: ScopeId,
+        window: ScopeId,
     },
     Running(InstallDecision),
 }
@@ -332,15 +332,55 @@ impl Drop for Registration {
     }
 }
 
-struct ReservationLifetime {
-    flags: CancelFlags,
-    id: String,
-    token: u64,
+#[derive(Clone, PartialEq, Eq)]
+struct ScopeId {
+    label: String,
+    generation: u64,
 }
 
-impl Drop for ReservationLifetime {
+// Tauri keeps a resource table per actual window/webview instance, including
+// across handle clones. A replacement with the same label gets its own table.
+struct ReservationScope {
+    flags: CancelFlags,
+    id: ScopeId,
+}
+
+impl tauri::Resource for ReservationScope {}
+
+impl ReservationScope {
+    fn resource(table: &ResourceTable) -> Option<tauri::ResourceId> {
+        table
+            .names()
+            .find(|(_, name)| name == std::any::type_name::<Self>())
+            .map(|(rid, _)| rid)
+    }
+
+    fn current(table: &mut ResourceTable, label: &str, flags: &CancelFlags) -> ScopeId {
+        if let Some(rid) = Self::resource(table) {
+            return table.get::<Self>(rid).unwrap().id.clone();
+        }
+        static NEXT: AtomicU64 = AtomicU64::new(1);
+        let id = ScopeId {
+            label: label.into(),
+            generation: NEXT.fetch_add(1, Ordering::Relaxed),
+        };
+        table.add(Self {
+            flags: flags.clone(),
+            id: id.clone(),
+        });
+        id
+    }
+}
+
+pub fn end_reservation_scope(table: &mut ResourceTable) {
+    if let Some(rid) = ReservationScope::resource(table) {
+        drop(table.take::<ReservationScope>(rid).unwrap());
+    }
+}
+
+impl Drop for ReservationScope {
     fn drop(&mut self) {
-        self.flags.revoke(&self.id, self.token);
+        self.flags.revoke_scope(&self.id);
     }
 }
 
@@ -368,26 +408,28 @@ pub fn prepare_mrpack_install(
 ) -> Result<u64, String> {
     static NEXT: AtomicU64 = AtomicU64::new(1);
     let token = NEXT.fetch_add(1, Ordering::Relaxed);
-    let lifetime = ReservationLifetime {
-        flags: flags.inner().clone(),
-        id: cancel_id.clone(),
-        token,
+    let page = {
+        let window = webview.window_ref();
+        let mut window_table = window.resources_table();
+        let mut page_table = webview.resources_table();
+        let window = ReservationScope::current(&mut window_table, window.label(), &flags);
+        let page = ReservationScope::current(&mut page_table, webview.label(), &flags);
+        flags.reserve_install(cancel_id, token, page.clone(), window)?;
+        page
     };
-    let listener = webview.listen("tauri://destroyed", move |_| {
-        let _ = &lifetime;
-    });
-    if let Err(e) = flags.reserve_install(cancel_id.clone(), token, webview.label(), listener) {
-        webview.unlisten(listener);
-        return Err(e);
-    }
-    if !webview
+    // A queued synchronous invoke may still hold the handle of a closed webview.
+    let registered = webview
         .window()
         .webviews()
-        .iter()
-        .any(|w| w.label() == webview.label())
-    {
-        flags.revoke(&cancel_id, token);
-        webview.unlisten(listener);
+        .into_iter()
+        .find(|live| live.label() == webview.label())
+        .is_some_and(|live| {
+            let table = live.resources_table();
+            ReservationScope::resource(&table)
+                .is_some_and(|rid| table.get::<ReservationScope>(rid).unwrap().id == page)
+        });
+    if !registered {
+        flags.revoke_scope(&page);
         return Err("Preparing webview closed".into());
     }
     Ok(token)
@@ -398,8 +440,8 @@ impl CancelFlags {
         &self,
         id: String,
         token: u64,
-        page: &str,
-        listener: tauri::EventId,
+        page: ScopeId,
+        window: ScopeId,
     ) -> Result<(), String> {
         let mut entries = self.0.lock().unwrap();
         let entry = entries.entry(id).or_default();
@@ -408,62 +450,33 @@ impl CancelFlags {
         }
         entry.install = InstallPhase::Prepared {
             token,
-            page: page.into(),
-            listener,
+            page,
+            window,
         };
         Ok(())
     }
 
-    fn revoke(&self, id: &str, token: u64) {
-        let mut entries = self.0.lock().unwrap();
-        if let Some(entry) = entries.get_mut(id) {
-            if matches!(entry.install, InstallPhase::Prepared { token: current, .. } if current == token)
-            {
-                entry.install = InstallPhase::Absent;
-                if entry.batches == 0 {
-                    entries.remove(id);
-                }
-            }
-        }
-    }
-
-    pub fn page_left(&self, webview: &tauri::Webview) {
-        for listener in self.revoke_page(webview.label()) {
-            webview.unlisten(listener);
-        }
-    }
-
-    fn revoke_page(&self, page_label: &str) -> Vec<tauri::EventId> {
-        let mut listeners = Vec::new();
+    fn revoke_scope(&self, expired: &ScopeId) {
         self.0.lock().unwrap().retain(|_, entry| {
-            if let InstallPhase::Prepared { page, listener, .. } = &entry.install {
-                if page == page_label {
-                    listeners.push(*listener);
-                    entry.install = InstallPhase::Absent;
-                    return entry.batches != 0;
-                }
+            if matches!(&entry.install, InstallPhase::Prepared {page, window, ..} if page == expired || window == expired) {
+                entry.install = InstallPhase::Absent;
+                return entry.batches != 0;
             }
             true
         });
-        listeners
     }
 
     pub(crate) fn start_install(
         &self,
         id: &str,
-        token: u64,
-    ) -> Result<(Registration, InstallDecision, tauri::EventId), String> {
+        token: Option<u64>,
+    ) -> Result<(Registration, InstallDecision), String> {
         let mut entries = self.0.lock().unwrap();
         let entry = entries.get_mut(id).ok_or("Unknown install reservation")?;
-        let InstallPhase::Prepared {
-            token: own,
-            listener,
-            ..
-        } = entry.install
-        else {
+        let InstallPhase::Prepared { token: own, .. } = entry.install else {
             return Err("Install not prepared".into());
         };
-        if own != token {
+        if token.is_some_and(|token| token != own) {
             return Err("Expired install reservation".into());
         }
         let decision = InstallDecision::default();
@@ -479,7 +492,6 @@ impl CancelFlags {
                 install: Some(decision.clone()),
             },
             decision,
-            listener,
         ))
     }
 
@@ -957,39 +969,73 @@ pub(crate) mod mock_http {
 mod tests {
     use super::mock_http::{accept_request, respond};
     use super::*;
+    fn scope(generation: u64) -> ScopeId {
+        ScopeId {
+            label: "main".into(),
+            generation,
+        }
+    }
+
+    #[test]
+    fn navigation_and_destruction_retire_only_their_instances() {
+        let flags = CancelFlags::default();
+        let mut page = ResourceTable::default();
+        let mut window = ResourceTable::default();
+        let owner = ReservationScope::current(&mut window, "main", &flags);
+        let prepared = ReservationScope::current(&mut page, "main", &flags);
+        flags
+            .reserve_install("pack".into(), 1, prepared, owner.clone())
+            .unwrap();
+        end_reservation_scope(&mut page);
+        assert!(flags.start_install("pack", None).is_err());
+
+        let reopened = ReservationScope::current(&mut page, "main", &flags);
+        flags
+            .reserve_install("pack".into(), 2, reopened, owner)
+            .unwrap();
+        end_reservation_scope(&mut window);
+        assert!(flags.start_install("pack", Some(2)).is_err());
+
+        let mut next_page = ResourceTable::default();
+        let next = ReservationScope::current(&mut next_page, "main", &flags);
+        let owner = ReservationScope::current(&mut window, "main", &flags);
+        flags
+            .reserve_install("pack".into(), 3, next, owner)
+            .unwrap();
+        drop(page);
+        assert!(flags.start_install("pack", Some(2)).is_err());
+        assert!(flags.start_install("pack", None).is_ok());
+    }
+
     #[test]
     fn prepared_cancel_and_page_revocation_preserve_shared_registrations() {
         let flags = CancelFlags::default();
         let batch = flags.register("shared");
         flags
-            .reserve_install("shared".into(), 1, "main", 1)
+            .reserve_install("shared".into(), 1, scope(1), scope(10))
             .unwrap();
         assert!(flags.cancel("shared"));
-        let (run, decision, _) = flags.start_install("shared", 1).unwrap();
+        let (run, decision) = flags.start_install("shared", Some(1)).unwrap();
         assert!(*run.borrow() && *batch.borrow());
         assert!(!decision.claim());
         drop((run, batch));
         flags
-            .reserve_install("shared".into(), 2, "main", 2)
+            .reserve_install("shared".into(), 2, scope(2), scope(10))
             .unwrap();
-        assert_eq!(flags.revoke_page("main"), [2]);
+        flags.revoke_scope(&scope(2));
         flags
-            .reserve_install("shared".into(), 3, "main", 3)
+            .reserve_install("shared".into(), 3, scope(3), scope(10))
             .unwrap();
-        drop(ReservationLifetime {
-            flags: flags.clone(),
-            id: "shared".into(),
-            token: 2,
-        });
-        assert!(flags.start_install("shared", 2).is_err());
-        let (run, decision, _) = flags.start_install("shared", 3).unwrap();
+        flags.revoke_scope(&scope(2));
+        assert!(flags.start_install("shared", Some(2)).is_err());
+        let (run, decision) = flags.start_install("shared", Some(3)).unwrap();
         assert!(!*run.borrow());
         drop(run);
         assert!(!decision.claim());
         flags
-            .reserve_install("shared".into(), 4, "main", 4)
+            .reserve_install("shared".into(), 4, scope(4), scope(10))
             .unwrap();
-        let (run, published, _) = flags.start_install("shared", 4).unwrap();
+        let (run, published) = flags.start_install("shared", None).unwrap();
         let sibling = flags.register("shared");
         assert!(published.claim());
         assert!(flags.cancel("shared"));
@@ -1087,9 +1133,9 @@ mod tests {
             let stage = tempfile::tempdir_in(root.path()).unwrap();
             let target = root.path().join("instance");
             flags
-                .reserve_install("install".into(), 1, "page", 0)
+                .reserve_install("install".into(), 1, scope(1), scope(10))
                 .unwrap();
-            let (registration, decision, _) = flags.start_install("install", 1).unwrap();
+            let (registration, decision) = flags.start_install("install", Some(1)).unwrap();
             let barrier = std::sync::Barrier::new(2);
             std::thread::scope(|scope| {
                 let cancel = scope.spawn(|| {

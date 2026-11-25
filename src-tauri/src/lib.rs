@@ -45,14 +45,15 @@ pub fn run() {
     let builder = builder.invoke_system(include_str!("hybrid_ipc.js"));
     let builder = builder.on_page_load(|webview, load| {
         if load.event() == tauri::webview::PageLoadEvent::Started {
-            webview.state::<downloads::CancelFlags>().page_left(webview);
+            downloads::end_reservation_scope(&mut webview.resources_table());
             #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::page_left(webview);
         }
     });
-    #[cfg(any(windows, target_os = "linux"))]
     let builder = builder.on_window_event(|window, event| {
         if matches!(event, tauri::WindowEvent::Destroyed) {
+            downloads::end_reservation_scope(&mut window.resources_table());
+            #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::window_destroyed(window.label());
         }
     });
@@ -216,6 +217,7 @@ pub fn run() {
             ipc_batch::ipc_batch,
             #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::ipc_batch_take,
+            logging::next_log_subscription_id,
             logging::stream_logs,
             logging::stop_log_stream,
             modrinth::install_mrpack,

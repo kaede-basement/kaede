@@ -107,9 +107,8 @@ impl ModStore {
                 }
                 Ok(_) => (),
             }
-            if let Some(active) = selected_tree(&cache)? {
-                remove_tree(&cache.join(other(active)))?;
-            }
+            let active = selected_tree(&cache)?.unwrap_or(INITIAL);
+            remove_tree(&cache.join(other(active)))?;
             Ok(())
         })
         .await
@@ -130,28 +129,21 @@ impl ModStore {
         let old = self.lease().await?;
         let name = other(old.root.file_name().unwrap().to_str().unwrap());
         let cache = self.cache.clone();
-        let next = tokio::task::spawn_blocking(move || -> io::Result<_> {
+        let (next, durable) = tokio::task::spawn_blocking(move || -> io::Result<_> {
             plain_directory(&cache)?;
-            if let Some(selected) = selected_tree(&cache)? {
-                if selected == name {
-                    return Err(io::Error::other("Object tree changed outside the launcher"));
-                }
-                // A prior clear may have reported an unlink error.
-                remove_tree(&cache.join(name))?;
-            } else {
-                match fs::symlink_metadata(cache.join(name)) {
-                    Err(e) if e.kind() == io::ErrorKind::NotFound => (),
-                    Err(e) => return Err(e),
-                    Ok(_) => {
-                        return Err(io::Error::other("Alternate cache directory already exists"))
-                    }
-                }
+            if selected_tree(&cache)?.unwrap_or(INITIAL) == name {
+                return Err(io::Error::other("Object tree changed outside the launcher"));
             }
+            remove_tree(&cache.join(name))?;
             let mut selector = crate::file_system::staging_file(&cache)?;
             std::io::Write::write_all(&mut selector, name.as_bytes())?;
             selector.as_file().sync_all()?;
             selector.persist(cache.join(SELECTOR))?;
-            Ok(ObjectTree::new(cache.join(name)))
+            #[cfg(unix)]
+            let durable = fs::File::open(&cache).and_then(|dir| dir.sync_all());
+            #[cfg(not(unix))]
+            let durable: io::Result<()> = Ok(());
+            Ok((ObjectTree::new(cache.join(name)), durable))
         })
         .await
         .map_err(|e| e.to_string())?
@@ -161,6 +153,7 @@ impl ModStore {
         let path = old.root.clone();
         drop(old);
         retired.closed().await;
+        durable.map_err(|e| e.to_string())?;
         tokio::task::spawn_blocking(move || remove_tree(&path))
             .await
             .map_err(|e| e.to_string())?
@@ -360,6 +353,27 @@ pub fn materialize_blob(src: &Path, dst: &Path) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn lost_selector_keeps_initial_tree_and_reclaims_alternate() {
+        for startup_recovery in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let store = ModStore::new(root.path());
+            let stale = store.cache.join(ALTERNATE);
+            fs::create_dir_all(&stale).unwrap();
+            fs::write(stale.join("obsolete"), b"stale").unwrap();
+            let tree = store.lease().await.unwrap();
+            tree.prepare().await.unwrap();
+            if startup_recovery {
+                store.recover().await.unwrap();
+                assert!(!stale.exists());
+                assert!(tree.root.is_dir());
+            }
+            drop(tree);
+            store.clear().await.unwrap();
+            assert_eq!(selected_tree(&store.cache).unwrap(), Some(ALTERNATE));
+            assert!(!stale.join("obsolete").exists());
+        }
+    }
     #[tokio::test]
     async fn reopening_store_finishes_interrupted_retirement() {
         let root = tempfile::tempdir().unwrap();
