@@ -1,7 +1,7 @@
 import { ExtraHookResponseStatus, HookResponseStatus } from "@/constants/application.ts";
 import type { KaedeNamespaceType } from "@/declarations.ts";
 import { GlobalObject } from "@/extendable/global-object.ts";
-import Errors from "@/lib/errors";
+import { formatHookError } from "@/lib/hooks/format-hook-error.ts";
 import { handleHookResponse } from "@/lib/hooks/handle-hook-response.ts";
 import { log } from "@/lib/logging/log.ts";
 import type { ExtensionStatusType, HookReturnType } from "@/types/extensions/hook-return.type.ts";
@@ -58,7 +58,7 @@ export function catchSyncResponseHooks<T>({
       log.error(
         __PRE_BUNDLED_FILENAME__,
         `Caught an error while executing hook for '${scope}.${timing}':`,
-        Errors.prettify(error),
+        formatHookError(error),
       );
 
       continue;
