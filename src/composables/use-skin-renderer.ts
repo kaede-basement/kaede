@@ -21,10 +21,10 @@ import { renderAvatar } from "@daidr/minecraft-skin-renderer/canvas2d";
 import { WebGLRendererPlugin } from "@daidr/minecraft-skin-renderer/webgl";
 import {
   computed, type ComputedRef, inject,
-  onMounted, onUnmounted, type Ref,
+  onBeforeUnmount, type Ref,
   ref, type ShallowRef, shallowRef,
   type TemplateRef, useTemplateRef,
-  watchEffect,
+  watch,
 } from "vue";
 
 import { AuthStatesContextKey } from "@/constants/application.ts";
@@ -35,29 +35,7 @@ import FallbackSteve from "@/resources/steve_classic.png";
 import { globalStates } from "@/states/global.ts";
 import type { AccountType, WrappedAccountsType } from "@/types/configs/account.type.ts";
 
-function getSkinSource(account: AccountType): string | Blob {
-  if (account.skin.data.length > 0) {
-    const decoded: string = atob(account.skin.data);
-    const bytes: Uint8Array = Uint8Array.from(decoded, character => (
-      character.codePointAt(0) ?? 0
-    ));
-
-    /*
-     * We are using '@ts-ignore' instead of '@ts-expect-error' since uhm there are no errors?
-     */
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore 'dts-bundle-generator' throws an error even though there are no errors?????
-    return new Blob([bytes], { "type": "image/png" });
-  }
-
-  if (account.skin.url.length > 0) {
-    return account.skin.url;
-  }
-
-  return FallbackSteve;
-}
-
-let cleanPreviousViewer = (): void => {};
+use(WebGLRendererPlugin);
 
 export function useSkinRenderer({
   render,
@@ -73,160 +51,93 @@ export function useSkinRenderer({
 } {
   const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
-  const data = computed((): {
-    "url" : string | Blob;
-    "slim": boolean;
-  } => {
-    const index: number = globalStates.selected.account;
-    const found: AccountType | undefined = account?.value
-      ?? accounts?.value?.[index];
+  const selected = computed(() => (
+    account?.value ?? accounts?.value?.[globalStates.selected.account]
+  ));
+  const source = computed(() => {
+    const skin = selected.value?.skin;
 
-    if (!found) {
-      return {
-        "url" : FallbackSteve,
-        "slim": false,
-      };
-    }
-
-    return {
-      "url" : getSkinSource(found),
-      "slim": found.skin.variant === "slim",
-    };
+    return skin?.data ? `data:image/png;base64,${skin.data}` : skin?.url || FallbackSteve;
   });
+  const slim = computed(() => selected.value?.skin.variant === "slim");
 
   const canvas = useTemplateRef<HTMLCanvasElement>("canvas");
   const shown = ref<boolean>(false);
   const viewer = shallowRef<SkinViewer | undefined>();
 
-  onMounted(async (): Promise<void> => {
-    cleanPreviousViewer();
+  let generation = 0;
+  let rendering = false;
+  let closed = false;
+  let appliedSkin: string | undefined;
 
-    if (!canvas.value) {
-      return log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Could not find the canvas to render the skin to",
-      );
-    }
-
-    try {
-      if (render === "3d") {
-        use(WebGLRendererPlugin);
-
-        viewer.value = await createSkinViewer({
-          "canvas": canvas.value,
-          "skin"  : data.value.url,
-          "slim"  : data.value.slim,
-          "zoom"  : 35,
-        });
-
-        viewer.value.startRenderLoop();
-      } else {
-        await renderAvatar(canvas.value, {
-          "skin" : data.value.url,
-          "scale": 4,
-        });
-      }
-
-      shown.value = true;
-    } catch (error: unknown) {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        `Error while rendering the '${render}' skin:`,
-        Errors.prettify(error),
-      );
-    }
-  });
-  onUnmounted(() => {
-    if (!viewer.value) {
-      return;
-    }
-
-    /*
-     * Nothing works: making canvas invisible in 'onBeforeUnmount',
-     * chaining 'nextTick' for 'viewer.value.dispose()' to run it really late,
-     * removing transitions and lowering opacity to 0, removing the element itself,
-     * or even doing everything in combination. It's always a white screen flashing.
-     *
-     * I don't want to resort to 'setTimeout' shit lol, so we simply dispose the previous
-     * viewer on the next viewer render
-     */
-    const floatingViewer = viewer.value;
-
-    cleanPreviousViewer = (): void => {
-      log.debug(
-        __PRE_BUNDLED_FILENAME__,
-        "Disposing the previous viewer that is currently floating with no purpose...",
-      );
-      floatingViewer.dispose();
-      log.debug(
-        __PRE_BUNDLED_FILENAME__,
-        "Successfully disposed the previous viewer",
-      );
-    };
-
+  onBeforeUnmount(() => {
+    closed = true;
+    generation++;
+    viewer.value?.dispose();
     viewer.value = undefined;
   });
 
-  watchEffect(async (onCleanup): Promise<void> => {
-    let stale: boolean = false;
+  watch([canvas, source, slim], async () => {
+    generation++;
 
-    onCleanup(() => {
-      stale = true;
-    });
-
-    if (render === "2d-head") {
-      if (!canvas.value) {
-        return log.error(
-          __PRE_BUNDLED_FILENAME__,
-          "Could not find the canvas to re-render the avatar to",
-        );
-      }
-
-      try {
-        await renderAvatar(canvas.value, {
-          "skin" : data.value.url,
-          "scale": 4,
-        });
-      } catch (error: unknown) {
-        log.error(
-          __PRE_BUNDLED_FILENAME__,
-          `Error while rendering the '${render}' skin:`,
-          Errors.prettify(error),
-        );
-      }
-
+    if (rendering || closed) {
       return;
     }
 
-    if (!viewer.value) {
-      return;
-    }
-
-    /*
-     * I can imagine how 'SkinViewer#setSkin' may take enough time for user
-     * to be able to switch the account, leading to another 'watchEffect' re-run
-     * which will result in a clash between different 'viewer.value' reference 'setSlim' calls.
-     *
-     * I might be stupid though.
-     *
-     * UPD: wait, using 'onCleanup' and 'stale' we can mitigate that
-     */
-    const currentViewer = viewer.value;
+    rendering = true;
 
     try {
-      await currentViewer.setSkin(data.value.url);
+      while (canvas.value && !closed) {
+        const request = generation;
+        const target = canvas.value;
+        const skin = source.value;
+        const isSlim = slim.value;
 
-      if (stale) {
-        return;
+        try {
+          if (render === "2d-head") {
+            await renderAvatar(target, { skin, "scale": 4 });
+          } else if (viewer.value) {
+            if (skin !== appliedSkin) {
+              await viewer.value.setSkin(skin);
+              appliedSkin = skin;
+            }
+
+            if (request === generation) {
+              viewer.value.setSlim(isSlim);
+            }
+          } else {
+            const created = await createSkinViewer({
+              "canvas": target, skin, "slim": isSlim, "zoom": 35,
+            });
+
+            if (closed || canvas.value !== target) {
+              created.dispose();
+
+              return;
+            }
+
+            viewer.value = created;
+            appliedSkin = skin;
+            created.startRenderLoop();
+          }
+
+          if (request === generation) {
+            shown.value = true;
+          }
+        } catch (error: unknown) {
+          log.error(
+            __PRE_BUNDLED_FILENAME__,
+            `Error rendering the '${render}' skin:`,
+            Errors.prettify(error),
+          );
+        }
+
+        if (request === generation) {
+          break;
+        }
       }
-
-      currentViewer.setSlim(data.value.slim);
-    } catch (error: unknown) {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Error while applying the new skin to the 3D viewer",
-        Errors.prettify(error),
-      );
+    } finally {
+      rendering = false;
     }
   }, { "flush": "post" });
 

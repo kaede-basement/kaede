@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { message as notify } from "@tauri-apps/plugin-dialog";
-import { computed, inject, ref } from "vue";
+import { computed, inject, onBeforeUnmount, ref } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -43,6 +43,17 @@ const { idRoot, account, index } = defineProps<{
   "account": AccountType;
   "index"  : number;
 }>();
+
+let mounted = true;
+const timers = new Map<string, ReturnType<typeof setTimeout>>;
+
+onBeforeUnmount(() => {
+  mounted = false;
+
+  for (const timer of timers.values()) {
+    clearTimeout(timer);
+  }
+});
 
 const statuses = ref<Record<string, "pending" | "success" | undefined>>({});
 
@@ -84,6 +95,8 @@ function handleSelection(): void {
 }
 
 async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<void> {
+  clearTimeout(timers.get(entry.label));
+
   const handlers: AccountActionHandlersType = {
     "reset": () => {
       statuses.value[entry.label] = undefined;
@@ -92,11 +105,17 @@ async function wrapAction(event: MouseEvent, entry: AccountActionType): Promise<
       statuses.value[entry.label] = "pending";
     },
     "success": () => {
-      statuses.value[entry.label] = "success";
+      if (!mounted) {
+        return;
+      }
 
-      setTimeout(() => {
+      statuses.value[entry.label] = "success";
+      clearTimeout(timers.get(entry.label));
+
+      timers.set(entry.label, setTimeout(() => {
+        timers.delete(entry.label);
         handlers.reset();
-      }, 1000);
+      }, 1000));
     },
     "error": (message, error) => {
       void notify(
