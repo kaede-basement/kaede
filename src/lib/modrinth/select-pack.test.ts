@@ -33,6 +33,13 @@ test("selector sends metadata, cancels superseded work and reports errors", asyn
 
     await selector.select([]);
     expect(selector.failure.value).toContain("no .mrpack");
+    const notes = { ...file, "filename": "00-notes.txt" };
+
+    await selector.select([notes, file]);
+    expect(selector.failure.value).toContain("primary file must be a .mrpack");
+    await selector.select([file, { ...notes, "primary": true }]);
+    expect(selector.failure.value).toContain("primary file must be a .mrpack");
+    expect(ipc).not.toHaveBeenCalled();
     const component = new URL(
       "../../components/add-instance/modrinth/ModpackVersionSelector.vue", import.meta.url,
     );

@@ -17,13 +17,12 @@ export type PackFile = {
 };
 
 function selectFile(files: Files): PackFile {
-  const packs = files.filter(file => file.filename?.toLowerCase().endsWith(".mrpack"));
-  const primary = packs.filter(file => file.primary);
-  const file = primary[0] ?? packs[0];
+  const file = files.find(candidate => candidate.primary) ?? files[0];
 
   if (!file) throw new Error("Version has no .mrpack file");
-  if (primary.length > 1) throw new Error("Version has multiple primary .mrpack files");
-
+  if (!file.filename?.toLowerCase().endsWith(".mrpack")) {
+    throw new Error("The primary file must be a .mrpack archive");
+  }
   if (!file.url || file.size === undefined || !Number.isSafeInteger(file.size) || file.size < 0
     || !file.hashes?.sha1 || !file.hashes.sha512) {
     throw new Error("Missing modpack URL, size or hashes");

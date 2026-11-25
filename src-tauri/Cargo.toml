@@ -76,6 +76,7 @@ tauri-plugin-single-instance = "2.5.5"
 tauri-plugin-shellx = "2.0.16"
 
 [dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
 tauri = { version = "2.12.5", features = ["test"] }
 
 [profile.release]

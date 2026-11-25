@@ -13,6 +13,11 @@ type Metadata = {
   "bodyError"?: string;
 };
 
+function scalarString(value: string): string {
+  // In Unicode mode, a valid surrogate pair matches its combined code point.
+  return value.replace(/[\uD800-\uDFFF]/gu, "\uFFFD");
+}
+
 export async function fetchDocument(url: string, init?: {
   "method"?         : string;
   "headers"?        : HeadersInit;
@@ -52,10 +57,10 @@ export async function fetchDocument(url: string, init?: {
     const envelope = {
       cancelId,
       "request": {
-        url, followRedirects,
+        "url"    : scalarString(url), followRedirects,
         "method" : init?.method ?? "GET",
         "headers": [...new Headers(init?.headers)],
-        "body"   : typeof body === "string" ? body : undefined,
+        "body"   : typeof body === "string" ? scalarString(body) : undefined,
       },
     };
     let payload: typeof envelope | Uint8Array = envelope;

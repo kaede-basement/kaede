@@ -17,7 +17,8 @@
  */
 
 import { APIEndpoints, LaunchStatus } from "@/constants/launcher.ts";
-import { safeComponent, validDigest } from "@/lib/cache/storage.ts";
+import { safeComponent } from "@/lib/cache/storage.ts";
+import { validPatchIndex } from "@/lib/launcher/scopes/validators/valid-patch-index.ts";
 import type { PatchDependencyType } from "@/types/launcher/meta/patch-index.type.ts";
 import type {
   PreLaunchInformationType,
@@ -27,15 +28,6 @@ import { readLaunchMetadata } from "../fetching/fetch-metadata.ts";
 
 type Version = { "version": string; "sha256"?: string };
 type Request = { "necessaries": PreLaunchInformationType; "metadata": PatchDependencyType };
-
-function validIndex(value: unknown): value is { "versions": [Version] } {
-  if (!value || typeof value !== "object" || !("versions" in value)
-    || !Array.isArray(value.versions)) return false;
-  const first = value.versions[0];
-
-  return typeof first?.version === "string" && safeComponent(first.version)
-    && validDigest({ "kind": "sha256", "sum": first.sha256 });
-}
 
 export async function resolveVersionDocument({ necessaries, metadata }: Request):
 Promise<Version | false> {
@@ -50,7 +42,7 @@ Promise<Version | false> {
   const index = await readLaunchMetadata("PatchIndex", necessaries, {
     "relativePath"       : metadata.uid + ".json",
     "url"                : APIEndpoints.Meta.Base + metadata.uid,
-    "validate"           : validIndex,
+    "validate"           : validPatchIndex,
     "allowUnindexedPatch": true,
   });
 

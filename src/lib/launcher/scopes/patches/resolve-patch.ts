@@ -110,9 +110,11 @@ export async function resolveDependency({
   } else {
     const url = APIEndpoints.Meta.Base + metadata.uid + "/" + encodeURIComponent(fileName);
     const result = await readLaunchMetadata("PatchMetadata", necessaries, {
-      "relativePath"       : metadata.uid + "/" + fileName,
+      "relativePath": metadata.uid + "/" + fileName,
       url,
-      "expectedHash"       : sha256 === undefined ? undefined : { "kind": "sha256", "sum": sha256 },
+      "expectedHash": sha256 === undefined ? undefined : {
+        "kind": "sha256", "sum": sha256.toLowerCase(),
+      },
       "validate"           : validPatchMetadata,
       "allowUnindexedPatch": sha256 === undefined,
     });

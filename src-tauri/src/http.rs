@@ -107,30 +107,34 @@ impl Transport {
         follow: bool,
         retry: &mut Attempts,
     ) -> Result<(Response, OriginPermit), DownloadError> {
+        let deadline = *retry
+            .cooldown_deadline
+            .get_or_insert_with(|| Instant::now() + COOLDOWN_WAIT_BUDGET);
         let mut request = initial.try_clone().expect("buffered request");
         let mut redirects = 0;
         loop {
             let origin = self.origin(request.url());
-            let permit = origin
-                .slots
-                .clone()
-                .acquire_owned()
-                .await
-                .expect("open origin");
-            loop {
+            let permit = loop {
                 let resume = *origin.resume.lock().unwrap();
-                let wait = resume.saturating_duration_since(Instant::now());
-                if wait.is_zero() {
-                    break;
+                if resume > Instant::now() {
+                    if resume > deadline {
+                        return Err(DownloadError::other(
+                            "HTTP 429: origin cooldown exceeds request wait budget",
+                        ));
+                    }
+                    tokio::time::sleep_until(resume).await;
+                    continue;
                 }
-                if wait > retry.cooldown_budget {
-                    return Err(DownloadError::other(
-                        "HTTP 429: origin cooldown exceeds request wait budget",
-                    ));
+                let permit = origin
+                    .slots
+                    .clone()
+                    .acquire_owned()
+                    .await
+                    .expect("open origin");
+                if *origin.resume.lock().unwrap() <= Instant::now() {
+                    break permit;
                 }
-                retry.cooldown_budget -= wait;
-                tokio::time::sleep_until(resume).await;
-            }
+            };
             let result = self
                 .client
                 .execute(request.try_clone().expect("buffered request"))
@@ -155,7 +159,7 @@ impl Transport {
                 let mut resume = origin.resume.lock().unwrap();
                 let now = Instant::now();
                 *resume = (*resume).max(now + delay);
-                *resume - now <= retry.cooldown_budget
+                *resume <= deadline
             } else {
                 matches!(status, 502..=504)
             };
@@ -219,13 +223,13 @@ fn cooldown(value: Option<&str>) -> Duration {
 
 pub(crate) struct Attempts {
     left: usize,
-    cooldown_budget: Duration,
+    cooldown_deadline: Option<Instant>,
 }
 impl Attempts {
     pub(crate) fn read() -> Self {
         Self {
             left: MAX_ATTEMPTS - 1,
-            cooldown_budget: COOLDOWN_WAIT_BUDGET,
+            cooldown_deadline: None,
         }
     }
     pub(crate) fn available(&self) -> bool {
@@ -673,6 +677,32 @@ mod tests {
         };
         let meta: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(meta["status"], 504);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn cooldown_and_semaphore_queue_share_one_wait_budget() {
+        let transport = Transport::new().unwrap();
+        let request = transport.get("http://127.0.0.1/asset").unwrap();
+        let origin = transport.origin(request.url());
+        let start = Instant::now();
+        let seconds = Duration::from_secs;
+        *origin.resume.lock().unwrap() = start + seconds(20);
+        let mut retry = Attempts::read();
+        let mut send = std::pin::pin!(transport.send(&request, true, &mut retry));
+        assert!(futures_util::poll!(&mut send).is_pending());
+        // All slots remain available during the first cooldown.
+        let busy = origin.slots.try_acquire_many(ORIGIN_LIMIT as u32).unwrap();
+        tokio::time::advance(seconds(20)).await;
+        assert!(futures_util::poll!(&mut send).is_pending());
+        tokio::time::advance(seconds(30)).await;
+        *origin.resume.lock().unwrap() = Instant::now() + seconds(20);
+        drop(busy);
+        let result = futures_util::poll!(&mut send);
+        let std::task::Poll::Ready(Err(error)) = result else {
+            panic!("the second cooldown would exceed 60 seconds from entry");
+        };
+        assert!(error.install_message().contains("429"));
+        assert_eq!(origin.slots.available_permits(), ORIGIN_LIMIT);
     }
 
     #[tokio::test]

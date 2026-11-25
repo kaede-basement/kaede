@@ -30,6 +30,15 @@ test("documents preserve binary bytes, metadata and cancellation", async () => {
     });
     const response = await fetchDocument("https://example.org");
 
+    await fetchDocument("https://example.org/\uDC00", {
+      "method": "POST", "body": "\uD83D😀\uDC00",
+    });
+    expect(ipc).toHaveBeenLastCalledWith("fetch_http_document", expect.objectContaining({
+      "request": expect.objectContaining({
+        "url": "https://example.org/\uFFFD", "body": "\uFFFD😀\uFFFD", "method": "POST",
+      }),
+    }));
+
     expect(response.url).toBe(meta.finalUrl);
     expect(response.headers.get("Content-Type")).toBe("image/png");
     expect(await response.bytes()).toEqual(new Uint8Array([0, 10, 255]));
