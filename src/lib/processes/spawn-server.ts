@@ -46,11 +46,14 @@ export async function spawnServer({ name, program, args, port }: {
       serverProcesses.value = serverProcesses.value.filter(item => item.value.pid !== pid);
     },
   });
+
+  if (exited) {
+    throw new Error(`Server '${name}' exited during startup (PID ${handle.pid})`);
+  }
+
   const process = hydrate(handle);
 
-  if (!exited) {
-    serverProcesses.value = [...serverProcesses.value, process];
-  }
+  serverProcesses.value = [...serverProcesses.value, process];
 
   return process;
 }

@@ -39,6 +39,8 @@ import type {
 import type { SpecificPatchMetaType } from "@/types/launcher/meta/specific-patch-meta.type.ts";
 import type { FinalizedPatchType } from "@/types/launcher/patch/finalized-patch.type.ts";
 
+import { settleDownloadStages } from "./fetching/settle-download-stages.ts";
+
 const failed: LaunchResponseType = {
   "success": false,
   "process": undefined,
@@ -178,47 +180,36 @@ export async function handleLaunch({
     necessaries,
   });
 
-  log.info(necessaries.logPrefix, log.templates.json.contents(
-    "Finalized patch contents",
-    {
-      ...finalizedPatch,
-      "artifacts": "[ ... ] (" + finalizedPatch.artifacts.length + " entries)",
+  log.info(
+    necessaries.logPrefix,
+    `Resolved ${allPatches.length} patches and ${finalizedPatch.artifacts.length} artifacts`,
+  );
+
+  const cancel = (): Promise<boolean> => Fetching.cancelAll(necessaries.cancelId);
+  const downloaded = await settleDownloadStages(cancel, [
+    (): Promise<boolean> => Fetching.downloadAssets({ necessaries, finalizedPatch }),
+    (): Promise<boolean> => Fetching.downloadClient({ necessaries, finalizedPatch }),
+    (): Promise<boolean> => Fetching.downloadLogging({ necessaries, finalizedPatch }),
+    async (): Promise<boolean> => {
+      if (!await Fetching.downloadLibraries({ necessaries, finalizedPatch })) {
+        return false;
+      }
+
+      await Extractors.unzipNatives({
+        necessaries,
+        "paths": finalizedPatch.artifacts
+          .filter(({ status }) => status === "native")
+          .map(({ path, exclude }) => ({ path, "exclude": exclude ?? [] })),
+      });
+
+      return true;
     },
-    true,
-  ));
-
-  const responses: Array<boolean> = await Promise.all([
-    Fetching.downloadAssets({ necessaries, finalizedPatch }),
-    Fetching.downloadClient({ necessaries, finalizedPatch }),
-    Fetching.downloadLogging({ necessaries, finalizedPatch }),
-    Fetching
-      .downloadLibraries({ necessaries, finalizedPatch })
-      .then(async result => {
-        if (!result) {
-          return false;
-        }
-
-        await Extractors.unzipNatives({
-          necessaries,
-          "paths": finalizedPatch
-            .artifacts
-            .filter(({ status }) => status === "native")
-            .map(({ path, exclude }) => ({ path, "exclude": exclude ?? [] })),
-        });
-
-        return true;
-      }),
   ]);
 
-  for (const status of responses) {
-    if (!status) {
-      log.warn(
-        necessaries.logPrefix,
-        "Aborting the launch process due to an error in artifact downloads",
-      );
+  if (!downloaded) {
+    log.warn(necessaries.logPrefix, "Aborting the launch after an artifact download failed");
 
-      return failed;
-    }
+    return failed;
   }
 
   const command: {

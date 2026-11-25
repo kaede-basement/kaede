@@ -49,13 +49,18 @@ export async function handleJsonFile({
   const filePath: string = join(baseDirectory, ...path);
   let stale = false;
 
-  try {
-    if (invalidation) {
+  if (invalidation) {
+    try {
       const info: FileInfo = await stat(filePath);
 
       stale = !info.mtime || General.checkDaysDifference(info.mtime, new Date) > invalidation.days;
+    } catch (error) {
+      // Another launch may publish the file between this stat and the read.
+      log.debug(__PRE_BUNDLED_FILENAME__, `Could not stat '${label}':`, Errors.prettify(error));
     }
+  }
 
+  try {
     if (!stale) {
       return JSON.parse(await readTextFile(filePath));
     }

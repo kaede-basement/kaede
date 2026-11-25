@@ -14,7 +14,7 @@ export async function downloadMissing({
   "checksum"?: boolean;
 }): Promise<DownloadReportType> {
   const missing = new Set(await FileManager.verifyPaths({
-    "paths"    : checksum ? entries.map(({ path, hash }) => ({ path, hash })) : entries,
+    "paths"    : entries,
     "algorithm": checksum ? Algorithms.SHA1 : undefined,
   }));
 

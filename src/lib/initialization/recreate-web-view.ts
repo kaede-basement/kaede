@@ -20,6 +20,9 @@ import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewW
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
 
+// Each new WebView starts a fresh JS realm, including a fresh counter.
+const labelPrefix = crypto.getRandomValues(new Uint32Array(4)).join("-");
+let sequence = 0;
 let pending = false;
 
 export async function recreateWebView(): Promise<void> {
@@ -31,7 +34,7 @@ export async function recreateWebView(): Promise<void> {
 
   try {
     const current = getCurrentWebviewWindow();
-    const id = current.label === "reloaded" ? "switched-reloaded" : "reloaded";
+    const id = `main-${labelPrefix}-${++sequence}`;
     const webview = new WebviewWindow(id, GlobalInternals.webViewRecreation);
 
     await new Promise<void>((resolve, reject) => {

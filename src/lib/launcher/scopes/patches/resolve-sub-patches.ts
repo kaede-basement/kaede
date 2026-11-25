@@ -56,7 +56,12 @@ export async function resolveSubPatches({
         dependents.set(dependency.uid, (dependents.get(dependency.uid) ?? 0) + 1);
         const previous = requirements.get(dependency.uid);
 
-        if (!previous || (dependency.equals !== undefined && previous.equals === undefined)) {
+        const upgrade = previous?.equals === undefined && (
+          dependency.equals !== undefined ||
+          (previous?.suggests === undefined && dependency.suggests !== undefined)
+        );
+
+        if (!previous || upgrade) {
           requirements.set(dependency.uid, dependency);
         } else if (dependency.equals !== undefined && previous.equals !== dependency.equals) {
           conflict = dependency.uid;

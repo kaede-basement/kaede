@@ -28,3 +28,29 @@ test("refresh merges by UUID against the latest persisted accounts", async () =>
   expect(await resolveAccountAtIndex([first, second], 1)).toBeUndefined();
   expect(write).toHaveBeenCalledTimes(1);
 });
+
+test("concurrent refreshes preserve both updates and recover from a failed write", async () => {
+  const original = ["a", "b"].map(uuid => ({
+    "profile": { uuid, "name": "old" }, "msa": null,
+  } as AccountType));
+  let stored = [...original];
+
+  using fresh = spyOn(refresh, "ensureFreshAccount").mockImplementation(async account => ({
+    "status" : "refreshed",
+    "account": { ...account, "profile": { ...account.profile, "name": "new" } },
+  }));
+  using read = spyOn(Configs, "getAccounts").mockImplementation(async () => [...stored]);
+  using write = spyOn(Configs, "writeAccounts").mockImplementation(async ({ accounts }) => {
+    stored = [...accounts];
+
+    return true;
+  });
+
+  write.mockResolvedValueOnce(false);
+  await expect(resolveAccountAtIndex(original, 0)).rejects.toThrow("Failed to save");
+  await Promise.all(original.map((_, index) => resolveAccountAtIndex(original, index)));
+
+  expect(stored.map(({ profile }) => profile.name)).toEqual(["new", "new"]);
+  expect(fresh).toHaveBeenCalledTimes(3);
+  expect(read).toHaveBeenCalledTimes(3);
+});

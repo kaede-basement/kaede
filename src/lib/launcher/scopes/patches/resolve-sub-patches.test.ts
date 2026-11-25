@@ -105,3 +105,27 @@ test("a hook skip keeps siblings and a failed resolution stops the launch", asyn
   await expect(resolveSubPatches({ necessaries, patchMeta })).rejects.toThrow("Failed to resolve");
   expect(resolve).toHaveBeenCalled();
 });
+
+test("a suggestion takes precedence over a bare sibling requirement in either order", async () => {
+  using resolve = spyOn(resolver, "resolveDependency").mockImplementation(async ({ metadata }) => {
+    if (metadata.uid === "net.minecraft.java") {
+      return { ...patch(metadata.uid), "version": metadata.suggests ?? "latest" };
+    }
+
+    return {
+      ...patch(metadata.uid),
+      "requires": [{
+        "uid"     : "net.minecraft.java",
+        "suggests": metadata.uid === "org.lwjgl" ? "17" : undefined,
+      }],
+    };
+  });
+
+  for (const parents of [["net.minecraft", "org.lwjgl"], ["org.lwjgl", "net.minecraft"]]) {
+    const root = patch("net.minecraftforge", ...parents);
+    const result = await resolveSubPatches({ necessaries, "patchMeta": root });
+
+    expect(result[result.length - 1].version).toBe("17");
+  }
+  expect(resolve).toHaveBeenCalledTimes(6);
+});

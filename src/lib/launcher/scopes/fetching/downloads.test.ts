@@ -62,8 +62,8 @@ test("download stages fail on incomplete reports and skip warm downloads", async
       expect(await download({ necessaries, finalizedPatch })).toBe(false);
     }
     if (download === downloadAssets) {
-      expect(verify).toHaveBeenLastCalledWith({
-        "paths": [{ "path": "assets/sh/sha1", "hash": "sha1" }], "algorithm": "sha1",
+      expect(verify.mock.lastCall?.[0].paths[0]).toMatchObject({
+        "path": "assets/sh/sha1", "hash": "sha1",
       });
     }
     verify.mockResolvedValue([]);
@@ -71,8 +71,9 @@ test("download stages fail on incomplete reports and skip warm downloads", async
     expect(await download({ necessaries, finalizedPatch })).toBe(true);
     expect(concurrentlyDownload).not.toHaveBeenCalled();
   }
+  expect(verify.mock.lastCall?.[0].paths[0]).toBe(artifact);
   expect(verify).toHaveBeenLastCalledWith({
-    "paths"    : [{ path, "hash": "sha1" }],
+    "paths"    : [artifact],
     "algorithm": "sha1",
   });
 });

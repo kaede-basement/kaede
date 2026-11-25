@@ -26,6 +26,8 @@ import { globalStates } from "@/states/global.ts";
 import type { LaunchAuthType } from "@/types/auth/microsoft-auth.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
+let accountWriteChain: Promise<void> = Promise.resolve();
+
 /**
  * Returning undefined means no instance will be launched
  *
@@ -81,21 +83,28 @@ export async function resolveAccountAtIndex(
     throw new Error("The refreshed account does not match the selected profile");
   }
 
-  const updatedAccounts = await Configs.getAccounts();
-  const index = updatedAccounts.findIndex(({ profile }) => profile.uuid === account.profile.uuid);
+  const write = accountWriteChain.then(async () => {
+    const updatedAccounts = await Configs.getAccounts();
+    const index = updatedAccounts.findIndex(({ profile }) => profile.uuid === account.profile.uuid);
 
-  if (index === -1) {
-    return undefined;
-  }
+    if (index === -1) {
+      return;
+    }
 
-  updatedAccounts[index] = account;
+    updatedAccounts[index] = account;
 
-  if (!await Configs.writeAccounts({ "accounts": updatedAccounts })) {
-    throw new Error("Failed to save the refreshed account");
-  }
+    if (!await Configs.writeAccounts({ "accounts": updatedAccounts })) {
+      throw new Error("Failed to save the refreshed account");
+    }
 
-  return {
-    "auth"    : buildLaunchAuth(account),
-    "accounts": updatedAccounts,
-  };
+    return {
+      "auth"    : buildLaunchAuth(account),
+      "accounts": updatedAccounts,
+    };
+  });
+
+  // Each caller receives its own error, while the next writer can still acquire the queue.
+  accountWriteChain = write.then(() => {}, () => {});
+
+  return write;
 }
