@@ -111,6 +111,14 @@ test("Validate config, extension, instance and patch metadata", () => {
   expect(CheckPatchMeta(patch)).toBe(true);
   expect(CheckPatchMeta({
     ...patch,
+    "mainJar": { "name": "example:client:1", "url": "https://repo.example/maven/" },
+  })).toBe(true);
+  expect(CheckPatchMeta({
+    ...patch,
+    "mainJar": { "name": "example:client:1", "downloads": { "artifact": null } },
+  })).toBe(false);
+  expect(CheckPatchMeta({
+    ...patch,
     "libraries": [{ "name": "custom:library:1", "rules": [{ "action": "allow" }] }],
   })).toBe(true);
   expect(CheckPatchMeta({ ...patch, "uid": null })).toBe(false);
