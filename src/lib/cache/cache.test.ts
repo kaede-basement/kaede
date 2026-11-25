@@ -1,73 +1,20 @@
 import * as fs from "@tauri-apps/plugin-fs";
-import * as http from "@tauri-apps/plugin-http";
-import { expect, type Mock, spyOn, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 
-import * as paths from "@/lib/file-manager/path.ts";
-
+import { cache, encode, Options as options, Raw as raw, sha } from "./cache-fixture.ts";
 import { cachedMetadata } from "./index.ts";
-import type { Entry } from "./storage.ts";
-
-const raw = "{ \"version\": 1 }\n";
-
-function encode(value: string): Uint8Array<ArrayBuffer> {
-  return new Uint8Array((new TextEncoder).encode(value));
-}
-const sha = (value: string): string => new Bun.CryptoHasher("sha256").update(value)
-  .digest("hex");
-const options = {
-  "url"         : "https://example.org/meta.json",
-  "relativePath": "package/version.json",
-};
-
-type Index = { "version": number; "entries": Record<string, Entry> };
-function cache(): Disposable & {
-  "request": typeof options & { "baseDirectory": string };
-  "root"   : string;
-  "path"   : string;
-  "files"  : Map<string, Uint8Array<ArrayBuffer>>;
-  "fetch"  : Mock<typeof http.fetch>;
-  "index"  : () => Index;
-} {
-  const files = (new Map<string, Uint8Array<ArrayBuffer>>);
-  const mocks = (new DisposableStack);
-
-  mocks.use(spyOn(paths, "join").mockImplementation((...parts) => parts.join("/")));
-  mocks.use(spyOn(fs, "readFile").mockImplementation(async path => {
-    const bytes = files.get(String(path));
-
-    if (!bytes) throw new Error("missing");
-
-    return bytes;
-  }));
-  mocks.use(spyOn(fs, "exists").mockImplementation(async path => files.has(String(path))));
-  mocks.use(spyOn(fs, "lstat").mockResolvedValue({ "isSymlink": false } as fs.FileInfo));
-  mocks.use(spyOn(fs, "mkdir").mockResolvedValue());
-  mocks.use(spyOn(fs, "writeFile").mockImplementation(async (path, bytes) => {
-    files.set(String(path), bytes as Uint8Array<ArrayBuffer>);
-  }));
-  mocks.use(spyOn(fs, "rename").mockImplementation(async (from, to) => {
-    files.set(String(to), files.get(String(from))!);
-    files.delete(String(from));
-  }));
-  mocks.use(spyOn(fs, "remove").mockImplementation(async path => {
-    files.delete(String(path));
-  }));
-  const fetch = mocks.use(spyOn(http, "fetch").mockImplementation(async () => new Response(raw)));
-  const baseDirectory = crypto.randomUUID();
-  const request = { ...options, baseDirectory };
-  const root = baseDirectory + "/cache/";
-  const path = root + options.relativePath;
-  const index = (): Index => JSON.parse((new TextDecoder).decode(files.get(root + "index.json")));
-
-  return {
-    request, root, path, files, fetch, index,
-    [Symbol.dispose]: (): void => mocks.dispose(),
-  };
-}
 
 test("publishes the verified upstream bytes and records their exact digest", async () => {
   using c = cache();
-  await cachedMetadata({ ...c.request, "expectedHash": { "kind": "sha256", "sum": sha(raw) } });
+  const descriptor = Object.getOwnPropertyDescriptor(crypto, "randomUUID");
+
+  Object.defineProperty(crypto, "randomUUID", { "configurable": true, "value": undefined });
+  try {
+    await cachedMetadata({ ...c.request, "expectedHash": { "kind": "sha256", "sum": sha(raw) } });
+  } finally {
+    if (descriptor) Object.defineProperty(crypto, "randomUUID", descriptor);
+    else Reflect.deleteProperty(crypto, "randomUUID");
+  }
   expect(c.files.get(c.path)).toEqual(encode(raw));
   expect(c.index()).toMatchObject({ "version": 1, "entries": { [options.relativePath]: {
     "size": encode(raw).length, "hash": { "kind": "sha256", "sum": sha(raw) },
@@ -90,7 +37,9 @@ test("a failed refresh preserves both files", async () => {
   } })).rejects.toThrow("digest");
   await expect(cachedMetadata({ ...c.request, "expectedSize": 1 })).rejects.toThrow("size");
   c.fetch.mockRejectedValueOnce(new Error("offline"));
-  await expect(cachedMetadata(c.request)).rejects.toThrow("offline");
+  const stale = await cachedMetadata(c.request);
+
+  expect(stale.bytes).toEqual(encode(raw));
   expect(c.files).toEqual(original);
 });
 
@@ -144,9 +93,12 @@ test("changed parents and legacy formatting invalidate fresh entries", async () 
 
 test("parallel destinations merge and identical requests share one GET", async () => {
   using c = cache();
-  await Promise.all([cachedMetadata(c.request),
+  const [first, second] = await Promise.all([cachedMetadata(c.request),
     cachedMetadata(c.request),
     cachedMetadata({ ...c.request, "relativePath": "other.json" })]);
+
+  (first.data as { "version": number }).version = 2;
+  expect(second.data).toEqual({ "version": 1 });
   expect(Object.keys(c.index().entries).sort()).toEqual(["other.json", options.relativePath]);
   expect(c.fetch).toHaveBeenCalledTimes(2);
 });
@@ -160,6 +112,7 @@ test("unsafe destinations and malformed digests are rejected before any fetch", 
     "./a.json",
     "sub/../a.json",
     "index.json",
+    "INDEX.json/file.json",
     "CON.json",
     "x./y.json"]) {
     await expect(cachedMetadata({ ...c.request, relativePath }))
@@ -181,7 +134,7 @@ test("corrupt index is disposable and no-store removes the old cached representa
 
   c.fetch.mockResolvedValueOnce(new Response(raw, { "headers": { expires } }));
   await cachedMetadata(c.request);
-  expect(c.index().entries[options.relativePath].freshUntil).toBe(Date.parse(expires));
+  expect(c.index().entries[options.relativePath].freshUntil).toBeLessThanOrEqual(Date.now());
   c.fetch.mockResolvedValueOnce(new Response("42", { "headers": { "cache-control": "no-store" } }));
   const result = await cachedMetadata(c.request);
 
@@ -190,20 +143,24 @@ test("corrupt index is disposable and no-store removes the old cached representa
   expect(c.index().entries).toEqual({});
 });
 
-test("an offline pinned version adopts its validated fresh legacy patch", async () => {
+test("an offline pinned version rechecks a legacy patch before offline reuse", async () => {
   using c = cache();
   c.files.set(c.path, encode(raw));
-  const mtime = (new Date);
-
-  using stat = spyOn(fs, "stat").mockResolvedValue({ mtime } as fs.FileInfo);
-  const result = await cachedMetadata({
-    ...c.request, "adoptLegacyPatch": true, "validate": value => typeof value === "object",
-  });
+  c.fetch.mockRejectedValueOnce(new Error("offline"));
+  const request = {
+    ...c.request,
+    "allowUnindexedPatch": true,
+    "validate"           : (value: unknown): boolean => typeof value === "object",
+  };
+  const result = await cachedMetadata(request);
 
   expect(result.data).toEqual({ "version": 1 });
-  expect(c.index().entries[options.relativePath].hash.sum).toBe(sha(raw));
-  expect(stat).toHaveBeenCalledWith(c.path);
-  expect(c.fetch).not.toHaveBeenCalled();
+  expect(c.files.has(c.root + "index.json")).toBe(false);
+  c.fetch.mockResolvedValueOnce(new Response("{\"version\":2}"));
+  const refreshed = await cachedMetadata(request);
+
+  expect(refreshed.data).toEqual({ "version": 2 });
+  expect(c.fetch).toHaveBeenCalledTimes(2);
 });
 
 test("rejects a symlinked cache directory before fetching", async () => {
@@ -227,16 +184,34 @@ test("expired SHA-1 pins reuse exact bytes offline and reject same-size damage",
   expect(c.index().entries[options.relativePath].freshUntil).toBe(0);
   c.fetch.mockRejectedValue(new Error("offline"));
   await cachedMetadata(request);
-  expect(c.fetch).toHaveBeenCalledTimes(1);
+  expect(c.fetch).toHaveBeenCalledTimes(2);
   c.files.set(c.path, encode(raw.replace("1", "2")));
   await expect(cachedMetadata(request)).rejects.toThrow("offline");
 });
 
 test("competing URLs at one destination publish in request order", async () => {
   using c = cache();
-  c.fetch.mockImplementation(async url => new Response(JSON.stringify({ url })));
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+
+  c.fetch.mockImplementation(async url => {
+    if (url === c.request.url) {
+      started.resolve();
+      await release.promise;
+    }
+
+    return new Response(JSON.stringify({ url }));
+  });
   const other = { ...c.request, "url": "https://example.org/replacement" };
-  const [first, second] = await Promise.all([cachedMetadata(c.request), cachedMetadata(other)]);
+  const firstRequest = cachedMetadata(c.request);
+
+  await started.promise;
+  const secondRequest = cachedMetadata(other);
+
+  await Bun.sleep(0);
+  expect(c.fetch).toHaveBeenCalledTimes(1);
+  release.resolve();
+  const [first, second] = await Promise.all([firstRequest, secondRequest]);
 
   expect(first.data).toEqual({ "url": c.request.url });
   expect(second.data).toEqual({ "url": other.url });

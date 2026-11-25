@@ -1,5 +1,6 @@
 import { expect, mock, spyOn, test } from "bun:test";
 
+import { LaunchStatus } from "@/constants/launcher.ts";
 import * as storage from "@/lib/cache/storage.ts";
 import FileManager from "@/lib/file-manager";
 import Hooks from "@/lib/hooks";
@@ -78,6 +79,7 @@ test("download stages fail on incomplete reports and skip warm downloads", async
 
       expect(verify.mock.lastCall?.[0].paths[0]).toEqual(expected);
       expect(read.mock.lastCall?.[2]).toMatchObject({ "expectedSize": 28,
+        "fallbackPath": "indexes/index.json",
         "expectedHash": { "kind": "sha1", "sum": "0".repeat(40) } });
       expect(publish).toHaveBeenCalledWith("indexes", "index.json", bytes);
     } else {
@@ -166,4 +168,20 @@ test("a failed sibling cancels a client still verifying its jar", async () => {
     },
   ])).toBe(false);
   expect(network).not.toHaveBeenCalled();
+});
+
+test("invalid asset index sizes fail before reading or publishing", async () => {
+  const necessaries = { "statuses": {}, "directories": {} } as PreLaunchInformationType;
+
+  using read = spyOn(metadata, "readLaunchMetadata");
+  using publish = spyOn(storage, "publish");
+  for (const size of [undefined, -1, 1.5, "2"]) {
+    const assetIndex = { "id": "1", "url": "index", size };
+    const finalizedPatch = { assetIndex } as FinalizedPatchType;
+
+    expect(await downloadAssets({ necessaries, finalizedPatch })).toBe(false);
+    expect(necessaries.statuses.current).toBe(LaunchStatus.AssetIndex.FailedToValidate);
+  }
+  expect(read).not.toHaveBeenCalled();
+  expect(publish).not.toHaveBeenCalled();
 });

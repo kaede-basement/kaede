@@ -71,22 +71,24 @@ export async function downloadAssets({
   const assetIndex: SpecificPatchAssetIndexType = finalizedPatch.assetIndex;
   const metaFilename = assetIndex.id + ".json";
 
-  if (!safeComponent(assetIndex.id)) {
+  if (!safeComponent(assetIndex.id) || !Number.isSafeInteger(assetIndex.size)
+    || assetIndex.size < 0) {
     statuses.current = LaunchStatus.AssetIndex.FailedToValidate;
 
     return false;
   }
+  const path = FileManager.join(directories.assetIndexes, metaFilename);
   const index = await readLaunchMetadata("AssetIndex", necessaries, {
     "relativePath": "asset-indexes/" + metaFilename,
     "url"         : assetIndex.url,
     "expectedHash": { "kind": "sha1", "sum": assetIndex.sha1 },
     "expectedSize": assetIndex.size,
+    "fallbackPath": path,
     "validate"    : validAssets,
   });
 
   if (!("data" in index)) return false;
   try {
-    const path = FileManager.join(directories.assetIndexes, metaFilename);
     const missing = await FileManager.verifyPaths({
       "paths": [{ path, "hash": assetIndex.sha1 }], "algorithm": "sha1",
     });

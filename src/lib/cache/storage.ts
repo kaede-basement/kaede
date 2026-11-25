@@ -10,6 +10,7 @@ export type Digest = { "kind": "sha1" | "sha256"; "sum": string };
 export type Entry = {
   "url"          : string;
   "freshUntil"   : number;
+  "lifetime"?    : number;
   "etag"?        : string;
   "lastModified"?: string;
   "size"         : number;
@@ -31,7 +32,7 @@ export function safeComponent(part: string): boolean {
 }
 
 export function validPath(path: string): boolean {
-  return typeof path === "string" && path.endsWith(".json") && path.toLowerCase() !== "index.json"
+  return typeof path === "string" && path.endsWith(".json") && !(/^index\.json(?:\/|$)/i).test(path)
     && path.split("/").every(part => safeComponent(part));
 }
 
@@ -61,7 +62,9 @@ export async function publish(
   directory: string, filename: string, bytes: Uint8Array,
 ): Promise<void> {
   await fs.mkdir(directory, { "recursive": true });
-  const temporary = join(directory, crypto.randomUUID() + ".tmp");
+  const random = crypto.getRandomValues(new Uint8Array(16));
+  const name = Array.from(random, byte => byte.toString(16).padStart(2, "0")).join("");
+  const temporary = join(directory, name + ".tmp");
 
   try {
     await fs.writeFile(temporary, bytes);
@@ -74,11 +77,17 @@ export async function publish(
 
 type Entries = Map<string, Entry>;
 
+function validHeader(value: unknown): boolean {
+  if (value === undefined) return true;
+
+  return typeof value === "string" && (/^[\u0020-\u007E\u00A0-\u00FF]*$/).test(value);
+}
+
 function validEntry(entry: Entry): boolean {
   return !!entry && typeof entry.url === "string" && Number.isFinite(entry.freshUntil)
     && Number.isSafeInteger(entry.size) && entry.size >= 0 && validDigest(entry.hash)
-    && (entry.etag === undefined || typeof entry.etag === "string")
-    && (entry.lastModified === undefined || typeof entry.lastModified === "string");
+    && (entry.lifetime === undefined || (Number.isFinite(entry.lifetime) && entry.lifetime >= 0))
+    && validHeader(entry.etag) && validHeader(entry.lastModified);
 }
 
 async function readIndex(root: string): Promise<Entries> {
@@ -92,9 +101,7 @@ async function readIndex(root: string): Promise<Entries> {
       && !Array.isArray(index.entries)) {
       const entries = Object.entries<Entry>(index.entries);
 
-      if (entries.every(([path, entry]) => validPath(path) && validEntry(entry))) {
-        return new Map(entries);
-      }
+      return new Map(entries.filter(([path, entry]) => validPath(path) && validEntry(entry)));
     }
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;

@@ -1,8 +1,8 @@
-import { exists, remove, stat } from "@tauri-apps/plugin-fs";
-import { fetch } from "@tauri-apps/plugin-http";
+import { exists, remove } from "@tauri-apps/plugin-fs";
 
 import { join } from "@/lib/file-manager/path.ts";
 
+import { freshness, NetworkError, requestDocument } from "./http.ts";
 import {
   CacheIndex,
   type Digest,
@@ -17,15 +17,16 @@ import {
 } from "./storage.ts";
 
 type RequestOptions = {
-  "baseDirectory"    : string;
-  "relativePath"     : string;
-  "url"              : string;
-  "expectedHash"?    : Digest;
-  "expectedSize"?    : number;
-  "adoptLegacyPatch"?: boolean;
-  "ttl"?             : number;
-  "validate"?        : (value: unknown) => boolean;
-  "onFetch"?         : () => void;
+  "baseDirectory"       : string;
+  "relativePath"        : string;
+  "url"                 : string;
+  "expectedHash"?       : Digest;
+  "expectedSize"?       : number;
+  "allowUnindexedPatch"?: boolean;
+  "fallbackPath"?       : string;
+  "ttl"?                : number;
+  "validate"?           : (value: unknown) => boolean;
+  "onFetch"?            : () => void;
 };
 
 type Document = { "data": unknown; "bytes": Uint8Array<ArrayBuffer>; "hash": Digest };
@@ -60,27 +61,6 @@ Promise<Document> {
   return { data, bytes, "hash": { kind, sum } };
 }
 
-function freshUntil(headers: Headers, ttl: number): number | undefined {
-  const control = headers.get("cache-control") ?? "";
-  const directives = control.toLowerCase().split(",")
-    .map(part => part.trim());
-
-  if (directives.includes("no-store")) return;
-  if (directives.some(part => (/^no-cache(?:=|$)/).test(part))) return 0;
-  for (const directive of directives) {
-    const match = (/^max-age\s*=\s*"?(\d+)"?$/).exec(directive);
-
-    if (match) {
-      const seconds = Number(match[1]);
-
-      return seconds === 0 ? 0 : Math.min(Number.MAX_SAFE_INTEGER, Date.now() + (seconds * 1000));
-    }
-  }
-  const expires = Date.parse(headers.get("expires") ?? "");
-
-  return Number.isFinite(expires) ? expires : (ttl === 0 ? 0 : Date.now() + ttl);
-}
-
 async function retrieve(options: RequestOptions, root: string): Promise<Document> {
   const { relativePath, expectedHash, url } = options;
   const parts = relativePath.split("/");
@@ -99,8 +79,8 @@ async function retrieve(options: RequestOptions, root: string): Promise<Document
   const stored = await index.get(relativePath);
   const entry = stored?.url === url ? stored : undefined;
   const expected = expectedHash ?? entry?.hash;
-  const read = async (): Promise<Document | undefined> => {
-    const bytes = await readOptional(path);
+  const read = async (source: string): Promise<Document | undefined> => {
+    const bytes = await readOptional(source);
 
     if (!bytes || (!expectedHash && entry && bytes.length !== entry.size)) return;
     try {
@@ -110,79 +90,70 @@ async function retrieve(options: RequestOptions, root: string): Promise<Document
     }
   };
 
-  if (!stored && !expectedHash && options.adoptLegacyPatch) {
-    const local = await read();
+  const compatible = entry && (!expectedHash ||
+    (entry.hash.kind === expectedHash.kind && entry.hash.sum === expectedHash.sum));
 
-    if (local) {
-      const info = await stat(path);
-      const deadline = (info.mtime?.getTime() ?? 0) + (options.ttl ?? defaultTtl);
+  if (compatible && Date.now() < entry.freshUntil) {
+    const local = await read(path);
 
-      if (deadline > Date.now()) {
-        await index.update(relativePath, {
-          url, "freshUntil": deadline, "hash": local.hash, "size": local.bytes.length,
-        });
-
-        return local;
-      }
-    }
+    if (local) return local;
   }
-  const compatible = !entry || !expectedHash ||
-    (entry.hash.kind === expectedHash.kind && entry.hash.sum === expectedHash.sum);
 
-  if (compatible && (expectedHash || (entry && Date.now() < entry.freshUntil))) {
-    const local = await read();
-
-    if (local) {
-      if (!entry && expectedHash) {
-        await index.update(relativePath, {
-          url, "freshUntil": 0, "hash": expectedHash, "size": local.bytes.length,
-        });
-      }
-
-      return local;
-    }
-  }
   const headers = new Headers;
 
-  if (entry && !expectedHash && Date.now() >= entry.freshUntil) {
+  if (compatible && Date.now() >= entry.freshUntil) {
     if (entry.etag) headers.set("If-None-Match", entry.etag);
     if (entry.lastModified) headers.set("If-Modified-Since", entry.lastModified);
   }
   options.onFetch?.();
-  let response = await fetch(url, { headers });
+  let reply: Awaited<ReturnType<typeof requestDocument>>;
   let local: Document | undefined;
 
-  if (response.status === 304 && entry && (headers.has("If-None-Match")
-    || headers.has("If-Modified-Since"))) {
-    local = await read();
-    if (!local) response = await fetch(url);
-  }
-  if (!local && !response.ok) {
-    await response.body?.cancel();
-    throw new Error(`HTTP ${response.status} fetching ${url}`);
-  }
-  const document = local ?? await decode(new Uint8Array(await response.arrayBuffer()),
-    options,
-    expectedHash);
-  const ttl = local && entry?.freshUntil === 0 ? 0 : options.ttl ?? defaultTtl;
-  const deadline = freshUntil(response.headers, ttl);
+  try {
+    reply = await requestDocument(url, headers);
+    if (reply.response.status === 304 && compatible && (headers.has("If-None-Match")
+      || headers.has("If-Modified-Since"))) {
+      local = await read(path);
+      if (!local) reply = await requestDocument(url);
+    }
+  } catch (error) {
+    if (!(error instanceof NetworkError)) throw error;
+    if (expectedHash || entry || (!stored && options.allowUnindexedPatch)) {
+      const stale = await read(path);
 
-  if (deadline === undefined) {
-    if (await exists(path)) await remove(path);
-    await index.update(relativePath);
-  } else {
+      if (stale) return stale;
+    }
+    if (expectedHash && options.fallbackPath) {
+      const installed = await read(options.fallbackPath);
+
+      if (installed) return installed;
+    }
+    throw error;
+  }
+  const { response, bytes } = reply;
+
+  if (!local && !bytes) throw new Error(`Unexpected HTTP 304 fetching ${url}`);
+  const document = local ?? await decode(bytes!, options, expectedHash);
+  const fallback = options.ttl ?? (expectedHash ? Number.MAX_SAFE_INTEGER : defaultTtl);
+  // Older entries lack a lifetime. Revalidate them until the server supplies a policy.
+  const policy = freshness(response.headers, local ? entry?.lifetime ?? 0 : fallback);
+
+  if (policy) {
     if (!local) await publish(directory, filename, document.bytes);
     const updated: Entry = {
       url,
-      "freshUntil"  : deadline,
+      ...policy,
       "size"        : document.bytes.length,
-      "hash"        : document.hash,
+      "hash"        : { ...document.hash },
       "etag"        : response.headers.get("etag") ?? (local ? entry?.etag : undefined),
       "lastModified": response.headers.get("last-modified")
         ?? (local ? entry?.lastModified : undefined),
     };
 
     await index.update(relativePath, updated);
+  } else {
+    if (await exists(path)) await remove(path);
+    await index.update(relativePath);
   }
 
   return document;
@@ -205,11 +176,18 @@ export async function cachedMetadata(options: RequestOptions): Promise<Document>
     expectedHash?.sum,
     expectedSize,
     options.ttl,
-    options.adoptLegacyPatch,
+    options.allowUnindexedPatch,
+    options.fallbackPath,
   ]);
   const previous = pending.get(destination);
 
-  if (previous?.key === key && previous.validate === options.validate) return previous.result;
+  if (previous?.key === key && previous.validate === options.validate) {
+    const shared = await previous.result;
+    const bytes = new Uint8Array(shared.bytes);
+    const data = JSON.parse((new TextDecoder).decode(bytes));
+
+    return { bytes, data, "hash": { ...shared.hash } };
+  }
   const start = (): Promise<Document> => retrieve(options, root);
   const result = previous ? previous.result.then(start, start) : start();
 
