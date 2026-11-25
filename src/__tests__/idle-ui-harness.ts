@@ -49,10 +49,15 @@ const documentState = Object.assign((new EventTarget), {
   "hidden": true, "getElementById": (): null => null,
 });
 
-Object.assign(globalThis, { "document"      : documentState, "ResizeObserver": class {
-  observe(): void {}
-  disconnect(): void {}
-} });
+Object.assign(globalThis, {
+  Element,
+  "window"        : globalThis,
+  "document"      : documentState,
+  "ResizeObserver": class {
+    observe(): void {}
+    disconnect(): void {}
+  },
+});
 
 // Mount real setup functions with just their template ref, without a browser or WebGL device.
 const renderer = createRenderer<Element, Element>({

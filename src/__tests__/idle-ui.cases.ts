@@ -52,9 +52,13 @@ test("video follows initial and changed visibility until unmount", async () => {
   expect(video.play).toHaveBeenCalledTimes(1);
 });
 
-test("launch progress consumes download snapshots without polling", async () => {
+test.each(["observable", "plain"])("launch progress tracks %s Maps without polling", async kind => {
+  const { ObservableDownloadMap } = await import("@/lib/network/download-progress.ts");
   const { "default": progress } = await import("@/components/general/layout/LaunchProgress.vue");
   const { concurrentlyDownload } = await import("@/lib/network/concurrently-download.ts");
+  const { isClient } = await import("@vueuse/core");
+
+  expect(isClient).toBe(true);
   const launches = reactive<Record<string, LauncherStatusesType>>({});
   const interval = spyOn(globalThis, "setInterval");
   const view = mount<{
@@ -66,13 +70,28 @@ test("launch progress consumes download snapshots without polling", async () => 
 
   expect(view.bindings.progress.value).toBe(0);
   expect(interval).not.toHaveBeenCalled();
+  const current = kind === "observable"
+    ? new ObservableDownloadMap
+    : new Map<string, [number, number]>;
+
   launches.first = {
     "instanceId": "first", "launching" : 1, "current"   : LaunchStatus.General.Starting,
-    "downloads" : { "current": markRaw((new Map)), "success": 0, "failed": 0, "total": 0 },
+    "downloads" : { "current": markRaw(current), "success": 0, "failed": 0, "total": 0 },
   };
   expect(view.bindings.progress.value).toBe(10);
   expect(view.bindings.currentDownloads.value.speed).toBe("0.00");
   const map = launches.first.downloads.current;
+
+  if (kind === "observable") {
+    map.set("hook", [1, 1_048_576]);
+    expect(view.bindings.currentDownloads.value).toEqual({ "speed": "1.00", "count": 1 });
+    map.delete("hook");
+    expect(view.bindings.currentDownloads.value.count).toBe(0);
+    map.set("hook", [2, 2_097_152]);
+    expect(view.bindings.currentDownloads.value.speed).toBe("2.00");
+    map.clear();
+    expect(view.bindings.currentDownloads.value.count).toBe(0);
+  }
 
   type Channel = { "onmessage": (snapshot: DownloadSnapshotType) => void };
   const channels: Array<Channel> = [];
@@ -85,8 +104,9 @@ test("launch progress consumes download snapshots without polling", async () => 
 
     return reports[batch].promise;
   });
-  const batches = ["a", "b"].map(path => concurrentlyDownload({
-    "statuses": launches.first, "concurrency": 1, "entries": [{ "url": "", path }], "label": path,
+  const batches = [["a", "b"], ["b"]].map(paths => concurrentlyDownload({
+    "statuses"   : launches.first, "concurrency": 2,
+    "entries"    : paths.map(path => ({ "url": path, path })), "label"      : paths.join(","),
   }));
   const first: DownloadSnapshotType = {
     "current": { "a": [1, 1_048_576] }, "success": 0, "failed": 0,
@@ -94,8 +114,16 @@ test("launch progress consumes download snapshots without polling", async () => 
 
   channels[0].onmessage(first);
   channels[1].onmessage({ ...first, "current": { "b": [2, 2_097_152] } });
-  expect(map).toBe(launches.first.downloads.current);
+  const overlap: DownloadSnapshotType = {
+    ...first, "current": { ...first.current, "b": [3, 4_194_304] },
+  };
+
+  channels[0].onmessage(overlap);
+  channels[0].onmessage(first);
   expect(view.bindings.currentDownloads.value).toEqual({ "speed": "3.00", "count": 2 });
+  channels[0].onmessage(overlap);
+  expect(map).toBe(launches.first.downloads.current);
+  expect(view.bindings.currentDownloads.value).toEqual({ "speed": "5.00", "count": 2 });
   state.selected.currentInstance = "second";
   expect(view.bindings.currentDownloads.value.speed).toBe("0.00");
   state.selected.currentInstance = "first";
@@ -136,26 +164,39 @@ test("FPS uses a sliding second, publishes 15 bars and cancels its pending frame
     "frames": Ref<Array<number>>;
     "limits": Ref<{ "current": number; "peak": string }>;
   };
+  const interval = spyOn(globalThis, "setInterval");
   const view = mount<Readings>(counter, "");
 
-  for (let now = 0; now <= 1250; now += 5) {
+  await nextTick();
+
+  pending!(0);
+  pending!(10);
+  documentState.hidden = true;
+  documentState.dispatchEvent(new Event("visibilitychange"));
+  documentState.hidden = false;
+  documentState.dispatchEvent(new Event("visibilitychange"));
+  pending!(510);
+  expect(view.bindings.limits.value.peak).toBe("16.7");
+  for (let now = 520; now <= 2250; now += 5) {
     pending!(now);
   }
   expect(view.bindings.limits.value.current).toBe(200);
   expect(view.bindings.frames.value).toEqual(Array.from({ "length": 15 }, () => 200));
   const published = view.bindings.frames.value;
 
-  pending!(1255);
+  pending!(2255);
   expect(view.bindings.frames.value).toBe(published);
-  pending!(1272);
-  pending!(11_272);
+  pending!(2272);
+  pending!(12_272);
   expect(view.bindings.frames.value).toEqual([1]);
-  for (let now = 11_282; now < 11_500; now += 10) {
+  for (let now = 12_282; now < 12_500; now += 10) {
     pending!(now);
   }
   expect(view.bindings.limits.value.peak).toBe("17.0");
   view.unmount();
   expect(cancel).toHaveBeenCalledWith(scheduled);
+  expect(interval).not.toHaveBeenCalled();
+  interval.mockRestore();
 });
 
 test("the development overlay restores its dragged position on remount", async () => {

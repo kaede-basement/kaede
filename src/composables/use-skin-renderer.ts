@@ -37,7 +37,7 @@ import type { AccountType, WrappedAccountsType } from "@/types/configs/account.t
 
 use(WebGLRendererPlugin);
 
-function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement): void {
+function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement): () => void {
   let loopRunning = false;
   let disposed = false;
   let frame: number | undefined;
@@ -88,14 +88,18 @@ function configureDemandRendering(viewer: SkinViewer, canvas: HTMLCanvasElement)
     observer.disconnect();
     dispose();
   };
+
+  return scheduleRender;
 }
 
 export function useSkinRenderer({
   render,
   account,
+  onDemand = false,
 }: {
-  "render"  : "3d" | "2d-head";
-  "account"?: ComputedRef<AccountType | undefined>;
+  "onDemand"?: boolean;
+  "render"   : "3d" | "2d-head";
+  "account"? : ComputedRef<AccountType | undefined>;
 }): {
   "canvas": TemplateRef<HTMLCanvasElement>;
   "shown" : Ref<boolean>;
@@ -165,6 +169,8 @@ export function useSkinRenderer({
       }
     }, { "flush": "post" });
   } else {
+    let requestRender: (() => void) | undefined;
+
     watch(canvas, async (target, _, onCleanup) => {
       if (!target) {
         return;
@@ -174,6 +180,7 @@ export function useSkinRenderer({
 
       onCleanup(() => {
         closed = true;
+        requestRender = undefined;
         viewer.value?.dispose();
         viewer.value = undefined;
         shown.value = false;
@@ -189,7 +196,11 @@ export function useSkinRenderer({
           created.dispose();
         } else {
           viewer.value = created;
-          configureDemandRendering(created, target);
+          if (onDemand) {
+            requestRender = configureDemandRendering(created, target);
+          } else {
+            created.startRenderLoop();
+          }
           shown.value = true;
         }
       } catch (error) {
@@ -201,7 +212,7 @@ export function useSkinRenderer({
 
     watch([viewer, slim], ([current, isSlim]) => {
       current?.setSlim(isSlim);
-      current?.render();
+      requestRender?.();
     });
     watch([viewer, source], async ([current, skin], [previous], onCleanup) => {
       const request = ++generation;
@@ -217,7 +228,7 @@ export function useSkinRenderer({
       try {
         await current.setSkin(skin);
         if (generation === request) {
-          current.render();
+          requestRender?.();
         }
       } catch (error) {
         if (generation === request) {

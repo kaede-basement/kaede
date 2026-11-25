@@ -19,7 +19,7 @@ const Translations = inject<TranslationsStateType>(TranslationsContextKey);
 const accounts = inject<WrappedAccountsType>(AuthStatesContextKey);
 
 const { styles } = useConfigColors();
-const { canvas, viewer, shown } = useSkinRenderer({ "render": "3d" });
+const { canvas, viewer, shown } = useSkinRenderer({ "render": "3d", "onDemand": true });
 
 function startWalk(): void {
   viewer.value?.playAnimation("walk");

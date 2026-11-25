@@ -73,7 +73,9 @@ test("profile draws on demand and releases viewers created before or after teard
 
   await Bun.sleep(0);
   expect(gpu.setSkin).toHaveBeenCalledWith("skin1");
-  expect(gpu.render).toHaveBeenCalled();
+  drawFrame();
+  expect(gpu.render).toHaveBeenCalledTimes(1);
+  expect(frames.size).toBe(0);
   expect(startLoop).not.toHaveBeenCalled();
   gpu.render.mockClear();
   gpu.onRotationChange();
@@ -89,19 +91,26 @@ test("profile draws on demand and releases viewers created before or after teard
   await Bun.sleep(0);
   expect(gpu.setSlim).toHaveBeenLastCalledWith(true);
   expect(gpu.setSkin).toHaveBeenLastCalledWith("skin2");
-  expect(gpu.render).toHaveBeenCalledTimes(4);
+  expect(frames.size).toBe(1);
+  drawFrame();
+  expect(gpu.render).toHaveBeenCalledTimes(3);
   gpu.onZoomChange();
   view.bindings.startWalk();
+  accounts.value[0].skin = { "variant": "classic", "url": "skin3" };
+  await Bun.sleep(0);
+  expect(gpu.setSkin).toHaveBeenLastCalledWith("skin3");
+  expect(gpu.setSlim).toHaveBeenLastCalledWith(false);
+  expect(render).toHaveBeenCalledTimes(3);
   gpu.onRotationChange();
   gpu.onZoomChange();
   expect(frames.size).toBe(1);
   drawFrame();
-  expect(render).toHaveBeenCalledTimes(5);
+  expect(render).toHaveBeenCalledTimes(4);
   expect(startLoop).toHaveBeenCalledTimes(1);
   expect(gpu.playAnimation).toHaveBeenCalledWith("walk");
   view.bindings.stopWalk();
   expect(stopLoop).toHaveBeenCalledTimes(1);
-  expect(gpu.render).toHaveBeenCalledTimes(6);
+  expect(gpu.render).toHaveBeenCalledTimes(5);
   gpu.onZoomChange();
   view.unmount();
   expect(frames.size).toBe(0);
@@ -117,4 +126,59 @@ test("profile draws on demand and releases viewers created before or after teard
   await nextTick();
   expect(dispose).toHaveBeenCalledTimes(2);
   expect(startLoop).toHaveBeenCalledTimes(1);
+});
+
+test("extension canvases preserve the native loop, callbacks and DPR sizing", async () => {
+  let rotation = 0;
+  let paintedRotation = 0;
+  const observer = mock(noop);
+  const onRotationChange = mock(noop);
+  let paint!: () => void;
+  const gpu = {
+    onRotationChange,
+    "setRotation": (angle: number): void => {
+      rotation = angle;
+    },
+    "startRenderLoop": mock(() => {
+      paint = (): void => {
+        paintedRotation = rotation;
+      };
+    }),
+    "resize": mock(noop), "setSlim": noop, "dispose": mock(noop),
+  };
+
+  Object.assign(globalThis, { "devicePixelRatio": 2, "ResizeObserver"  : class {
+    constructor() {
+      observer();
+    }
+  } });
+  const create = mock(async ({ canvas }: { "canvas": HTMLCanvasElement }) => {
+    canvas.width = 150 * devicePixelRatio;
+    canvas.height = 225 * devicePixelRatio;
+
+    return gpu;
+  });
+
+  mock.module("@daidr/minecraft-skin-renderer/webgl", () => ({ "WebGLRendererPlugin": {} }));
+  mock.module("@daidr/minecraft-skin-renderer", () => ({
+    "createSkinViewer": create, "use": noop,
+  }));
+  const { useSkinRenderer } = await import("@/composables/use-skin-renderer.ts");
+  const component = {
+    "setup": (): ReturnType<typeof useSkinRenderer> => useSkinRenderer({ "render": "3d" }),
+  };
+  const view = mount<ReturnType<typeof useSkinRenderer>>(component, "canvas", [[authKey, {}]]);
+
+  await Bun.sleep(0);
+  expect(Object.is(view.bindings.viewer.value, gpu)).toBe(true);
+  expect(gpu.startRenderLoop).toHaveBeenCalledTimes(1);
+  expect(gpu.onRotationChange).toBe(onRotationChange);
+  view.bindings.viewer.value!.setRotation(42, 0);
+  paint();
+  expect(paintedRotation).toBe(42);
+  expect(observer).not.toHaveBeenCalled();
+  expect(gpu.resize).not.toHaveBeenCalled();
+  expect(view.bindings.canvas.value?.width).toBe(300);
+  view.unmount();
+  expect(gpu.dispose).toHaveBeenCalledTimes(1);
 });

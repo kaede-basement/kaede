@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useEventListener } from "@vueuse/core";
 import { onMounted, onUnmounted, shallowRef } from "vue";
 
 const barCount = 15;
@@ -6,11 +7,16 @@ const publishInterval = 125;
 const limits = shallowRef({ "max": 60, "current": 0, "latency": "0", "peak": "16.7" });
 const frames = shallowRef<Array<number>>([]);
 
+let previous: number | undefined;
+
+useEventListener(document, "visibilitychange", () => {
+  previous = undefined;
+});
+
 onMounted(() => {
   let times = new Float64Array(64);
   let head = 0;
   let count = 0;
-  let previous: number | undefined;
   let lastPublish = -Infinity;
   let max = 60;
   let peak = 16.7;

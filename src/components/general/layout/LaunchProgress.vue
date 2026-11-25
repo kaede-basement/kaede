@@ -9,7 +9,7 @@ import {
 } from "@/constants/application.ts";
 import { LaunchStatus } from "@/constants/launcher.ts";
 import Instances from "@/lib/instances";
-import { trackDownloadProgress } from "@/lib/network/concurrently-download.ts";
+import { trackDownloadProgress } from "@/lib/network/download-progress.ts";
 import { globalStates } from "@/states/global.ts";
 import { instanceStates } from "@/states/instance.ts";
 import type {

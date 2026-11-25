@@ -17,9 +17,9 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { type ShallowRef, shallowRef, triggerRef } from "vue";
 
 import { log } from "@/lib/logging/log.ts";
+import { notifyDownloadProgress, ObservableDownloadMap } from "@/lib/network/download-progress.ts";
 import type {
   DownloadReportType,
   DownloadSnapshotType,
@@ -28,19 +28,8 @@ import type {
   LauncherStatusesType,
 } from "@/types/launcher/launch/launch-status.type.ts";
 
-type ProgressMap = LauncherStatusesType["downloads"]["current"];
-const observedMaps = new WeakMap<ProgressMap, ShallowRef<ProgressMap>>;
-
-export function trackDownloadProgress(current: ProgressMap): ProgressMap {
-  let observed = observedMaps.get(current);
-
-  if (!observed) {
-    observed = shallowRef(current);
-    observedMaps.set(current, observed);
-  }
-
-  return observed.value;
-}
+type Progress = [number, number];
+const ownersByMap = new WeakMap<Map<string, Progress>, Map<string, Map<symbol, Progress>>>;
 
 export async function concurrentlyDownload({
   concurrency,
@@ -90,6 +79,11 @@ export async function concurrentlyDownload({
   let previousSuccess: number = 0;
   let previousFailed : number = 0;
   const previousPaths = new Set<string>;
+  const batch = Symbol();
+  const current = statuses.downloads.current;
+  const ownersByPath = ownersByMap.get(current) ?? new Map<string, Map<symbol, Progress>>;
+
+  ownersByMap.set(current, ownersByPath);
 
   const applySnapshotData = (success: number, failed: number): void => {
     if (success < previousSuccess || failed < previousFailed) {
@@ -104,17 +98,33 @@ export async function concurrentlyDownload({
   };
 
   function publishCurrent(snapshot: DownloadSnapshotType["current"]): void {
-    const current = statuses.downloads.current;
     let changed = false;
 
     for (const path of previousPaths) {
       if (!Object.prototype.hasOwnProperty.call(snapshot, path)) {
-        current.delete(path);
+        const pathOwners = ownersByPath.get(path)!;
+
+        pathOwners.delete(batch);
+        const remaining = pathOwners.values().next();
+
+        if (remaining.done) {
+          ownersByPath.delete(path);
+          current.delete(path);
+        } else {
+          current.set(path, remaining.value);
+        }
         changed = true;
         previousPaths.delete(path);
       }
     }
     for (const [path, progress] of Object.entries(snapshot)) {
+      let pathOwners = ownersByPath.get(path);
+
+      if (!pathOwners) {
+        pathOwners = new Map;
+        ownersByPath.set(path, pathOwners);
+      }
+      pathOwners.set(batch, progress);
       const old = current.get(path);
 
       if (!old || old[0] !== progress[0] || old[1] !== progress[1]) {
@@ -123,10 +133,8 @@ export async function concurrentlyDownload({
       }
       previousPaths.add(path);
     }
-    const observed = observedMaps.get(current);
-
-    if (changed && observed) {
-      triggerRef(observed);
+    if (changed && !(current instanceof ObservableDownloadMap)) {
+      notifyDownloadProgress(current);
     }
   }
 
