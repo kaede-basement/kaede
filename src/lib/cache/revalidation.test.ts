@@ -1,0 +1,230 @@
+import { mockIPC } from "@tauri-apps/api/mocks";
+import { expect, spyOn, test } from "bun:test";
+
+import { fetchDocument } from "@/lib/network/fetch-document.ts";
+
+import { cache, encode, Options, Raw, sha } from "./cache-fixture.ts";
+import { cachedMetadata } from "./index.ts";
+
+test("Age reduces max-age and a 304 retains the original lifetime", async () => {
+  using c = cache();
+  const start = Date.parse("2026-01-01T00:00:00Z");
+
+  using clock = spyOn(Date, "now").mockReturnValue(start);
+  c.fetch.mockResolvedValueOnce(new Response(Raw, { "headers": {
+    "cache-control": "max-age=30", "age": "20", "etag": "\"one\"",
+  } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(start + 10_000);
+  clock.mockReturnValue(start + 10_000);
+  c.fetch.mockResolvedValueOnce(new Response(null, { "status": 304 }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(start + 40_000);
+});
+
+test("Expires uses the server's Date and accounts for Age", async () => {
+  using c = cache();
+  const start = Date.parse("2026-01-01T00:00:00Z");
+
+  using clock = spyOn(Date, "now").mockReturnValue(start);
+  c.fetch.mockResolvedValueOnce(new Response(Raw, { "headers": {
+    "date"   : new Date(start + 60_000).toUTCString(),
+    "expires": new Date(start + 90_000).toUTCString(),
+    "age"    : "5",
+  } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(clock() + 25_000);
+});
+
+test("pinned no-cache revalidates even after a 304 omits policy; offline checks parent digest",
+  async () => {
+    using c = cache();
+    const pinned = { ...c.request, "expectedHash": { "kind": "sha256", "sum": sha(Raw) } } as const;
+
+    c.fetch.mockResolvedValueOnce(new Response(Raw, { "headers": {
+      "cache-control": "no-cache", "etag": "\"1\"",
+    } }));
+    await cachedMetadata(pinned);
+    c.fetch.mockResolvedValueOnce(new Response(null, { "status": 304 }));
+    await cachedMetadata(pinned);
+    expect(new Headers(c.fetch.mock.lastCall?.[1]?.headers).get("if-none-match")).toBe("\"1\"");
+    c.fetch.mockRejectedValue(new Error("offline"));
+    const stale = await cachedMetadata(pinned);
+
+    expect(c.fetch).toHaveBeenCalledTimes(3);
+    expect(stale.bytes).toEqual(encode(Raw));
+    const changed = { ...pinned, "expectedHash": { "kind": "sha256", "sum": sha("new") } } as const;
+
+    await expect(cachedMetadata(changed))
+      .rejects.toThrow("offline");
+  });
+
+test("offline game index must match its parent digest, size and schema", async () => {
+  using c = cache();
+  const fallbackPath = c.request.baseDirectory + "/assets/indexes/1.json";
+  const sum = new Bun.CryptoHasher("sha1").update(Raw)
+    .digest("hex");
+  const request = { ...c.request, fallbackPath, "expectedSize": Raw.length,
+    "expectedHash": { "kind": "sha1", sum },
+    "validate"    : (value: unknown): boolean => typeof value === "object" } as const;
+
+  c.files.set(fallbackPath, encode(Raw));
+  c.fetch.mockRejectedValue(new Error("offline"));
+  const valid = await cachedMetadata(request);
+
+  expect(valid.data).toEqual({ "version": 1 });
+  await expect(cachedMetadata({ ...request, "expectedSize": 2 })).rejects.toThrow("offline");
+  await expect(cachedMetadata({ ...request, "validate": () => false })).rejects.toThrow("offline");
+  c.files.set(fallbackPath, encode(Raw.replace("1", "2")));
+  await expect(cachedMetadata(request)).rejects.toThrow("offline");
+  c.fetch.mockResolvedValueOnce(new Response(Raw));
+  const repaired = await cachedMetadata(request);
+
+  expect(repaired.bytes).toEqual(encode(Raw));
+});
+
+test("invalid stored validators heal through an unconditional GET", async () => {
+  for (const header of [
+    { "etag": "\r\n" },
+    { "etag": "*" },
+    { "etag": "unquoted" },
+    { "lastModified": "snowman ☃" },
+    { "lastModified": "yesterday" },
+  ]) {
+    using c = cache();
+    const entry = {
+      "url"        : c.request.url,
+      "freshUntil" : 0,
+      "fallbackTtl": 60_000,
+      "size"       : Raw.length,
+      "hash"       : { "kind": "sha256", "sum": sha(Raw) },
+      ...header,
+    };
+
+    c.files.set(c.root + "index.json", encode(JSON.stringify({
+      "version": 1, "entries": { [Options.relativePath]: entry },
+    })));
+    c.files.set(c.path, encode(Raw));
+    c.fetch.mockResolvedValueOnce(new Response("42"));
+    const result = await cachedMetadata(c.request);
+
+    expect(result.data).toBe(42);
+    expect(c.files.get(c.path)).toEqual(encode("42"));
+    expect([...new Headers(c.fetch.mock.lastCall?.[1]?.headers)]).toEqual([]);
+    expect(c.index().entries[Options.relativePath].etag).toBeUndefined();
+    expect(c.index().entries[Options.relativePath].lastModified).toBeUndefined();
+  }
+});
+
+test("invalid explicit Expires is stale while an absent Expires uses the fallback", async () => {
+  using c = cache();
+  using clock = spyOn(Date, "now").mockReturnValue(10_000);
+  const request = { ...c.request, "ttl": 1000 };
+
+  c.fetch.mockResolvedValueOnce(new Response(Raw, { "headers": { "expires": "not a date" } }));
+  await cachedMetadata(request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(0);
+  await cachedMetadata(request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(clock() + 1000);
+});
+
+test("response delay is added to the received Age", async () => {
+  using c = cache();
+  const start = 100_000;
+
+  using clock = spyOn(Date, "now").mockReturnValue(start);
+  c.fetch.mockImplementationOnce(async () => {
+    clock.mockReturnValue(start + 4000);
+
+    return new Response(Raw, { "headers": { "age": "8", "cache-control": "max-age=10" } });
+  });
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(start + 2000);
+});
+
+test("no-cache survives an Expires-only 304 until Cache-Control is replaced", async () => {
+  using c = cache();
+  using clock = spyOn(Date, "now").mockReturnValue(100_000);
+  const expires = new Date(clock() + 60_000).toUTCString();
+
+  c.fetch.mockResolvedValueOnce(new Response(Raw, { "headers": {
+    "cache-control": "no-cache", "etag": "\"one\"",
+  } }));
+  await cachedMetadata(c.request);
+  c.fetch.mockResolvedValueOnce(new Response(null, { "status": 304, "headers": { expires } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(0);
+  c.fetch.mockResolvedValueOnce(new Response(null, { "status" : 304, "headers": {
+    "cache-control": "private",
+  } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(Date.parse(expires));
+});
+
+test("a Date-only 304 keeps an expired absolute Expires stale", async () => {
+  using c = cache();
+  const start = 100_000;
+
+  using clock = spyOn(Date, "now").mockReturnValue(start);
+  c.fetch.mockResolvedValueOnce(new Response(Raw, { "headers": {
+    "expires": new Date(start + 1000).toUTCString(), "etag": "\"one\"",
+  } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(start + 1000);
+  clock.mockReturnValue(start + 2000);
+  c.fetch.mockResolvedValueOnce(new Response(null, { "status" : 304, "headers": {
+    "date": new Date(clock()).toUTCString(),
+  } }));
+  await cachedMetadata(c.request);
+  expect(c.index().entries[Options.relativePath].freshUntil).toBe(0);
+});
+
+test("ByteString ETags revalidate and a partial 404 preserves the expired entry", async () => {
+  const transport = fetchDocument;
+
+  using c = cache();
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+
+  Object.defineProperty(globalThis, "window", { "configurable": true, "value": { crypto } });
+  try {
+    let calls = 0;
+    const etag = "\"é\"";
+
+    mockIPC((command, payload) => {
+      expect(command).toBe("fetch_http_document");
+      const first = calls++ === 0;
+      const body = first ? Raw : "partial";
+      const headers = first ? [["etag", etag], ["cache-control", "no-cache"]]
+        : [["content-length", "100"]];
+      const meta = {
+        "status"   : first ? 200 : 404, "finalUrl" : c.request.url,
+        "bodyError": first ? undefined : "interrupted error body",
+        headers,
+      };
+
+      if (calls === 2) expect(payload).toMatchObject({
+        "request": { "headers": [["if-none-match", etag]] },
+      });
+
+      return encode(JSON.stringify(meta) + "\n" + body).buffer;
+    });
+    c.fetch.mockImplementation(transport);
+    await cachedMetadata(c.request);
+    expect(c.index().entries[Options.relativePath].etag).toBe(etag);
+    const before = new Map(c.files);
+
+    await expect(cachedMetadata(c.request)).rejects.toThrow("HTTP 404");
+    expect(c.files).toEqual(before);
+    expect(calls).toBe(2);
+    for (const method of ["text", "json", "arrayBuffer", "blob"] as const) {
+      const response = await transport(c.request.url);
+
+      expect(response.status).toBe(404);
+      expect(response.headers.get("content-length")).toBe("100");
+      await expect(response[method]()).rejects.toThrow("interrupted error body");
+    }
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "window", previous);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
+});

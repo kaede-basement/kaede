@@ -22,13 +22,13 @@ import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth/index.ts";
 import { globalStates } from "@/states/global.ts";
 import type { ExtendedPatchUIDType } from "@/types/launcher/meta/patch-index.type.ts";
-import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
+import type { MrpackSummaryType } from "@/types/modrinth/mrpack.type.ts";
 
 export function applyManifest({
   manifest,
   path,
 }: {
-  "manifest": MrpackManifestType | undefined;
+  "manifest": MrpackSummaryType | undefined;
   "path"    : string;
 }): void {
   globalStates.pages["add-instance"].importedModpack = {
@@ -87,6 +87,6 @@ export function applyManifest({
   };
   log.info(
     __PRE_BUNDLED_FILENAME__,
-    `Got '${manifest.name}' (${manifest.versionId}) that indexes ${manifest.files.length} files`,
+    `Got '${manifest.name}' (${manifest.versionId}) that indexes ${manifest.fileCount} files`,
   );
 }

@@ -18,9 +18,8 @@
 
 import "ses";
 
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-
 import { log } from "@/lib/logging/log.ts";
+import { fetchDocument } from "@/lib/network/fetch-document.ts";
 
 type RestrictedBlob = {
   "size"       : number;
@@ -153,19 +152,15 @@ function buildSafeResponse(response: Response): RestrictedResponse {
   });
 }
 
-function hook({ id, url, argument, method, label, body }: {
+function hook({ id, url, argument, method, label }: {
   "id"      : string;
   "url"     : string | unknown;
   "argument": string;
   "method"  : "GET" | "POST";
   "label"   : "Web" | "Tauri";
-  "body"   ?: Uint8Array | ArrayBuffer | string;
 }): void {
   guard(url, argument);
-  log.debug(__PRE_BUNDLED_FILENAME__, log.templates.json.contents(
-    `The '${id}' plugin made a ${label} fetch call with the next params`,
-    { url, argument, method, body },
-  ));
+  log.debug(__PRE_BUNDLED_FILENAME__, `Extension '${id}' issued a ${label} ${method} request`);
 }
 
 /**
@@ -204,7 +199,7 @@ export function handleInternetPermission({
         "tauriFetch": async (url: string): Promise<RestrictedResponse> => {
           hook({ id, url, argument, method, "label": "Tauri" });
 
-          const response: Response = await tauriFetch(url, { method, "redirect": "manual" });
+          const response: Response = await fetchDocument(url, { method, "followRedirects": false });
 
           return buildSafeResponse(response);
         },
@@ -220,7 +215,7 @@ export function handleInternetPermission({
           contentType: string = "text/plain",
         ): Promise<RestrictedResponse> => {
           validateRequestData(body, contentType);
-          hook({ id, url, argument, method, "label": "Web", body });
+          hook({ id, url, argument, method, "label": "Web" });
 
           const response: Response = await fetch(url, {
             method,
@@ -245,21 +240,10 @@ export function handleInternetPermission({
           contentType: string = "text/plain",
         ): Promise<RestrictedResponse> => {
           validateRequestData(body, contentType);
-          hook({ id, url, argument, method, "label": "Tauri", body });
+          hook({ id, url, argument, method, "label": "Tauri" });
 
-          const response: Response = await tauriFetch(url, {
-            method,
-
-            /*
-             * We are using '@ts-ignore' instead of '@ts-expect-error' since uhm there are no errors
-             */
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore 'dts-bundle-generator' throws an error even though there are no errors????
-            body,
-            "redirect": "manual",
-            "headers" : {
-              "Content-Type": contentType,
-            },
+          const response: Response = await fetchDocument(url, {
+            method, body, "followRedirects": false, "headers": { "Content-Type": contentType },
           });
 
           return buildSafeResponse(response);

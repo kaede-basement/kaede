@@ -16,15 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { ModrinthAPI } from "@/constants/modrinth.ts";
+import { cachedMetadata } from "@/lib/cache";
+import { getBaseDirectory } from "@/lib/file-manager/path.ts";
 
-export async function fetchVersion(projectId: string): Promise<Array<{
+type Version = {
   "id"            : string;
   "featured"      : boolean;
   "game_versions" : Array<string>;
-  "loaders"       : Array<"fabric" | "forge" | "minecraft">;
+  "loaders"       : Array<string>;
   "name"          : string;
   "version_number": string;
   "files"         : Array<Partial<{
@@ -40,18 +40,42 @@ export async function fetchVersion(projectId: string): Promise<Array<{
     "size"     : number;
     "file_type": null;
   }>>;
-}>> {
-  const response: Response = await fetch(`${ModrinthAPI.Endpoints.Project}/${projectId}/version`);
+};
 
-  if (!response.ok) {
-    throw new Error(`Modrinth answered with the status ${response.status}`);
-  }
+function strings(value: unknown): value is Array<string> {
+  return Array.isArray(value) && value.every(item => typeof item === "string");
+}
 
-  const parsed = await response.json();
+function validVersions(value: unknown): value is Array<Version> {
+  return Array.isArray(value) && value.every(row => {
+    return row && typeof row.id === "string" && typeof row.name === "string"
+      && typeof row.featured === "boolean" && typeof row.version_number === "string"
+      && strings(row.game_versions) && strings(row.loaders)
+      && Array.isArray(row.files) && row.files.every((file: unknown) => validFile(file));
+  });
+}
 
-  if (!Array.isArray(parsed)) {
-    throw new TypeError("Modrinth returned an invalid project version response");
-  }
+function validFile(value: unknown): boolean {
+  if (!value || typeof value !== "object" || !("filename" in value)
+    || typeof value.filename !== "string"
+    || !("url" in value) || typeof value.url !== "string" || !value.url.trim()
+    || !("size" in value) || typeof value.size !== "number" || !Number.isSafeInteger(value.size)
+    || value.size < 0 || ("primary" in value && typeof value.primary !== "boolean")) return false;
+  if (!("hashes" in value) || !value.hashes || typeof value.hashes !== "object") return false;
+  const hashes = value.hashes;
+
+  return "sha1" in hashes && typeof hashes.sha1 === "string" && (/^[\da-f]{40}$/i).test(hashes.sha1)
+    && "sha512" in hashes && typeof hashes.sha512 === "string"
+    && (/^[\da-f]{128}$/i).test(hashes.sha512);
+}
+
+export async function fetchVersion(projectId: string): Promise<Array<Version>> {
+  const { "data": parsed } = await cachedMetadata({
+    "baseDirectory": getBaseDirectory(),
+    "relativePath" : `modrinth/${projectId}/versions.json`,
+    "url"          : `${ModrinthAPI.Endpoints.Project}/${projectId}/version`,
+    "validate"     : validVersions,
+  });
 
   return parsed;
 }

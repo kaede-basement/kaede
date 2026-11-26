@@ -16,15 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { LaunchStatus } from "@/constants/launcher.ts";
+import { cachedMetadata } from "@/lib/cache";
+import { SchemaError, ValidationError } from "@/lib/cache/storage.ts";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/log.ts";
+import { fetchDocument as fetch } from "@/lib/network/fetch-document.ts";
 import type {
   LaunchKeyType,
   LaunchStatusType,
 } from "@/types/launcher/launch/launch-status.type.ts";
+import type {
+  PreLaunchInformationType,
+} from "@/types/launcher/meta/pre-launch-information.type.ts";
 
 export async function fetchMetadata({
   url,
@@ -44,6 +48,10 @@ export async function fetchMetadata({
     log.debug(`${prefix}:${__PRE_BUNDLED_FILENAME__}`, `Fetching the ${label} from '${url}'`);
 
     response = await fetch(url);
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error(`HTTP ${response.status}`);
+    }
   } catch (error: unknown) {
     log.error(
       `${prefix}:${__PRE_BUNDLED_FILENAME__}`,
@@ -67,4 +75,34 @@ export async function fetchMetadata({
   }
 
   return { data };
+}
+
+export async function readLaunchMetadata<T>(
+  scope: "PatchMetadata" | "PatchIndex" | "AssetIndex",
+  necessaries: Pick<PreLaunchInformationType, "statuses" | "directories" | "logPrefix">,
+  options: Omit<Parameters<typeof cachedMetadata>[0], "validate" | "baseDirectory"> & {
+    "validate": (value: unknown) => value is T;
+  },
+): Promise<{ "data": T; "bytes": Uint8Array<ArrayBuffer> } | { "schemaFailure": boolean }> {
+  const { statuses, directories, logPrefix } = necessaries;
+
+  statuses.current = LaunchStatus[scope].Reading;
+  try {
+    const result = await cachedMetadata({
+      ...options, "baseDirectory": directories.base,
+      "onFetch"      : () => {
+        statuses.current = LaunchStatus[scope].Fetching;
+      },
+    });
+
+    return { "data": result.data as T, "bytes": result.bytes };
+  } catch (error) {
+    const failure = error instanceof SyntaxError ? "FailedToParse"
+      : (error instanceof ValidationError ? "FailedToValidate" : "FailedToFetch");
+
+    statuses.current = LaunchStatus[scope][failure];
+    log.error(logPrefix, options.url, Errors.prettify(error));
+
+    return { "schemaFailure": error instanceof SchemaError };
+  }
 }

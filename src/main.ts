@@ -40,6 +40,7 @@ import Globals from "@/lib/globals";
 import Initialization from "@/lib/initialization";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
+import { HttpBackend } from "@/lib/network/http-backend.ts";
 import Wails from "@/lib/wails";
 import Watchers from "@/lib/watchers";
 import { declareGlobalStates } from "@/states/global.ts";
@@ -63,12 +64,14 @@ async function run(): Promise<void> {
   // Used in Wails v3 builds
   if (await Wails.detectIsWails()) {
     // Replaces the Tauri API with a Wails v3 API
+    HttpBackend.current = "wails";
     await Wails.handleTauriEnvironment();
   }
 
   // For a live preview: https://kaede-basement.github.io/kaede/
   if (Browser.detectIsBrowser()) {
     // Handle Tauri API placeholders
+    HttpBackend.current = "browser";
     await Browser.handleTauriEnvironment();
   }
 
@@ -181,7 +184,9 @@ async function run(): Promise<void> {
   GlobalInternals.appInstance = AppInstance;
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Initializing Vue Query plugin");
-  AppInstance.use(VueQueryPlugin);
+  AppInstance.use(VueQueryPlugin, { "queryClientConfig": { "defaultOptions": { "queries": {
+    "staleTime": 300_000, "refetchOnWindowFocus": false, "retry": false,
+  } } } });
 
   log.debug(
     __PRE_BUNDLED_FILENAME__,

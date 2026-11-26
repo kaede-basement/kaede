@@ -17,7 +17,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { exists, mkdir, writeFile } from "@tauri-apps/plugin-fs";
+import { mkdir, writeFile } from "@tauri-apps/plugin-fs";
 
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
@@ -48,14 +48,6 @@ export async function extractLaunchWrapper({
     `of-${bundled.version}`,
   );
   const path: string = FileManager.join(directory, `launchwrapper-of-${bundled.version}.jar`);
-  const pathExists: boolean = await exists(path);
-
-  if (pathExists) {
-    log.debug(logPrefix, `The bundled LaunchWrapper is already extracted (${path})`);
-
-    return path;
-  }
-
   const contents = await invoke<Array<number> | null>("read_archive_entry", {
     "archivePath": jarPath,
     "entryPath"  : bundled.entryPath,

@@ -16,10 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/log.ts";
+import { fetchDocument as fetch } from "@/lib/network/fetch-document.ts";
 import type { MinecraftProfileType } from "@/types/auth/microsoft-auth.type.ts";
 import type { AccountType } from "@/types/configs/account.type.ts";
 

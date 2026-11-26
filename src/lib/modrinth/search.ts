@@ -16,9 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { ModrinthAPI } from "@/constants/modrinth.ts";
+import { fetchDocument as fetch } from "@/lib/network/fetch-document.ts";
 import type {
   ModrinthSearchArgumentsType,
   ModrinthSearchResponseType,

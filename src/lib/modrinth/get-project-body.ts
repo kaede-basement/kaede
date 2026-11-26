@@ -16,25 +16,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { ModrinthAPI } from "@/constants/modrinth.ts";
+import { cachedMetadata } from "@/lib/cache";
+import { getBaseDirectory } from "@/lib/file-manager/path.ts";
+
+function hasBody(value: unknown): value is { "body": string } {
+  return !!value && typeof value === "object" && "body" in value && typeof value.body === "string";
+}
 
 export async function getProjectBody(projectId: string): Promise<string> {
-  const response: Response = await fetch(`${ModrinthAPI.Endpoints.Project}/${projectId}`);
+  const { "data": parsed } = await cachedMetadata({
+    "baseDirectory": getBaseDirectory(),
+    "relativePath" : `modrinth/${projectId}/project.json`,
+    "url"          : `${ModrinthAPI.Endpoints.Project}/${projectId}`,
+    "validate"     : hasBody,
+  });
 
-  if (!response.ok) {
-    throw new Error(`Modrinth answered with the status ${response.status}`);
-  }
-
-  const parsed: unknown = await response.json();
-
-  if (
-    typeof parsed !== "object" || parsed === null ||
-    !("body" in parsed) || typeof parsed.body !== "string"
-  ) {
-    throw new TypeError("Modrinth returned an invalid project response");
-  }
-
-  return parsed?.body;
+  return parsed.body;
 }

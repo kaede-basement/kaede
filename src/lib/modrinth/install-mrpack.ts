@@ -16,22 +16,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
+import { shallowRef } from "vue";
 
-import { GeneralSettings } from "@/constants/launcher.ts";
 import { MrpackDependencies } from "@/constants/modrinth.ts";
 import FileManager from "@/lib/file-manager";
-import { Algorithms } from "@/lib/hashing.ts";
 import Instances from "@/lib/instances";
-import { log } from "@/lib/logging/log.ts";
-import Network from "@/lib/network";
+import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
-import type { DownloadReportType } from "@/types/launcher/artifacts/download.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
-import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
+import type { MrpackSummaryType } from "@/types/modrinth/mrpack.type.ts";
+
+import { normalizeMrpackSummary, type RawMrpackSummary } from "./mrpack-summary.ts";
+
+export { peekMrpack } from "./mrpack-summary.ts";
 
 export function resolvePatchVersions(
-  dependencies: MrpackManifestType["dependencies"],
+  dependencies: MrpackSummaryType["dependencies"],
 ): InstanceStateType["patchVersions"] | undefined {
   const minecraft: string | undefined = dependencies.minecraft;
 
@@ -54,94 +55,110 @@ export function resolvePatchVersions(
   return patchVersions;
 }
 
-export async function peekMrpack(archivePath: string): Promise<MrpackManifestType | undefined> {
-  const manifest = await invoke<MrpackManifestType | null>("peek_mrpack", {
-    archivePath,
-  });
-
-  return manifest ?? undefined;
-}
+export const ActiveInstall = shallowRef<{ "instanceId": string; "cancel": () => Promise<void> }>();
 
 export async function installMrpack({
   archivePath,
   instanceId,
   statuses,
-  sha1,
 }: {
   "archivePath": string;
   "instanceId" : string;
   "statuses"   : LauncherStatusesType;
-  "sha1"      ?: boolean;
-}): Promise<{ "manifest": MrpackManifestType | undefined; "report": DownloadReportType }> {
-  const { instanceDirectory } = Instances.getMinecraftDirectory({
+}): Promise<MrpackSummaryType> {
+  if (ActiveInstall.value) {
+    throw new Error("Another modpack installation is active");
+  }
+  const { instanceRootDirectory } = Instances.getMinecraftDirectory({
     "baseDirectory": FileManager.getBaseDirectory(),
     instanceId,
   });
+  const onProgress = new Channel<[number, number]>;
 
-  const manifest = await invoke<MrpackManifestType>("install_mrpack", {
-    archivePath,
-    "targetDirPath": instanceDirectory,
-  });
+  let finished = false;
 
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    `Extracted ${manifest.overrides} overrides of '${manifest.name}'`,
-    `(${manifest.versionId}) and indexed ${manifest.files.length} files`,
-  );
+  // eslint-disable-next-line unicorn/prefer-add-event-listener
+  onProgress.onmessage = ([success, total]): void => {
+    if (finished) {
+      return;
+    }
+    statuses.downloads.success = success;
+    statuses.downloads.total = total;
+  };
 
-  const entries: Array<{ "url": string; "path": string; "hash": string }> = manifest
-    .files
-    .map(({ path, url, sha1 }) => ({
-      url,
-      "hash": sha1,
-      "path": FileManager.join(instanceDirectory, path),
-    }));
+  const cancelId = `${instanceId}-download`;
+  let ready = false;
+  let requested = false;
+  const cancel = async (): Promise<void> => {
+    requested = true;
+    if (ready) {
+      await invoke("cancel_downloads", { cancelId });
+    }
+  };
 
-  const startTime: number = performance.now();
-  const hashesToReDownload: Set<string> = new Set(
-    await FileManager.verifyPaths({
-      "paths"    : entries,
-      "algorithm": sha1 ? Algorithms.SHA1 : undefined,
-    }),
-  );
-  const endTime: number = performance.now();
-  const totalTime: string = (endTime - startTime).toFixed(2);
+  ActiveInstall.value = { instanceId, cancel };
+  try {
+    const reservation = await invoke<number>("prepare_mrpack_install", { cancelId });
 
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    `Successfully verified ${entries.length} modpack files in ${totalTime} ms.`,
-    `Total mismatches: ${hashesToReDownload.size}.`,
-    `SHA1 checks enabled: ${sha1}`,
-  );
+    ready = true;
+    if (requested) {
+      await cancel();
+    }
 
-  const missingModpackObjects: Array<{
-    "url" : string;
-    "path": string;
-    "hash": string;
-  }> = entries.filter(({ path }) => {
-    return hashesToReDownload.has(path);
-  });
+    const manifest = await invoke<RawMrpackSummary>("install_mrpack", {
+      archivePath, onProgress, cancelId, reservation, "targetDirPath": instanceRootDirectory,
+    });
 
-  const report = await Network.concurrentlyDownload({
-    statuses,
-    "entries"    : missingModpackObjects,
-    "concurrency": GeneralSettings.ConcurrentDownloads.Libraries,
-    "label"      : "modrinth modpack",
-    "cancelId"   : `${instanceId}-download`,
-  });
-
-  if (report.cancelled) {
-    log.info(__PRE_BUNDLED_FILENAME__, `Cancelled installing '${manifest.name}'`);
-
-    return { "manifest": undefined, report };
+    return normalizeMrpackSummary(manifest);
+  } finally {
+    finished = true;
+    ActiveInstall.value = undefined;
   }
+}
 
-  statuses.launching = 0;
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    `Installed '${manifest.name}' (${manifest.versionId}):`,
-    `${report.success} succeeded, ${report.failed} failed`,
-  );
+export async function repairLegacyMrpack(
+  instance: InstanceStateType,
+  instanceId: string,
+  minecraftDirectory: string,
+  statuses: LauncherStatusesType,
+): Promise<void> {
+  const archivePath = instance.modpackPath;
 
-  return { manifest, report };
+  if (archivePath) {
+    const onProgress = new Channel<[number, number]>;
+    const { total, success } = statuses.downloads;
+    let active = true;
+
+    // eslint-disable-next-line unicorn/prefer-add-event-listener
+    onProgress.onmessage = ([done, count]): void => {
+      if (active) {
+        statuses.downloads.total = total + count;
+        statuses.downloads.success = success + done;
+      }
+    };
+    try {
+      const result = await invoke<"repaired" | "archiveUnavailable">("repair_legacy_mrpack", {
+        archivePath,
+        onProgress,
+        "targetDirPath": minecraftDirectory,
+        "cancelId"     : `${instanceId}-download`,
+      });
+
+      if (result !== "repaired") {
+        return;
+      }
+    } finally {
+      active = false;
+      statuses.downloads.total = total;
+      statuses.downloads.success = success;
+    }
+    const saved = instanceStates[instanceId];
+
+    if (saved?.modpackPath === archivePath) {
+      const updated = { ...saved };
+
+      delete updated.modpackPath;
+      instanceStates[instanceId] = updated;
+    }
+  }
 }

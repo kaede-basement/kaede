@@ -30,7 +30,7 @@ import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
 import { globalStates } from "@/states/global.ts";
 import type { GlobalStatesType } from "@/types/application/global-states.type.ts";
-import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
+import type { MrpackSummaryType } from "@/types/modrinth/mrpack.type.ts";
 
 const { styles } = useConfigColors();
 
@@ -70,7 +70,7 @@ async function handleImport(): Promise<void> {
   }
 
   try {
-    const manifest: MrpackManifestType | undefined =
+    const manifest: MrpackSummaryType | undefined =
       await Modrinth.peekMrpack(selectedPath);
 
     Modrinth.applyManifest({ manifest, "path": selectedPath });

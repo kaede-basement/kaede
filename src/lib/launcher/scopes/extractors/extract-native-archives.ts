@@ -28,10 +28,14 @@ export async function extractNativeArchives({
   log.debug(logPrefix, `Extracting ${paths.length} native archives`);
   const startTime: number = performance.now();
 
-  await FileManager.unzip({
+  const extracted = await FileManager.unzip({
     "from": paths,
     "to"  : directories.natives,
   });
+
+  if (!extracted) {
+    throw new Error("Failed to extract native archives");
+  }
 
   const endTime: number = performance.now();
   const totalTime: string = (endTime - startTime).toFixed(2);

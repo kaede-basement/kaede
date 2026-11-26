@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Channel } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { onMounted, onUnmounted, type ShallowRef, shallowRef } from "vue";
 
 import { GlobalInternals } from "@/extendable/global-internals.ts";
@@ -27,6 +27,8 @@ type LogStreamEventType =
   | { "type": "snapshot"; "data": Array<string> }
   | { "type": "lines";    "data": Array<string> }
   | { "type": "truncated" };
+
+let lastLegacyId = 0;
 
 export function useLogStream(): {
   "lines": ShallowRef<{ "list": Array<string> }>;
@@ -47,7 +49,26 @@ export function useLogStream(): {
     return { lines };
   }
 
+  let mounted = false;
+  let token: number | undefined;
+  let subscriptionId: number | undefined;
+
   onMounted(async (): Promise<void> => {
+    mounted = true;
+    const id = await invoke<number | undefined>("next_log_subscription_id");
+
+    if (!mounted) {
+      if (typeof id === "number") {
+        await Logging.stopStreamingLogs(undefined, id);
+      }
+
+      return;
+    }
+    if (typeof id === "number") {
+      token = id;
+    } else {
+      subscriptionId = ++lastLegacyId;
+    }
     const channel = new Channel<LogStreamEventType>;
 
     // eslint-disable-next-line unicorn/prefer-add-event-listener
@@ -75,10 +96,15 @@ export function useLogStream(): {
       }
     };
 
-    await Logging.streamLogs<LogStreamEventType>(channel);
+    await Logging.streamLogs<LogStreamEventType>(channel, subscriptionId, token);
   });
 
-  onUnmounted(Logging.stopStreamingLogs);
+  onUnmounted(async (): Promise<void> => {
+    mounted = false;
+    if (token !== undefined || subscriptionId !== undefined) {
+      await Logging.stopStreamingLogs(subscriptionId, token);
+    }
+  });
 
   return { lines };
 }

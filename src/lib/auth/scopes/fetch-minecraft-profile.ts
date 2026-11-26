@@ -16,10 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { MicrosoftAuth } from "@/constants/launcher.ts";
 import { log } from "@/lib/logging/log.ts";
+import { fetchDocument as fetch } from "@/lib/network/fetch-document.ts";
 import type { MinecraftProfileType } from "@/types/auth/microsoft-auth.type.ts";
 
 export async function fetchMinecraftProfile(

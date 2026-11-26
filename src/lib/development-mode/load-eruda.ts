@@ -16,13 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { fetch } from "@tauri-apps/plugin-http";
-
 import { AsyncFunction } from "@/constants/application.ts";
+import { fetchDocument as fetch } from "@/lib/network/fetch-document.ts";
 
 export async function loadEruda(): Promise<() => void> {
   const url: string = "https://cdn.jsdelivr.net/npm/eruda";
   const response: Response = await fetch(url);
+
+  if (!response.ok) throw new Error(`HTTP ${response.status} loading Eruda`);
   const code: string = await response.text();
   const loader = new AsyncFunction(code);
   let destroy: () => void;

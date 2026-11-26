@@ -2,7 +2,7 @@ import FileManager from "@/lib/file-manager";
 import { normalizeArtifactPath } from "@/lib/launcher/scopes/parsers/normalize-artifact-path.ts";
 import { unifyPlatformWithArch } from "@/lib/launcher/scopes/parsers/unify-platform-with-arch.ts";
 import { log } from "@/lib/logging/log.ts";
-import type { MappedArtifactType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
+import type { MappedLibraryType } from "@/types/launcher/artifacts/mapped-artifact.type.ts";
 import type {
   PreLaunchInformationType,
 } from "@/types/launcher/meta/pre-launch-information.type.ts";
@@ -20,7 +20,7 @@ export function parseNative({
   "necessaries": PreLaunchInformationType;
   "library"    : SpecificPatchLibraryType;
   "patchUid"   : string;
-}): Required<MappedArtifactType> | false {
+}): MappedLibraryType | false {
   const { directories, platform, arch, logPrefix } = necessaries;
   const descriptiveLogPrefix: string = patchUid + ":" + library?.name + ":" + logPrefix;
   const classifiers: SpecificPatchClassifiersType | undefined = library?.downloads?.classifiers;
@@ -51,7 +51,7 @@ export function parseNative({
       return false;
     }
 
-    const artifact: Required<MappedArtifactType> = {
+    const artifact: MappedLibraryType = {
 
       /*
        * The 'id' field is used to filter out unique artifacts,
@@ -68,6 +68,7 @@ export function parseNative({
       file,
       path,
       hash,
+      "size"  : library.downloads?.artifact?.size,
     };
 
     if (classifier === undefined) {
@@ -92,7 +93,8 @@ export function parseNative({
     return false;
   }
 
-  for (const [currentClassifier, { sha1, "url": nativesUrl }] of Object.entries(classifiers)) {
+  for (const [currentClassifier, artifact] of Object.entries(classifiers)) {
+    const { sha1, size, "url": nativesUrl } = artifact;
     const {
       "platform": classifierPlatform,
       "arch"    : classifierArch,
@@ -131,6 +133,7 @@ export function parseNative({
       "path"     : updatedPath,
       "url"      : nativesUrl,
       "hash"     : sha1,
+      size,
       "status"   : "native",
       "first"    : false,
       "exclude"  : exclude,

@@ -25,13 +25,28 @@ import { log } from "@/lib/logging/log.ts";
 import Schemas from "@/lib/schemas";
 import type { AccountType } from "@/types/configs/account.type.ts";
 
-export async function writeAccounts({
-  accounts,
-  baseDirectory,
-}: {
+import { getAccounts } from "./get-accounts.ts";
+
+let accountWriteChain: Promise<void> = Promise.resolve();
+
+function serializeWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const result = accountWriteChain.then(operation);
+
+  accountWriteChain = result.then(() => {}, () => {});
+
+  return result;
+}
+
+type AccountWrite = {
   "accounts"      : Array<AccountType>;
   "baseDirectory"?: string;
-}): Promise<boolean> {
+};
+
+export function writeAccounts(input: AccountWrite): Promise<boolean> {
+  return serializeWrite(() => persistAccounts(input));
+}
+
+async function persistAccounts({ accounts, baseDirectory }: AccountWrite): Promise<boolean> {
   const accountsPath: string = FileManager.join(
     baseDirectory ?? FileManager.getBaseDirectory(),
     FileStructure.Files.Accounts,
@@ -75,4 +90,23 @@ export async function writeAccounts({
   log.debug(__PRE_BUNDLED_FILENAME__, "Successfully wrote the accounts file");
 
   return true;
+}
+
+export function updateAccounts(
+  mutate: (current: ReadonlyArray<AccountType>) => Array<AccountType> | undefined,
+): Promise<Array<AccountType>> {
+  return serializeWrite(async () => {
+    const current = await getAccounts();
+    const next = mutate(current);
+
+    if (!next) {
+      return current;
+    }
+
+    if (!await persistAccounts({ "accounts": next })) {
+      throw new Error("Failed to save the updated accounts");
+    }
+
+    return next;
+  });
 }

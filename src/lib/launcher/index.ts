@@ -11,13 +11,6 @@ import { spawnMinecraft } from "@/lib/launcher/scopes/spawn-minecraft.ts";
 import Validators from "@/lib/launcher/scopes/validators";
 
 export default {
-  "__unused": {
-
-    /*
-     * // useApplet,
-     * useShell,
-     */
-  },
   detectJavaInstallations,
   fetchJavaMajor,
   Arguments,

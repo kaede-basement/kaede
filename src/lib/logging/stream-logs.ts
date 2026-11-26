@@ -21,8 +21,14 @@ import { type Channel, invoke } from "@tauri-apps/api/core";
 import Errors from "@/lib/errors";
 import { log } from "@/lib/logging/log.ts";
 
-export async function streamLogs<T>(channel: Channel<T>): Promise<void> {
-  await invoke("stream_logs", { "onEvent": channel }).catch((error: unknown) => {
+export async function streamLogs<T>(
+  channel: Channel<T>,
+  subscriptionId?: number,
+  token?: number,
+): Promise<void> {
+  const payload = { "onEvent": channel, subscriptionId, token };
+
+  await invoke("stream_logs", payload).catch((error: unknown) => {
     log.error(__PRE_BUNDLED_FILENAME__, "The log stream failed:", Errors.prettify(error));
   });
 }
