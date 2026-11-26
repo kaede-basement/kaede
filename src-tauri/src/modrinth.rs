@@ -2,7 +2,7 @@ use crate::zip::{open_archive, read_limited, relative_name, Extraction};
 use crate::{
     downloads::{CancelFlags, CancelSignal, DownloadError, InstallDecision, Registration},
     hashing::HashAlgorithm,
-    mod_store::{materialize_blob, stage_blob, ModStore},
+    mod_store::{materialize_blob, stage_blob, BlobSpec, ModStore},
 };
 ///
 /// ATTENTION: AI-generated (by Claude Fable 5 on 'max' reasoning),
@@ -82,6 +82,19 @@ pub struct ManifestFile {
     pub sha1: String,
     pub sha512: String,
     pub external: bool,
+}
+
+impl ManifestFile {
+    fn blob_spec(&self) -> BlobSpec {
+        BlobSpec {
+            path: self.path.clone(),
+            url: self.url.clone(),
+            mirrors: self.mirrors.clone(),
+            file_size: self.file_size,
+            sha1: self.sha1.clone(),
+            sha512: self.sha512.clone(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -228,7 +241,7 @@ async fn install_manifest(
                 let store = store.clone();
                 pending.push(async move {
                     store
-                        .ensure(file, &user, Some(&local))
+                        .ensure(file.blob_spec(), &user, Some(&local))
                         .await
                         .map(|blob| (index, blob))
                 });
@@ -552,7 +565,7 @@ async fn repair_files(
                 }
             };
             let blob = store
-                .ensure(file, cancel, None)
+                .ensure(file.blob_spec(), cancel, None)
                 .await
                 .map_err(DownloadError::install_message)?;
             check_cancel(cancel)?;
@@ -1382,7 +1395,13 @@ mod tests {
         let active = store.lease().await.unwrap();
         let (_tx, cancel) = CancelSignal::channel();
         assert_eq!(
-            std::fs::read(active.ensure(&file, &cancel, None).await.unwrap()).unwrap(),
+            std::fs::read(
+                active
+                    .ensure(file.blob_spec(), &cancel, None)
+                    .await
+                    .unwrap()
+            )
+            .unwrap(),
             b"blob"
         );
     }
@@ -1448,7 +1467,7 @@ mod tests {
         file.mirrors = vec![format!("{url}/second")];
         let (_stop, cancel) = CancelSignal::channel();
         let store = store.lease().await.unwrap();
-        let (result, ()) = tokio::join!(store.ensure(&file, &cancel, None), async {
+        let (result, ()) = tokio::join!(store.ensure(file.blob_spec(), &cancel, None), async {
             for response in [
                 b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".as_slice(),
                 b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ngood",

@@ -1,7 +1,6 @@
 use crate::{
     downloads::{client, stream_file, CancelSignal, DownloadError, Progress},
     hashing::{modpack_hashes, HashAlgorithm},
-    modrinth::ManifestFile,
 };
 use std::sync::{Arc, Once};
 use std::{
@@ -10,6 +9,15 @@ use std::{
     path::{Path, PathBuf},
 };
 use tokio::sync::{watch, Mutex};
+
+pub(crate) struct BlobSpec {
+    pub path: String,
+    pub url: String,
+    pub mirrors: Vec<String>,
+    pub file_size: u64,
+    pub sha1: String,
+    pub sha512: String,
+}
 
 #[derive(Clone)]
 pub struct ModStore {
@@ -208,14 +216,13 @@ impl ObjectTree {
         .map_err(|e| e.to_string())
     }
 
-    pub async fn ensure(
+    pub(crate) async fn ensure(
         self: &Arc<Self>,
-        file: &ManifestFile,
+        file: BlobSpec,
         cancel: &CancelSignal,
         siblings: Option<&watch::Receiver<bool>>,
     ) -> Result<PathBuf, DownloadError> {
         let tree = self.clone();
-        let file = file.clone();
         crate::downloads::supervise(cancel, siblings, move |mut local| async move {
             tree.ensure_object(&file, &mut local).await
         })
@@ -225,7 +232,7 @@ impl ObjectTree {
 
     async fn ensure_object(
         self: Arc<Self>,
-        file: &ManifestFile,
+        file: &BlobSpec,
         cancel: &mut crate::downloads::TransferStop,
     ) -> Result<PathBuf, DownloadError> {
         let prefix = &file.sha512[..2];
