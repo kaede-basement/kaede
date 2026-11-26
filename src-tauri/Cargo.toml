@@ -30,6 +30,9 @@ old-safari = []
 
 [dependencies]
 serde_json = "1.0"
+tempfile = "3"
+same-file = "1"
+shared_child = "1.1.1"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.12.5", features = ["protocol-asset", "macos-private-api", "image-ico", "image-png", "tray-icon"] }
@@ -42,7 +45,7 @@ md-5 = "0.10.6"
 sysinfo = "0.36.1"
 rayon = "1.11.0"
 zip = { version = "3.0", default-features = false, features = ["deflate"] }
-tokio = { version = "1", features = ["fs", "macros", "rt", "time", "io-util"] }
+tokio = { version = "1", features = ["fs", "macros", "rt", "time", "io-util", "net"] }
 reqwest = { version = "0.13" }
 image = { version = "0.25.10", default-features = false, features = ["png", "webp", "jpeg"] }
 
@@ -65,6 +68,10 @@ tauri-plugin-single-instance = "2.5.5"
 
 # Modded shell plugin that allows any commands (...recipe for disaster?)
 tauri-plugin-shellx = "2.0.16"
+
+[target.'cfg(windows)'.dependencies]
+getrandom = { version = "0.2", features = ["std"] }
+windows-sys = { version = "0.59", features = ["Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_SystemServices"] }
 
 [profile.release]
 # Compile each crate as one unit instead of 16 parallel units.

@@ -1,15 +1,16 @@
+use crate::zip::{open_archive, read_limited, relative_name, Extraction};
 ///
 /// ATTENTION: AI-generated (by Claude Fable 5 on 'max' reasoning),
 /// but the code here was initially written by me in TypeScript (so this is a rewrite)
 ///
 use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::{self, Read};
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use zip::ZipArchive;
 
+const MANIFEST_LIMIT: u64 = 16 << 20;
 const MANIFEST_ENTRY: &str = "modrinth.index.json";
 const OVERRIDE_PREFIXES: [&str; 2] = ["overrides", "client-overrides"];
 const TRUSTED_PREFIX: &str = "https://cdn.modrinth.com/";
@@ -95,99 +96,87 @@ pub async fn peek_mrpack(archive_path: String) -> Result<Option<MrpackManifest>,
 }
 
 fn peek(archive_path: &Path) -> Result<Option<MrpackManifest>, String> {
-    let file = File::open(archive_path)
-        .map_err(|error| format!("Failed to open {}: {}", archive_path.display(), error))?;
-
-    let mut archive = ZipArchive::new(file)
-        .map_err(|error| format!("Failed to read {} as a zip: {}", archive_path.display(), error))?;
-
-    if archive.by_name(MANIFEST_ENTRY).is_err() {
-        return Ok(None);
-    }
-
-    let manifest = read_manifest(&mut archive, archive_path)?;
-
-    Ok(Some(build_manifest(manifest, 0)))
+    read_manifest(&mut open_archive(archive_path)?)
 }
 
 fn install(archive_path: &Path, target_dir: &Path) -> Result<MrpackManifest, String> {
-    let file = File::open(archive_path)
-        .map_err(|error| format!("Failed to open {}: {}", archive_path.display(), error))?;
-
-    let mut archive = ZipArchive::new(file)
-        .map_err(|error| format!("Failed to read {} as a zip: {}", archive_path.display(), error))?;
-
-    let manifest = read_manifest(&mut archive, archive_path)?;
-    let overrides = extract_overrides(&mut archive, archive_path, target_dir)?;
-
-    Ok(build_manifest(manifest, overrides))
+    let mut archive = open_archive(archive_path)?;
+    let mut manifest = read_manifest(&mut archive)?.ok_or("Missing modrinth.index.json")?;
+    let mut extraction = Extraction::new(target_dir)?;
+    for file in &manifest.files {
+        let path = extraction.prepare_file(&file.path)?;
+        match path.symlink_metadata() {
+            Ok(meta) if !meta.is_file() => {
+                return Err(format!("Invalid manifest destination: {}", path.display()))
+            }
+            Ok(_) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    manifest.overrides = extract_overrides(&mut archive, archive_path, &mut extraction)?;
+    Ok(manifest)
 }
 
-fn build_manifest(manifest: RawIndex, overrides: usize) -> MrpackManifest {
-    MrpackManifest {
+fn build_manifest(manifest: RawIndex) -> Result<MrpackManifest, String> {
+    Ok(MrpackManifest {
         format_version: manifest.format_version,
         name: manifest.name,
         version_id: manifest.version_id,
         summary: manifest.summary,
         dependencies: manifest.dependencies,
-        files: manifest.files.into_iter().filter_map(map_file).collect(),
-        overrides,
-    }
+        files: manifest
+            .files
+            .into_iter()
+            .filter_map(|file| map_file(file).transpose())
+            .collect::<Result<_, _>>()?,
+        overrides: 0,
+    })
 }
 
-fn map_file(raw: RawFile) -> Option<ManifestFile> {
-    let url = raw
+fn map_file(raw: RawFile) -> Result<Option<ManifestFile>, String> {
+    if raw.path.ends_with('/') {
+        return Err(format!("Expected manifest file: {}", raw.path));
+    }
+    relative_name(&raw.path)?;
+    let Some(url) = raw
         .downloads
         .into_iter()
-        .find(|url| url.starts_with("https://"))?;
+        .find(|url| url.starts_with("https://"))
+    else {
+        return Ok(None);
+    };
 
-    Some(ManifestFile {
+    Ok(Some(ManifestFile {
         external: !url.starts_with(TRUSTED_PREFIX),
         path: raw.path,
         url,
         file_size: raw.file_size,
         sha1: raw.hashes.sha1,
         sha512: raw.hashes.sha512,
-    })
+    }))
 }
 
-fn read_manifest(
-    archive: &mut ZipArchive<File>,
-    archive_path: &Path,
-) -> Result<RawIndex, String> {
-    let mut entry = archive.by_name(MANIFEST_ENTRY).map_err(|error| {
-        format!(
-            "Failed to read '{}' in {}: {}",
-            MANIFEST_ENTRY,
-            archive_path.display(),
-            error,
-        )
-    })?;
-
-    let mut contents = String::with_capacity(entry.size() as usize);
-
-    entry.read_to_string(&mut contents).map_err(|error| {
-        format!(
-            "Failed to read '{}' in {}: {}",
-            MANIFEST_ENTRY,
-            archive_path.display(),
-            error,
-        )
-    })?;
-
-    serde_json::from_str(&contents)
-        .map_err(|error| format!("Failed to parse '{}': {}", MANIFEST_ENTRY, error))
+fn read_manifest(archive: &mut ZipArchive<File>) -> Result<Option<MrpackManifest>, String> {
+    let entry = match archive.by_name(MANIFEST_ENTRY) {
+        Ok(entry) => entry,
+        Err(zip::result::ZipError::FileNotFound) => return Ok(None),
+        Err(e) => return Err(e.to_string()),
+    };
+    let bytes = read_limited(entry, MANIFEST_LIMIT)?;
+    build_manifest(serde_json::from_slice(&bytes).map_err(|e| format!("{MANIFEST_ENTRY}: {e}"))?)
+        .map(Some)
 }
 
 fn extract_overrides(
     archive: &mut ZipArchive<File>,
     archive_path: &Path,
-    target_dir: &Path,
+    extraction: &mut Extraction,
 ) -> Result<usize, String> {
     let mut written = 0;
 
     for index in 0..archive.len() {
-        let mut entry = archive.by_index(index).map_err(|error| {
+        let entry = archive.by_index(index).map_err(|error| {
             format!(
                 "Failed to read entry #{} in {}: {}",
                 index,
@@ -196,46 +185,60 @@ fn extract_overrides(
             )
         })?;
 
-        let Some(entry_path) = entry.enclosed_name() else {
+        let Some((prefix, relative)) = entry.name().split_once('/') else {
             continue;
         };
-
-        let Some(relative_path) = OVERRIDE_PREFIXES
-            .iter()
-            .find_map(|prefix| entry_path.strip_prefix(prefix).ok())
-        else {
-            continue;
-        };
-
-        if relative_path.as_os_str().is_empty() {
+        if !OVERRIDE_PREFIXES.contains(&prefix) || relative.is_empty() {
             continue;
         }
-
-        let output_path: PathBuf = target_dir.join(relative_path);
-
-        if entry.is_dir() {
-            create_directory(&output_path)?;
-
-            continue;
-        }
-
-        if let Some(parent) = output_path.parent() {
-            create_directory(parent)?;
-        }
-
-        let mut output_file = File::create(&output_path)
-            .map_err(|error| format!("Failed to create {}: {}", output_path.display(), error))?;
-
-        io::copy(&mut entry, &mut output_file)
-            .map_err(|error| format!("Failed to write {}: {}", output_path.display(), error))?;
-
-        written += 1;
+        let directory = entry.is_dir();
+        let name = relative.to_owned();
+        extraction.extract(&name, directory, None, entry)?;
+        written += usize::from(!directory);
     }
-
     Ok(written)
 }
 
-fn create_directory(path: &Path) -> Result<(), String> {
-    fs::create_dir_all(path)
-        .map_err(|error| format!("Failed to create {}: {}", path.display(), error))
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    #[test]
+    fn missing_corrupt_and_unsafe_manifest_are_distinct() {
+        for contents in [
+            None,
+            Some("broken"),
+            Some(r#"{"files":[{"path":"../outside"}]}"#),
+        ] {
+            let file = tempfile::NamedTempFile::new().unwrap();
+            let mut zip = zip::ZipWriter::new(file.as_file());
+            if let Some(contents) = contents {
+                zip.start_file(MANIFEST_ENTRY, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                zip.write_all(contents.as_bytes()).unwrap();
+            }
+            zip.finish().unwrap();
+            let result = peek(file.path());
+            if contents.is_none() {
+                assert!(matches!(result, Ok(None)));
+            } else {
+                assert!(result.is_err());
+            }
+        }
+    }
+    #[test]
+    fn unreadable_manifest_entry_is_an_error() {
+        use std::io::{Seek, SeekFrom};
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        let mut archive = zip::ZipWriter::new(file.as_file_mut());
+        archive
+            .start_file(MANIFEST_ENTRY, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        archive.write_all(b"{}").unwrap();
+        archive.finish().unwrap();
+        assert!(matches!(peek(file.path()), Ok(Some(_))));
+        file.seek(SeekFrom::Start(0)).unwrap();
+        file.write_all(b"oops").unwrap();
+        assert!(peek(file.path()).is_err());
+    }
 }

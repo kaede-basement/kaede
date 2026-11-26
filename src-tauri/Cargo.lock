@@ -2363,15 +2363,18 @@ dependencies = [
 name = "kaede"
 version = "0.0.0"
 dependencies = [
+ "getrandom 0.2.16",
  "image",
  "log",
  "md-5",
  "rayon",
  "reqwest 0.13.4",
+ "same-file",
  "serde",
  "serde_json",
  "sha1",
  "sha2",
+ "shared_child",
  "sysinfo",
  "tauri",
  "tauri-build",
@@ -2388,8 +2391,10 @@ dependencies = [
  "tauri-plugin-shellx",
  "tauri-plugin-single-instance",
  "tauri-plugin-upload",
+ "tempfile",
  "time",
  "tokio",
+ "windows-sys 0.59.0",
  "zip",
 ]
 

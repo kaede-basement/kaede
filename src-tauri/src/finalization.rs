@@ -2,11 +2,11 @@
 /// ATTENTION: AI-generated (by Claude Fable 5 on 'max' reasoning),
 /// but the code here was initially written by me in TypeScript (so this is a rewrite)
 ///
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use rayon::prelude::*;
 use serde::Serialize;
@@ -103,29 +103,24 @@ fn resolve_java_path(java_binary: &str) -> Option<PathBuf> {
     })
 }
 
-fn read_release_file(java_exe: &Path) -> Option<HashMap<String, String>> {
-    // '<home>/bin/java' -> '<home>/release'
-    let release = java_exe.parent()?.parent()?.join("release");
-    let content = fs::read_to_string(release).ok()?;
-
-    let entries = content
-        .lines()
-        .filter_map(|line| {
-            let (key, value) = line.split_once('=')?;
-
-            Some((
-                key.trim().to_string(),
-                value.trim().trim_matches('"').to_string(),
-            ))
-        })
-        .collect();
-
-    Some(entries)
+fn read_release_file(java_exe: &Path) -> Option<(String, Option<String>)> {
+    let exe = java_exe.canonicalize().ok()?;
+    let content = fs::read_to_string(exe.parent()?.parent()?.join("release")).ok()?;
+    let mut version = None;
+    let mut vendor = None;
+    for (key, value) in content.lines().filter_map(|line| line.split_once('=')) {
+        let value = value.trim().trim_matches('"');
+        match key.trim() {
+            "JAVA_VERSION" => version = Some(value.to_owned()),
+            "IMPLEMENTOR" => vendor = Some(value.to_owned()),
+            _ => {}
+        }
+    }
+    Some((version?, vendor))
 }
 
-// 'JAVA_VERSION="21.0.1"'
 fn major_from_release_file(java_exe: &Path) -> Option<u32> {
-    parse_java_major(read_release_file(java_exe)?.get("JAVA_VERSION")?)
+    parse_java_major(&read_release_file(java_exe)?.0)
 }
 
 // Spawns the JVM with '-version' and returns the useful part of the output
@@ -152,7 +147,17 @@ fn banner_from_spawn(java_exe: &Path) -> Option<String> {
         command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     }
 
-    let output = command.output().ok()?;
+    let child = {
+        #[cfg(all(unix, not(target_os = "linux")))]
+        let _guard = crate::processes::lock_unix_spawn();
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .ok()?
+    };
+    let output = child.wait_with_output().ok()?;
 
     // Goes to stderr, but we should probably check for stdout as well
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -231,18 +236,17 @@ pub async fn detect_java_installations() -> Result<Vec<JavaInstallation>, String
 }
 
 fn collect_java_installations() -> Vec<JavaInstallation> {
-    let mut seen: Vec<PathBuf> = Vec::new();
+    let mut seen = HashSet::new();
     let mut candidates: Vec<(PathBuf, &'static str)> = Vec::new();
 
     // Avoid duplicates
     for (candidate, source) in gather_java_candidates() {
         let canonical = fs::canonicalize(&candidate).unwrap_or_else(|_| candidate.clone());
 
-        if seen.contains(&canonical) {
+        if !seen.insert(canonical) {
             continue;
         }
 
-        seen.push(canonical);
         candidates.push((candidate, source));
     }
 
@@ -266,10 +270,6 @@ fn gather_java_candidates() -> Vec<(PathBuf, &'static str)> {
     let executable = format!("java{}", std::env::consts::EXE_SUFFIX);
     let mut candidates: Vec<(PathBuf, &'static str)> = Vec::new();
 
-    if let Some(resolved) = resolve_java_path("java") {
-        candidates.push((resolved, "environment"));
-    }
-
     if let Some(java_home) = std::env::var_os("JAVA_HOME") {
         candidates.push((
             Path::new(&java_home).join("bin").join(&executable),
@@ -278,10 +278,13 @@ fn gather_java_candidates() -> Vec<(PathBuf, &'static str)> {
     }
 
     if let Some(paths) = std::env::var_os("PATH") {
-        candidates.extend(
-            std::env::split_paths(&paths)
-                .map(|directory| (directory.join(&executable), "path")),
-        );
+        let mut paths = std::env::split_paths(&paths)
+            .map(|dir| dir.join(&executable))
+            .filter(|p| p.is_file());
+        if let Some(first) = paths.next() {
+            candidates.insert(0, (first, "environment"));
+        }
+        candidates.extend(paths.map(|p| (p, "path")));
     }
 
     for root in java_directory_roots() {
@@ -364,52 +367,51 @@ fn probe_java_installation(java_exe: &Path, source: &'static str) -> Option<Java
     let path = java_exe.to_string_lossy().to_string();
 
     // Reading the 'release' file is much cheaper than spawning a JVM
-    if let Some(release) = read_release_file(java_exe) {
-        if let Some(version) = release.get("JAVA_VERSION") {
-            return Some(JavaInstallation {
-                path,
-                vendor: release
-                    .get("IMPLEMENTOR")
-                    .cloned()
-                    .unwrap_or_else(|| "Unknown".to_string()),
-                major: parse_java_major(version),
-                version: version.clone(),
-                source,
-            });
-        }
-    }
-
-    let banner = banner_from_spawn(java_exe)?;
-    let version = version_from_banner(&banner)?;
-
+    let (version, vendor) = if let Some((version, vendor)) = read_release_file(java_exe) {
+        (version, vendor.unwrap_or_else(|| "Unknown".to_owned()))
+    } else {
+        let banner = banner_from_spawn(java_exe)?;
+        let line = banner.lines().find(|line| line.contains("version"))?;
+        let vendor = match line.split_whitespace().next() {
+            Some("openjdk") => "OpenJDK",
+            Some("java") => "Oracle",
+            _ => "Unknown",
+        };
+        (line.split('"').nth(1)?.to_owned(), vendor.to_owned())
+    };
     Some(JavaInstallation {
         path,
-        vendor: vendor_from_banner(&banner),
+        vendor,
         major: parse_java_major(&version),
         version,
         source,
     })
 }
 
-fn version_from_banner(banner: &str) -> Option<String> {
-    let version_line = banner.lines().find(|line| line.contains("version"))?;
-
-    Some(version_line.split('"').nth(1)?.to_string())
-}
-
-// There is no vendor in the banner, so we guess by the runtime name:
-// - openjdk version "25.0.1" 2025-10-21 LTS -> OpenJDK
-// - java version "1.8.0_472"                -> Oracle
-fn vendor_from_banner(banner: &str) -> String {
-    let Some(version_line) = banner.lines().find(|line| line.contains("version")) else {
-        return "Unknown".to_string();
-    };
-
-    match version_line.split_whitespace().next() {
-        Some("openjdk") => "OpenJDK".to_string(),
-        Some("java") => "Oracle".to_string(),
-        _ => "Unknown".to_string(),
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn legacy_version() {
+        assert_eq!(parse_java_major("1.8.0_472"), Some(8));
+    }
+    #[cfg(unix)]
+    #[test]
+    fn linked_binary_uses_real_release_and_keeps_launch_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let bin = tmp.path().join("jdk/bin");
+        fs::create_dir_all(&bin).unwrap();
+        fs::write(bin.join("java"), "").unwrap();
+        fs::write(
+            bin.parent().unwrap().join("release"),
+            "JAVA_VERSION=1.8.0_472\nIMPLEMENTOR=Test",
+        )
+        .unwrap();
+        let link = tmp.path().join("java");
+        std::os::unix::fs::symlink(bin.join("java"), &link).unwrap();
+        let java = probe_java_installation(&link, "path").unwrap();
+        assert_eq!(java.major, Some(8));
+        assert_eq!(java.vendor, "Test");
+        assert_eq!(Path::new(&java.path), link);
     }
 }
-
-
