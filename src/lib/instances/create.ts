@@ -21,7 +21,8 @@ import { message } from "@tauri-apps/plugin-dialog";
 import { DefaultInstanceSettings } from "@/constants/launcher.ts";
 import { Patches, PrettyPatchLabels } from "@/constants/meta.ts";
 import { Routes } from "@/constants/routes.ts";
-import FileManager from "@/lib/file-manager";
+import { sanitizeFileOrFolderName } from "@/lib/file-manager/path.ts";
+import { sync } from "@/lib/instances/sync.ts";
 import { log } from "@/lib/logging/log.ts";
 import Router from "@/lib/router";
 import { globalStates } from "@/states/global.ts";
@@ -33,7 +34,19 @@ export function create(
   currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
   uid: ExtendedPatchUIDType,
   modpackPath?: string,
-): string | undefined {
+): string | undefined;
+export function create(
+  currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
+  uid: ExtendedPatchUIDType,
+  modpackPath: string,
+  beforeRegister: (id: string) => Promise<void>,
+): Promise<string> | undefined;
+export function create(
+  currentInstance: GlobalStatesType["pages"]["add-instance"]["instance"],
+  uid: ExtendedPatchUIDType,
+  modpackPath?: string,
+  beforeRegister?: (id: string) => Promise<void>,
+): string | Promise<string> | undefined {
   if (!currentInstance) {
     log.error(
       __PRE_BUNDLED_FILENAME__,
@@ -84,14 +97,13 @@ export function create(
     toAdd[Patches.FabricIntermediary] = currentInstance.patchVersions[Patches.Minecraft];
   }
 
-  const randomDigits: number = Math.floor(Math.random() * 1000);
-  const id: string = FileManager.sanitizeFileOrFolderName(
-    currentInstance.name + " " + randomDigits,
-  );
+  const id = sanitizeFileOrFolderName(beforeRegister
+    ? crypto.getRandomValues(new Uint8Array(16)).join("-") + " " + currentInstance.name
+    : currentInstance.name + " " + Math.floor(Math.random() * 1000));
 
   log.debug(__PRE_BUNDLED_FILENAME__, "Creating an instance with the entry patch:", uid);
 
-  instanceStates[id] = {
+  const instance = {
     ...DefaultInstanceSettings,
     ...globalStates.minecraft,
     ...currentInstance,
@@ -102,19 +114,49 @@ export function create(
     "entry": uid,
   };
 
-  if (modpackPath) {
-    instanceStates[id].modpackPath = modpackPath;
+  const page = globalStates.pages["add-instance"];
+  const draft = page.instance;
+  const archive = page.importedModpack;
+  const draftValues = (): string => JSON.stringify([
+    page.instance, page.importedModpack, page.instanceVersionSearch?.patch,
+  ]);
+  const initialValues = beforeRegister && draftValues();
+
+  function register(): void {
+    instanceStates[id] = {
+      ...instance,
+      ...(modpackPath && !beforeRegister ? { modpackPath } : {}),
+    };
+    log.info(__PRE_BUNDLED_FILENAME__, "Created an instance with the entry patch:", uid);
   }
 
-  log.info(
-    __PRE_BUNDLED_FILENAME__,
-    "Successfully created an instance with the entry patch:",
-    uid,
-  );
+  function finish(): string {
+    if (beforeRegister) {
+      if (globalStates.currentPage !== Routes.AddInstance ||
+        (page.tab ?? "clean-minecraft") !== "clean-minecraft" ||
+        globalStates.pages["add-instance"] !== page || page.instance !== draft ||
+        page.importedModpack !== archive || draftValues() !== initialValues) {
+        return id;
+      }
+      globalStates.selected.currentInstance = id;
+      page.importedModpack = undefined;
+      page.lastCreated = undefined;
+    }
+    page.instance = undefined;
+    Router.navigate(Routes.Library);
 
-  globalStates.pages["add-instance"].instance = undefined;
+    return id;
+  }
 
-  Router.navigate(Routes.Library);
+  if (beforeRegister) {
+    return beforeRegister(id).then(async () => {
+      register();
+      await sync();
 
-  return id;
+      return finish();
+    });
+  }
+  register();
+
+  return finish();
 }

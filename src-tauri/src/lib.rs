@@ -8,13 +8,102 @@ mod file_system;
 mod finalization;
 mod hashing;
 mod image;
+#[cfg(any(windows, target_os = "linux"))]
 mod ipc_batch;
+mod ipc_dispatch;
 mod logging;
 mod modrinth;
+mod mod_store;
 mod processes;
 mod system;
 mod translations;
 mod zip;
+
+type Incoming<R> = tauri::ipc::Invoke<R>;
+
+struct Invoke<R: tauri::Runtime = tauri::Wry> {
+    queue: std::sync::Arc<ipc_dispatch::Queue>,
+    message: tauri::ipc::InvokeMessage<R>,
+    acl: Option<Vec<tauri::utils::acl::resolved::ResolvedCommand>>,
+}
+
+fn argument<'a, T: tauri::ipc::CommandArg<'a, R>, R: tauri::Runtime>(
+    invoke: &'a Invoke<R>,
+    name: &'static str,
+    key: &'static str,
+) -> Result<T, tauri::ipc::InvokeError> {
+    T::from_command(tauri::ipc::CommandItem {
+        plugin: None,
+        name,
+        key,
+        message: &invoke.message,
+        acl: &invoke.acl,
+    })
+}
+
+fn bind_at_dispatch<R: tauri::Runtime>(
+    other: impl Fn(Incoming<R>) -> bool,
+) -> impl Fn(Incoming<R>) -> bool {
+    move |invoke| {
+        let dispatcher = invoke
+            .message
+            .webview_ref()
+            .state::<ipc_dispatch::Dispatcher>()
+            .inner()
+            .clone();
+        match invoke.message.command() {
+            "concurrently_download" => {
+                dispatcher.dispatch(invoke, downloads::concurrently_download)
+            }
+            "repair_legacy_mrpack" => dispatcher.dispatch(invoke, modrinth::repair_legacy_mrpack),
+            "cancel_downloads" => dispatcher.dispatch(invoke, downloads::cancel_downloads),
+            "install_mrpack" => dispatcher.dispatch(invoke, modrinth::install_mrpack),
+            "stream_logs" => dispatcher.dispatch(invoke, logging::stream_logs),
+            "stop_log_stream" => dispatcher.dispatch(invoke, logging::stop_log_stream),
+            "get_system_memory" => dispatcher.dispatch(invoke, |_| Ok(system::get_system_memory())),
+            "get_cpu_usage" => dispatcher.dispatch(invoke, |_| Ok(system::get_cpu_usage())),
+            "resize_image" => dispatcher.dispatch(invoke, |i| {
+                Ok(image::resize_image(
+                    argument(i, "resize_image", "imagePath")?,
+                    argument(i, "resize_image", "toWidth")?,
+                    argument(i, "resize_image", "toHeight")?,
+                    argument(i, "resize_image", "toDirectory")?,
+                ))
+            }),
+            "peek_mrpack" => dispatcher.dispatch(invoke, |i| {
+                Ok(modrinth::peek_mrpack(argument(
+                    i,
+                    "peek_mrpack",
+                    "archivePath",
+                )?))
+            }),
+            "verify_paths" => dispatcher.dispatch(invoke, |i| {
+                Ok(file_system::verify_paths(argument(
+                    i,
+                    "verify_paths",
+                    "paths",
+                )?))
+            }),
+            "verify_paths_hash" => dispatcher.dispatch(invoke, |i| {
+                Ok(file_system::verify_paths_hash(
+                    argument(i, "verify_paths_hash", "artifacts")?,
+                    argument(i, "verify_paths_hash", "algorithm")?,
+                ))
+            }),
+            "clear_mod_cache" => dispatcher.dispatch(invoke, |i| {
+                let store = argument::<tauri::State<mod_store::ModStore>, _>(
+                    i,
+                    "clear_mod_cache",
+                    "store",
+                )?
+                .inner()
+                .clone();
+                Ok(async move { store.clear().await })
+            }),
+            _ => other(invoke),
+        }
+    }
+}
 
 // Launcher name
 const APP_NAME: &str = "kaede";
@@ -41,6 +130,22 @@ pub fn run() {
     // macOS keeps the default transport since it was not tested there
     #[cfg(any(windows, target_os = "linux"))]
     let builder = builder.invoke_system(include_str!("hybrid_ipc.js"));
+    let builder = builder.on_page_load(|webview, load| {
+        if load.event() == tauri::webview::PageLoadEvent::Started {
+            logging::page_changed(&mut webview.window_ref().resources_table(), false);
+            downloads::end_reservation_scope(&mut webview.resources_table());
+            #[cfg(any(windows, target_os = "linux"))]
+            ipc_batch::page_left(webview);
+        }
+    });
+    let builder = builder.on_window_event(|window, event| {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            logging::page_changed(&mut window.resources_table(), true);
+            downloads::end_reservation_scope(&mut window.resources_table());
+            #[cfg(any(windows, target_os = "linux"))]
+            ipc_batch::window_destroyed(window.label());
+        }
+    });
 
     // The "notifications" feature is disabled for Windows 7 builds
     #[cfg(feature = "notifications")]
@@ -67,6 +172,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            app.manage(ipc_dispatch::Dispatcher::for_app(app.handle()));
             // Initially, checking whether the application is in a portable mode or not
             // was made by reading the window label to find a 'Portable' string, which
             // only took '225.60µs' on my laptop, not as slow as I thought.
@@ -90,9 +196,12 @@ pub fn run() {
             // action that runs *while* the WebView is loading, i.e., before the frontend itself
             // can make such a call
             tauri::async_runtime::spawn(async {
-                hashing::APPLICATION_HASH.get_or_init(hashing::get_executable_hash).await;
+                if let Err(error) = hashing::APPLICATION_HASH.get_or_try_init(hashing::get_executable_hash).await {
+                    log::error!("Failed to preload executable hash: {error}");
+                }
             });
             // Besides hashing, we can also read configs ahead-of-time
+            app.manage(mod_store::ModStore::new(&base_directory));
             app.manage(application::PreloadedState::new(base_directory, portable));
 
             // Creates the 'logs' directory if it doesn't exist
@@ -124,7 +233,9 @@ pub fn run() {
                 error!("Failed to prepare the log file: {}", error);
             }
 
-            app.manage(logging::LogTail::new(path.join("latest.log")));
+            app.manage(std::sync::Arc::new(logging::LogTail::new(
+                path.join("latest.log"),
+            )));
             app.handle().plugin(
                 tauri_plugin_log::Builder::new()
                     // Clear any default output targets
@@ -148,12 +259,9 @@ pub fn run() {
                     .format(|out, message, record| {
                         let now = time::OffsetDateTime::now_utc();
                         // Default tauri logging format does not include milliseconds
-                        let formatted_time = format!("{:02}:{:02}:{:02}.{:03}",
-                            now.hour(), now.minute(), now.second(), now.millisecond());
-
                         out.finish(format_args!(
-                            "{} | {} | {} | {}",
-                            formatted_time,
+                            "{:02}:{:02}:{:02}.{:03} | {} | {} | {}",
+                            now.hour(), now.minute(), now.second(), now.millisecond(),
                             record.level(),
                             record.target(),
                             message,
@@ -171,13 +279,10 @@ pub fn run() {
         .manage(processes::ProcessRegistry::default())
         .manage(downloads::CancelFlags::default())
         // Register custom Tauri commands
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(bind_at_dispatch(tauri::generate_handler![
             application::get_initial_state,
-            downloads::concurrently_download,
-            downloads::cancel_downloads,
+            downloads::prepare_mrpack_install,
             extensions::read_extensions,
-            file_system::verify_paths,
-            file_system::verify_paths_hash,
             finalization::finalize_initialization,
             // TODO move to java::get_java_major and java::detect_java_installations
             finalization::get_java_major,
@@ -186,26 +291,29 @@ pub fn run() {
             hashing::hash_request_sha256,
             hashing::hash_request_sha1,
             hashing::hash_request_md5,
-            image::resize_image,
             // Used by 'hybrid_ipc.js'. If app commands ever get an ACL manifest
             // ('tauri_build::AppManifest'), these two must be allowed for every window
+            #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::ipc_batch,
+            #[cfg(any(windows, target_os = "linux"))]
             ipc_batch::ipc_batch_take,
-            logging::stream_logs,
-            logging::stop_log_stream,
-            modrinth::install_mrpack,
-            modrinth::peek_mrpack,
+            logging::next_log_subscription_id,
             processes::list_processes,
             processes::spawn_process,
             processes::kill_process,
             processes::write_process,
             processes::run_process,
-            system::get_system_memory,
-            system::get_cpu_usage,
             translations::get_locales,
             zip::read_archive_entry,
             zip::unzip_files,
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        ]))
+        .build(tauri::generate_context!())
+        .expect("error building tauri application")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                if let Some(dispatcher) = app.try_state::<ipc_dispatch::Dispatcher>() {
+                    dispatcher.shutdown();
+                }
+            }
+        });
 }

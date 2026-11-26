@@ -16,8 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import Errors from "@/lib/errors";
-import { log } from "@/lib/logging/log.ts";
+import Hashing, { Algorithms } from "@/lib/hashing.ts";
 
 function toBase64Url(bytes: Uint8Array): string {
   return btoa(String.fromCodePoint(...bytes))
@@ -32,33 +31,27 @@ function toBase64Url(bytes: Uint8Array): string {
 export async function createPkcePair(): Promise<{
   "verifier" : string;
   "challenge": string;
-  "method"   : "S256" | "plain";
+  "method"   : "S256";
 }> {
   const randomBytes: Uint8Array = crypto.getRandomValues(new Uint8Array(32));
   const verifier: string = toBase64Url(randomBytes);
 
-  try {
-    const digest: ArrayBuffer = await crypto.subtle.digest(
-      "SHA-256",
-      (new TextEncoder).encode(verifier),
-    );
+  let digest: Uint8Array;
 
-    return {
-      verifier,
-      "challenge": toBase64Url(new Uint8Array(digest)),
-      "method"   : "S256",
-    };
-  } catch (error: unknown) {
-    log.warn(
-      __PRE_BUNDLED_FILENAME__,
-      "An error occurred while hashing... Falling back to the 'plain' PKCE method:",
-      Errors.prettify(error),
-    );
+  if (crypto.subtle) {
+    const encoded = (new TextEncoder).encode(verifier);
 
-    return {
-      verifier,
-      "challenge": verifier,
-      "method"   : "plain",
-    };
+    digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoded));
+  } else {
+    // WebKit can expose getRandomValues without exposing SubtleCrypto.
+    const hex = await Hashing.hashPayload(verifier, Algorithms.SHA256);
+
+    digest = Uint8Array.from(hex.match(/../g)!, byte => Number.parseInt(byte, 16));
   }
+
+  return {
+    verifier,
+    "challenge": toBase64Url(digest),
+    "method"   : "S256",
+  };
 }

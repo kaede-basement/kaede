@@ -16,8 +16,15 @@
   - along with this program.  If not, see <https://www.gnu.org/licenses/>.
   -->
 
+<script lang="ts">
+import { ref } from "vue";
+
+const creatingModpack = ref(false);
+</script>
+
 <script setup lang="ts">
-import { computed, inject, markRaw, ref } from "vue";
+import { message } from "@tauri-apps/plugin-dialog";
+import { computed, inject, markRaw } from "vue";
 
 import MaterialRipple from "@/components/general/base/MaterialRipple.vue";
 import { useConfigColors } from "@/composables/use-config-colors.ts";
@@ -27,6 +34,7 @@ import Errors from "@/lib/errors";
 import Instances from "@/lib/instances";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
+import { ActiveInstall } from "@/lib/modrinth/install-mrpack.ts";
 import { globalStates } from "@/states/global.ts";
 import type {
   GlobalStatesType,
@@ -43,7 +51,16 @@ const instanceStatuses = inject<WrappedInstanceLauncherStatusesType>(
   LaunchStatesContextKey,
 );
 
-const pending = ref<boolean>(false);
+const progress = computed(() => (
+  ActiveInstall.value && instanceStatuses?.[ActiveInstall.value.instanceId]
+));
+const buttonLabel = computed(() => {
+  const status = progress.value;
+
+  return status
+    ? `Cancel installation (${status.downloads.success}/${status.downloads.total} files ready)`
+    : (creatingModpack.value ? "Saving instance..." : "Create an Instance");
+});
 
 const currentInstance = computed(
   (): GlobalStatesType["pages"]["add-instance"]["instance"] => (
@@ -90,39 +107,53 @@ function trackDownloads(instanceId: string): LauncherStatusesType {
 async function handleCreate(): Promise<void> {
   const archive = imported.value;
 
-  const instanceId: string | undefined = Instances.create(
-    currentInstance.value,
-    currentPatch.value,
-    archive?.path,
-  );
+  const instance = currentInstance.value;
+  const patch = currentPatch.value;
 
-  if (instanceId === undefined || !archive) {
+  if (ActiveInstall.value) {
+    await ActiveInstall.value.cancel();
+
+    return;
+  }
+  if (creatingModpack.value) {
+    return;
+  }
+  if (!archive) {
+    Instances.create(instance, patch);
+
     return;
   }
 
-  pending.value = true;
-  globalStates.selected.currentInstance = instanceId;
-  globalStates.pages["add-instance"].importedModpack = undefined;
-
-  const statuses: LauncherStatusesType = trackDownloads(instanceId);
-
+  creatingModpack.value = true;
   try {
-    await Modrinth.installMrpack({
-      "archivePath": archive.path,
-      instanceId,
-      statuses,
+    await Instances.create(instance, patch, archive.path, async instanceId => {
+      const statuses = trackDownloads(instanceId);
+
+      try {
+        await Modrinth.installMrpack({
+          "archivePath": archive.path,
+          instanceId,
+          statuses,
+        });
+      } finally {
+        if (instanceStatuses) {
+          delete instanceStatuses[instanceId];
+        }
+      }
     });
   } catch (error: unknown) {
-    log.error(
-      __PRE_BUNDLED_FILENAME__,
-      `Could not install '${archive.path}' into '${instanceId}':`,
-      Errors.prettify(error),
-    );
-  }
+    if (error === "Installation cancelled") {
+      await message(error, { "title": "Modpack installation", "kind": "info" });
 
-  globalStates.pages["add-instance"].lastCreated = undefined;
-  statuses.launching = 0;
-  pending.value = false;
+      return;
+    }
+    const detail = typeof error === "string" ? error : Errors.prettify(error);
+
+    log.error(__PRE_BUNDLED_FILENAME__, "Modpack installation failed", detail);
+    await message(detail, { "title": "Modpack installation failed", "kind": "error" });
+  } finally {
+    creatingModpack.value = false;
+  }
 }
 </script>
 
@@ -133,12 +164,12 @@ async function handleCreate(): Promise<void> {
   >
     <button
       id="__add-instance-page__create-instance-button"
-      class="relative rounded-md px-2 py-1 transition-[opacity] bg-[theme(colors.neutral.100/.1)] disabled:opacity-70"
-      :disabled="pending"
+      class="relative rounded-md px-2 py-1 transition-[opacity] bg-[theme(colors.neutral.100/.1)]"
+      :disabled="creatingModpack && !ActiveInstall"
       @click="handleCreate"
     >
-      {{ pending ? "Installing the modpack..." : "Create an Instance" }}
-      <MaterialRipple :disabled="pending" />
+      {{ buttonLabel }}
+      <MaterialRipple />
     </button>
     <div
       id="__add-instance-page__create-instance-type-display"
