@@ -25,10 +25,10 @@ import Instances from "@/lib/instances";
 import { instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
-import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
+import type { MrpackSummaryType } from "@/types/modrinth/mrpack.type.ts";
 
 export function resolvePatchVersions(
-  dependencies: MrpackManifestType["dependencies"],
+  dependencies: MrpackSummaryType["dependencies"],
 ): InstanceStateType["patchVersions"] | undefined {
   const minecraft: string | undefined = dependencies.minecraft;
 
@@ -51,8 +51,8 @@ export function resolvePatchVersions(
   return patchVersions;
 }
 
-export async function peekMrpack(archivePath: string): Promise<MrpackManifestType | undefined> {
-  const manifest = await invoke<MrpackManifestType | null>("peek_mrpack", {
+export async function peekMrpack(archivePath: string): Promise<MrpackSummaryType | undefined> {
+  const manifest = await invoke<MrpackSummaryType | null>("peek_mrpack", {
     archivePath,
   });
 
@@ -69,7 +69,7 @@ export async function installMrpack({
   "archivePath": string;
   "instanceId" : string;
   "statuses"   : LauncherStatusesType;
-}): Promise<MrpackManifestType> {
+}): Promise<MrpackSummaryType> {
   if (ActiveInstall.value) {
     throw new Error("Another modpack installation is active");
   }

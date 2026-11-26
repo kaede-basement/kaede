@@ -11,6 +11,7 @@ use std::{
 };
 use tokio::sync::{watch, Mutex};
 
+#[derive(Clone)]
 pub(crate) struct BlobSpec {
     pub path: String,
     pub url: String,

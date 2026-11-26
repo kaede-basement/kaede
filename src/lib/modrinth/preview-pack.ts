@@ -4,12 +4,12 @@ import { exists, mkdir, remove, rename, writeFile } from "@tauri-apps/plugin-fs"
 import { getBaseDirectory, join } from "@/lib/file-manager/path.ts";
 import { createRequestId } from "@/lib/network/create-request-id.ts";
 import { fetchDocument } from "@/lib/network/fetch-document.ts";
-import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
+import type { MrpackSummaryType } from "@/types/modrinth/mrpack.type.ts";
 
 import type { PackFile } from "./select-pack.ts";
 
 export async function downloadPreviewPack(file: PackFile, signal: AbortSignal):
-Promise<{ "manifest": MrpackManifestType; "path": string }> {
+Promise<{ "manifest": MrpackSummaryType; "path": string }> {
   const response = await fetchDocument(file.url, { signal });
 
   if (!response.ok) throw new Error(`HTTP ${response.status} downloading modpack`);
@@ -33,7 +33,7 @@ Promise<{ "manifest": MrpackManifestType; "path": string }> {
   try {
     signal.throwIfAborted();
     await writeFile(temporary, new Uint8Array(bytes));
-    const manifest = await invoke<MrpackManifestType | null>("peek_mrpack", {
+    const manifest = await invoke<MrpackSummaryType | null>("peek_mrpack", {
       "archivePath": temporary,
     });
 

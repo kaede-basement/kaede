@@ -20,7 +20,6 @@ use zip::ZipArchive;
 const MANIFEST_LIMIT: u64 = 16 << 20;
 const MANIFEST_ENTRY: &str = "modrinth.index.json";
 const OVERRIDE_PREFIXES: [&str; 2] = ["overrides", "client-overrides"];
-const TRUSTED_PREFIX: &str = "https://cdn.modrinth.com/";
 
 #[derive(Deserialize, Default)]
 struct RawHashes {
@@ -70,53 +69,48 @@ struct RawIndex {
     files: Vec<RawFile>,
 }
 
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ManifestFile {
-    // Relative to the Minecraft directory, e.g., "mods/sodium.jar"
-    pub path: String,
-    pub url: String,
-    #[serde(skip)]
-    pub mirrors: Vec<String>,
-    pub file_size: u64,
-    pub sha1: String,
-    pub sha512: String,
-    pub external: bool,
-}
-
-impl ManifestFile {
-    fn blob_spec(&self) -> BlobSpec {
-        BlobSpec {
-            path: self.path.clone(),
-            url: self.url.clone(),
-            mirrors: self.mirrors.clone(),
-            file_size: self.file_size,
-            sha1: self.sha1.clone(),
-            sha512: self.sha512.clone(),
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MrpackManifest {
+pub(super) struct MrpackManifest {
     pub format_version: u32,
     pub name: String,
     pub version_id: String,
     pub summary: Option<String>,
     // For example, { "minecraft": "1.20.1", "fabric-loader": "0.15.11" }
     pub dependencies: HashMap<String, String>,
-    pub files: Vec<ManifestFile>,
+    pub files: Vec<BlobSpec>,
     // How many override entries were written into the target directory
     pub overrides: usize,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MrpackSummary {
+    pub format_version: u32,
+    pub name: String,
+    pub version_id: String,
+    pub summary: Option<String>,
+    pub dependencies: HashMap<String, String>,
+    pub file_count: usize,
+    pub overrides: usize,
+}
+
+impl MrpackManifest {
+    fn into_summary(self) -> MrpackSummary {
+        MrpackSummary {
+            format_version: self.format_version,
+            name: self.name,
+            version_id: self.version_id,
+            summary: self.summary,
+            dependencies: self.dependencies,
+            file_count: self.files.len(),
+            overrides: self.overrides,
+        }
+    }
+}
+
 pub(crate) fn install_mrpack<R: tauri::Runtime>(
     invoke: &crate::Invoke<R>,
-) -> Result<
-    impl std::future::Future<Output = Result<MrpackManifest, String>>,
-    tauri::ipc::InvokeError,
-> {
+) -> Result<impl std::future::Future<Output = Result<MrpackSummary, String>>, tauri::ipc::InvokeError>
+{
     const NAME: &str = "install_mrpack";
     let archive = crate::argument(invoke, NAME, "archivePath")?;
     let target = crate::argument(invoke, NAME, "targetDirPath")?;
@@ -139,6 +133,7 @@ pub(crate) fn install_mrpack<R: tauri::Runtime>(
             let _ = progress.send((ok, total));
         })
         .await
+        .map(MrpackManifest::into_summary)
     })
 }
 
@@ -151,7 +146,7 @@ struct PackRequest {
 
 #[derive(Serialize)]
 pub(crate) struct SelectedPack {
-    manifest: MrpackManifest,
+    manifest: MrpackSummary,
     path: PathBuf,
 }
 
@@ -219,14 +214,14 @@ async fn stage_pack(
     .map_err(|e| e.to_string())?
 }
 
-pub async fn peek_mrpack(archive_path: String) -> Result<Option<MrpackManifest>, String> {
+pub async fn peek_mrpack(archive_path: String) -> Result<Option<MrpackSummary>, String> {
     tokio::task::spawn_blocking(move || peek(Path::new(&archive_path)))
         .await
         .map_err(|join_error| join_error.to_string())?
 }
 
-fn peek(archive_path: &Path) -> Result<Option<MrpackManifest>, String> {
-    read_manifest(&mut open_archive(archive_path)?)
+fn peek(archive_path: &Path) -> Result<Option<MrpackSummary>, String> {
+    Ok(read_manifest(&mut open_archive(archive_path)?)?.map(MrpackManifest::into_summary))
 }
 
 #[derive(Debug)]
@@ -318,7 +313,7 @@ async fn install_manifest(
                 let store = store.clone();
                 pending.push(async move {
                     store
-                        .ensure(file.blob_spec(), &user, Some(&local))
+                        .ensure(file.clone(), &user, Some(&local))
                         .await
                         .map(|blob| (index, blob))
                 });
@@ -642,7 +637,7 @@ async fn repair_files(
                 }
             };
             let blob = store
-                .ensure(file.blob_spec(), cancel, None)
+                .ensure(file.clone(), cancel, None)
                 .await
                 .map_err(DownloadError::install_message)?;
             check_cancel(cancel)?;
@@ -685,7 +680,7 @@ fn build_manifest(manifest: RawIndex) -> Result<MrpackManifest, String> {
     })
 }
 
-fn map_file(raw: RawFile) -> Result<Option<ManifestFile>, String> {
+fn map_file(raw: RawFile) -> Result<Option<BlobSpec>, String> {
     let support = raw.env.and_then(|env| env.client);
     if support == Some(ClientSupport::Unsupported) {
         return Ok(None);
@@ -707,11 +702,8 @@ fn map_file(raw: RawFile) -> Result<Option<ManifestFile>, String> {
     HashAlgorithm::Sha1.validate(&raw.hashes.sha1)?;
     HashAlgorithm::Sha512.validate(&raw.hashes.sha512)?;
 
-    let mirrors: Vec<_> = urls.collect();
-    Ok(Some(ManifestFile {
-        external: !url.starts_with(TRUSTED_PREFIX)
-            || mirrors.iter().any(|u| !u.starts_with(TRUSTED_PREFIX)),
-        mirrors,
+    Ok(Some(BlobSpec {
+        mirrors: urls.collect(),
         path: raw.path,
         url,
         file_size: raw.file_size,
@@ -872,6 +864,34 @@ mod tests {
             assert_eq!(root.path().read_dir().unwrap().count(), 1);
         }
     }
+    #[tokio::test]
+    async fn peek_and_selected_pack_serialize_client_file_count() {
+        let pack = tempfile::NamedTempFile::new().unwrap();
+        let index = serde_json::json!({
+            "files": [
+                {"path":"server.jar", "env":{"client":"unsupported"}, "fileSize":1},
+                {"path":"client.jar", "downloads":["https://example.org/client.jar"], "fileSize":1,
+                 "hashes":{"sha1":"a".repeat(40), "sha512":"b".repeat(128)}}
+            ]
+        });
+        let mut zip = zip::ZipWriter::new(pack.as_file());
+        zip.start_file(MANIFEST_ENTRY, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        serde_json::to_writer(&mut zip, &index).unwrap();
+        zip.finish().unwrap();
+        let preview = peek_mrpack(pack.path().to_str().unwrap().into())
+            .await
+            .unwrap();
+        let json = serde_json::to_value(&preview).unwrap();
+        assert_eq!(json["fileCount"], 1);
+        assert!(json.get("files").is_none());
+        let selected = SelectedPack {
+            manifest: preview.unwrap(),
+            path: pack.path().into(),
+        };
+        assert_eq!(serde_json::to_value(selected).unwrap()["manifest"], json);
+    }
+
     #[test]
     fn missing_corrupt_and_unsafe_manifest_are_distinct() {
         for contents in [
@@ -950,10 +970,9 @@ mod tests {
                 });
             }
         });
-        let file = |name: &str, route: &str| ManifestFile {
+        let file = |name: &str, route: &str| BlobSpec {
             path: format!("mods/{name}.jar"),
             url: format!("http://{addr}/{route}"),
-            external: false,
             mirrors: Vec::new(),
             file_size: 3,
             sha512: crate::hashing::hash_bytes::<sha2::Sha512>(name.as_bytes()),
@@ -1101,7 +1120,7 @@ mod tests {
         }
     }
 
-    fn seed_blob(store_root: &Path, bytes: &[u8]) -> (ManifestFile, PathBuf) {
+    fn seed_blob(store_root: &Path, bytes: &[u8]) -> (BlobSpec, PathBuf) {
         let sha512 = crate::hashing::hash_bytes::<sha2::Sha512>(bytes);
         let path = store_root
             .join("cache/objects/sha512")
@@ -1110,11 +1129,10 @@ mod tests {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, bytes).unwrap();
         (
-            ManifestFile {
+            BlobSpec {
                 path: "mods/item.jar".into(),
                 url: "https://example.invalid/item".into(),
                 mirrors: Vec::new(),
-                external: true,
                 file_size: bytes.len() as u64,
                 sha512,
                 sha1: crate::hashing::hash_bytes::<sha1::Sha1>(bytes),
@@ -1557,13 +1575,7 @@ mod tests {
         let active = store.lease().await.unwrap();
         let (_tx, cancel) = CancelSignal::channel();
         assert_eq!(
-            std::fs::read(
-                active
-                    .ensure(file.blob_spec(), &cancel, None)
-                    .await
-                    .unwrap()
-            )
-            .unwrap(),
+            std::fs::read(active.ensure(file, &cancel, None).await.unwrap()).unwrap(),
             b"blob"
         );
     }
@@ -1629,7 +1641,7 @@ mod tests {
         file.mirrors = vec![format!("{url}/second")];
         let (_stop, cancel) = CancelSignal::channel();
         let store = store.lease().await.unwrap();
-        let (result, ()) = tokio::join!(store.ensure(file.blob_spec(), &cancel, None), async {
+        let (result, ()) = tokio::join!(store.ensure(file, &cancel, None), async {
             for response in [
                 b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".as_slice(),
                 b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ngood",

@@ -3,12 +3,12 @@ import { onScopeDispose, type Ref, ref } from "vue";
 
 import { createRequestId } from "@/lib/network/create-request-id.ts";
 import { HttpBackend } from "@/lib/network/http-backend.ts";
-import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
+import type { MrpackSummaryType } from "@/types/modrinth/mrpack.type.ts";
 
 import type { fetchVersion } from "./fetch-version.ts";
 
 type Files = Awaited<ReturnType<typeof fetchVersion>>[number]["files"];
-type Pack = { "manifest": MrpackManifestType; "path": string };
+type Pack = { "manifest": MrpackSummaryType; "path": string };
 
 export type PackFile = {
   "url"   : string;
