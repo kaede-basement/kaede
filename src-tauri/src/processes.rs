@@ -275,8 +275,12 @@ pub fn list_processes(registry: State<'_, ProcessRegistry>) -> Vec<ProcessDto> {
 }
 
 #[tauri::command]
-pub fn kill_process(registry: State<'_, ProcessRegistry>, pid: u32) -> Result<(), String> {
-    registry.kill(pid)
+pub fn kill_process(
+    registry: State<'_, ProcessRegistry>,
+    pid: u32,
+    token: Option<String>,
+) -> Result<(), String> {
+    registry.kill(pid, token.as_deref())
 }
 
 #[derive(Deserialize)]
@@ -290,22 +294,10 @@ pub enum StdinData {
 pub async fn write_process(
     registry: State<'_, ProcessRegistry>,
     pid: u32,
+    token: Option<String>,
     data: StdinData,
 ) -> Result<(), String> {
-    let stdin = registry
-        .0
-        .lock()
-        .unwrap()
-        .get(&pid)
-        .map(|entry| entry.stdin.clone())
-        .ok_or_else(|| format!("no managed process with pid {pid}"))?;
-    stdin
-        .write(match data {
-            StdinData::Text(s) => s.into_bytes(),
-            StdinData::Bytes(bytes) => bytes,
-        })
-        .await
-        .map_err(|e| e.to_string())
+    registry.write(pid, token.as_deref(), data).await
 }
 
 #[derive(Deserialize)]
@@ -1467,15 +1459,35 @@ async fn read_records(
 }
 
 impl ProcessRegistry {
-    fn kill(&self, pid: u32) -> Result<(), String> {
-        let child = self
-            .0
+    fn lookup<T>(
+        &self,
+        pid: u32,
+        token: Option<&str>,
+        select: impl FnOnce(&ProcessEntry) -> T,
+    ) -> Result<T, String> {
+        self.0
             .lock()
             .unwrap()
             .get(&pid)
-            .map(|entry| entry.child.clone())
-            .ok_or_else(|| format!("no managed process with pid {pid}"))?;
+            .filter(|entry| token.is_none() || token == Some(entry.token.as_str()))
+            .map(select)
+            .ok_or_else(|| format!("no managed process with pid {pid}"))
+    }
+
+    fn kill(&self, pid: u32, token: Option<&str>) -> Result<(), String> {
+        let child = self.lookup(pid, token, |entry| entry.child.clone())?;
         child.kill().map_err(|e| e.to_string())
+    }
+
+    async fn write(&self, pid: u32, token: Option<&str>, data: StdinData) -> Result<(), String> {
+        let stdin = self.lookup(pid, token, |entry| entry.stdin.clone())?;
+        stdin
+            .write(match data {
+                StdinData::Text(s) => s.into_bytes(),
+                StdinData::Bytes(bytes) => bytes,
+            })
+            .await
+            .map_err(|e| e.to_string())
     }
 
     fn remove_exited(&self, pid: u32, token: &str) {
@@ -1988,6 +2000,52 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn stale_handles_cannot_write_to_or_kill_the_current_process() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let mut cmd = fixture("grandchild");
+        cmd.env(
+            "KAEDE_TEST_CONTROL",
+            listener.local_addr().unwrap().to_string(),
+        );
+        let (launch, stdin, _output) = start_process(cmd, Drain::Managed).await.unwrap();
+        let child = launch.transfer();
+        let pid = child.id();
+        let registry = ProcessRegistry::default();
+        let absent = registry.kill(pid, Some("current")).unwrap_err();
+        registry.0.lock().unwrap().insert(
+            pid,
+            ProcessEntry {
+                token: "current".into(),
+                kind: "test".into(),
+                meta: Value::Null,
+                stdin,
+                child,
+            },
+        );
+
+        timeout(Duration::from_secs(5), async {
+            let (mut control, _) = listener.accept().await.unwrap();
+            assert_eq!(registry.kill(pid, Some("stale")), Err(absent.clone()));
+            assert_eq!(
+                registry
+                    .write(pid, Some("stale"), StdinData::Bytes(vec![1]))
+                    .await,
+                Err(absent),
+            );
+            registry
+                .write(pid, Some("current"), StdinData::Bytes(vec![2]))
+                .await
+                .unwrap();
+            control.write_all(b"i").await.unwrap();
+            assert_eq!(control.read_u8().await.unwrap(), 2);
+            registry.kill(pid, Some("current")).unwrap();
+            wait_peer_closed(&mut control).await;
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
     async fn kill_interrupts_backpressured_stdin() {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
         let mut cmd = fixture("child");
@@ -2026,7 +2084,7 @@ mod tests {
             result = &mut write => panic!("write completed before kill: {result:?}"),
             result = timeout(Duration::from_secs(5), grandchild.read_u8()) => assert_eq!(result.unwrap().unwrap(), 73),
         }
-        registry.kill(pid).unwrap();
+        registry.kill(pid, None).unwrap();
         timeout(Duration::from_secs(5), async {
             assert!(write.await.is_err());
             monitor(

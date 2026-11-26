@@ -34,9 +34,9 @@ export function toProcessHandle<Meta>({
 }: ProcessDtoType<Meta>): ProcessHandleType<Meta> {
   return {
     token, pid, kind, meta,
-    "kill" : () => invoke("kill_process", { pid }),
+    "kill" : () => invoke("kill_process", { pid, token }),
     "write": data => invoke("write_process", {
-      pid,
+      pid, token,
       "data": typeof data === "string" ? data : [...data],
     }),
   };
