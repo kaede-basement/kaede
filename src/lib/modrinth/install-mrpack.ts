@@ -51,12 +51,30 @@ export function resolvePatchVersions(
   return patchVersions;
 }
 
+type RawMrpackSummary = Omit<MrpackSummaryType, "fileCount"> & {
+  "fileCount"?: number;
+  "files"?    : ReadonlyArray<unknown>;
+};
+
+// External browser/Wails bridges still return a full 'files' array for peek/install.
+function normalizeSummary(raw: RawMrpackSummary): MrpackSummaryType {
+  return {
+    "formatVersion": raw.formatVersion,
+    "name"         : raw.name,
+    "versionId"    : raw.versionId,
+    "summary"      : raw.summary,
+    "dependencies" : raw.dependencies,
+    "fileCount"    : raw.fileCount ?? raw.files?.length ?? 0,
+    "overrides"    : raw.overrides,
+  };
+}
+
 export async function peekMrpack(archivePath: string): Promise<MrpackSummaryType | undefined> {
-  const manifest = await invoke<MrpackSummaryType | null>("peek_mrpack", {
+  const manifest = await invoke<RawMrpackSummary | null>("peek_mrpack", {
     archivePath,
   });
 
-  return manifest ?? undefined;
+  return manifest ? normalizeSummary(manifest) : undefined;
 }
 
 export const ActiveInstall = shallowRef<{ "instanceId": string; "cancel": () => Promise<void> }>();
@@ -109,9 +127,11 @@ export async function installMrpack({
       await cancel();
     }
 
-    return await invoke("install_mrpack", {
+    const manifest = await invoke<RawMrpackSummary>("install_mrpack", {
       archivePath, onProgress, cancelId, reservation, "targetDirPath": instanceRootDirectory,
     });
+
+    return normalizeSummary(manifest);
   } finally {
     finished = true;
     ActiveInstall.value = undefined;

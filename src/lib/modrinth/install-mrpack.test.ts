@@ -15,7 +15,7 @@ import { declareInstanceStates, instanceStates } from "@/states/instance.ts";
 import type { InstanceStateType } from "@/types/application/instance-states.type.ts";
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 
-import { ActiveInstall, installMrpack, repairLegacyMrpack } from "./install-mrpack.ts";
+import { ActiveInstall, installMrpack, peekMrpack, repairLegacyMrpack } from "./install-mrpack.ts";
 
 const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 
@@ -83,7 +83,7 @@ test("remount retains the install and its completion preserves the newer draft",
   declareGlobalStates();
   declareInstanceStates();
   expect(initialPage).toHaveBeenCalled();
-  const prepared = Promise.withResolvers<void>();
+  const prepared = Promise.withResolvers<Record<string, unknown>>();
   const started = Promise.withResolvers<void>();
   const ipc = mock(async (cmd: string) => {
     if (cmd === "repair_legacy_mrpack") {
@@ -123,7 +123,15 @@ test("remount retains the install and its completion preserves the newer draft",
       .rejects.toThrow("active");
     page.instance = { ...page.instance, "name": "B" };
     page.importedModpack = { ...page.importedModpack, "path": "B" };
-    prepared.resolve();
+    prepared.resolve({
+      "formatVersion": 1,
+      "name"         : "A",
+      "versionId"    : "1.0",
+      "summary"      : null,
+      "dependencies" : { "minecraft": "1" },
+      "fileCount"    : 0,
+      "overrides"    : 0,
+    });
     const id = await installing;
 
     expect(instanceStates[id!].name).toBe("A");
@@ -224,4 +232,42 @@ test("legacy archive availability and cancellation retain the retry marker", asy
     expect(statuses.downloads.total).toBe(0);
   }
   expect(commands).toEqual(["repair_legacy_mrpack", "repair_legacy_mrpack"]);
+});
+
+test("peekMrpack and installMrpack normalize summary and legacy files payloads", async () => {
+  const base = {
+    "formatVersion": 1,
+    "name"         : "Pack",
+    "versionId"    : "1.0.0",
+    "summary"      : null,
+    "dependencies" : { "minecraft": "1.21.1" },
+    "overrides"    : 2,
+  };
+  const statuses = { "downloads": { "success": 0, "total": 0 } } as LauncherStatusesType;
+
+  mockIPC(cmd => {
+    if (cmd === "peek_mrpack") return { ...base, "files": [{ "path": "mods/a.jar" }] };
+    if (cmd === "prepare_mrpack_install") return 1;
+    if (cmd === "install_mrpack") return { ...base, "files": [{ "path": "mods/a.jar" }] };
+  });
+
+  const legacyPeek = await peekMrpack("pack.mrpack");
+  const legacyInstall = await installMrpack({
+    "archivePath": "pack.mrpack", "instanceId": "i", statuses,
+  });
+
+  expect(legacyPeek).toEqual({ ...base, "fileCount": 1 });
+  expect(legacyInstall).toEqual({ ...base, "fileCount": 1 });
+  expect("files" in (legacyPeek as object)).toBe(false);
+  expect("files" in (legacyInstall as object)).toBe(false);
+
+  mockIPC(cmd => {
+    if (cmd === "peek_mrpack") return { ...base, "fileCount": 3 };
+    if (cmd === "prepare_mrpack_install") return 2;
+    if (cmd === "install_mrpack") return { ...base, "fileCount": 3 };
+  });
+
+  expect(await peekMrpack("pack.mrpack")).toEqual({ ...base, "fileCount": 3 });
+  expect(await installMrpack({ "archivePath": "pack.mrpack", "instanceId": "i", statuses }))
+    .toEqual({ ...base, "fileCount": 3 });
 });
