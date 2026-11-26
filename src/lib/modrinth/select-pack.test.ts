@@ -1,9 +1,11 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { expect, mock, test } from "bun:test";
+import { expect, mock, spyOn, test } from "bun:test";
 import { effectScope } from "vue";
 import { createSSRApp } from "vue";
 import { parse } from "vue/compiler-sfc";
 import { renderToString } from "vue/server-renderer";
+
+import { HttpBackend } from "@/lib/network/http-backend.ts";
 
 import { usePackSelection } from "./select-pack.ts";
 
@@ -77,6 +79,71 @@ test("selector sends metadata, cancels superseded work and reports errors", asyn
     scope.stop();
     if (randomUUID) Object.defineProperty(crypto, "randomUUID", randomUUID);
     else Reflect.deleteProperty(crypto, "randomUUID");
+    if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
+});
+
+test("preview selector normalizes legacy peek_mrpack without state bootstrap", async () => {
+  const oldWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const oldBackend = HttpBackend.current;
+  const payload = new Uint8Array([80, 75, 5, 6]);
+  const sha1 = [...new Uint8Array(await crypto.subtle.digest("SHA-1", payload))]
+    .map(byte => byte.toString(16).padStart(2, "0"))
+    .join("");
+  const sha512 = [...new Uint8Array(await crypto.subtle.digest("SHA-512", payload))]
+    .map(byte => byte.toString(16).padStart(2, "0"))
+    .join("");
+  const base = {
+    "formatVersion": 1,
+    "name"         : "Browser Pack",
+    "versionId"    : "1.0.0",
+    "summary"      : null,
+    "dependencies" : { "minecraft": "1.21.1" },
+    "overrides"    : 1,
+  };
+  const scope = effectScope();
+  const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+    (async () => new Response(payload, { "status": 200 })) as unknown as typeof fetch,
+  );
+
+  Object.defineProperty(globalThis, "window", { "configurable": true, "value": { crypto } });
+  HttpBackend.current = "browser";
+
+  try {
+    mockIPC(command => {
+      if (command === "peek_mrpack") {
+        return { ...base, "files": [{ "path": "mods/a.jar" }, { "path": "mods/b.jar" }] };
+      }
+      if (command === "plugin:fs|exists") return false;
+
+      return null;
+    });
+
+    const received: Array<unknown> = [];
+    const selector = scope.run(() => usePackSelection(pack => {
+      received.push(pack);
+    }))!;
+
+    await selector.select([{
+      "url"     : "https://cdn.modrinth.com/pack.mrpack",
+      "filename": "pack.mrpack",
+      "hashes"  : { sha1, sha512 },
+      "size"    : payload.byteLength,
+      "primary" : true,
+    }]);
+
+    expect(selector.failure.value).toBe("");
+    expect(received).toHaveLength(1);
+    const pack = received[0] as { "manifest": Record<string, unknown>; "path": string };
+
+    expect(pack.manifest).toEqual({ ...base, "fileCount": 2 });
+    expect("files" in pack.manifest).toBe(false);
+    expect(pack.path).toContain(`${sha512}.mrpack`);
+  } finally {
+    scope.stop();
+    fetchSpy.mockRestore();
+    HttpBackend.current = oldBackend;
     if (oldWindow) Object.defineProperty(globalThis, "window", oldWindow);
     else Reflect.deleteProperty(globalThis, "window");
   }

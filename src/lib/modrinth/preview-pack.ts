@@ -5,7 +5,7 @@ import { createRequestId } from "@/lib/network/create-request-id.ts";
 import { fetchDocument } from "@/lib/network/fetch-document.ts";
 import type { MrpackSummaryType } from "@/types/modrinth/mrpack.type.ts";
 
-import { peekMrpack } from "./install-mrpack.ts";
+import { peekMrpack } from "./mrpack-summary.ts";
 import type { PackFile } from "./select-pack.ts";
 
 export async function downloadPreviewPack(file: PackFile, signal: AbortSignal):

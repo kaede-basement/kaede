@@ -27,6 +27,10 @@ import type { InstanceStateType } from "@/types/application/instance-states.type
 import type { LauncherStatusesType } from "@/types/launcher/launch/launch-status.type.ts";
 import type { MrpackSummaryType } from "@/types/modrinth/mrpack.type.ts";
 
+import { normalizeMrpackSummary, type RawMrpackSummary } from "./mrpack-summary.ts";
+
+export { peekMrpack } from "./mrpack-summary.ts";
+
 export function resolvePatchVersions(
   dependencies: MrpackSummaryType["dependencies"],
 ): InstanceStateType["patchVersions"] | undefined {
@@ -49,32 +53,6 @@ export function resolvePatchVersions(
   }
 
   return patchVersions;
-}
-
-type RawMrpackSummary = Omit<MrpackSummaryType, "fileCount"> & {
-  "fileCount"?: number;
-  "files"?    : ReadonlyArray<unknown>;
-};
-
-// External browser/Wails bridges still return a full 'files' array for peek/install.
-function normalizeSummary(raw: RawMrpackSummary): MrpackSummaryType {
-  return {
-    "formatVersion": raw.formatVersion,
-    "name"         : raw.name,
-    "versionId"    : raw.versionId,
-    "summary"      : raw.summary,
-    "dependencies" : raw.dependencies,
-    "fileCount"    : raw.fileCount ?? raw.files?.length ?? 0,
-    "overrides"    : raw.overrides,
-  };
-}
-
-export async function peekMrpack(archivePath: string): Promise<MrpackSummaryType | undefined> {
-  const manifest = await invoke<RawMrpackSummary | null>("peek_mrpack", {
-    archivePath,
-  });
-
-  return manifest ? normalizeSummary(manifest) : undefined;
 }
 
 export const ActiveInstall = shallowRef<{ "instanceId": string; "cancel": () => Promise<void> }>();
@@ -131,7 +109,7 @@ export async function installMrpack({
       archivePath, onProgress, cancelId, reservation, "targetDirPath": instanceRootDirectory,
     });
 
-    return normalizeSummary(manifest);
+    return normalizeMrpackSummary(manifest);
   } finally {
     finished = true;
     ActiveInstall.value = undefined;
