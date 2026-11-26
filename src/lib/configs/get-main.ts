@@ -17,7 +17,6 @@
  */
 
 import FileStructure from "@/constants/file-structure.ts";
-import { getDefaultConfig } from "@/lib/configs/scopes/get-default-config.ts";
 import { regenerateConfigFile } from "@/lib/configs/scopes/regenerate-config-file.ts";
 import FileManager from "@/lib/file-manager";
 import Hooks from "@/lib/hooks";
@@ -28,7 +27,7 @@ import type { ConfigType } from "@/types/configs/config.type.ts";
 export async function getMain(properties?: Partial<{
   "baseDirectory": string;
   "parsedFile"   : ParsedFile;
-}>): Promise<ConfigType> {
+}>, regenerate = regenerateConfigFile): Promise<ConfigType> {
   const baseDirectory: string = properties?.baseDirectory ?? FileManager.getBaseDirectory();
   const parsedFile: ParsedFile | undefined = properties?.parsedFile;
   const configFileDirectory = FileManager.join(baseDirectory, FileStructure.Files.Config);
@@ -45,7 +44,7 @@ export async function getMain(properties?: Partial<{
   }
 
   if (parsedFile?.status === "corrupt") {
-    return regenerateConfigFile({
+    return regenerate({
       baseDirectory,
       configFileDirectory,
     });
@@ -53,12 +52,11 @@ export async function getMain(properties?: Partial<{
 
   const parsedConfig: unknown = parsedFile?.status === "loaded"
     ? parsedFile.data
-    : await FileManager.handleJsonFile({
-      baseDirectory,
-      "path"           : [FileStructure.Files.Config],
-      "label"          : FileStructure.Files.Config,
-      "getDefaultValue": getDefaultConfig,
-    });
+    : await regenerate({ baseDirectory, configFileDirectory });
+
+  if (typeof parsedConfig !== "object" || parsedConfig === null || Array.isArray(parsedConfig)) {
+    return regenerate({ baseDirectory, configFileDirectory });
+  }
 
   const configId: string =
     [
@@ -77,11 +75,17 @@ export async function getMain(properties?: Partial<{
   });
 
   if (config === false) {
-    return regenerateConfigFile({
+    return regenerate({
       baseDirectory,
       configFileDirectory,
     });
   }
 
-  return config;
+  const result = await Hooks.catchAsyncResponseHooks<ConfigType>({
+    "scope" : "onConfigFileGet",
+    "timing": "after",
+    "toPass": config,
+  });
+
+  return result === "continue" || result === undefined ? config : result;
 }

@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { Channel } from "@tauri-apps/api/core";
-import { onMounted, onUnmounted, type ShallowRef, shallowRef } from "vue";
+import { Channel, invoke } from "@tauri-apps/api/core";
+import { onMounted, onUnmounted, type ShallowRef, shallowRef, watch } from "vue";
 
-import { GlobalInternals } from "@/extendable/global-internals.ts";
+import { BrowserLogs } from "@/extendable/global-internals.ts";
 import Browser from "@/lib/browser";
 import Logging from "@/lib/logging";
 
@@ -28,26 +28,42 @@ type LogStreamEventType =
   | { "type": "lines";    "data": Array<string> }
   | { "type": "truncated" };
 
+let lastLegacyId = 0;
+
 export function useLogStream(): {
-  "lines": ShallowRef<{ "list": Array<string> }>;
+  "lines": ShallowRef<{ "list": Array<string>; "dropped"?: number }>;
 } {
   const isBrowser = Browser.detectIsBrowser();
-  const lines = shallowRef<{ "list": Array<string> }>({ "list": [] });
+  const lines = shallowRef<{ "list": Array<string>; "dropped"?: number }>({ "list": [] });
 
   if (isBrowser) {
-    const currentLogs = GlobalInternals.logsInBrowser;
-    const intervalId = setInterval((): void => {
-      lines.value = { "list": currentLogs };
-    }, 100);
-
-    onUnmounted(() => {
-      clearInterval(intervalId);
-    });
+    watch(BrowserLogs, buffer => {
+      lines.value = { ...buffer };
+    }, { "immediate": true });
 
     return { lines };
   }
 
+  let mounted = false;
+  let token: number | undefined;
+  let subscriptionId: number | undefined;
+
   onMounted(async (): Promise<void> => {
+    mounted = true;
+    const id = await invoke<number | undefined>("next_log_subscription_id");
+
+    if (!mounted) {
+      if (typeof id === "number") {
+        await Logging.stopStreamingLogs(undefined, id);
+      }
+
+      return;
+    }
+    if (typeof id === "number") {
+      token = id;
+    } else {
+      subscriptionId = ++lastLegacyId;
+    }
     const channel = new Channel<LogStreamEventType>;
 
     // eslint-disable-next-line unicorn/prefer-add-event-listener
@@ -75,10 +91,15 @@ export function useLogStream(): {
       }
     };
 
-    await Logging.streamLogs<LogStreamEventType>(channel);
+    await Logging.streamLogs<LogStreamEventType>(channel, subscriptionId, token);
   });
 
-  onUnmounted(Logging.stopStreamingLogs);
+  onUnmounted(async (): Promise<void> => {
+    mounted = false;
+    if (token !== undefined || subscriptionId !== undefined) {
+      await Logging.stopStreamingLogs(subscriptionId, token);
+    }
+  });
 
   return { lines };
 }

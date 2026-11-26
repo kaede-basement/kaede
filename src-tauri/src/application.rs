@@ -1,5 +1,4 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Mutex;
 use serde::Serialize;
@@ -9,15 +8,6 @@ use crate::file_system::{load_config_files, ParsedFile};
 use crate::hashing::{APPLICATION_HASH, get_executable_hash};
 
 static LAUNCH_COUNT: AtomicI32 = AtomicI32::new(0);
-
-pub fn is_portable() -> bool {
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            return exe_dir.join("portable.txt").exists();
-        }
-    }
-    false
-}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,18 +20,12 @@ pub struct InitialStateBasic {
 }
 
 pub fn get_application_directory_info(app: &tauri::AppHandle) -> Result<(PathBuf, bool), String> {
-    let portable = is_portable();
-    let base_directory = if portable {
-        std::env::current_exe()
-            .map_err(|error| error.to_string())?
-            .parent()
-            .ok_or_else(|| "Failed to get executable directory".to_string())?
-            .to_path_buf()
-    } else {
-        app.path().app_data_dir().map_err(|error| error.to_string())?
-    };
-
-    Ok((base_directory, portable))
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent().filter(|dir| dir.join("portable.txt").exists()) {
+            return Ok((dir.to_owned(), true));
+        }
+    }
+    Ok((app.path().app_data_dir().map_err(|e| e.to_string())?, false))
 }
 
 pub fn get_basic_state(app: &tauri::AppHandle, base_directory: PathBuf, portable: bool) -> InitialStateBasic {
@@ -109,7 +93,7 @@ pub async fn get_initial_state(
         None => load_config_files(preloaded_state.base_directory.clone()).await?,
     };
 
-    let executable_hash = APPLICATION_HASH.get_or_init(get_executable_hash).await;
+    let executable_hash = startup_hash(APPLICATION_HASH.get_or_try_init(get_executable_hash).await);
     let basic_state = get_basic_state(
         &app,
         preloaded_state.base_directory.clone(),
@@ -119,64 +103,32 @@ pub async fn get_initial_state(
     Ok(InitialState {
         basic: basic_state,
         parsed: parsed_configs,
-        executable_hash: executable_hash.clone(),
+        executable_hash,
     })
 }
 
-// If the 'latest.log' file exists and is not empty,
-// then rename that file to 'kaede-{number}.log',
-// where 'number' is one greater than the biggest existing log file number.
-//
-// Else abort the log file preparation.
-pub fn prepare_log_file(logs_dir: &Path, app_name: &str) -> std::io::Result<()> {
-    let latest_log_path = logs_dir.join("latest.log");
+fn startup_hash(result: Result<&String, String>) -> String {
+    result.cloned().unwrap_or_else(|error| {
+        log::error!("Failed to hash launcher executable: {error}");
+        "no_hash".to_owned()
+    })
+}
 
-    if !latest_log_path.exists() {
-        return Ok(());
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn unreadable_executable_leaves_cache_retryable() {
+        let cache = tokio::sync::OnceCell::new();
+        let failure = cache
+            .get_or_try_init(|| async {
+                Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).to_string())
+            })
+            .await;
+        assert_eq!(startup_hash(failure), "no_hash");
+        assert!(cache.get().is_none());
+
+        let retry = cache.get_or_try_init(|| async { Ok("digest".into()) }).await;
+        assert_eq!(startup_hash(retry), "digest");
     }
-
-    let metadata = fs::metadata(&latest_log_path)?;
-
-    // Empty log files are already prepared for logging
-    if metadata.len() == 0 {
-        return Ok(());
-    }
-
-    // Rotated log files are named '{app_name}-{number}.log'
-    let prefix = format!("{}-", app_name);
-
-    // We will keep track of the biggest log file number to make a unique file name
-    let mut max_number: usize = 0;
-
-    for entry in fs::read_dir(logs_dir)? {
-        let entry = entry?;
-        let file_name = entry.file_name();
-
-        // Skip files whose names are not valid UTF-8
-        let Some(filename) = file_name.to_str() else {
-            continue;
-        };
-
-        // Count only '{prefix}{number}.log' files
-        let number = filename
-            .strip_prefix(&prefix)
-            .and_then(|rest| rest.strip_suffix(".log"))
-            .and_then(|digits| digits.parse::<usize>().ok());
-
-        if let Some(number) = number {
-            max_number = max_number.max(number);
-        }
-    }
-
-    // Get the absolute path of the renamed log file
-    let new_log_path = logs_dir.join(format!(
-        "{}-{}.log",
-        app_name,
-        max_number + 1,
-    ));
-
-    // 'latest.log' becomes 'kaede-{number}.log'
-    fs::rename(&latest_log_path, &new_log_path)?;
-
-    Ok(())
 }

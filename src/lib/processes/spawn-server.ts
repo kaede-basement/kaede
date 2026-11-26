@@ -32,18 +32,25 @@ export async function spawnServer({ name, program, args, port }: {
   "args"   : Array<string>;
   "port"   : number;
 }): Promise<ServerProcessType> {
+  let exited = false;
   const handle = await spawnProcess<ServerMetaType>({
     program, args,
     "kind": "extension-server",
     "meta": { name, port },
   }, {
     "onOutput": (lines, stream) => (stream === "stdout" ? log.debug : log.error)(
-      __PRE_BUNDLED_FILENAME__, "txiki server output:" + "\n", lines.join("\n"),
+      __PRE_BUNDLED_FILENAME__, `${name} server output:\n`, lines.join("\n"),
     ),
-    "onExit": () => {
-      serverProcesses.value = serverProcesses.value.filter(item => item.name !== name);
+    "onExit": ({ pid }) => {
+      exited = true;
+      serverProcesses.value = serverProcesses.value.filter(item => item.value.pid !== pid);
     },
   });
+
+  if (exited) {
+    throw new Error(`Server '${name}' exited during startup (PID ${handle.pid})`);
+  }
+
   const process = hydrate(handle);
 
   serverProcesses.value = [...serverProcesses.value, process];

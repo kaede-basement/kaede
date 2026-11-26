@@ -60,9 +60,11 @@ const filtered = computed((): { "list": Array<LogLineType> } => {
     ? lines.value.list
     : instanceLogs?.[globalStates.logs.mode]?.list ?? [];
 
+  const dropped = globalStates.logs.mode === "kaede-launcher" ? lines.value.dropped ?? 0 : 0;
+
   if (filtering === "") {
     return {
-      "list": original.map((line: string, index: number) => ({ "raw": line, index })),
+      "list": original.map((line, index) => ({ "raw": line, "index": dropped + index })),
     };
   }
 
@@ -70,7 +72,7 @@ const filtered = computed((): { "list": Array<LogLineType> } => {
 
   for (const [index, line] of original.entries()) {
     if (line.toLowerCase().includes(filtering)) {
-      result.push({ "raw": line, index });
+      result.push({ "raw": line, "index": dropped + index });
     }
   }
 
@@ -107,24 +109,27 @@ function updateView(event: Event): void {
 
 // Stick to the bottom of the log viewer
 watch(
-  () => [
-    filtered.value.list.length,
-    elements.value.length,
-  ],
-  async () => {
-    if (!container.value) {
-      return;
-    }
-
+  () => [filtered.value, elements.value.length] as const,
+  async ([current], [previous]) => {
     const viewer = container.value;
-    const twoLinesHeight = globalStates.logs.lineHeight * 2;
-    const toCatchRange = viewer.scrollTop + twoLinesHeight + 1;
-    const isAtTheBottom = viewer.scrollHeight - viewer.clientHeight <= toCatchRange;
+
+    if (!viewer) return;
+    const height = globalStates.logs.lineHeight;
+    const isAtTheBottom = viewer.scrollHeight - viewer.clientHeight <= viewer.scrollTop +
+      (2 * height) + 1;
+    const anchor = previous.list[position.value]?.index;
+    const trimmed = globalStates.logs.mode === "kaede-launcher" && lines.value.dropped
+      && previous.list[0]?.index < current.list[0]?.index;
 
     await nextTick();
 
     if (isAtTheBottom) {
       viewer.scrollTo({ "top": viewer.scrollHeight - viewer.clientHeight });
+    } else if (trimmed && anchor !== undefined) {
+      const retained = current.list.findIndex(line => line.index >= anchor);
+
+      viewer.scrollTop = Math.max(0, retained) * height;
+      position.value = Math.round(viewer.scrollTop / height);
     }
   },
 );

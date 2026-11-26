@@ -18,18 +18,18 @@
 
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query";
-import { writeFile } from "@tauri-apps/plugin-fs";
+import { mkdir, writeFile } from "@tauri-apps/plugin-fs";
 import { fetch } from "@tauri-apps/plugin-http";
 import { onClickOutside } from "@vueuse/core";
 import { markRaw, ref, useTemplateRef } from "vue";
 
 import { InstanceCreationSections } from "@/constants/application.ts";
-import FileStructure from "@/constants/file-structure.ts";
 import { ModrinthAPI } from "@/constants/modrinth.ts";
 import Errors from "@/lib/errors";
 import FileManager from "@/lib/file-manager";
 import { log } from "@/lib/logging/log.ts";
 import Modrinth from "@/lib/modrinth";
+import { selectArchive, stagingDirectory } from "@/lib/modrinth/staging.ts";
 import { globalStates } from "@/states/global.ts";
 import type { MrpackManifestType } from "@/types/modrinth/mrpack.type.ts";
 
@@ -124,51 +124,33 @@ async function handleClick(event: MouseEvent): Promise<void> {
     return;
   }
 
-  const cachePath: string = FileManager.join(
-    FileManager.getBaseDirectory(),
-    FileStructure.Folders.Cache.Path,
-    projectName + currentEntry.version_number + currentEntry.game_versions[0] + ".mrpack",
+  const directory = stagingDirectory();
+  const cachePath = FileManager.join(directory,
+    "modrinth-" + crypto.getRandomValues(new Uint32Array(4)).join("-") + ".mrpack",
   );
 
-  const written: void | false = await writeFile(cachePath, bytes)
-    .catch(error => {
-      log.error(
-        __PRE_BUNDLED_FILENAME__,
-        "Failed to write file:",
-        Errors.prettify(error),
-      );
+  try {
+    await selectArchive(cachePath, async () => {
+      await mkdir(directory, { "recursive": true });
+      await writeFile(cachePath, bytes);
+      const manifest: MrpackManifestType | undefined = await Modrinth.peekMrpack(cachePath);
 
-      return false;
+      if (!manifest) return false;
+      close();
+
+      Modrinth.applyManifest({ manifest, "path": cachePath });
+      globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
+
+      if (projectIcon && globalStates.pages["add-instance"]?.instance) {
+        globalStates.pages["add-instance"].instance.icon = projectIcon;
+      }
+
+      return true;
     });
-
-  if (written === false) {
+  } catch (error) {
+    log.error(__PRE_BUNDLED_FILENAME__, String(error));
+  } finally {
     pending.value = false;
-
-    return;
-  }
-
-  const manifest: MrpackManifestType | undefined | void =
-    await Modrinth.peekMrpack(cachePath)
-      .catch(error => {
-        return log.error(
-          __PRE_BUNDLED_FILENAME__,
-          "Error while peeking the '.mrpack' manifest:",
-          Errors.prettify(error),
-        );
-      });
-
-  pending.value = false;
-
-  if (!manifest) {
-    return;
-  }
-  close();
-
-  Modrinth.applyManifest({ manifest, "path": cachePath });
-  globalStates.pages["add-instance"]?.select?.(InstanceCreationSections[0]);
-
-  if (projectIcon && globalStates.pages["add-instance"]?.instance) {
-    globalStates.pages["add-instance"].instance.icon = projectIcon;
   }
 }
 

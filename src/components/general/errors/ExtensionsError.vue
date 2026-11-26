@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { computed, onMounted, type Ref } from "vue";
 
 import Errors from "@/lib/errors";
+import { showLauncher } from "@/lib/initialization/show-launcher.ts";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 import type { NativeErrorType } from "@/types/errors/error-handling.type.ts";
@@ -33,7 +33,7 @@ onMounted(async () => {
         "User has enabled 'show-app-after-extensions-load';",
         "extensions loading has failed. Showing the webview now",
       );
-      await getCurrentWebviewWindow().show();
+      await showLauncher();
     } catch (error: unknown) {
       log.error(
         __PRE_BUNDLED_FILENAME__,

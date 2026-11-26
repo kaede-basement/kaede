@@ -30,7 +30,7 @@ export async function serveFile(
   const selectedPort: number = port ?? getFreePort();
 
   try {
-    return Processes.spawnServer({
+    return await Processes.spawnServer({
       name,
       "port"   : selectedPort,
       "program": { "type": "sidecar", "value": "txiki-server" },
@@ -42,5 +42,6 @@ export async function serveFile(
       "Failed to spawn a txiki server:",
       Errors.prettify(error),
     );
+    throw error;
   }
 }

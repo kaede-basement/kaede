@@ -1,5 +1,6 @@
 import FileStructure from "@/constants/file-structure.ts";
 import FileManager from "@/lib/file-manager";
+import { readState } from "@/lib/file-manager/read-state.ts";
 import { log } from "@/lib/logging/log.ts";
 import Schemas from "@/lib/schemas";
 import type {
@@ -13,28 +14,21 @@ export async function readInstances(properties?: Partial<{
   "parsedFile"   : ParsedFile;
 }>): Promise<InstanceStatesType> {
   const baseDirectory = properties?.baseDirectory ?? FileManager.getBaseDirectory();
-  const parsedFile: ParsedFile | undefined = properties?.parsedFile;
-  const parsedMetadata: unknown = parsedFile?.status === "loaded"
-    ? parsedFile.data
-    : await FileManager.handleJsonFile({
-      baseDirectory,
-      "path"           : [FileStructure.Files.Metadata],
-      "label"          : FileStructure.Files.Metadata,
-      "getDefaultValue": async (): Promise<object> => ({}),
-    });
 
+  const filename = FileStructure.Files.Metadata;
+
+  return readState(baseDirectory, filename, properties?.parsedFile, () => ({}), false, validate);
+}
+
+function validate(parsedMetadata: unknown): { "value": InstanceStatesType; "valid": boolean } {
   log.debug(__PRE_BUNDLED_FILENAME__, "Validating the instances metadata");
 
-  if (typeof parsedMetadata !== "object" || parsedMetadata === null) {
-    log.debug(__PRE_BUNDLED_FILENAME__, "Instances metadata are completely invalid");
-
-    return {};
-  }
-
+  const isRecord = typeof parsedMetadata === "object" && parsedMetadata !== null
+    && !Array.isArray(parsedMetadata);
   const validInstances: InstanceStatesType = {};
-  let allValid: boolean = true;
+  let allValid = isRecord;
 
-  for (const [currentId, currentMetadata] of Object.entries(parsedMetadata)) {
+  for (const [currentId, currentMetadata] of Object.entries(isRecord ? parsedMetadata : {})) {
     const instance: InstanceStateType | false = Schemas.validate.instance({
       "value": currentMetadata,
       "label": "instance",
@@ -52,9 +46,5 @@ export async function readInstances(properties?: Partial<{
     validInstances[currentId] = currentMetadata;
   }
 
-  if (allValid) {
-    log.info(__PRE_BUNDLED_FILENAME__, "All specified metadata instances are valid");
-  }
-
-  return validInstances;
+  return { "value": validInstances, "valid": allValid };
 }

@@ -1,5 +1,4 @@
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-
+import { showLauncher } from "@/lib/initialization/show-launcher.ts";
 import { log } from "@/lib/logging/log.ts";
 import { globalStates } from "@/states/global.ts";
 
@@ -10,7 +9,7 @@ export async function showWebviewWindow(): Promise<void> {
       "User has enabled 'show-app-after-extensions-load';",
       "Showing the webview now",
     );
-    await getCurrentWebviewWindow().show();
+    await showLauncher();
 
     log.info(
       __PRE_BUNDLED_FILENAME__,
